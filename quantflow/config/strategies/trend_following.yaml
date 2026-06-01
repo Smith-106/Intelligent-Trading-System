@@ -1,0 +1,25 @@
+# Trend Following Strategy Configuration
+strategy:
+  name: "trend_following"
+  symbol: "BTC/USDT"
+  timeframe: "1d"
+
+  params:
+    ma_fast: 5
+    ma_medium: 20
+    ma_slow: 60
+    rsi_period: 14
+    rsi_buy_min: 40
+    rsi_buy_max: 70
+    macd_fast: 12
+    macd_slow: 26
+    macd_signal: 9
+    atr_period: 14
+    atr_min_volatility: 0.02
+    volume_ma_period: 20
+
+  exit:
+    stop_loss_pct: -0.05
+    stop_loss_atr_multiplier: 2.0
+    take_profit_pct: 0.15
+    trailing_stop_atr_multiplier: 1.5

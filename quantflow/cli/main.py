@@ -1,0 +1,541 @@
+"""CLI entry point for QuantFlow."""
+
+from __future__ import annotations
+
+import asyncio
+from typing import TYPE_CHECKING
+
+import typer
+from rich.console import Console
+from rich.table import Table
+
+from quantflow.common.config import AppConfig, load_config
+from quantflow.monitoring.logger import setup_logging
+
+setup_logging()
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+app = typer.Typer(
+    name="quantflow",
+    help="Personal Crypto quantitative trading system\n\nCommands: download → research → optimize → validate → run",
+    no_args_is_help=True,
+    rich_markup_mode="rich",
+)
+console = Console()
+
+
+def _load(config_path: str) -> AppConfig:
+    return load_config(config_path)
+
+
+@app.command()
+def download(
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    timeframe: str = typer.Option("1d", help="K-line timeframe"),
+    start: str = typer.Option("2024-01-01", help="Start date (YYYY-MM-DD)"),
+    end: str = typer.Option("2025-01-01", help="End date (YYYY-MM-DD)"),
+    config: str = typer.Option("config/default.yaml", help="Config file path"),
+) -> None:
+    """Download historical data from OKX.
+
+    Examples:
+        quantflow download --symbol BTC/USDT --start 2024-01-01
+        quantflow download --symbol ETH/USDT --timeframe 4h --start 2023-06-01
+    """
+    from quantflow.data.cleaner import clean_ohlcv
+    from quantflow.data.fetcher import DataFetcher
+    from quantflow.data.store import DataStore
+
+    cfg = _load(config)
+
+    async def _run() -> None:
+        fetcher = DataFetcher(cfg.data)
+        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+
+        try:
+            with console.status("[bold blue]Connecting to OKX..."):
+                await fetcher.connect()
+            console.print("[green]✓[/] Connected to OKX")
+
+            with console.status(f"[bold blue]Downloading {symbol} {timeframe} ({start} → {end})..."):
+                df = await fetcher.fetch_ohlcv(symbol, timeframe, start, end)
+
+            if df.empty:
+                console.print("[red]✗ No data fetched. Check symbol and date range.[/]")
+                console.print("  Hint: valid symbols include BTC/USDT, ETH/USDT, SOL/USDT")
+                return
+
+            console.print(f"[dim]Raw data: {len(df)} bars[/]")
+
+            with console.status("[bold blue]Cleaning data..."):
+                df = clean_ohlcv(df)
+
+            with console.status("[bold blue]Saving to Parquet..."):
+                store.save(df, symbol)
+
+            date_range = store.get_date_range(symbol)
+            console.print(f"[green]✓[/] Saved [bold]{len(df)}[/] bars for [bold]{symbol}[/] ({timeframe})")
+            if date_range:
+                from datetime import datetime
+                s = datetime.fromtimestamp(date_range[0]/1000).strftime("%Y-%m-%d")
+                e = datetime.fromtimestamp(date_range[1]/1000).strftime("%Y-%m-%d")
+                console.print(f"  Range: {s} → {e}")
+        except Exception as e:
+            console.print(f"[red]✗ Error: {e}[/]")
+            console.print("  Check your internet connection and symbol name.")
+        finally:
+            await fetcher.disconnect()
+            store.close()
+
+    asyncio.run(_run())
+
+
+@app.command()
+def research(
+    strategy: str = typer.Option("trend_following", help="Strategy name"),
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    start: str = typer.Option("2024-01-01", help="Start date"),
+    end: str = typer.Option("2025-01-01", help="End date"),
+    capital: float = typer.Option(10000.0, help="Initial capital"),
+    fee: float = typer.Option(0.001, help="Trading fee rate"),
+    config: str = typer.Option("config/default.yaml", help="Config file path"),
+) -> None:
+    """Run strategy backtest research.
+
+    Examples:
+        quantflow research --strategy trend_following --symbol BTC/USDT
+        quantflow research --strategy mean_reversion --capital 50000 --fee 0.002
+    """
+    from quantflow.data.store import DataStore
+    from quantflow.strategy.research.backtest import BacktestEngine
+    from quantflow.strategy.research.report import generate_report
+    from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+
+    cfg = _load(config)
+    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+
+    # Load data
+    df = store.query(symbol)
+    if df.empty:
+        console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+        return
+
+    # Set datetime index
+    if "datetime" in df.columns:
+        df = df.set_index("datetime")
+
+    close = df["close"]
+
+    # Select strategy
+    strategy_map = {
+        "trend_following": TrendFollowingStrategy,
+        "mean_reversion": MeanReversionStrategy,
+        "elliott_wave": ElliottWaveStrategy,
+    }
+    strategy_cls = strategy_map.get(strategy)
+    if not strategy_cls:
+        console.print(f"[red]Unknown strategy: {strategy}. Available: {list(strategy_map.keys())}[/]")
+        return
+
+    console.print(f"[bold blue]Running backtest: {strategy} on {symbol}[/]")
+
+    # Generate signals and run backtest
+    strategy_instance = strategy_cls()
+    entries, exits = strategy_instance.generate_signals(df)
+    engine = BacktestEngine()
+    result = engine.run_backtest(
+        close, entries, exits,
+        initial_capital=capital, fee=fee,
+        strategy_id=strategy, symbol=symbol,
+    )
+
+    # Display report
+    console.print(generate_report(result, format="markdown"))
+
+    store.close()
+
+
+@app.command()
+def optimize(
+    strategy: str = typer.Option("trend_following", help="Strategy name"),
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    method: str = typer.Option("bayesian", help="Optimization method: bayesian | cmaes"),
+    trials: int = typer.Option(200, help="Number of optimization trials"),
+    capital: float = typer.Option(10000.0, help="Initial capital"),
+    config: str = typer.Option("config/default.yaml", help="Config file path"),
+) -> None:
+    """Run parameter optimization.
+
+    Examples:
+        quantflow optimize --strategy trend_following --method bayesian --trials 200
+        quantflow optimize --strategy mean_reversion --method cmaes --trials 100
+    """
+    from quantflow.data.store import DataStore
+    from quantflow.strategy.research.optimizer import StrategyOptimizer
+    from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+
+    cfg = _load(config)
+    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+
+    df = store.query(symbol)
+    if df.empty:
+        console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+        return
+
+    if "datetime" in df.columns:
+        df = df.set_index("datetime")
+
+    close = df["close"]
+
+    strategy_map = {
+        "trend_following": (TrendFollowingStrategy, {
+            "ma_fast": (3, 15),
+            "ma_medium": (10, 40),
+            "ma_slow": (30, 120),
+            "rsi_buy_min": (20, 50),
+            "rsi_buy_max": (60, 85),
+        }),
+        "mean_reversion": (MeanReversionStrategy, {
+            "rsi_oversold": (20, 40),
+            "rsi_exit": (40, 60),
+            "bb_std": (1.5, 3.0),
+        }),
+        "elliott_wave": (ElliottWaveStrategy, {
+            "zigzag_threshold": (0.02, 0.08),
+            "fib_tolerance": (0.10, 0.25),
+            "atr_stop_mult": (1.0, 3.0),
+        }),
+    }
+
+    if strategy not in strategy_map:
+        console.print(f"[red]Unknown strategy: {strategy}[/]")
+        return
+
+    strategy_cls, param_space = strategy_map[strategy]
+
+    console.print(f"[bold blue]Optimizing {strategy} with {method} ({trials} trials)...[/]")
+
+    def _signal_fn(close_series: "pd.Series", **params):
+        s = strategy_cls(params)
+        sub_df = df.copy()
+        sub_df["close"] = close_series.values
+        return s.generate_signals(sub_df)
+
+    optimizer = StrategyOptimizer()
+    result = optimizer.optimize(
+        close=close,
+        signal_fn=_signal_fn,
+        param_space=param_space,
+        n_trials=trials,
+        method=method,
+        initial_capital=capital,
+    )
+
+    table = Table(title="Optimization Results")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Method", result["method"])
+    table.add_row("Objective", result["objective"])
+    table.add_row("Best Value", f"{result['best_value']:.4f}")
+    table.add_row("Trials", str(result["n_trials"]))
+    for k, v in result["best_params"].items():
+        table.add_row(k, str(v))
+
+    console.print(table)
+    store.close()
+
+
+@app.command()
+def validate(
+    strategy: str = typer.Option("trend_following", help="Strategy name"),
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    method: str = typer.Option("full", help="Validation: cpcv | dsr | pbo | wfo | full | gate"),
+    groups: int = typer.Option(8, help="CPCV groups"),
+    test_groups: int = typer.Option(2, help="CPCV test groups"),
+    n_trials: int = typer.Option(100, help="Number of trials for DSR"),
+    wfo_windows: int = typer.Option(5, help="Walk-forward windows"),
+    capital: float = typer.Option(10000.0, help="Initial capital"),
+    config: str = typer.Option("config/default.yaml", help="Config file path"),
+) -> None:
+    """Run anti-overfitting validation.
+
+    Methods:
+        cpcv   — Combinatorial Purged Cross-Validation (PBO < 0.5)
+        dsr    — Deflated Sharpe Ratio (DSR > 0.95)
+        pbo    — Probability of Backtest Overfitting
+        wfo    — Walk-Forward Optimization (OOS efficiency > 50%)
+        full   — All validation methods
+        gate   — GO/NO-GO decision gate (CPCV + DSR + WFO)
+
+    Examples:
+        quantflow validate --strategy trend_following --method gate
+        quantflow validate --method cpcv --groups 10 --test-groups 3
+    """
+    from quantflow.data.store import DataStore
+    from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+
+    cfg = _load(config)
+    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+    df = store.query(symbol)
+    if df.empty:
+        console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+        return
+
+    if "datetime" in df.columns:
+        df = df.set_index("datetime")
+
+    strategy_map = {
+        "trend_following": TrendFollowingStrategy,
+        "mean_reversion": MeanReversionStrategy,
+        "elliott_wave": ElliottWaveStrategy,
+    }
+    strategy_cls = strategy_map.get(strategy)
+    if not strategy_cls:
+        console.print(f"[red]Unknown strategy: {strategy}[/]")
+        return
+
+    strategy_instance = strategy_cls()
+    entries, exits = strategy_instance.generate_signals(df)
+    close = df["close"]
+
+    if method == "cpcv":
+        from quantflow.strategy.validation.cpcv import cpcv_backtest
+        console.print("[bold blue]Running CPCV validation...[/]")
+        result = cpcv_backtest(close, entries, exits, n_groups=groups,
+                               n_test_groups=test_groups, initial_capital=capital)
+        _display_cpcv(result)
+
+    elif method == "dsr":
+        from quantflow.strategy.research.backtest import BacktestEngine
+        from quantflow.strategy.validation.dsr import deflated_sharpe_ratio
+        bt = BacktestEngine()
+        res = bt.run_backtest(close, entries, exits, initial_capital=capital)
+        console.print("[bold blue]Running DSR validation...[/]")
+        result = deflated_sharpe_ratio(res.sharpe_ratio, n_trials=n_trials,
+                                        sample_length=len(close))
+        _display_dsr(result)
+
+    elif method == "wfo":
+        from quantflow.strategy.validation.wfo import walk_forward_optimization
+        console.print("[bold blue]Running Walk-Forward Optimization...[/]")
+        rolling = walk_forward_optimization(close, entries, exits, n_windows=wfo_windows,
+                                             mode="rolling", initial_capital=capital)
+        anchored = walk_forward_optimization(close, entries, exits, n_windows=wfo_windows,
+                                              mode="anchored", initial_capital=capital)
+        _display_wfo(rolling, anchored)
+
+    elif method == "pbo":
+        from quantflow.strategy.validation.pbo import probability_of_overfitting
+        console.print("[bold blue]Running PBO validation...[/]")
+        result = probability_of_overfitting(close, entries, exits,
+                                                      n_trials=n_trials, initial_capital=capital)
+        _display_pbo(result)
+
+    elif method in ("full", "gate"):
+        from quantflow.strategy.validation.gate import validation_gate
+        console.print("[bold blue]Running Full Validation Gate...[/]")
+        result = validation_gate(close, entries, exits, n_trials=n_trials,
+                                  cpcv_groups=groups, cpcv_test_groups=test_groups,
+                                  wfo_windows=wfo_windows, initial_capital=capital)
+        _display_gate(result)
+
+    store.close()
+
+
+@app.command()
+def run(
+    mode: str = typer.Option("paper", help="Run mode: paper | sandbox | live"),
+    strategy: str = typer.Option("trend_following", help="Strategy name (comma-separated for multiple)"),
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    capital: float = typer.Option(100000.0, help="Initial capital"),
+    config: str = typer.Option("config/default.yaml", help="Config file path"),
+) -> None:
+    """Run strategy in paper or live mode.
+
+    Modes:
+        paper    — Local simulation (no API key needed)
+        sandbox  — OKX testnet (requires API key)
+        live     — OKX real trading (requires API key + capital)
+
+    Examples:
+        quantflow run --mode paper --strategy trend_following
+        quantflow run --mode paper --strategy trend_following,mean_reversion
+    """
+    from quantflow.common.config import load_config
+    from quantflow.strategy.engine import TradingSession
+    from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+
+    cfg = load_config(config)
+    cfg.execution.mode = mode
+
+    strategy_map = {
+        "trend_following": TrendFollowingStrategy,
+        "mean_reversion": MeanReversionStrategy,
+        "elliott_wave": ElliottWaveStrategy,
+    }
+
+    # Support multiple strategies
+    strategy_names = [s.strip() for s in strategy.split(",")]
+    strategies = []
+    for name in strategy_names:
+        cls = strategy_map.get(name)
+        if cls:
+            strategies.append(cls())
+        else:
+            console.print(f"[red]Unknown strategy: {name}[/]")
+            return
+
+    if not strategies:
+        console.print("[red]No valid strategies specified[/]")
+        return
+
+    console.print(f"[bold blue]Starting {mode} trading with {len(strategies)} strategy(ies)[/]")
+
+    session = TradingSession(cfg, strategies)
+
+    async def _run_session():
+        try:
+            gateway_config = {
+                "api_key": "",  # Load from env in production
+                "secret": "",
+                "passphrase": "",
+            }
+            await session.start(mode=mode, gateway_config=gateway_config)
+            console.print(f"[green]Session started in {mode} mode[/]")
+            console.print("[yellow]Press Ctrl+C to stop[/]")
+
+            # Keep running until interrupted
+            while session._running:
+                session.check_health()
+                await asyncio.sleep(60)
+
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Stopping session...[/]")
+        finally:
+            await session.stop()
+            console.print("[green]Session stopped[/]")
+
+    import asyncio
+    asyncio.run(_run_session())
+
+
+def _display_cpcv(result: dict) -> None:
+    table = Table(title="CPCV Validation Results")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("Paths", str(result["n_paths"]))
+    table.add_row("PBO", f"{result['pbo']:.3f}")
+    table.add_row("OOS Efficiency", f"{result['oos_efficiency']:.3f}")
+    table.add_row("OOS Sharpe (mean±std)", f"{result['oos_sharpe_mean']:.3f}±{result['oos_sharpe_std']:.3f}")
+    table.add_row("OOS Sharpe (min)", f"{result['oos_sharpe_min']:.3f}")
+    status = "[green]PASSED[/]" if result["passed"] else "[red]FAILED[/]"
+    table.add_row("Status", status)
+    console.print(table)
+
+
+def _display_dsr(result: dict) -> None:
+    table = Table(title="Deflated Sharpe Ratio")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("DSR", f"{result['dsr']:.4f}")
+    table.add_row("Observed Sharpe", f"{result['observed_sharpe']:.3f}")
+    table.add_row("Expected Max (N trials)", f"{result['expected_max_sharpe']:.3f} (N={result['n_trials']})")
+    status = "[green]PASSED[/]" if result["passed"] else "[red]FAILED[/]"
+    table.add_row("Status", status)
+    console.print(table)
+
+
+def _display_wfo(rolling: dict, anchored: dict) -> None:
+    table = Table(title="Walk-Forward Optimization")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Rolling", style="green")
+    table.add_column("Anchored", style="green")
+    table.add_row("IS Sharpe", f"{rolling['is_sharpe_mean']:.3f}", f"{anchored['is_sharpe_mean']:.3f}")
+    table.add_row("OOS Sharpe", f"{rolling['oos_sharpe_mean']:.3f}", f"{anchored['oos_sharpe_mean']:.3f}")
+    table.add_row("OOS Efficiency", f"{rolling['oos_efficiency']:.3f}", f"{anchored['oos_efficiency']:.3f}")
+    r_status = "PASSED" if rolling["passed"] else "FAILED"
+    a_status = "PASSED" if anchored["passed"] else "FAILED"
+    table.add_row("Decision", r_status, a_status)
+    console.print(table)
+
+
+def _display_pbo(result: dict) -> None:
+    table = Table(title="Probability of Backtest Overfitting")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_row("PBO", f"{result['pbo']:.3f}")
+    table.add_row("Overfit Paths", f"{result['overfit_paths']}/{result['total_paths']}")
+    table.add_row("IS Return (mean)", f"{result['is_return_mean']:.3f}")
+    table.add_row("OOS Return (mean)", f"{result['oos_return_mean']:.3f}")
+    table.add_row("Rank Correlation", f"{result['rank_correlation']:.3f}")
+    status = "[green]PASSED[/]" if result["passed"] else "[red]FAILED[/]"
+    table.add_row("Status", status)
+    console.print(table)
+
+
+def _display_gate(result: dict) -> None:
+    console.print(f"\n[bold]VALIDATION GATE: {result['decision']}[/]")
+    if "reason" in result:
+        console.print(f"Reason: {result['reason']}")
+    for check_name, check_result in result.get("checks", {}).items():
+        passed = check_result.get("passed", False)
+        status = "[green]✓[/]" if passed else "[red]✗[/]"
+        console.print(f"  {status} {check_name}")
+    console.print()
+
+
+@app.command()
+def status() -> None:
+    """Show current system status."""
+    from pathlib import Path
+
+    table = Table(title="QuantFlow Status")
+    table.add_column("Component", style="cyan")
+    table.add_column("Status", style="green")
+
+    # Check data availability
+    data_dir = Path("data/parquet")
+    data_ready = data_dir.exists() and any(data_dir.rglob("*.parquet"))
+    data_status = f"Ready ({len(list(data_dir.rglob('*.parquet')))} files)" if data_ready else "No data — run 'download'"
+
+    # Check config
+    config_path = Path("config/default.yaml")
+    config_status = "Ready" if config_path.exists() else "Missing default.yaml"
+
+    # Check Docker
+    import subprocess
+    docker_ok = False
+    try:
+        result = subprocess.run(["docker", "--version"], capture_output=True, text=True, timeout=5)
+        docker_ok = result.returncode == 0
+    except Exception:
+        pass
+
+    table.add_row("Version", "0.1.0")
+    table.add_row("Phase", "3 (OKX Live + AI Factors)")
+    table.add_row("Data Layer", data_status)
+    table.add_row("Config", config_status)
+    table.add_row("Indicators", "Ready (21 factors)")
+    table.add_row("Strategies", "trend_following, mean_reversion, elliott_wave")
+    table.add_row("Validation", "CPCV + DSR + PBO + WFO + Gate")
+    table.add_row("Risk Engine", "Kelly + VaR/CVaR + Drawdown")
+    table.add_row("Paper Trade", "Ready (PaperGateway)")
+    table.add_row("OKX Gateway", "Ready (CCXT async + reconnect)")
+    table.add_row("Kill Switch", "Ready")
+    table.add_row("Monitoring", "Prometheus + Grafana + Alerts")
+    table.add_row("Docker", "Ready" if docker_ok else "Not available")
+    console.print(table)
+
+
+if __name__ == "__main__":
+    app()

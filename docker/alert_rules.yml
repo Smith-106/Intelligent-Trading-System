@@ -1,0 +1,47 @@
+groups:
+  - name: quantflow_alerts
+    rules:
+      - alert: HighDrawdown
+        expr: quantflow_portfolio_drawdown < -0.08
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Portfolio drawdown exceeds 8%"
+          description: "Current drawdown is {{ $value | humanizePercentage }}"
+
+      - alert: CriticalDrawdown
+        expr: quantflow_portfolio_drawdown < -0.10
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Portfolio drawdown exceeds 10% — kill switch should activate"
+          description: "Current drawdown is {{ $value | humanizePercentage }}"
+
+      - alert: HighRiskEvents
+        expr: rate(quantflow_risk_events_total[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate of risk events detected"
+          description: "Risk event rate is {{ $value }} per second"
+
+      - alert: NoSignalsGenerated
+        expr: increase(quantflow_signals_generated_total[1h]) == 0
+        for: 2h
+        labels:
+          severity: info
+        annotations:
+          summary: "No signals generated in the last 2 hours"
+          description: "Strategy may be inactive or data feed is down"
+
+      - alert: OrderLatencyHigh
+        expr: histogram_quantile(0.95, rate(quantflow_order_latency_seconds_bucket[5m])) > 5.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Order latency P95 exceeds 5 seconds"
+          description: "P95 latency is {{ $value }}s"

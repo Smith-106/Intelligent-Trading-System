@@ -1,0 +1,19 @@
+# Mean Reversion Strategy Configuration
+strategy:
+  name: "mean_reversion"
+  symbol: "BTC/USDT"
+  timeframe: "4h"
+
+  params:
+    rsi_period: 14
+    rsi_overbought: 70
+    rsi_oversold: 30
+    bollinger_period: 20
+    bollinger_std: 2.0
+    volume_ma_period: 20
+    volume_threshold: 1.2
+
+  exit:
+    stop_loss_pct: -0.03
+    take_profit_pct: 0.05
+    trailing_stop_pct: 0.02

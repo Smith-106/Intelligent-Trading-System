@@ -1,0 +1,67 @@
+# QuantFlow 默认配置
+# 所有参数均可通过 YAML 覆盖，不需要修改源码
+
+# ==================== 数据层 ====================
+data:
+  parquet_dir: "./data/parquet"        # K线数据存储目录（Hive分区格式）
+  duckdb_path: "./data/quantflow.duckdb" # DuckDB 数据库路径（:memory 为内存模式）
+  redis_url: "redis://localhost:6379"   # Redis 连接地址（实时行情缓存）
+  exchange: "okx"                       # 交易所（目前仅支持 okx）
+  sandbox: false                        # 是否使用 OKX sandbox（测试网）
+  rate_limit: 10                        # API 请求频率限制（次/秒）
+
+# ==================== 指标层 ====================
+indicators:
+  rsi_period: 14                        # RSI 周期
+  macd_fast: 12                         # MACD 快线周期
+  macd_slow: 26                         # MACD 慢线周期
+  macd_signal: 9                        # MACD 信号线周期
+  atr_period: 14                        # ATR 周期
+  bollinger_period: 20                  # 布林带周期
+  bollinger_std: 2.0                    # 布林带标准差倍数
+
+# ==================== 策略层 ====================
+strategy:
+  research_engine: "vectorbt"           # 研究引擎：vectorbt（向量化）或 eventdriven（事件驱动）
+  validation:
+    cpcv_groups: 8                      # CPCV 分组数（8组×2测试=28路径）
+    cpcv_test_groups: 2                 # CPCV 测试组数
+    embargo_periods: 5                  # 禁入期（消除信息泄漏的K线数）
+    dsr_threshold: 0.95                 # DSR 通过阈值（>0.95 表示策略非过拟合）
+    pbo_threshold: 0.5                  # PBO 通过阈值（<0.5 表示过拟合概率低于50%）
+    wfo_oos_efficiency: 0.5             # WFO OOS效率阈值（>50% 表示样本外有效）
+
+# ==================== 风控层 ====================
+risk:
+  position_limit_pct: 0.20             # 单标的最大仓位占比（20%）
+  max_positions: 5                      # 组合最大持仓数量
+  daily_loss_limit: -0.03              # 日度最大亏损限制（-3%触发暂停）
+  weekly_loss_limit: -0.05             # 周度最大亏损限制（-5%触发暂停）
+  max_drawdown: -0.10                   # 组合最大回撤（-10%触发熔断）
+  kill_switch_enabled: true             # 是否启用 Kill Switch（一键清仓）
+  kelly_fraction: 0.5                   # 半 Kelly 仓位比例
+  var_confidence: 0.95                  # VaR 置信度
+
+# ==================== 执行层 ====================
+execution:
+  mode: "paper"                         # 运行模式：paper / sandbox / live
+  order_timeout: 30                     # 订单超时秒数（超时自动撤单）
+  reconnect_interval: 5                 # 断线重连间隔秒数
+  reconnect_attempts: 5                 # 最大重连尝试次数
+  slippage: 0.001                       # 模拟滑点 (0.1%)
+  maker_fee: 0.0008                     # Maker 手续费率 (0.08%)
+  taker_fee: 0.001                      # Taker 手续费率 (0.1%)
+
+# ==================== 监控层 ====================
+monitoring:
+  prometheus_port: 8000                 # Prometheus 指标端口（容器内端口）
+  grafana_port: 3000                    # Grafana 仪表板端口
+  alert_channels: []                    # 告警渠道配置（见下方示例）
+
+# 告警渠道示例（取消注释并填入真实值即可启用）:
+# alert_channels:
+#   - type: "telegram"                  # Telegram 告警
+#     chat_id: "${TELEGRAM_CHAT_ID}"    # 从环境变量读取
+#     token: "${TELEGRAM_BOT_TOKEN}"    # 从环境变量读取
+#   - type: "line"                      # LINE Notify 告警
+#     token: "${LINE_NOTIFY_TOKEN}"     # 从环境变量读取

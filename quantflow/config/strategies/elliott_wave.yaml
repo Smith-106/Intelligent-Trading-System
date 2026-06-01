@@ -1,0 +1,94 @@
+strategy:
+  name: elliott_wave
+  type: wave
+  description: "Liu Yudong Elliott Wave trading system with rule-based quantification, multi-parameter ZigZag consensus, iron-law validation, and progressive position scaling"
+
+params:
+  # ZigZag configuration (C-002: >80% overlap threshold)
+  zigzag_thresholds: [0.03, 0.05, 0.08, 0.12, 0.15]
+  zigzag_min_overlap_ratio: 0.8
+  zigzag_bar_tolerance: 3
+  fib_tolerance: 0.15
+
+  # Wave analysis mode (C-001: dual mode)
+  analysis_mode: progressive  # progressive (live) or retrospective (backtest)
+
+  # Divergence settings
+  use_divergence: true
+  divergence_oscillators: [rsi_14, macd_histogram, volume]
+  divergence_strength_threshold: 0.3
+
+  # ATR stop multiplier
+  atr_stop_mult: 1.5
+
+  # W2-end entry parameters (S-003: all exposed)
+  w2_retracement_min: 0.5
+  w2_retracement_max: 0.618
+  w2_volume_shrink_ratio: 0.8
+
+  # W3 trend-following parameters
+  w3_volume_surge: 1.5
+
+  # W4-end entry parameters
+  w4_retracement_min: 0.382
+  w4_retracement_max: 0.5
+
+  # W5 exit parameters
+  w5_divergence_threshold: 0.3
+  w5_volume_shrink_ratio: 0.7
+  w5_channel_target_tolerance: 0.02
+  w5_fib_target_tolerance: 0.02
+  w5_min_confirming_signals: 2
+
+  # B-wave exit parameters
+  b_retracement_ratios: [0.382, 0.5, 0.618]
+
+risk:
+  max_position_pct: 0.10
+  stop_loss_atr_mult: 1.5
+  take_profit_fib_extensions: [1.618, 2.618]
+  single_risk_pct: 0.02
+  daily_loss_limit_pct: 0.05
+  monthly_loss_limit_pct: 0.15
+  hard_stop_rules:
+    - w1_origin_breach
+    - w4_overlap_w1
+    - critical_level_breach
+  soft_stop_rules:
+    - trailing_stop
+    - time_stop
+    - signal_stop
+  max_consecutive_stops: 3
+
+scaling:
+  trial_pct: 0.125
+  add_pct: 0.25
+  chase_pct: 0.125
+  max_total_pct: 0.55
+  exit_first_pct: 0.30
+  exit_second_pct: 0.30
+  exit_final_pct: 0.40
+  min_risk_reward: 3.0
+
+mtf:
+  timeframes: [1W, 4H, 1H, 15m]
+  alignment_mode: closed_only
+  primary_timeframe: 4h
+  utc_anchored: true
+
+backtest:
+  initial_capital: 100000
+  commission: 0.001
+  slippage: 0.0005
+  min_trades: 100
+  target_win_rate: 0.55
+  target_profit_factor: 2.0
+  target_max_drawdown: 0.15
+  target_annual_return: 0.20
+  target_sharpe: 1.5
+
+symbols:
+  - BTC/USDT
+  - ETH/USDT
+
+timeframe: 4h
