@@ -1,0 +1,14 @@
+strategy:
+  name: "funding_rate"
+  symbol: "BTC/USDT"
+  timeframe: "8h"
+  params:
+    entry_threshold: 0.001
+    exit_threshold: 0.0003
+    oi_lookback: 3
+    oi_change_threshold: 0.05
+    rate_ema_period: 8
+    cooldown_bars: 6
+  exit:
+    stop_loss_pct: -0.03
+    take_profit_pct: 0.06

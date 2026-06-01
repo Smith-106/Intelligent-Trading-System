@@ -1,0 +1,13 @@
+strategy:
+  name: "ml_ensemble"
+  symbol: "BTC/USDT"
+  timeframe: "4h"
+  params:
+    entry_threshold: 0.6
+    exit_threshold: 0.4
+    lookback: 252
+    retrain_interval: 10080
+    model_path: "models/ml_ensemble.joblib"
+  exit:
+    stop_loss_pct: -0.03
+    take_profit_pct: 0.08

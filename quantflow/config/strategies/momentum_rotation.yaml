@@ -1,0 +1,14 @@
+strategy:
+  name: "momentum_rotation"
+  symbol: "BTC/USDT"
+  timeframe: "1d"
+  params:
+    lookback: 20
+    top_n: 3
+    exit_rank_threshold: 5
+    stop_loss_pct: 0.03
+    volume_period: 20
+    rebalance_interval: 4
+  exit:
+    stop_loss_pct: -0.03
+    take_profit_pct: 0.08

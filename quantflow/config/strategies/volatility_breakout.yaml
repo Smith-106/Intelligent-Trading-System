@@ -1,0 +1,20 @@
+strategy:
+  name: "volatility_breakout"
+  symbol: "BTC/USDT"
+  timeframe: "4h"
+  params:
+    atr_period: 14
+    atr_threshold: 1.5
+    bb_period: 20
+    bb_std: 2.0
+    keltner_ema_period: 20
+    keltner_atr_period: 10
+    keltner_multiplier: 2.0
+    volume_period: 20
+    volume_threshold: 1.5
+    atr_shrink_exit: 0.7
+    bb_middle_exit: true
+  exit:
+    stop_loss_pct: -0.04
+    take_profit_pct: 0.10
+    trailing_stop_atr_multiplier: 2.0

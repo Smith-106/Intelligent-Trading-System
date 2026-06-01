@@ -112,8 +112,12 @@ def research(
     from quantflow.strategy.research.backtest import BacktestEngine
     from quantflow.strategy.research.report import generate_report
     from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+    from quantflow.strategy.templates.funding_rate import FundingRateStrategy
     from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+    from quantflow.strategy.templates.ml_ensemble import MLEnsembleStrategy
+    from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
     from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
 
     cfg = _load(config)
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
@@ -135,6 +139,10 @@ def research(
         "trend_following": TrendFollowingStrategy,
         "mean_reversion": MeanReversionStrategy,
         "elliott_wave": ElliottWaveStrategy,
+        "volatility_breakout": VolatilityBreakoutStrategy,
+        "funding_rate": FundingRateStrategy,
+        "momentum_rotation": MomentumRotationStrategy,
+        "ml_ensemble": MLEnsembleStrategy,
     }
     strategy_cls = strategy_map.get(strategy)
     if not strategy_cls:
@@ -177,8 +185,12 @@ def optimize(
     from quantflow.data.store import DataStore
     from quantflow.strategy.research.optimizer import StrategyOptimizer
     from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+    from quantflow.strategy.templates.funding_rate import FundingRateStrategy
     from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+    from quantflow.strategy.templates.ml_ensemble import MLEnsembleStrategy
+    from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
     from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
 
     cfg = _load(config)
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
@@ -210,6 +222,25 @@ def optimize(
             "zigzag_threshold": (0.02, 0.08),
             "fib_tolerance": (0.10, 0.25),
             "atr_stop_mult": (1.0, 3.0),
+        }),
+        "volatility_breakout": (VolatilityBreakoutStrategy, {
+            "atr_threshold": (1.2, 2.0),
+            "atr_shrink_exit": (0.5, 0.9),
+            "volume_threshold": (1.2, 2.0),
+        }),
+        "funding_rate": (FundingRateStrategy, {
+            "entry_threshold": (0.0005, 0.002),
+            "exit_threshold": (0.0001, 0.0005),
+            "oi_change_threshold": (0.02, 0.1),
+        }),
+        "momentum_rotation": (MomentumRotationStrategy, {
+            "lookback": (10, 40),
+            "top_n": (1, 5),
+            "stop_loss_pct": (0.01, 0.05),
+        }),
+        "ml_ensemble": (MLEnsembleStrategy, {
+            "entry_threshold": (0.5, 0.8),
+            "exit_threshold": (0.2, 0.5),
         }),
     }
 
@@ -279,8 +310,12 @@ def validate(
     """
     from quantflow.data.store import DataStore
     from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+    from quantflow.strategy.templates.funding_rate import FundingRateStrategy
     from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+    from quantflow.strategy.templates.ml_ensemble import MLEnsembleStrategy
+    from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
     from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
 
     cfg = _load(config)
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
@@ -296,6 +331,10 @@ def validate(
         "trend_following": TrendFollowingStrategy,
         "mean_reversion": MeanReversionStrategy,
         "elliott_wave": ElliottWaveStrategy,
+        "volatility_breakout": VolatilityBreakoutStrategy,
+        "funding_rate": FundingRateStrategy,
+        "momentum_rotation": MomentumRotationStrategy,
+        "ml_ensemble": MLEnsembleStrategy,
     }
     strategy_cls = strategy_map.get(strategy)
     if not strategy_cls:
@@ -372,8 +411,12 @@ def run(
     from quantflow.common.config import load_config
     from quantflow.strategy.engine import TradingSession
     from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+    from quantflow.strategy.templates.funding_rate import FundingRateStrategy
     from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+    from quantflow.strategy.templates.ml_ensemble import MLEnsembleStrategy
+    from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
     from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
 
     cfg = load_config(config)
     cfg.execution.mode = mode
@@ -382,6 +425,10 @@ def run(
         "trend_following": TrendFollowingStrategy,
         "mean_reversion": MeanReversionStrategy,
         "elliott_wave": ElliottWaveStrategy,
+        "volatility_breakout": VolatilityBreakoutStrategy,
+        "funding_rate": FundingRateStrategy,
+        "momentum_rotation": MomentumRotationStrategy,
+        "ml_ensemble": MLEnsembleStrategy,
     }
 
     # Support multiple strategies
