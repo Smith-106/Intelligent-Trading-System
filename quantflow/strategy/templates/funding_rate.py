@@ -51,7 +51,7 @@ class FundingRateStrategy(StrategyBase):
     def on_bar(self, ctx: StrategyContext, bar: Bar) -> None:
         self._bars.append(bar)
         if len(self._bars) > self._max_bars:
-            self._bars = self._bars[-self._max_bars:]
+            self._bars = self._bars[-self._max_bars :]
 
         if self._cooldown_counter > 0:
             self._cooldown_counter -= 1
@@ -75,24 +75,24 @@ class FundingRateStrategy(StrategyBase):
         if entries.iloc[last_idx]:
             rate = self._funding_rates[-1] if self._funding_rates else 0.0
             direction = Direction.LONG if rate < -self._entry_threshold else Direction.SHORT
-            ctx.emit_signal(symbol, direction, strength=0.7, price=bar.close,
-                            strategy_id=self.name)
+            ctx.emit_signal(symbol, direction, strength=0.7, price=bar.close, strategy_id=self.name)
             self._cooldown_counter = self._cooldown_bars
         elif exits.iloc[last_idx]:
-            ctx.emit_signal(symbol, Direction.FLAT, strength=0.5, price=bar.close,
-                            strategy_id=self.name)
+            ctx.emit_signal(
+                symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
 
     def update_funding_rate(self, rate: float) -> None:
         """Feed a new funding rate observation (called externally by data layer)."""
         self._funding_rates.append(rate)
         if len(self._funding_rates) > self._max_bars:
-            self._funding_rates = self._funding_rates[-self._max_bars:]
+            self._funding_rates = self._funding_rates[-self._max_bars :]
 
     def update_open_interest(self, oi: float) -> None:
         """Feed a new open interest observation (called externally by data layer)."""
         self._open_interests.append(oi)
         if len(self._open_interests) > self._max_bars:
-            self._open_interests = self._open_interests[-self._max_bars:]
+            self._open_interests = self._open_interests[-self._max_bars :]
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         min_bars = max(self._rate_ema_period * 2, self._oi_lookback + 1)
@@ -108,7 +108,7 @@ class FundingRateStrategy(StrategyBase):
 
         # Extreme funding rate signals
         long_signal = rate_ema < -self._entry_threshold  # shorts crowded → go long
-        short_signal = rate_ema > self._entry_threshold   # longs crowded → go short
+        short_signal = rate_ema > self._entry_threshold  # longs crowded → go short
 
         # Open interest confirmation: OI increasing in crowded direction
         oi_change = open_interest.pct_change(self._oi_lookback)

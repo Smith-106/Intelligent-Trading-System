@@ -18,19 +18,20 @@ from typing import Any
 
 import pandas as pd
 
-from quantflow.indicators.critical_level import CriticalLevelDetector, CriticalLevels
+from quantflow.indicators.critical_level import CriticalLevelDetector
 from quantflow.indicators.divergence import DivergenceDetector, DivergenceResult
 from quantflow.indicators.fibonacci import FibonacciCalculator, FibonacciLevels
-from quantflow.indicators.wave_channel import WaveChannel, ChannelResult
+from quantflow.indicators.wave_channel import ChannelResult, WaveChannel
 from quantflow.indicators.wave_identifier import WaveIdentifier
-from quantflow.indicators.wave_models import AnalysisMode, WaveCount, WavePattern
-from quantflow.indicators.zigzag import ZigZagIndicator, PivotSequence
+from quantflow.indicators.wave_models import AnalysisMode, WavePattern, WaveSegment
+from quantflow.indicators.zigzag import PivotSequence, ZigZagIndicator
 from quantflow.strategy.base import StrategyBase
 
 
 @dataclass
 class WaveContext:
     """Wave context attached to every signal for downstream consumption."""
+
     current_wave: int
     wave_pattern: WavePattern
     confidence: float
@@ -140,7 +141,7 @@ class LiuYudongWaveStrategy(StrategyBase):
 
             # Compute supporting indicators
             fib_levels = self.fibonacci_calc.calculate(wave_count)
-            critical_levels = self.critical_level_det.detect(wave_count)
+            self.critical_level_det.detect(wave_count)
             channel = self.wave_channel.calculate(window_df, wave_count)
 
             # Add MACD/RSI if available for divergence check
@@ -154,9 +155,11 @@ class LiuYudongWaveStrategy(StrategyBase):
             # Apply trading rules — only mark signals in the NEW portion of data
             # to avoid overwriting previously confirmed signals
             waves = wave_count.waves
-            is_bullish = (wave_count.pattern == WavePattern.IMPULSE
-                          and 1 in waves
-                          and waves[1].end.price > waves[1].start.price)
+            is_bullish = (
+                wave_count.pattern == WavePattern.IMPULSE
+                and 1 in waves
+                and waves[1].end.price > waves[1].start.price
+            )
 
             new_start = max(0, end_idx - step)
 
@@ -207,16 +210,25 @@ class LiuYudongWaveStrategy(StrategyBase):
             val = int(pivot_series.iloc[idx_pos])
             if val != 0:
                 price = float(df["close"].iloc[idx_pos])
-                pivots_list.append(PivotPoint(
-                    index=idx_pos,
-                    price=price,
-                    direction=PivotDirection.HIGH if val == 1 else PivotDirection.LOW,
-                    confidence=1.0,
-                ))
+                pivots_list.append(
+                    PivotPoint(
+                        index=idx_pos,
+                        price=price,
+                        direction=PivotDirection.HIGH if val == 1 else PivotDirection.LOW,
+                        confidence=1.0,
+                    )
+                )
 
-        return PivotSequence(pivots=pivots_list, overlap_ratio=1.0, thresholds_used=self.zigzag_thresholds)
+        return PivotSequence(
+            pivots=pivots_list, overlap_ratio=1.0, thresholds_used=self.zigzag_thresholds
+        )
 
-    def _check_w2_entry(self, df: pd.DataFrame, waves: dict, is_bullish: bool) -> bool:
+    def _check_w2_entry(
+        self,
+        df: pd.DataFrame,
+        waves: dict[int, WaveSegment],
+        is_bullish: bool,
+    ) -> bool:
         """Rule 1: W2-end entry — best positioning point."""
         if 1 not in waves or 2 not in waves:
             return False
@@ -228,14 +240,19 @@ class LiuYudongWaveStrategy(StrategyBase):
         if not (self.w2_retracement_min <= retracement <= self.w2_retracement_max):
             return False
         if "volume" in df.columns and w2.end.index < len(df):
-            w1_avg_vol = df["volume"].iloc[max(0, w1.start.index):w1.end.index + 1].mean()
-            w2_avg_vol = df["volume"].iloc[max(0, w2.start.index):w2.end.index + 1].mean()
+            w1_avg_vol = df["volume"].iloc[max(0, w1.start.index) : w1.end.index + 1].mean()
+            w2_avg_vol = df["volume"].iloc[max(0, w2.start.index) : w2.end.index + 1].mean()
             if pd.notna(w1_avg_vol) and pd.notna(w2_avg_vol) and w1_avg_vol > 0:
                 if w2_avg_vol > w1_avg_vol * 0.8:
                     return False
         return True
 
-    def _check_w3_entry(self, df: pd.DataFrame, waves: dict, is_bullish: bool) -> bool:
+    def _check_w3_entry(
+        self,
+        df: pd.DataFrame,
+        waves: dict[int, WaveSegment],
+        is_bullish: bool,
+    ) -> bool:
         """Rule 2: W3 trend-following entry — strongest momentum."""
         if 1 not in waves or 3 not in waves:
             return False
@@ -244,7 +261,7 @@ class LiuYudongWaveStrategy(StrategyBase):
         if w3.amplitude() < w1.amplitude():
             return False
         if "volume" in df.columns and w3.end.index < len(df):
-            avg_vol = df["volume"].iloc[max(0, w3.start.index):w3.end.index + 1].mean()
+            avg_vol = df["volume"].iloc[max(0, w3.start.index) : w3.end.index + 1].mean()
             if w3.start.index >= 20:
                 baseline_vol = df["volume"].rolling(20).mean().iloc[w3.start.index]
                 if pd.notna(baseline_vol) and baseline_vol > 0:
@@ -252,7 +269,12 @@ class LiuYudongWaveStrategy(StrategyBase):
                         return False
         return True
 
-    def _check_w4_entry(self, df: pd.DataFrame, waves: dict, is_bullish: bool) -> bool:
+    def _check_w4_entry(
+        self,
+        df: pd.DataFrame,
+        waves: dict[int, WaveSegment],
+        is_bullish: bool,
+    ) -> bool:
         """Rule 3: W4-end entry — catching W5."""
         if 3 not in waves or 4 not in waves:
             return False
@@ -264,8 +286,8 @@ class LiuYudongWaveStrategy(StrategyBase):
         if not (self.w4_retracement_min <= retracement <= self.w4_retracement_max):
             return False
         if "volume" in df.columns and w4.end.index < len(df):
-            w3_avg_vol = df["volume"].iloc[max(0, w3.start.index):w3.end.index + 1].mean()
-            w4_avg_vol = df["volume"].iloc[max(0, w4.start.index):w4.end.index + 1].mean()
+            w3_avg_vol = df["volume"].iloc[max(0, w3.start.index) : w3.end.index + 1].mean()
+            w4_avg_vol = df["volume"].iloc[max(0, w4.start.index) : w4.end.index + 1].mean()
             if pd.notna(w3_avg_vol) and pd.notna(w4_avg_vol) and w3_avg_vol > 0:
                 if w4_avg_vol > w3_avg_vol * 0.8:
                     return False
@@ -274,7 +296,7 @@ class LiuYudongWaveStrategy(StrategyBase):
     def _check_w5_exit(
         self,
         df: pd.DataFrame,
-        waves: dict,
+        waves: dict[int, WaveSegment],
         is_bullish: bool,
         divergence: DivergenceResult | None = None,
         channel: ChannelResult | None = None,
@@ -300,21 +322,21 @@ class LiuYudongWaveStrategy(StrategyBase):
                         signals += 1
         if channel and channel.w5_target is not None:
             w5 = waves[5]
-            if is_bullish and w5.end.price >= channel.w5_target * 0.98:
-                signals += 1
-            elif not is_bullish and w5.end.price <= channel.w5_target * 1.02:
+            if (is_bullish and w5.end.price >= channel.w5_target * 0.98) or (
+                not is_bullish and w5.end.price <= channel.w5_target * 1.02
+            ):
                 signals += 1
         if fib_levels and 5 in waves:
             w5 = waves[5]
             ext_1618 = fib_levels.extension.get(1.618)
             if ext_1618 is not None:
-                if is_bullish and w5.end.price >= ext_1618 * 0.98:
-                    signals += 1
-                elif not is_bullish and w5.end.price <= ext_1618 * 1.02:
+                if (is_bullish and w5.end.price >= ext_1618 * 0.98) or (
+                    not is_bullish and w5.end.price <= ext_1618 * 1.02
+                ):
                     signals += 1
         return signals >= 2
 
-    def _check_b_wave_exit(self, df: pd.DataFrame, waves: dict) -> bool:
+    def _check_b_wave_exit(self, df: pd.DataFrame, waves: dict[int, WaveSegment]) -> bool:
         """Rule 5: B-wave end exit/short."""
         if -1 not in waves or -2 not in waves:
             return False
@@ -333,7 +355,9 @@ class LiuYudongWaveStrategy(StrategyBase):
         return True
 
     @staticmethod
-    def _compute_macd_histogram(close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.Series:
+    def _compute_macd_histogram(
+        close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9
+    ) -> pd.Series:
         ema_fast = close.ewm(span=fast).mean()
         ema_slow = close.ewm(span=slow).mean()
         macd_line = ema_fast - ema_slow

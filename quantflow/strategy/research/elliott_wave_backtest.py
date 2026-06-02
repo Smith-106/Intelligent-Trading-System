@@ -22,6 +22,7 @@ from quantflow.strategy.elliott_wave_strategy import LiuYudongWaveStrategy
 @dataclass
 class BacktestResult:
     """Backtest performance metrics."""
+
     total_trades: int = 0
     winning_trades: int = 0
     losing_trades: int = 0
@@ -89,7 +90,9 @@ def generate_synthetic_wave_data(
             if idx >= n_bars:
                 break
             progress = (i + 1) / w2_len
-            prices[idx] = w1_top - (w1_top - base) * 0.5 * progress + np.random.randn() * base * 0.002
+            prices[idx] = (
+                w1_top - (w1_top - base) * 0.5 * progress + np.random.randn() * base * 0.002
+            )
             idx += 1
 
         # W3: strong rise 25%
@@ -136,13 +139,15 @@ def generate_synthetic_wave_data(
     noise_h = np.abs(np.random.randn(n_bars)) * base_price * 0.003
     noise_l = np.abs(np.random.randn(n_bars)) * base_price * 0.003
 
-    df = pd.DataFrame({
-        "open": prices + np.random.randn(n_bars) * base_price * 0.001,
-        "high": prices + noise_h,
-        "low": prices - noise_l,
-        "close": prices,
-        "volume": np.random.randint(100, 5000, n_bars).astype(float),
-    })
+    df = pd.DataFrame(
+        {
+            "open": prices + np.random.randn(n_bars) * base_price * 0.001,
+            "high": prices + noise_h,
+            "low": prices - noise_l,
+            "close": prices,
+            "volume": np.random.randint(100, 5000, n_bars).astype(float),
+        }
+    )
 
     # Add technical indicators required by strategy
     df["macd_histogram"] = _compute_macd_histogram(df["close"])
@@ -202,12 +207,14 @@ def run_backtest(
             exit_value = position * price
             capital += exit_value * (1 - commission)
             pnl_pct = (price - entry_price) / entry_price * 100
-            trades.append({
-                "entry_idx": i,
-                "entry_price": entry_price,
-                "exit_price": price,
-                "pnl_pct": pnl_pct,
-            })
+            trades.append(
+                {
+                    "entry_idx": i,
+                    "entry_price": entry_price,
+                    "exit_price": price,
+                    "pnl_pct": pnl_pct,
+                }
+            )
             position = 0.0
             entry_price = 0.0
 
@@ -221,12 +228,14 @@ def run_backtest(
         price = float(df["close"].iloc[-1])
         capital += position * price * (1 - commission)
         pnl_pct = (price - entry_price) / entry_price * 100
-        trades.append({
-            "entry_idx": len(df) - 1,
-            "entry_price": entry_price,
-            "exit_price": price,
-            "pnl_pct": pnl_pct,
-        })
+        trades.append(
+            {
+                "entry_idx": len(df) - 1,
+                "entry_price": entry_price,
+                "exit_price": price,
+                "pnl_pct": pnl_pct,
+            }
+        )
 
     # Compute metrics
     total_trades = len(trades)
@@ -242,7 +251,9 @@ def run_backtest(
     profit_factor = gross_profit / gross_loss if gross_loss > 0 else float("inf")
 
     equity_arr = np.array(equity_curve)
-    drawdowns = (equity_arr - np.maximum.accumulate(equity_arr)) / np.maximum.accumulate(equity_arr) * 100
+    drawdowns = (
+        (equity_arr - np.maximum.accumulate(equity_arr)) / np.maximum.accumulate(equity_arr) * 100
+    )
     max_drawdown = abs(min(drawdowns)) if len(drawdowns) > 0 else 0.0
 
     total_return = (capital - initial_capital) / initial_capital * 100
@@ -269,7 +280,9 @@ def run_backtest(
     )
 
 
-def _compute_macd_histogram(close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.Series:
+def _compute_macd_histogram(
+    close: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9
+) -> pd.Series:
     """Compute MACD histogram. Delegates to strategy's static method."""
     return LiuYudongWaveStrategy._compute_macd_histogram(close, fast, slow, signal)
 

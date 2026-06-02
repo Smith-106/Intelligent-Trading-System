@@ -7,14 +7,12 @@ import pandas as pd
 import pytest
 
 from quantflow.indicators.elliott_wave import (
-    zigzag,
-    classify_impulse,
-    classify_corrective,
-    elliott_wave,
-    compute_fibonacci_levels,
-    wave_momentum_divergence,
-    WaveLabel,
     WaveType,
+    classify_corrective,
+    classify_impulse,
+    compute_fibonacci_levels,
+    elliott_wave,
+    zigzag,
 )
 
 
@@ -56,31 +54,37 @@ class TestZigZag:
 
 class TestClassifyImpulse:
     def test_valid_bullish_impulse(self):
-        pivots = pd.DataFrame({
-            "pivot_idx": [0, 10, 20, 30, 40],
-            "pivot_price": [100, 120, 110, 130, 125],
-            "pivot_type": [-1, 1, -1, 1, -1],
-        })
+        pivots = pd.DataFrame(
+            {
+                "pivot_idx": [0, 10, 20, 30, 40],
+                "pivot_price": [100, 120, 110, 130, 125],
+                "pivot_type": [-1, 1, -1, 1, -1],
+            }
+        )
         result = classify_impulse(pivots, tolerance=0.5)
         if result is not None:
             assert result["wave_type"].iloc[0] == WaveType.IMPULSE
 
     def test_insufficient_pivots(self):
-        pivots = pd.DataFrame({
-            "pivot_idx": [0, 5],
-            "pivot_price": [100, 110],
-            "pivot_type": [-1, 1],
-        })
+        pivots = pd.DataFrame(
+            {
+                "pivot_idx": [0, 5],
+                "pivot_price": [100, 110],
+                "pivot_type": [-1, 1],
+            }
+        )
         assert classify_impulse(pivots) is None
 
 
 class TestClassifyCorrective:
     def test_valid_abc(self):
-        pivots = pd.DataFrame({
-            "pivot_idx": [0, 10, 20],
-            "pivot_price": [100, 115, 108],
-            "pivot_type": [-1, 1, -1],
-        })
+        pivots = pd.DataFrame(
+            {
+                "pivot_idx": [0, 10, 20],
+                "pivot_price": [100, 115, 108],
+                "pivot_type": [-1, 1, -1],
+            }
+        )
         result = classify_corrective(pivots, tolerance=0.5)
         if result is not None:
             assert result["wave_type"].iloc[0] == WaveType.CORRECTIVE
@@ -91,11 +95,15 @@ class TestElliottWave:
         np.random.seed(42)
         n = 200
         prices = np.cumsum(np.random.randn(n)) + 50000
-        df = pd.DataFrame({
-            "open": prices, "high": prices + 50,
-            "low": prices - 50, "close": prices,
-            "volume": np.random.randint(100, 10000, n),
-        })
+        df = pd.DataFrame(
+            {
+                "open": prices,
+                "high": prices + 50,
+                "low": prices - 50,
+                "close": prices,
+                "volume": np.random.randint(100, 10000, n),
+            }
+        )
         result = elliott_wave(df)
         assert isinstance(result, pd.DataFrame)
         assert len(result) == len(df)
@@ -115,16 +123,29 @@ class TestFibonacciLevels:
 
 
 class TestElliottWaveStrategy:
+    def test_initializes_base_strategy_name(self):
+        from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+
+        strategy = ElliottWaveStrategy({"zigzag_threshold": 0.02})
+
+        assert strategy.name == "elliott_wave"
+        assert strategy.params["zigzag_threshold"] == 0.02
+
     def test_generate_signals(self):
         from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+
         np.random.seed(42)
         n = 200
         prices = np.cumsum(np.random.randn(n)) + 50000
-        df = pd.DataFrame({
-            "open": prices, "high": prices + 50,
-            "low": prices - 50, "close": prices,
-            "volume": np.random.randint(100, 10000, n),
-        })
+        df = pd.DataFrame(
+            {
+                "open": prices,
+                "high": prices + 50,
+                "low": prices - 50,
+                "close": prices,
+                "volume": np.random.randint(100, 10000, n),
+            }
+        )
         s = ElliottWaveStrategy({"zigzag_threshold": 0.02})
         entries, exits = s.generate_signals(df)
         assert isinstance(entries, pd.Series)

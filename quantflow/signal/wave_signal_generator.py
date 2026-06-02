@@ -10,23 +10,23 @@ hard/soft stops when wave count is invalidated.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
 import logging
+from dataclasses import dataclass, field
+from enum import StrEnum
 
 from quantflow.common.models import Direction, Signal
 from quantflow.indicators.critical_level import (
     BreachDirection,
     CriticalLevel,
-    CriticalLevelType,
     CriticalLevels,
+    CriticalLevelType,
 )
-from quantflow.indicators.wave_models import WaveCount, WavePattern
+from quantflow.indicators.wave_models import WaveCount
 
 logger = logging.getLogger(__name__)
 
 
-class InvalidationSeverity(str, Enum):
+class InvalidationSeverity(StrEnum):
     HARD = "hard"
     SOFT = "soft"
 
@@ -34,6 +34,7 @@ class InvalidationSeverity(str, Enum):
 @dataclass
 class InvalidationEvent:
     """An invalidation event triggered by a critical level breach."""
+
     severity: InvalidationSeverity
     critical_level: CriticalLevel
     current_price: float
@@ -47,6 +48,7 @@ class WaveSignal(Signal):
     Extends the standard Signal model (CORR-016) so downstream
     RiskEngine and PositionSizer can consume it without adaptation.
     """
+
     wave_label: int = 0
     confidence: float = 0.0
     trigger_rule: str = ""
@@ -82,12 +84,7 @@ class WaveSignalGenerator:
         Returns:
             WaveSignal with standard Signal fields + wave metadata.
         """
-        hard_stop = self._compute_hard_stop(direction, critical_levels)
-        soft_stop = self._compute_soft_stop(direction, critical_levels)
-
-        invalidation_points = [
-            cl for cl in critical_levels.levels if cl.severity == "hard"
-        ]
+        invalidation_points = [cl for cl in critical_levels.levels if cl.severity == "hard"]
 
         return WaveSignal(
             symbol="",
@@ -166,21 +163,27 @@ class WaveInvalidationChecker:
 
         for cl in critical_levels.levels:
             breached = False
-            if cl.breach_direction == BreachDirection.BELOW and current_price < cl.price:
-                breached = True
-            elif cl.breach_direction == BreachDirection.ABOVE and current_price > cl.price:
+            if (cl.breach_direction == BreachDirection.BELOW and current_price < cl.price) or (
+                cl.breach_direction == BreachDirection.ABOVE and current_price > cl.price
+            ):
                 breached = True
 
             if breached:
-                severity = InvalidationSeverity.HARD if cl.severity == "hard" else InvalidationSeverity.SOFT
-                events.append(InvalidationEvent(
-                    severity=severity,
-                    critical_level=cl,
-                    current_price=current_price,
-                    description=f"{cl.level_type.value} breach: price {current_price:.2f} "
-                                f"{'below' if cl.breach_direction == BreachDirection.BELOW else 'above'} "
-                                f"critical {cl.price:.2f} ({cl.description})",
-                ))
+                severity = (
+                    InvalidationSeverity.HARD
+                    if cl.severity == "hard"
+                    else InvalidationSeverity.SOFT
+                )
+                events.append(
+                    InvalidationEvent(
+                        severity=severity,
+                        critical_level=cl,
+                        current_price=current_price,
+                        description=f"{cl.level_type.value} breach: price {current_price:.2f} "
+                        f"{'below' if cl.breach_direction == BreachDirection.BELOW else 'above'} "
+                        f"critical {cl.price:.2f} ({cl.description})",
+                    )
+                )
 
         hard_events = [e for e in events if e.severity == InvalidationSeverity.HARD]
         if hard_events:
@@ -189,18 +192,20 @@ class WaveInvalidationChecker:
             self._consecutive_stops = 0
 
         if self._consecutive_stops >= self.max_consecutive_stops:
-            events.append(InvalidationEvent(
-                severity=InvalidationSeverity.HARD,
-                critical_level=CriticalLevel(
-                    price=0,
-                    level_type=CriticalLevelType.SYSTEM_PAUSE,
-                    description="system_pause",
-                    wave_ref=0,
-                    severity="hard",
-                ),
-                current_price=current_price,
-                description=f"System pause: {self._consecutive_stops} consecutive hard stops",
-            ))
+            events.append(
+                InvalidationEvent(
+                    severity=InvalidationSeverity.HARD,
+                    critical_level=CriticalLevel(
+                        price=0,
+                        level_type=CriticalLevelType.SYSTEM_PAUSE,
+                        description="system_pause",
+                        wave_ref=0,
+                        severity="hard",
+                    ),
+                    current_price=current_price,
+                    description=f"System pause: {self._consecutive_stops} consecutive hard stops",
+                )
+            )
 
         return events
 

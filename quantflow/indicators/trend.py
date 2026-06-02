@@ -33,25 +33,31 @@ def macd(series: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> 
     macd_line = fast_ema - slow_ema
     signal_line = ema(macd_line, signal)
     histogram = macd_line - signal_line
-    return pd.DataFrame({
-        "macd": macd_line,
-        "macd_signal": signal_line,
-        "macd_histogram": histogram,
-    })
+    return pd.DataFrame(
+        {
+            "macd": macd_line,
+            "macd_signal": signal_line,
+            "macd_histogram": histogram,
+        }
+    )
 
 
-def supertrend(high: pd.Series, low: pd.Series, close: pd.Series,
-               period: int = 10, multiplier: float = 3.0) -> pd.DataFrame:
+def supertrend(
+    high: pd.Series, low: pd.Series, close: pd.Series, period: int = 10, multiplier: float = 3.0
+) -> pd.DataFrame:
     """Supertrend indicator.
 
     Returns DataFrame with columns: supertrend, direction.
     """
     # ATR calculation
-    tr = pd.concat([
-        high - low,
-        (high - close.shift(1)).abs(),
-        (low - close.shift(1)).abs(),
-    ], axis=1).max(axis=1)
+    tr = pd.concat(
+        [
+            high - low,
+            (high - close.shift(1)).abs(),
+            (low - close.shift(1)).abs(),
+        ],
+        axis=1,
+    ).max(axis=1)
     atr = tr.rolling(period).mean()
 
     hl2 = (high + low) / 2
@@ -71,18 +77,27 @@ def supertrend(high: pd.Series, low: pd.Series, close: pd.Series,
             direction.iloc[i] = direction.iloc[i - 1]
 
         if direction.iloc[i] == 1:
-            st.iloc[i] = max(lower_band.iloc[i], st.iloc[i - 1]) if not np.isnan(st.iloc[i - 1]) else lower_band.iloc[i]
+            st.iloc[i] = (
+                max(lower_band.iloc[i], st.iloc[i - 1])
+                if not np.isnan(st.iloc[i - 1])
+                else lower_band.iloc[i]
+            )
         else:
-            st.iloc[i] = min(upper_band.iloc[i], st.iloc[i - 1]) if not np.isnan(st.iloc[i - 1]) else upper_band.iloc[i]
+            st.iloc[i] = (
+                min(upper_band.iloc[i], st.iloc[i - 1])
+                if not np.isnan(st.iloc[i - 1])
+                else upper_band.iloc[i]
+            )
 
-    return pd.DataFrame({
-        "supertrend": st,
-        "supertrend_direction": direction,
-    })
+    return pd.DataFrame(
+        {
+            "supertrend": st,
+            "supertrend_direction": direction,
+        }
+    )
 
 
-def adx(high: pd.Series, low: pd.Series, close: pd.Series,
-        period: int = 14) -> pd.Series:
+def adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
     """Average Directional Index — trend strength regardless of direction.
 
     Values > 25 indicate a trending market; < 20 indicate ranging.
@@ -93,11 +108,14 @@ def adx(high: pd.Series, low: pd.Series, close: pd.Series,
     plus_dm = plus_dm.where((plus_dm > minus_dm) & (plus_dm > 0), 0.0)
     minus_dm = minus_dm.where((minus_dm > plus_dm) & (minus_dm > 0), 0.0)
 
-    tr = pd.concat([
-        high - low,
-        (high - close.shift(1)).abs(),
-        (low - close.shift(1)).abs(),
-    ], axis=1).max(axis=1)
+    tr = pd.concat(
+        [
+            high - low,
+            (high - close.shift(1)).abs(),
+            (low - close.shift(1)).abs(),
+        ],
+        axis=1,
+    ).max(axis=1)
 
     atr_val = tr.rolling(period).mean()
     plus_di = 100 * plus_dm.rolling(period).mean() / atr_val.replace(0, 1e-10)

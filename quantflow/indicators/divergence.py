@@ -17,12 +17,13 @@ from typing import Any
 import pandas as pd
 
 from quantflow.indicators.base import FactorBase
-from quantflow.indicators.wave_models import WaveCount, WavePattern
+from quantflow.indicators.wave_models import WaveCount, WavePattern, WaveSegment
 
 
 @dataclass
 class Divergence:
     """A single detected divergence signal."""
+
     divergence_type: str  # "macd_bearish", "macd_bullish", "volume_bearish", "volume_bullish", "rsi_bearish", "rsi_bullish"
     wave_ref: int  # which wave the divergence relates to (e.g. 5 for W5 top)
     strength: float  # 0.0-1.0, how significant the divergence is
@@ -33,6 +34,7 @@ class Divergence:
 @dataclass
 class DivergenceResult:
     """Complete divergence detection result."""
+
     divergences: list[Divergence] = field(default_factory=list)
     bearish: bool = False  # any bearish divergence detected
     bullish: bool = False  # any bullish divergence detected
@@ -118,7 +120,7 @@ class DivergenceDetector(FactorBase):
 
     def _check_macd_divergence(
         self,
-        waves: dict,
+        waves: dict[int, WaveSegment],
         df: pd.DataFrame,
     ) -> Divergence | None:
         """Check MACD histogram divergence between W5 and W3 peaks."""
@@ -166,7 +168,7 @@ class DivergenceDetector(FactorBase):
 
     def _check_volume_divergence(
         self,
-        waves: dict,
+        waves: dict[int, WaveSegment],
         df: pd.DataFrame,
     ) -> Divergence | None:
         """Check volume divergence at W5 vs W3."""
@@ -214,7 +216,7 @@ class DivergenceDetector(FactorBase):
 
     def _check_rsi_divergence(
         self,
-        waves: dict,
+        waves: dict[int, WaveSegment],
         df: pd.DataFrame,
     ) -> Divergence | None:
         """Check RSI divergence at W2 bottom (bullish)."""

@@ -5,25 +5,22 @@ End-to-end tests covering: data → indicators → strategy → signals → back
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 import pytest
 
+from quantflow.execution.scaling_position_sizer import ScalingPositionSizer
 from quantflow.indicators.critical_level import CriticalLevelDetector, CriticalLevels
-from quantflow.indicators.divergence import DivergenceDetector, DivergenceResult
-from quantflow.indicators.fibonacci import FibonacciCalculator, FibonacciLevels
-from quantflow.indicators.wave_channel import WaveChannel, ChannelResult
+from quantflow.indicators.fibonacci import FibonacciCalculator
 from quantflow.indicators.wave_identifier import WaveIdentifier
-from quantflow.indicators.wave_models import AnalysisMode, IronLawResult, WaveCount, WavePattern
+from quantflow.indicators.wave_models import AnalysisMode, WaveCount, WavePattern
 from quantflow.indicators.zigzag import PivotDirection, PivotPoint, PivotSequence, ZigZagIndicator
+from quantflow.signal.wave_signal_generator import WaveInvalidationChecker, WaveSignalGenerator
 from quantflow.strategy.elliott_wave_strategy import LiuYudongWaveStrategy
 from quantflow.strategy.research.elliott_wave_backtest import (
     BacktestResult,
     generate_synthetic_wave_data,
     run_backtest,
 )
-from quantflow.signal.wave_signal_generator import WaveInvalidationChecker, WaveSignalGenerator
-from quantflow.execution.scaling_position_sizer import ScalingConfig, ScalingPositionSizer
 
 
 @pytest.fixture
@@ -64,7 +61,8 @@ class TestZigZagPipeline:
         )
         # Most pivots should alternate; noise may cause rare same-direction pairs
         alternations = sum(
-            1 for i in range(1, len(seq.pivots))
+            1
+            for i in range(1, len(seq.pivots))
             if seq.pivots[i].direction != seq.pivots[i - 1].direction
         )
         if len(seq.pivots) > 1:
@@ -147,7 +145,9 @@ class TestCriticalLevelPipeline:
 class TestStrategyPipeline:
     """Test strategy signal generation end-to-end."""
 
-    def test_strategy_generates_signals(self, wave_ohlcv: pd.DataFrame, strategy: LiuYudongWaveStrategy) -> None:
+    def test_strategy_generates_signals(
+        self, wave_ohlcv: pd.DataFrame, strategy: LiuYudongWaveStrategy
+    ) -> None:
         entries, exits = strategy.generate_signals(wave_ohlcv)
         assert len(entries) == len(wave_ohlcv)
         assert len(exits) == len(wave_ohlcv)
@@ -155,12 +155,14 @@ class TestStrategyPipeline:
         assert exits.dtype == bool
 
     def test_strategy_no_signals_on_flat_data(self, strategy: LiuYudongWaveStrategy) -> None:
-        flat_df = pd.DataFrame({
-            "high": [100.0] * 50,
-            "low": [99.0] * 50,
-            "close": [99.5] * 50,
-            "volume": [1000.0] * 50,
-        })
+        flat_df = pd.DataFrame(
+            {
+                "high": [100.0] * 50,
+                "low": [99.0] * 50,
+                "close": [99.5] * 50,
+                "volume": [1000.0] * 50,
+            }
+        )
         entries, exits = strategy.generate_signals(flat_df)
         assert entries.sum() == 0
         assert exits.sum() == 0

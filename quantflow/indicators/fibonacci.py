@@ -9,7 +9,7 @@ calculated upward from wave end (SME-03).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import pandas as pd
@@ -18,7 +18,7 @@ from quantflow.indicators.base import FactorBase
 from quantflow.indicators.wave_models import WaveCount, WavePattern
 
 
-class FibLevelType(str, Enum):
+class FibLevelType(StrEnum):
     RETRACEMENT = "retracement"
     EXTENSION = "extension"
 
@@ -26,6 +26,7 @@ class FibLevelType(str, Enum):
 @dataclass
 class FibonacciLevel:
     """A single Fibonacci price level with metadata."""
+
     ratio: float
     price: float
     level_type: FibLevelType
@@ -35,6 +36,7 @@ class FibonacciLevel:
 @dataclass
 class FibonacciLevels:
     """Complete Fibonacci level set for a wave count."""
+
     retracement: dict[float, float] = field(default_factory=dict)
     extension: dict[float, float] = field(default_factory=dict)
     key_levels: list[FibonacciLevel] = field(default_factory=list)
@@ -104,7 +106,7 @@ class FibonacciCalculator(FactorBase):
         """Calculate Fibonacci levels for an impulse pattern.
 
         Retracement: from the high of the completed wave down to the start.
-        Extension: from W1 start upward by extension ratios × W1 amplitude.
+        Extension: from W1 start upward by extension ratios x W1 amplitude.
         """
         # Determine the reference wave for retracement
         # Typically use the most recent completed wave pair
@@ -141,19 +143,18 @@ class FibonacciCalculator(FactorBase):
         key_levels: list[FibonacciLevel] = []
 
         for ratio in ret_ratios:
-            if is_bullish:
-                price = high_price - amplitude * ratio
-            else:
-                price = low_price + amplitude * ratio
+            price = high_price - amplitude * ratio if is_bullish else low_price + amplitude * ratio
 
             retracement[ratio] = price
             label = f"{ratio:.3f} retracement ({price:.2f})"
-            key_levels.append(FibonacciLevel(
-                ratio=ratio,
-                price=price,
-                level_type=FibLevelType.RETRACEMENT,
-                label=label,
-            ))
+            key_levels.append(
+                FibonacciLevel(
+                    ratio=ratio,
+                    price=price,
+                    level_type=FibLevelType.RETRACEMENT,
+                    label=label,
+                )
+            )
 
         # Calculate extension levels (from W1 start)
         w1_amplitude = w1.amplitude()
@@ -167,12 +168,14 @@ class FibonacciCalculator(FactorBase):
 
             extension[ratio] = price
             label = f"{ratio:.3f} extension ({price:.2f})"
-            key_levels.append(FibonacciLevel(
-                ratio=ratio,
-                price=price,
-                level_type=FibLevelType.EXTENSION,
-                label=label,
-            ))
+            key_levels.append(
+                FibonacciLevel(
+                    ratio=ratio,
+                    price=price,
+                    level_type=FibLevelType.EXTENSION,
+                    label=label,
+                )
+            )
 
         return FibonacciLevels(
             retracement=retracement,
@@ -214,12 +217,14 @@ class FibonacciCalculator(FactorBase):
 
             retracement[ratio] = price
             label = f"{ratio:.3f} retracement of A ({price:.2f})"
-            key_levels.append(FibonacciLevel(
-                ratio=ratio,
-                price=price,
-                level_type=FibLevelType.RETRACEMENT,
-                label=label,
-            ))
+            key_levels.append(
+                FibonacciLevel(
+                    ratio=ratio,
+                    price=price,
+                    level_type=FibLevelType.RETRACEMENT,
+                    label=label,
+                )
+            )
 
         # Extension of A wave (C wave targets)
         extension: dict[float, float] = {}
@@ -232,12 +237,14 @@ class FibonacciCalculator(FactorBase):
 
             extension[ratio] = price
             label = f"{ratio:.3f} extension of A ({price:.2f})"
-            key_levels.append(FibonacciLevel(
-                ratio=ratio,
-                price=price,
-                level_type=FibLevelType.EXTENSION,
-                label=label,
-            ))
+            key_levels.append(
+                FibonacciLevel(
+                    ratio=ratio,
+                    price=price,
+                    level_type=FibLevelType.EXTENSION,
+                    label=label,
+                )
+            )
 
         return FibonacciLevels(
             retracement=retracement,

@@ -25,6 +25,7 @@ class PivotDirection(IntEnum):
 @dataclass
 class PivotPoint:
     """A single detected pivot point with confidence rating."""
+
     index: int
     price: float
     direction: PivotDirection
@@ -35,6 +36,7 @@ class PivotPoint:
 @dataclass
 class PivotSequence:
     """Sequence of consensus pivot points from multi-parameter ZigZag."""
+
     pivots: list[PivotPoint] = field(default_factory=list)
     overlap_ratio: float = 0.0  # average overlap across all pivots
     thresholds_used: list[float] = field(default_factory=list)
@@ -61,7 +63,9 @@ class ZigZagIndicator(FactorBase):
         bar_tolerance = params.get("bar_tolerance", 3)
 
         seq = self.compute_pivot_sequence(
-            df["high"], df["low"], df.get("timestamp", pd.Series(0, index=df.index)),
+            df["high"],
+            df["low"],
+            df.get("timestamp", pd.Series(0, index=df.index)),
             thresholds=thresholds,
             min_overlap_ratio=min_overlap_ratio,
             bar_tolerance=bar_tolerance,
@@ -103,9 +107,7 @@ class ZigZagIndicator(FactorBase):
                 all_pivots.append(p)
 
         if not all_pivots:
-            return PivotSequence(
-                pivots=[], overlap_ratio=0.0, thresholds_used=thresholds
-            )
+            return PivotSequence(pivots=[], overlap_ratio=0.0, thresholds_used=thresholds)
 
         merged = _merge_pivot_runs(all_pivots, min_overlap=min_overlap, bar_tolerance=bar_tolerance)
 
@@ -113,13 +115,15 @@ class ZigZagIndicator(FactorBase):
         for _, row in merged.iterrows():
             idx = int(row["pivot_idx"])
             ts = int(timestamps.iloc[idx]) if idx < len(timestamps) else 0
-            pivots_list.append(PivotPoint(
-                index=idx,
-                price=float(row["pivot_price"]),
-                direction=PivotDirection(int(row["pivot_type"])),
-                confidence=float(row["overlap_count"]) / len(thresholds),
-                timestamp=ts,
-            ))
+            pivots_list.append(
+                PivotPoint(
+                    index=idx,
+                    price=float(row["pivot_price"]),
+                    direction=PivotDirection(int(row["pivot_type"])),
+                    confidence=float(row["overlap_count"]) / len(thresholds),
+                    timestamp=ts,
+                )
+            )
 
         avg_overlap = sum(p.confidence for p in pivots_list) / max(1, len(pivots_list))
 
@@ -149,7 +153,7 @@ def _zigzag_single(
     if n < 3:
         return pd.DataFrame(columns=["pivot_idx", "pivot_price", "pivot_type"])
 
-    pivots: list[dict] = []
+    pivots: list[dict[str, int | float]] = []
     direction = 0
     last_high_idx = 0
     last_low_idx = 0
@@ -158,42 +162,50 @@ def _zigzag_single(
 
     for i in range(1, n):
         h = float(high.iloc[i])
-        l = float(low.iloc[i])
+        low_price = float(low.iloc[i])
 
         if direction == 0:
             if h > last_high * (1 + threshold):
                 direction = 1
-                pivots.append({"pivot_idx": last_low_idx, "pivot_price": last_low, "pivot_type": -1})
+                pivots.append(
+                    {"pivot_idx": last_low_idx, "pivot_price": last_low, "pivot_type": -1}
+                )
                 last_high = h
                 last_high_idx = i
-            elif l < last_low * (1 - threshold):
+            elif low_price < last_low * (1 - threshold):
                 direction = -1
-                pivots.append({"pivot_idx": last_high_idx, "pivot_price": last_high, "pivot_type": 1})
-                last_low = l
+                pivots.append(
+                    {"pivot_idx": last_high_idx, "pivot_price": last_high, "pivot_type": 1}
+                )
+                last_low = low_price
                 last_low_idx = i
             else:
                 if h > last_high:
                     last_high = h
                     last_high_idx = i
-                if l < last_low:
-                    last_low = l
+                if low_price < last_low:
+                    last_low = low_price
                     last_low_idx = i
         elif direction == 1:
             if h > last_high:
                 last_high = h
                 last_high_idx = i
-            elif l < last_high * (1 - threshold):
+            elif low_price < last_high * (1 - threshold):
                 direction = -1
-                pivots.append({"pivot_idx": last_high_idx, "pivot_price": last_high, "pivot_type": 1})
-                last_low = l
+                pivots.append(
+                    {"pivot_idx": last_high_idx, "pivot_price": last_high, "pivot_type": 1}
+                )
+                last_low = low_price
                 last_low_idx = i
         elif direction == -1:
-            if l < last_low:
-                last_low = l
+            if low_price < last_low:
+                last_low = low_price
                 last_low_idx = i
             elif h > last_low * (1 + threshold):
                 direction = 1
-                pivots.append({"pivot_idx": last_low_idx, "pivot_price": last_low, "pivot_type": -1})
+                pivots.append(
+                    {"pivot_idx": last_low_idx, "pivot_price": last_low, "pivot_type": -1}
+                )
                 last_high = h
                 last_high_idx = i
 
@@ -219,15 +231,17 @@ def _merge_pivot_runs(
     if not runs:
         return pd.DataFrame(columns=["pivot_idx", "pivot_price", "pivot_type", "overlap_count"])
 
-    all_entries: list[dict] = []
+    all_entries: list[dict[str, int | float]] = []
     for run_idx, run in enumerate(runs):
         for _, row in run.iterrows():
-            all_entries.append({
-                "run_idx": run_idx,
-                "pivot_idx": int(row["pivot_idx"]),
-                "pivot_price": float(row["pivot_price"]),
-                "pivot_type": int(row["pivot_type"]),
-            })
+            all_entries.append(
+                {
+                    "run_idx": run_idx,
+                    "pivot_idx": int(row["pivot_idx"]),
+                    "pivot_price": float(row["pivot_price"]),
+                    "pivot_type": int(row["pivot_type"]),
+                }
+            )
 
     if not all_entries:
         return pd.DataFrame(columns=["pivot_idx", "pivot_price", "pivot_type", "overlap_count"])
@@ -236,12 +250,19 @@ def _merge_pivot_runs(
     entries_df = entries_df.sort_values("pivot_idx").reset_index(drop=True)
 
     # Group nearby pivots with same direction
-    groups: list[list[dict]] = []
-    current_group: list[dict] = []
+    groups: list[list[dict[str, int | float]]] = []
+    current_group: list[dict[str, int | float]] = []
 
     for _, entry in entries_df.iterrows():
         if not current_group:
-            current_group.append(entry.to_dict())
+            current_group.append(
+                {
+                    "run_idx": int(entry["run_idx"]),
+                    "pivot_idx": int(entry["pivot_idx"]),
+                    "pivot_price": float(entry["pivot_price"]),
+                    "pivot_type": int(entry["pivot_type"]),
+                }
+            )
             continue
 
         last = current_group[-1]
@@ -249,28 +270,44 @@ def _merge_pivot_runs(
         same_dir = int(entry["pivot_type"]) == int(last["pivot_type"])
 
         if idx_diff <= bar_tolerance and same_dir:
-            current_group.append(entry.to_dict())
+            current_group.append(
+                {
+                    "run_idx": int(entry["run_idx"]),
+                    "pivot_idx": int(entry["pivot_idx"]),
+                    "pivot_price": float(entry["pivot_price"]),
+                    "pivot_type": int(entry["pivot_type"]),
+                }
+            )
         else:
             groups.append(current_group)
-            current_group = [entry.to_dict()]
+            current_group = [
+                {
+                    "run_idx": int(entry["run_idx"]),
+                    "pivot_idx": int(entry["pivot_idx"]),
+                    "pivot_price": float(entry["pivot_price"]),
+                    "pivot_type": int(entry["pivot_type"]),
+                }
+            ]
 
     if current_group:
         groups.append(current_group)
 
     # Merge groups into consensus pivots
-    consensus: list[dict] = []
+    consensus: list[dict[str, int | float]] = []
     for group in groups:
         unique_runs = set(int(e["run_idx"]) for e in group)
         if len(unique_runs) >= min_overlap:
             avg_idx = int(np.mean([int(e["pivot_idx"]) for e in group]))
             avg_price = float(np.mean([float(e["pivot_price"]) for e in group]))
             pivot_type = int(group[0]["pivot_type"])
-            consensus.append({
-                "pivot_idx": avg_idx,
-                "pivot_price": avg_price,
-                "pivot_type": pivot_type,
-                "overlap_count": len(unique_runs),
-            })
+            consensus.append(
+                {
+                    "pivot_idx": avg_idx,
+                    "pivot_price": avg_price,
+                    "pivot_type": pivot_type,
+                    "overlap_count": len(unique_runs),
+                }
+            )
 
     if not consensus:
         return pd.DataFrame(columns=["pivot_idx", "pivot_price", "pivot_type", "overlap_count"])

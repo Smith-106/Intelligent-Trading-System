@@ -19,6 +19,7 @@ from quantflow.indicators.wave_models import WaveCount, WavePattern
 @dataclass
 class ChannelResult:
     """Wave channel calculation result."""
+
     upper_band: pd.Series | None = None  # Channel upper band
     lower_band: pd.Series | None = None  # Channel lower band
     w5_target: float | None = None  # Projected W5 target at upper band
@@ -117,7 +118,11 @@ class WaveChannel(FactorBase):
                 w5_target = float(upper_prices[projected_w5_idx])
             else:
                 # Extrapolate
-                w5_target = float(slope * projected_w5_idx + intercept) if is_bullish else float(slope * projected_w5_idx + intercept + offset)
+                w5_target = (
+                    float(slope * projected_w5_idx + intercept)
+                    if is_bullish
+                    else float(slope * projected_w5_idx + intercept + offset)
+                )
 
         return ChannelResult(
             upper_band=upper_band,

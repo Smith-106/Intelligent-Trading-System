@@ -16,12 +16,14 @@ from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutS
 def _make_ohlcv(n: int = 200, seed: int = 42) -> pd.DataFrame:
     np.random.seed(seed)
     close = 100 + np.random.randn(n).cumsum()
-    return pd.DataFrame({
-        "close": close,
-        "high": close + np.abs(np.random.randn(n)),
-        "low": close - np.abs(np.random.randn(n)),
-        "volume": 1000 + np.abs(np.random.randn(n) * 100),
-    })
+    return pd.DataFrame(
+        {
+            "close": close,
+            "high": close + np.abs(np.random.randn(n)),
+            "low": close - np.abs(np.random.randn(n)),
+            "volume": 1000 + np.abs(np.random.randn(n) * 100),
+        }
+    )
 
 
 class TestTrendFollowingStrategy:
@@ -45,7 +47,15 @@ class TestTrendFollowingStrategy:
         ctx = StrategyContext()
         strategy.on_init(ctx)
         for i in range(60):
-            bar = Bar("BTC/USDT", 1000 + i * 60000, 100 + i * 0.5, 101 + i * 0.5, 99 + i * 0.5, 100.5 + i * 0.5, 1000)
+            bar = Bar(
+                "BTC/USDT",
+                1000 + i * 60000,
+                100 + i * 0.5,
+                101 + i * 0.5,
+                99 + i * 0.5,
+                100.5 + i * 0.5,
+                1000,
+            )
             strategy.on_bar(ctx, bar)
 
     def test_required_indicators(self):
@@ -95,7 +105,15 @@ class TestVolatilityBreakoutStrategy:
         ctx = StrategyContext()
         strategy.on_init(ctx)
         for i in range(60):
-            bar = Bar("BTC/USDT", 1000 + i * 60000, 100 + i * 0.5, 101 + i * 0.5, 99 + i * 0.5, 100.5 + i * 0.5, 1000)
+            bar = Bar(
+                "BTC/USDT",
+                1000 + i * 60000,
+                100 + i * 0.5,
+                101 + i * 0.5,
+                99 + i * 0.5,
+                100.5 + i * 0.5,
+                1000,
+            )
             strategy.on_bar(ctx, bar)
 
     def test_required_indicators(self):
@@ -117,16 +135,20 @@ class TestVolatilityBreakoutStrategy:
             close[i] = close[i - 1] + np.random.randn() * 3.0
         close = np.maximum(close, 1)
         # Volume surge in breakout zone
-        volume = np.concatenate([
-            np.full(150, 500.0),
-            np.full(50, 5000.0),
-        ])
-        df = pd.DataFrame({
-            "close": close,
-            "high": close + np.abs(np.random.randn(n)),
-            "low": close - np.abs(np.random.randn(n)),
-            "volume": volume,
-        })
+        volume = np.concatenate(
+            [
+                np.full(150, 500.0),
+                np.full(50, 5000.0),
+            ]
+        )
+        df = pd.DataFrame(
+            {
+                "close": close,
+                "high": close + np.abs(np.random.randn(n)),
+                "low": close - np.abs(np.random.randn(n)),
+                "volume": volume,
+            }
+        )
         strategy = VolatilityBreakoutStrategy()
         entries, _exits = strategy.generate_signals(df)
         assert len(entries) == n
@@ -218,10 +240,12 @@ class TestMomentumRotationStrategy:
         for symbol in symbols:
             n = 100
             close = 100 + np.random.randn(n).cumsum()
-            data[symbol] = pd.DataFrame({
-                "close": close,
-                "volume": 1000 + np.abs(np.random.randn(n) * 100),
-            })
+            data[symbol] = pd.DataFrame(
+                {
+                    "close": close,
+                    "volume": 1000 + np.abs(np.random.randn(n) * 100),
+                }
+            )
         strategy = MomentumRotationStrategy(params={"lookback": 20, "top_n": 2})
         results = strategy.generate_cross_sectional_signals(data)
         assert len(results) == len(symbols)

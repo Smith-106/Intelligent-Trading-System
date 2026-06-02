@@ -49,7 +49,7 @@ class MomentumRotationStrategy(StrategyBase):
         self._bars.append(bar)
         self._bar_count += 1
         if len(self._bars) > self._max_bars:
-            self._bars = self._bars[-self._max_bars:]
+            self._bars = self._bars[-self._max_bars :]
 
         if len(self._bars) < self._lookback:
             return
@@ -69,12 +69,14 @@ class MomentumRotationStrategy(StrategyBase):
         symbol = bar.symbol
 
         if entries.iloc[last_idx]:
-            ctx.emit_signal(symbol, Direction.LONG, strength=0.7, price=bar.close,
-                            strategy_id=self.name)
+            ctx.emit_signal(
+                symbol, Direction.LONG, strength=0.7, price=bar.close, strategy_id=self.name
+            )
             self._current_positions[symbol] = bar.close
         elif exits.iloc[last_idx]:
-            ctx.emit_signal(symbol, Direction.FLAT, strength=0.5, price=bar.close,
-                            strategy_id=self.name)
+            ctx.emit_signal(
+                symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
             self._current_positions.pop(symbol, None)
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
@@ -141,8 +143,8 @@ class MomentumRotationStrategy(StrategyBase):
         # Rank by latest momentum
         latest_scores = {s: scores[s].iloc[-1] for s in scores}
         sorted_symbols = sorted(latest_scores.keys(), key=lambda s: latest_scores[s], reverse=True)
-        top_set = set(sorted_symbols[:self._top_n])
-        exit_set = set(sorted_symbols[self._exit_rank_threshold:])
+        top_set = set(sorted_symbols[: self._top_n])
+        exit_set = set(sorted_symbols[self._exit_rank_threshold :])
 
         results: dict[str, tuple[pd.Series, pd.Series]] = {}
         for symbol, df in data.items():

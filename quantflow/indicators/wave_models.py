@@ -11,18 +11,18 @@ Core data structures for Elliott Wave pattern identification:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
-from quantflow.indicators.zigzag import PivotDirection, PivotPoint
+from quantflow.indicators.zigzag import PivotPoint
 
 
-class WavePattern(str, Enum):
+class WavePattern(StrEnum):
     IMPULSE = "impulse"
     CORRECTIVE = "corrective"
     UNKNOWN = "unknown"
 
 
-class AnalysisMode(str, Enum):
+class AnalysisMode(StrEnum):
     RETROSPECTIVE = "retrospective"
     PROGRESSIVE = "progressive"
 
@@ -30,6 +30,7 @@ class AnalysisMode(str, Enum):
 @dataclass
 class WaveSegment:
     """A single wave within an Elliott Wave pattern."""
+
     label: int  # 1-5 for impulse, -1/-2/-3 for A-B-C
     start: PivotPoint
     end: PivotPoint
@@ -52,6 +53,7 @@ class WaveCount:
     WaveCount is the core data structure flowing through L2→L3→L4,
     providing wave context for strategy decisions and risk management.
     """
+
     pattern: WavePattern = WavePattern.UNKNOWN
     current_wave: int = 0
     waves: dict[int, WaveSegment] = field(default_factory=dict)
@@ -84,6 +86,7 @@ class IronLawResult:
     Iron Law 3: W4 cannot enter W1 price territory (enforced in both modes,
         diagonal exception flagged).
     """
+
     law1_ok: bool = True
     law2_ok: bool | None = None  # None = not yet determinable
     law2_mode: AnalysisMode = AnalysisMode.PROGRESSIVE
@@ -99,9 +102,7 @@ class IronLawResult:
             return False
         if self.law2_mode == AnalysisMode.RETROSPECTIVE and self.law2_ok is False:
             return False
-        if not self.law3_ok and not self.law3_diagonal:
-            return False
-        return True
+        return not (not self.law3_ok and not self.law3_diagonal)
 
     @property
     def has_warnings(self) -> bool:

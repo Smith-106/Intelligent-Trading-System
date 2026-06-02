@@ -8,20 +8,24 @@ import pandas as pd
 
 from quantflow.indicators import momentum, trend, volatility, volume
 from quantflow.indicators.base import registry
-from quantflow.indicators.zigzag import ZigZagIndicator
-from quantflow.indicators.wave_identifier import WaveIdentifier
-from quantflow.indicators.fibonacci import FibonacciCalculator
 from quantflow.indicators.critical_level import CriticalLevelDetector
-from quantflow.indicators.wave_channel import WaveChannel
 from quantflow.indicators.divergence import DivergenceDetector
+from quantflow.indicators.fibonacci import FibonacciCalculator
+from quantflow.indicators.wave_channel import WaveChannel
+from quantflow.indicators.wave_identifier import WaveIdentifier
+from quantflow.indicators.zigzag import ZigZagIndicator
 
 logger = logging.getLogger(__name__)
 
 
 def _register_wave_factors() -> None:
     """Register Elliott Wave factors with the global registry."""
-    for cls in [ZigZagIndicator, WaveIdentifier, FibonacciCalculator, CriticalLevelDetector, WaveChannel, DivergenceDetector]:
-        registry.register(cls)
+    registry.register(ZigZagIndicator)
+    registry.register(WaveIdentifier)
+    registry.register(FibonacciCalculator)
+    registry.register(CriticalLevelDetector)
+    registry.register(WaveChannel)
+    registry.register(DivergenceDetector)
 
 
 _register_wave_factors()
@@ -29,15 +33,37 @@ _register_wave_factors()
 # 27 factors: trend(7) + momentum(4) + volatility(5) + volume(5) + elliott_wave(6)
 FACTOR_NAMES = [
     # Trend (7)
-    "sma_20", "sma_50", "ema_12", "ema_26", "macd", "macd_signal", "macd_histogram",
+    "sma_20",
+    "sma_50",
+    "ema_12",
+    "ema_26",
+    "macd",
+    "macd_signal",
+    "macd_histogram",
     # Momentum (4)
-    "rsi_14", "stoch_k", "stoch_d", "williams_r_14",
+    "rsi_14",
+    "stoch_k",
+    "stoch_d",
+    "williams_r_14",
     # Volatility (5)
-    "atr_14", "bb_upper", "bb_middle", "bb_lower", "adx_14",
+    "atr_14",
+    "bb_upper",
+    "bb_middle",
+    "bb_lower",
+    "adx_14",
     # Volume (5)
-    "obv", "vwap", "mfi_14", "volume_sma_20", "volume_ratio",
+    "obv",
+    "vwap",
+    "mfi_14",
+    "volume_sma_20",
+    "volume_ratio",
     # Elliott Wave (6)
-    "zigzag_pivots", "wave_count", "fibonacci_levels", "critical_levels", "wave_channel", "divergence",
+    "zigzag_pivots",
+    "wave_count",
+    "fibonacci_levels",
+    "critical_levels",
+    "wave_channel",
+    "divergence",
 ]
 
 

@@ -1,35 +1,25 @@
-"""Elliott Wave trend strategy — trades impulse waves with Fibonacci confirmation."""
+"""Elliott Wave trend strategy."""
 
 from __future__ import annotations
 
-import pandas as pd
-import numpy as np
+from typing import Any
 
-from quantflow.strategy.base import StrategyBase
+import pandas as pd
+
+from quantflow.common.models import Bar
 from quantflow.indicators.elliott_wave import (
+    WaveLabel,
     elliott_wave,
     wave_momentum_divergence,
-    WaveLabel,
-    WaveType,
 )
+from quantflow.strategy.base import StrategyBase, StrategyContext
 
 
 class ElliottWaveStrategy(StrategyBase):
-    """Trade based on Elliott Wave counts.
+    """Trade impulse and correction structures using Elliott Wave labels."""
 
-    Entry signals:
-    - Long at Wave 2 low (start of W3) when Fib retracement confirmed
-    - Long at Wave 4 low (start of W5) when Fib retracement confirmed
-    - Short at Wave 2 high / Wave 4 high (bearish impulses)
-
-    Exit signals:
-    - Take profit at Fibonacci extension targets
-    - Exit on momentum divergence (W5 exhaustion)
-    - Stop loss beyond Wave start invalidation level
-    """
-
-    def __init__(self, params: dict | None = None) -> None:
-        super().__init__(params)
+    def __init__(self, params: dict[str, Any] | None = None) -> None:
+        super().__init__(name="elliott_wave", params=params)
         self.zigzag_threshold = self.params.get("zigzag_threshold", 0.03)
         self.fib_tolerance = self.params.get("fib_tolerance", 0.15)
         self.use_divergence = self.params.get("use_divergence", True)
@@ -40,47 +30,37 @@ class ElliottWaveStrategy(StrategyBase):
             empty = pd.Series(False, index=df.index)
             return empty, empty
 
-        # Compute Elliott Wave labels
-        wave = elliott_wave(df, zigzag_threshold=self.zigzag_threshold, fib_tolerance=self.fib_tolerance)
+        wave = elliott_wave(
+            df,
+            zigzag_threshold=self.zigzag_threshold,
+            fib_tolerance=self.fib_tolerance,
+        )
 
         entries = pd.Series(False, index=df.index)
         exits = pd.Series(False, index=df.index)
-
         labels = wave["wave_label"]
-        bullish = wave["is_bullish"]
 
         for i in range(1, len(df)):
             lbl = labels.iloc[i]
-            is_bull = bullish.iloc[i]
-
-            if lbl == int(WaveLabel.W2):
-                # W2 complete → enter in direction of impulse
-                entries.iloc[i] = True
-            elif lbl == int(WaveLabel.W4):
-                # W4 complete → enter for W5
+            if lbl in (int(WaveLabel.W2), int(WaveLabel.W4), int(WaveLabel.WC)):
                 entries.iloc[i] = True
             elif lbl == int(WaveLabel.W5):
-                # W5 complete → exit (end of impulse)
                 exits.iloc[i] = True
-            elif lbl == int(WaveLabel.WC):
-                # C wave complete → potential reversal entry
-                entries.iloc[i] = True
 
-        # Divergence filter: exit on W5 divergence
         if self.use_divergence and "rsi_14" in df.columns:
             from quantflow.indicators.elliott_wave import zigzag as zz
+
             pivots = zz(df["high"], df["low"], threshold=self.zigzag_threshold)
             div = wave_momentum_divergence(df["close"], df["rsi_14"], pivots)
-            # Bearish divergence at any point → exit longs
             exits = exits | (div == -1)
 
-        return entries, exits
+        return entries.astype(bool), exits.astype(bool)
 
-    def on_init(self, ctx) -> None:
+    def on_init(self, ctx: StrategyContext) -> None:
         pass
 
-    def on_bar(self, ctx, bar) -> None:
+    def on_bar(self, ctx: StrategyContext, bar: Bar) -> None:
         pass
 
-    def on_tick(self, ctx, tick) -> None:
+    def on_tick(self, ctx: StrategyContext, tick: Any) -> None:
         pass

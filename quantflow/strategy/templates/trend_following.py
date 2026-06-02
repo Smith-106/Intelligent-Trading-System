@@ -40,8 +40,16 @@ class TrendFollowingStrategy(StrategyBase):
 
         # State for event-driven mode
         self._bars: list[Bar] = []
-        self._max_bars = max(self._slow_period, self._macd_slow, self._rsi_period,
-                             self._atr_period, self._volume_period) + 50
+        self._max_bars = (
+            max(
+                self._slow_period,
+                self._macd_slow,
+                self._rsi_period,
+                self._atr_period,
+                self._volume_period,
+            )
+            + 50
+        )
 
     def on_init(self, ctx: StrategyContext) -> None:
         ctx.params = self._params
@@ -50,7 +58,7 @@ class TrendFollowingStrategy(StrategyBase):
         """Event-driven bar handler — accumulate bars and emit signals."""
         self._bars.append(bar)
         if len(self._bars) > self._max_bars:
-            self._bars = self._bars[-self._max_bars:]
+            self._bars = self._bars[-self._max_bars :]
 
         # Need enough bars for indicators
         if len(self._bars) < self._slow_period + self._macd_signal:
@@ -68,13 +76,15 @@ class TrendFollowingStrategy(StrategyBase):
         symbol = bar.symbol
 
         if entries.iloc[last_idx]:
-            ctx.emit_signal(symbol, Direction.LONG, strength=0.8, price=bar.close,
-                            strategy_id=self.name)
+            ctx.emit_signal(
+                symbol, Direction.LONG, strength=0.8, price=bar.close, strategy_id=self.name
+            )
         elif exits.iloc[last_idx]:
             # For exits, emit opposite direction to close
             # Check if we have a position — simplified: always signal to exit
-            ctx.emit_signal(symbol, Direction.SHORT, strength=0.5, price=bar.close,
-                            strategy_id=self.name)
+            ctx.emit_signal(
+                symbol, Direction.SHORT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         """Vectorized signal generation."""
@@ -108,11 +118,14 @@ class TrendFollowingStrategy(StrategyBase):
         rsi = 100 - (100 / (1 + rs))
 
         # ATR
-        tr = pd.concat([
-            high - low,
-            (high - close.shift(1)).abs(),
-            (low - close.shift(1)).abs(),
-        ], axis=1).max(axis=1)
+        tr = pd.concat(
+            [
+                high - low,
+                (high - close.shift(1)).abs(),
+                (low - close.shift(1)).abs(),
+            ],
+            axis=1,
+        ).max(axis=1)
         atr = tr.rolling(self._atr_period).mean()
         atr_cap = atr.rolling(self._slow_period).mean() * self._atr_multiplier
 
@@ -154,8 +167,14 @@ class TrendFollowingStrategy(StrategyBase):
         return [
             {"name": "sma", "params": {"period": self._fast_period}},
             {"name": "sma", "params": {"period": self._slow_period}},
-            {"name": "macd", "params": {"fast": self._macd_fast, "slow": self._macd_slow,
-                                          "signal": self._macd_signal}},
+            {
+                "name": "macd",
+                "params": {
+                    "fast": self._macd_fast,
+                    "slow": self._macd_slow,
+                    "signal": self._macd_signal,
+                },
+            },
             {"name": "rsi", "params": {"period": self._rsi_period}},
             {"name": "atr", "params": {"period": self._atr_period}},
         ]

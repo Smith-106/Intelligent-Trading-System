@@ -1,4 +1,4 @@
-"""Volatility breakout strategy — ATR breakout + BB expansion + Keltner squeeze + volume confirmation."""
+"""Volatility breakout strategy."""
 
 from __future__ import annotations
 
@@ -15,17 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class VolatilityBreakoutStrategy(StrategyBase):
-    """Volatility state transition strategy.
-
-    Detects low-volatility → high-volatility breakout via:
-    - ATR spike above its moving average (threshold multiplier)
-    - Bollinger Band width expansion above its moving average
-    - Keltner Channel squeeze release (BB exits KC bounds)
-    - Volume surge confirmation
-
-    Exit when volatility shrinks (ATR falls below shrink threshold)
-    or price returns to Bollinger middle band.
-    """
+    """Detect low-volatility to high-volatility state transitions."""
 
     def __init__(self, params: dict[str, Any] | None = None) -> None:
         super().__init__(name="volatility_breakout", params=params)
@@ -43,11 +33,16 @@ class VolatilityBreakoutStrategy(StrategyBase):
         self._bb_middle_exit = p.get("bb_middle_exit", True)
 
         self._bars: list[Bar] = []
-        self._max_bars = max(
-            self._atr_period, self._bb_period,
-            self._keltner_ema_period, self._keltner_atr_period,
-            self._volume_period,
-        ) + 50
+        self._max_bars = (
+            max(
+                self._atr_period,
+                self._bb_period,
+                self._keltner_ema_period,
+                self._keltner_atr_period,
+                self._volume_period,
+            )
+            + 50
+        )
 
     def on_init(self, ctx: StrategyContext) -> None:
         ctx.params = self._params
@@ -55,7 +50,7 @@ class VolatilityBreakoutStrategy(StrategyBase):
     def on_bar(self, ctx: StrategyContext, bar: Bar) -> None:
         self._bars.append(bar)
         if len(self._bars) > self._max_bars:
-            self._bars = self._bars[-self._max_bars:]
+            self._bars = self._bars[-self._max_bars :]
 
         min_bars = max(self._atr_period * 2, self._bb_period, self._keltner_ema_period)
         if len(self._bars) < min_bars:
@@ -73,11 +68,21 @@ class VolatilityBreakoutStrategy(StrategyBase):
         symbol = bar.symbol
 
         if entries.iloc[last_idx]:
-            ctx.emit_signal(symbol, Direction.LONG, strength=0.8, price=bar.close,
-                            strategy_id=self.name)
+            ctx.emit_signal(
+                symbol,
+                Direction.LONG,
+                strength=0.8,
+                price=bar.close,
+                strategy_id=self.name,
+            )
         elif exits.iloc[last_idx]:
-            ctx.emit_signal(symbol, Direction.FLAT, strength=0.5, price=bar.close,
-                            strategy_id=self.name)
+            ctx.emit_signal(
+                symbol,
+                Direction.FLAT,
+                strength=0.5,
+                price=bar.close,
+                strategy_id=self.name,
+            )
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         min_bars = max(self._atr_period * 2, self._bb_period, self._keltner_ema_period)
@@ -90,12 +95,10 @@ class VolatilityBreakoutStrategy(StrategyBase):
         low = df.get("low", close)
         volume = df.get("volume", pd.Series(1.0, index=df.index))
 
-        # ATR and its moving average
         atr_val = atr(high, low, close, self._atr_period)
         atr_ma = atr_val.rolling(self._atr_period * 2).mean()
         atr_spike = atr_val > atr_ma * self._atr_threshold
 
-        # Bollinger Bands width
         bb = bollinger_bands(close, self._bb_period, self._bb_std)
         bb_upper = bb["bb_upper"]
         bb_middle = bb["bb_middle"]
@@ -104,33 +107,34 @@ class VolatilityBreakoutStrategy(StrategyBase):
         bb_width_ma = bb_width.rolling(self._bb_period).mean()
         bb_expanding = bb_width > bb_width_ma
 
-        # Keltner Channel — squeeze detection
-        kc = keltner_channel(high, low, close,
-                             self._keltner_ema_period, self._keltner_atr_period,
-                             self._keltner_multiplier)
+        kc = keltner_channel(
+            high,
+            low,
+            close,
+            self._keltner_ema_period,
+            self._keltner_atr_period,
+            self._keltner_multiplier,
+        )
         kc_upper = kc["kc_upper"]
         kc_lower = kc["kc_lower"]
         squeeze = (bb_lower > kc_lower) & (bb_upper < kc_upper)
+        previous_squeeze = squeeze.shift(1, fill_value=False).astype(bool)
 
-        # Volume confirmation
         vol_ma = volume.rolling(self._volume_period).mean()
         vol_surge = volume > vol_ma * self._volume_threshold
 
-        # Entry: volatility breakout after squeeze
-        entries_long = atr_spike & bb_expanding & (close > bb_upper) & vol_surge & squeeze.shift(1).fillna(False)
-        entries_short = atr_spike & bb_expanding & (close < bb_lower) & vol_surge & squeeze.shift(1).fillna(False)
+        entries_long = atr_spike & bb_expanding & (close > bb_upper) & vol_surge & previous_squeeze
+        entries_short = atr_spike & bb_expanding & (close < bb_lower) & vol_surge & previous_squeeze
         entries = entries_long | entries_short
 
-        # Exit: volatility shrinkage or price crosses back to BB middle
         atr_shrink = atr_val < atr_ma * self._atr_shrink_exit
         if self._bb_middle_exit:
-            # Price returns near BB middle (within 0.5% of middle band)
             middle_return = (close - bb_middle).abs() / bb_middle < 0.005
         else:
             middle_return = pd.Series(False, index=df.index)
         exits = atr_shrink | middle_return
 
-        return entries.fillna(False), exits.fillna(False)
+        return entries.astype(bool), exits.astype(bool)
 
     def _bars_to_df(self) -> pd.DataFrame:
         if not self._bars:
@@ -151,9 +155,12 @@ class VolatilityBreakoutStrategy(StrategyBase):
         return [
             {"name": "atr", "params": {"period": self._atr_period}},
             {"name": "bb", "params": {"period": self._bb_period, "std": self._bb_std}},
-            {"name": "keltner", "params": {
-                "ema_period": self._keltner_ema_period,
-                "atr_period": self._keltner_atr_period,
-                "multiplier": self._keltner_multiplier,
-            }},
+            {
+                "name": "keltner",
+                "params": {
+                    "ema_period": self._keltner_ema_period,
+                    "atr_period": self._keltner_atr_period,
+                    "multiplier": self._keltner_multiplier,
+                },
+            },
         ]

@@ -19,9 +19,13 @@ def rsi(series: pd.Series, period: int = 14) -> pd.Series:
     return 100 - (100 / (1 + rs))
 
 
-def stochastic_rsi(series: pd.Series, rsi_period: int = 14,
-                   stoch_period: int = 14, k_smooth: int = 3,
-                   d_smooth: int = 3) -> pd.DataFrame:
+def stochastic_rsi(
+    series: pd.Series,
+    rsi_period: int = 14,
+    stoch_period: int = 14,
+    k_smooth: int = 3,
+    d_smooth: int = 3,
+) -> pd.DataFrame:
     """Stochastic RSI.
 
     Returns DataFrame with columns: stochrsi_k, stochrsi_d.
@@ -35,8 +39,9 @@ def stochastic_rsi(series: pd.Series, rsi_period: int = 14,
     return pd.DataFrame({"stochrsi_k": k, "stochrsi_d": d})
 
 
-def stochastic(high: pd.Series, low: pd.Series, close: pd.Series,
-               k_period: int = 14, d_period: int = 3) -> pd.DataFrame:
+def stochastic(
+    high: pd.Series, low: pd.Series, close: pd.Series, k_period: int = 14, d_period: int = 3
+) -> pd.DataFrame:
     """Stochastic Oscillator.
 
     Returns DataFrame with columns: stoch_k, stoch_d.
@@ -48,8 +53,7 @@ def stochastic(high: pd.Series, low: pd.Series, close: pd.Series,
     return pd.DataFrame({"stoch_k": k, "stoch_d": d})
 
 
-def williams_r(high: pd.Series, low: pd.Series, close: pd.Series,
-               period: int = 14) -> pd.Series:
+def williams_r(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
     """Williams %R."""
     highest = high.rolling(period).max()
     lowest = low.rolling(period).min()

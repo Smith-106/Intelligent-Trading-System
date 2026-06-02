@@ -13,8 +13,7 @@ def obv(close: pd.Series, volume: pd.Series) -> pd.Series:
     return (volume * direction).cumsum()
 
 
-def vwap(high: pd.Series, low: pd.Series, close: pd.Series,
-         volume: pd.Series) -> pd.Series:
+def vwap(high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series) -> pd.Series:
     """Volume Weighted Average Price (cumulative daily)."""
     typical_price = (high + low + close) / 3
     cum_tp_vol = (typical_price * volume).cumsum()
@@ -22,8 +21,9 @@ def vwap(high: pd.Series, low: pd.Series, close: pd.Series,
     return cum_tp_vol / cum_vol.replace(0, 1e-10)
 
 
-def mfi(high: pd.Series, low: pd.Series, close: pd.Series,
-        volume: pd.Series, period: int = 14) -> pd.Series:
+def mfi(
+    high: pd.Series, low: pd.Series, close: pd.Series, volume: pd.Series, period: int = 14
+) -> pd.Series:
     """Money Flow Index."""
     typical_price = (high + low + close) / 3
     raw_money_flow = typical_price * volume

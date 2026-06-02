@@ -10,7 +10,6 @@ Implements a practical quantitative approach to Elliott Wave Theory:
 from __future__ import annotations
 
 from enum import IntEnum
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -46,11 +45,11 @@ class WaveLabel(IntEnum):
 
 # Fibonacci ratios for wave validation
 FIB_RATIOS = {
-    "w2_retrace": (0.382, 0.618),   # Wave 2 retraces 38.2%–61.8% of Wave 1
-    "w3_extend": (1.618, 2.618),     # Wave 3 extends 161.8%–261.8% of Wave 1
-    "w4_retrace": (0.236, 0.382),    # Wave 4 retraces 23.6%–38.2% of Wave 3
-    "w5_extend": (0.618, 1.0),       # Wave 5 is 61.8%–100% of Wave 1
-    "wc_extend": (0.618, 1.618),     # Wave C is 61.8%–161.8% of Wave A
+    "w2_retrace": (0.382, 0.618),  # Wave 2 retraces 38.2%–61.8% of Wave 1
+    "w3_extend": (1.618, 2.618),  # Wave 3 extends 161.8%–261.8% of Wave 1
+    "w4_retrace": (0.236, 0.382),  # Wave 4 retraces 23.6%–38.2% of Wave 3
+    "w5_extend": (0.618, 1.0),  # Wave 5 is 61.8%–100% of Wave 1
+    "wc_extend": (0.618, 1.618),  # Wave C is 61.8%–161.8% of Wave A
 }
 
 
@@ -76,7 +75,7 @@ def zigzag(
     if n < 3:
         return pd.DataFrame(columns=["pivot_idx", "pivot_price", "pivot_type"])
 
-    pivots: list[dict] = []
+    pivots: list[dict[str, int | float]] = []
     direction = 0  # 0=undecided, 1=up, -1=down
     last_high_idx = 0
     last_low_idx = 0
@@ -87,12 +86,16 @@ def zigzag(
         if direction == 0:
             if high.iloc[i] > last_high * (1 + threshold):
                 direction = 1
-                pivots.append({"pivot_idx": last_low_idx, "pivot_price": last_low, "pivot_type": -1})
+                pivots.append(
+                    {"pivot_idx": last_low_idx, "pivot_price": last_low, "pivot_type": -1}
+                )
                 last_high = high.iloc[i]
                 last_high_idx = i
             elif low.iloc[i] < last_low * (1 - threshold):
                 direction = -1
-                pivots.append({"pivot_idx": last_high_idx, "pivot_price": last_high, "pivot_type": 1})
+                pivots.append(
+                    {"pivot_idx": last_high_idx, "pivot_price": last_high, "pivot_type": 1}
+                )
                 last_low = low.iloc[i]
                 last_low_idx = i
             else:
@@ -108,7 +111,9 @@ def zigzag(
                 last_high_idx = i
             elif low.iloc[i] < last_high * (1 - threshold):
                 direction = -1
-                pivots.append({"pivot_idx": last_high_idx, "pivot_price": last_high, "pivot_type": 1})
+                pivots.append(
+                    {"pivot_idx": last_high_idx, "pivot_price": last_high, "pivot_type": 1}
+                )
                 last_low = low.iloc[i]
                 last_low_idx = i
         elif direction == -1:
@@ -117,7 +122,9 @@ def zigzag(
                 last_low_idx = i
             elif high.iloc[i] > last_low * (1 + threshold):
                 direction = 1
-                pivots.append({"pivot_idx": last_low_idx, "pivot_price": last_low, "pivot_type": -1})
+                pivots.append(
+                    {"pivot_idx": last_low_idx, "pivot_price": last_low, "pivot_type": -1}
+                )
                 last_high = high.iloc[i]
                 last_high_idx = i
 
@@ -133,7 +140,7 @@ def zigzag(
 def classify_impulse(
     pivots: pd.DataFrame,
     tolerance: float = 0.15,
-) -> Optional[pd.DataFrame]:
+) -> pd.DataFrame | None:
     """Try to classify the last 5 pivots as an impulse wave (1-2-3-4-5).
 
     Args:
@@ -162,14 +169,10 @@ def classify_impulse(
         w1 = prices[1] - prices[0]
         w2 = prices[1] - prices[2]
         w3 = prices[3] - prices[2]
-        w4 = prices[3] - prices[4]
-        w5 = abs(prices[4] - prices[3]) if len(prices) > 4 else 0
     else:
         w1 = prices[0] - prices[1]
         w2 = prices[2] - prices[1]
         w3 = prices[2] - prices[3]
-        w4 = prices[4] - prices[3]
-        w5 = abs(prices[3] - prices[4]) if len(prices) > 4 else 0
 
     if w1 <= 0 or w3 <= 0:
         return None
@@ -206,7 +209,7 @@ def classify_impulse(
 def classify_corrective(
     pivots: pd.DataFrame,
     tolerance: float = 0.20,
-) -> Optional[pd.DataFrame]:
+) -> pd.DataFrame | None:
     """Try to classify the last 3 pivots as an ABC corrective wave.
 
     Args:

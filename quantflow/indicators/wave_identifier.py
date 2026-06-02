@@ -15,12 +15,11 @@ from quantflow.indicators.base import FactorBase
 from quantflow.indicators.wave_models import (
     AnalysisMode,
     IronLawResult,
-    PivotDirection,
     WaveCount,
     WavePattern,
     WaveSegment,
 )
-from quantflow.indicators.zigzag import PivotPoint, PivotSequence
+from quantflow.indicators.zigzag import PivotDirection, PivotPoint, PivotSequence
 
 
 class WaveIdentifier(FactorBase):
@@ -119,7 +118,9 @@ class WaveIdentifier(FactorBase):
             end_pivot = pivots[i + 1]
 
             # Direction consistency check
-            expected_up = (is_bullish and wave_label % 2 == 1) or (not is_bullish and wave_label % 2 == 0)
+            expected_up = (is_bullish and wave_label % 2 == 1) or (
+                not is_bullish and wave_label % 2 == 0
+            )
             actual_up = end_pivot.price > start_pivot.price
 
             if expected_up != actual_up:
@@ -132,7 +133,9 @@ class WaveIdentifier(FactorBase):
             if wave_label in (2, 4) and wave_label - 1 in waves:
                 prev = waves[wave_label - 1]
                 if prev.amplitude() > 0:
-                    retracement_pct = abs(end_pivot.price - start_pivot.price) / prev.amplitude() * 100
+                    retracement_pct = (
+                        abs(end_pivot.price - start_pivot.price) / prev.amplitude() * 100
+                    )
 
             waves[wave_label] = WaveSegment(
                 label=wave_label,
@@ -191,7 +194,9 @@ class WaveIdentifier(FactorBase):
             if wave_label == -2 and -1 in waves:
                 prev = waves[-1]
                 if prev.amplitude() > 0:
-                    retracement_pct = abs(end_pivot.price - start_pivot.price) / prev.amplitude() * 100
+                    retracement_pct = (
+                        abs(end_pivot.price - start_pivot.price) / prev.amplitude() * 100
+                    )
 
             waves[wave_label] = WaveSegment(
                 label=wave_label,
@@ -339,7 +344,9 @@ class WaveIdentifier(FactorBase):
         # Heuristic: check diminishing wave amplitudes
         amplitudes = [waves[i].amplitude() for i in range(1, 6) if i in waves]
         if len(amplitudes) >= 3:
-            is_narrowing = all(amplitudes[i] <= amplitudes[i - 1] for i in range(1, len(amplitudes)))
+            is_narrowing = all(
+                amplitudes[i] <= amplitudes[i - 1] for i in range(1, len(amplitudes))
+            )
             if is_narrowing:
                 return True
 

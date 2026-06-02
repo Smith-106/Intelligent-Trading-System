@@ -1,5 +1,7 @@
 """Tests for quantflow.strategy.templates — extended coverage for new strategies."""
 
+import warnings
+
 import numpy as np
 import pandas as pd
 
@@ -15,12 +17,14 @@ def _make_ohlcv(n: int = 200, seed: int = 42) -> pd.DataFrame:
     np.random.seed(seed)
     close = 100 + np.random.randn(n).cumsum()
     close = np.maximum(close, 1)
-    return pd.DataFrame({
-        "close": close,
-        "high": close + np.abs(np.random.randn(n)),
-        "low": close - np.abs(np.random.randn(n)),
-        "volume": 1000 + np.abs(np.random.randn(n) * 100),
-    })
+    return pd.DataFrame(
+        {
+            "close": close,
+            "high": close + np.abs(np.random.randn(n)),
+            "low": close - np.abs(np.random.randn(n)),
+            "volume": 1000 + np.abs(np.random.randn(n) * 100),
+        }
+    )
 
 
 def _make_bar(symbol: str = "BTC/USDT", ts: int = 0, close: float = 100.0) -> Bar:
@@ -28,6 +32,7 @@ def _make_bar(symbol: str = "BTC/USDT", ts: int = 0, close: float = 100.0) -> Ba
 
 
 # ── VolatilityBreakout ──
+
 
 class TestVolatilityBreakoutExtended:
     def test_on_init_sets_params(self):
@@ -75,8 +80,71 @@ class TestVolatilityBreakoutExtended:
         assert s._atr_shrink_exit == 0.5
         assert s._bb_middle_exit is False
 
+    def test_generate_signals_squeeze_path_has_bool_output_without_futurewarning(self):
+        s = VolatilityBreakoutStrategy(
+            params={"atr_period": 2, "bb_period": 2, "keltner_ema_period": 2, "volume_period": 2}
+        )
+        idx = pd.RangeIndex(6)
+        df = pd.DataFrame(
+            {
+                "close": [100.0, 101.0, 102.0, 103.0, 104.0, 105.0],
+                "high": [101.0, 102.0, 103.0, 104.0, 105.0, 106.0],
+                "low": [99.0, 100.0, 101.0, 102.0, 103.0, 104.0],
+                "volume": [1000.0, 1000.0, 1000.0, 5000.0, 5000.0, 5000.0],
+            },
+            index=idx,
+        )
+
+        atr_series = pd.Series([1.0, 1.0, 1.0, 4.0, 4.0, 4.0], index=idx)
+        bb_frame = pd.DataFrame(
+            {
+                "bb_upper": [101.0, 101.0, 101.0, 102.0, 103.0, 104.0],
+                "bb_middle": [100.0, 100.0, 100.0, 100.0, 100.0, 100.0],
+                "bb_lower": [99.5, 99.5, 99.5, 99.0, 99.0, 99.0],
+            },
+            index=idx,
+        )
+        kc_frame = pd.DataFrame(
+            {
+                "kc_upper": [101.5, 101.5, 101.5, 101.8, 102.0, 102.2],
+                "kc_lower": [98.5, 98.5, 98.5, 99.2, 99.0, 98.8],
+            },
+            index=idx,
+        )
+
+        from quantflow.strategy.templates import volatility_breakout as vb_module
+
+        original_atr = vb_module.atr
+        original_bb = vb_module.bollinger_bands
+        original_kc = vb_module.keltner_channel
+
+        vb_module.atr = lambda high, low, close, period: atr_series
+        vb_module.bollinger_bands = lambda close, period, std: bb_frame
+        vb_module.keltner_channel = lambda high, low, close, ema_period, atr_period, multiplier: (
+            kc_frame
+        )
+
+        try:
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                entries, exits = s.generate_signals(df)
+        finally:
+            vb_module.atr = original_atr
+            vb_module.bollinger_bands = original_bb
+            vb_module.keltner_channel = original_kc
+
+        future_warnings = [w for w in caught if issubclass(w.category, FutureWarning)]
+
+        assert not future_warnings
+        assert entries.dtype == bool
+        assert exits.dtype == bool
+        assert not entries.isna().any()
+        assert not exits.isna().any()
+        assert bool(entries.iloc[3])
+
 
 # ── FundingRate ──
+
 
 class TestFundingRateExtended:
     def test_on_init_sets_params(self):
@@ -133,6 +201,7 @@ class TestFundingRateExtended:
 
 # ── MomentumRotation ──
 
+
 class TestMomentumRotationExtended:
     def test_on_init_sets_params(self):
         s = MomentumRotationStrategy(params={"lookback": 30, "top_n": 5})
@@ -179,6 +248,7 @@ class TestMomentumRotationExtended:
 
 
 # ── MLEnsemble ──
+
 
 class TestMLEnsembleExtended:
     def test_on_init_sets_params(self):

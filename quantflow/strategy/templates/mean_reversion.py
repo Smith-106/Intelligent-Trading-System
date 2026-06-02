@@ -45,7 +45,7 @@ class MeanReversionStrategy(StrategyBase):
         """Event-driven bar handler."""
         self._bars.append(bar)
         if len(self._bars) > self._max_bars:
-            self._bars = self._bars[-self._max_bars:]
+            self._bars = self._bars[-self._max_bars :]
 
         if len(self._bars) < self._bb_period:
             return
@@ -65,14 +65,17 @@ class MeanReversionStrategy(StrategyBase):
             # Determine direction from RSI
             rsi_val = self._compute_rsi(df["close"]).iloc[last_idx]
             if rsi_val < self._rsi_oversold:
-                ctx.emit_signal(symbol, Direction.LONG, strength=0.7, price=bar.close,
-                                strategy_id=self.name)
+                ctx.emit_signal(
+                    symbol, Direction.LONG, strength=0.7, price=bar.close, strategy_id=self.name
+                )
             elif rsi_val > self._rsi_overbought:
-                ctx.emit_signal(symbol, Direction.SHORT, strength=0.7, price=bar.close,
-                                strategy_id=self.name)
+                ctx.emit_signal(
+                    symbol, Direction.SHORT, strength=0.7, price=bar.close, strategy_id=self.name
+                )
         elif exits.iloc[last_idx]:
-            ctx.emit_signal(symbol, Direction.FLAT, strength=0.3, price=bar.close,
-                            strategy_id=self.name)
+            ctx.emit_signal(
+                symbol, Direction.FLAT, strength=0.3, price=bar.close, strategy_id=self.name
+            )
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         """Vectorized signal generation."""
@@ -98,14 +101,13 @@ class MeanReversionStrategy(StrategyBase):
 
         # Entry: oversold + below BB lower (long) or overbought + above BB upper (short)
         entries = vol_ok & (
-            ((rsi < self._rsi_oversold) & (close < bb_lower)) |
-            ((rsi > self._rsi_overbought) & (close > bb_upper))
+            ((rsi < self._rsi_oversold) & (close < bb_lower))
+            | ((rsi > self._rsi_overbought) & (close > bb_upper))
         )
 
         # Exit: price returns to middle band or RSI normalizes
-        exits = (
-            ((close > bb_middle) & (rsi > self._exit_rsi_overbought)) |
-            ((close < bb_middle) & (rsi < self._exit_rsi_oversold))
+        exits = ((close > bb_middle) & (rsi > self._exit_rsi_overbought)) | (
+            (close < bb_middle) & (rsi < self._exit_rsi_oversold)
         )
 
         return entries.fillna(False), exits.fillna(False)

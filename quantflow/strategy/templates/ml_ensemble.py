@@ -52,7 +52,7 @@ class MLEnsembleStrategy(StrategyBase):
         self._bars.append(bar)
         self._bar_count += 1
         if len(self._bars) > self._max_bars:
-            self._bars = self._bars[-self._max_bars:]
+            self._bars = self._bars[-self._max_bars :]
 
         if self._model is None or len(self._bars) < self._lookback:
             return
@@ -69,11 +69,13 @@ class MLEnsembleStrategy(StrategyBase):
         symbol = bar.symbol
 
         if entries.iloc[last_idx]:
-            ctx.emit_signal(symbol, Direction.LONG, strength=0.8, price=bar.close,
-                            strategy_id=self.name)
+            ctx.emit_signal(
+                symbol, Direction.LONG, strength=0.8, price=bar.close, strategy_id=self.name
+            )
         elif exits.iloc[last_idx]:
-            ctx.emit_signal(symbol, Direction.FLAT, strength=0.5, price=bar.close,
-                            strategy_id=self.name)
+            ctx.emit_signal(
+                symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         if len(df) < self._lookback or self._model is None:
@@ -156,10 +158,14 @@ class MLEnsembleStrategy(StrategyBase):
         if meta_labels is not None:
             meta_valid = meta_labels.loc[valid.index]
             primary_preds = self._model.predict(valid)
-            meta_features = pd.DataFrame({
-                "primary_pred": primary_preds,
-                "primary_proba": self._model.predict_proba(valid)[:, 1] if self._model.n_classes_ == 2 else self._model.predict_proba(valid)[:, 0],
-            })
+            meta_features = pd.DataFrame(
+                {
+                    "primary_pred": primary_preds,
+                    "primary_proba": self._model.predict_proba(valid)[:, 1]
+                    if self._model.n_classes_ == 2
+                    else self._model.predict_proba(valid)[:, 0],
+                }
+            )
             self._meta_model = GradientBoostingClassifier(
                 n_estimators=50, max_depth=3, random_state=42
             )
@@ -168,6 +174,7 @@ class MLEnsembleStrategy(StrategyBase):
         # Save model
         try:
             from joblib import dump
+
             Path(self._model_path).parent.mkdir(parents=True, exist_ok=True)
             dump(self._model, self._model_path)
             if self._meta_model is not None:
@@ -271,10 +278,12 @@ class MLEnsembleStrategy(StrategyBase):
 
         try:
             primary_preds = (primary_proba > 0.5).astype(int)
-            meta_features = pd.DataFrame({
-                "primary_pred": primary_preds.values,
-                "primary_proba": primary_proba.values,
-            })
+            meta_features = pd.DataFrame(
+                {
+                    "primary_pred": primary_preds.values,
+                    "primary_proba": primary_proba.values,
+                }
+            )
             meta_labels = self._meta_model.predict(meta_features)
             return pd.Series(meta_labels.astype(bool), index=primary_proba.index)
         except Exception:
@@ -284,6 +293,7 @@ class MLEnsembleStrategy(StrategyBase):
         """Load pre-trained model from disk."""
         try:
             from joblib import load
+
             path = Path(self._model_path)
             if path.exists():
                 self._model = load(path)
