@@ -133,8 +133,8 @@ class MLEnsembleStrategy(StrategyBase):
         try:
             from sklearn.ensemble import GradientBoostingClassifier
             from sklearn.model_selection import cross_val_score
-        except ImportError:
-            raise ImportError("scikit-learn required: pip install scikit-learn")
+        except ImportError as e:
+            raise ImportError("scikit-learn required: pip install scikit-learn") from e
 
         features = self._extract_features(df)
         if features.empty or len(features) != len(labels):

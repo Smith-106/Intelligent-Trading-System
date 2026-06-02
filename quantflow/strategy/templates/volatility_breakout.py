@@ -111,7 +111,6 @@ class VolatilityBreakoutStrategy(StrategyBase):
         kc_upper = kc["kc_upper"]
         kc_lower = kc["kc_lower"]
         squeeze = (bb_lower > kc_lower) & (bb_upper < kc_upper)
-        squeeze_release = squeeze.shift(1) & ~squeeze
 
         # Volume confirmation
         vol_ma = volume.rolling(self._volume_period).mean()
@@ -122,10 +121,11 @@ class VolatilityBreakoutStrategy(StrategyBase):
         entries_short = atr_spike & bb_expanding & (close < bb_lower) & vol_surge & squeeze.shift(1).fillna(False)
         entries = entries_long | entries_short
 
-        # Exit: volatility shrinkage or price returns to BB middle
+        # Exit: volatility shrinkage or price crosses back to BB middle
         atr_shrink = atr_val < atr_ma * self._atr_shrink_exit
         if self._bb_middle_exit:
-            middle_return = (close > bb_middle) | (close < bb_middle)
+            # Price returns near BB middle (within 0.5% of middle band)
+            middle_return = (close - bb_middle).abs() / bb_middle < 0.005
         else:
             middle_return = pd.Series(False, index=df.index)
         exits = atr_shrink | middle_return

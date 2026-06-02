@@ -128,7 +128,7 @@ class TestVolatilityBreakoutStrategy:
             "volume": volume,
         })
         strategy = VolatilityBreakoutStrategy()
-        entries, exits = strategy.generate_signals(df)
+        entries, _exits = strategy.generate_signals(df)
         assert len(entries) == n
         # Verify entry signals exist somewhere in the data (not necessarily in last 50)
         total_entries = entries.sum()
@@ -173,7 +173,7 @@ class TestFundingRateStrategy:
         df["funding_rate"] = rates
         df["open_interest"] = np.linspace(10000, 12000, n)  # rising OI
         strategy = FundingRateStrategy(params={"entry_threshold": 0.001})
-        entries, exits = strategy.generate_signals(df)
+        entries, _exits = strategy.generate_signals(df)
         assert len(entries) == n
 
     def test_update_funding_rate(self):

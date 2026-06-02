@@ -252,7 +252,7 @@ def optimize(
 
     console.print(f"[bold blue]Optimizing {strategy} with {method} ({trials} trials)...[/]")
 
-    def _signal_fn(close_series: "pd.Series", **params):
+    def _signal_fn(close_series: pd.Series, **params):
         s = strategy_cls(params)
         sub_df = df.copy()
         sub_df["close"] = close_series.values
@@ -573,7 +573,7 @@ def status() -> None:
     table.add_row("Data Layer", data_status)
     table.add_row("Config", config_status)
     table.add_row("Indicators", "Ready (21 factors)")
-    table.add_row("Strategies", "trend_following, mean_reversion, elliott_wave")
+    table.add_row("Strategies", "trend_following, mean_reversion, elliott_wave, volatility_breakout, funding_rate, momentum_rotation, ml_ensemble")
     table.add_row("Validation", "CPCV + DSR + PBO + WFO + Gate")
     table.add_row("Risk Engine", "Kelly + VaR/CVaR + Drawdown")
     table.add_row("Paper Trade", "Ready (PaperGateway)")

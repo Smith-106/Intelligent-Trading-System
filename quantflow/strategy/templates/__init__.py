@@ -9,8 +9,8 @@ from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutS
 
 __all__ = [
     "FundingRateStrategy",
-    "MeanReversionStrategy",
     "MLEnsembleStrategy",
+    "MeanReversionStrategy",
     "MomentumRotationStrategy",
     "TrendFollowingStrategy",
     "VolatilityBreakoutStrategy",

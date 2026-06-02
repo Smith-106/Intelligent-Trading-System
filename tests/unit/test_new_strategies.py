@@ -2,7 +2,6 @@
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from quantflow.common.models import Bar
 from quantflow.strategy.base import StrategyContext
@@ -190,7 +189,7 @@ class TestMLEnsembleExtended:
     def test_generate_signals_no_model_returns_empty(self):
         s = MLEnsembleStrategy()
         df = _make_ohlcv(300)
-        entries, exits = s.generate_signals(df)
+        entries, _exits = s.generate_signals(df)
         assert len(entries) == len(df)
 
     def test_extract_features_shape(self):
