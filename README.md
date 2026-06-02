@@ -70,7 +70,10 @@ cp .env.example .env
 
 ```bash
 cd docker
-docker compose up -d    # 启动 Redis + Prometheus + Grafana
+docker compose up -d    # 默认将 QuantFlow 暴露到 localhost:18000
+
+# 如需自定义宿主端口
+QUANTFLOW_HOST_PORT=8008 docker compose up -d
 ```
 
 ## 使用
@@ -94,8 +97,14 @@ quantflow run --mode paper --strategy trend_following
 # 实盘运行
 quantflow run --mode live --strategy trend_following
 
+# 指定交易对、周期与轮询间隔
+quantflow run --mode paper --strategy trend_following --symbol BTC/USDT --timeframe 1h --interval 60
+
 # 查看状态
 quantflow status
+
+# 环境自检
+python scripts/check_env.py
 ```
 
 ## 项目结构
@@ -234,6 +243,9 @@ bus.publish(Event(EventType.BAR, data=bar))
 ```bash
 # 安装开发依赖
 pip install -e ".[dev]"
+
+# 验证可打包
+python -m build
 
 # 代码格式化 + Lint
 ruff check --fix .

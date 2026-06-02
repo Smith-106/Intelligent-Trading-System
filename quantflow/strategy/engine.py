@@ -231,12 +231,23 @@ class TradingSession:
         from quantflow.data.fetcher import DataFetcher
 
         fetcher = DataFetcher(self._config.data)
-        await fetcher.connect()
-
         last_timestamp: int | None = None
+        connected = False
 
         try:
             while self._running:
+                if not connected:
+                    try:
+                        await fetcher.connect()
+                        connected = True
+                    except Exception as e:
+                        logger.error("Data feed connection error: %s", e)
+                        await fetcher.disconnect()
+                        self.check_health()
+                        self._execution.check_timeouts()
+                        await asyncio.sleep(interval_seconds)
+                        continue
+
                 # Fetch latest bars
                 try:
                     df = await fetcher.fetch_ohlcv(
@@ -264,6 +275,8 @@ class TradingSession:
 
                 except Exception as e:
                     logger.error("Data fetch error: %s", e)
+                    connected = False
+                    await fetcher.disconnect()
 
                 # Health check
                 self.check_health()

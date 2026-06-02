@@ -87,6 +87,36 @@ class AppConfig(BaseModel):
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
 
 
+_PACKAGE_ROOT = Path(__file__).resolve().parent.parent
+_PACKAGE_DEFAULT_CONFIG = _PACKAGE_ROOT / "config" / "default.yaml"
+_DEFAULT_CONFIG_ALIASES = {
+    "config/default.yaml",
+    "quantflow/config/default.yaml",
+    "default.yaml",
+}
+
+
+def resolve_config_path(config_path: str | Path | None = None) -> Path:
+    """Resolve config path for source tree and installed package execution."""
+    if config_path is None:
+        return _PACKAGE_DEFAULT_CONFIG
+
+    path = Path(config_path)
+    if path.exists():
+        return path
+
+    normalized = path.as_posix()
+    if normalized in _DEFAULT_CONFIG_ALIASES:
+        return _PACKAGE_DEFAULT_CONFIG
+
+    if not path.is_absolute():
+        package_relative = _PACKAGE_ROOT / path
+        if package_relative.exists():
+            return package_relative
+
+    return path
+
+
 def load_config(config_path: str | Path, cli_overrides: dict[str, Any] | None = None) -> AppConfig:
     """Load config with priority: CLI args > env vars > YAML defaults.
 
@@ -94,7 +124,7 @@ def load_config(config_path: str | Path, cli_overrides: dict[str, Any] | None = 
         config_path: Path to YAML config file.
         cli_overrides: Dict of CLI argument overrides (highest priority).
     """
-    path = Path(config_path)
+    path = resolve_config_path(config_path)
     raw: dict[str, Any] = {}
     if path.exists():
         with open(path, encoding="utf-8") as f:

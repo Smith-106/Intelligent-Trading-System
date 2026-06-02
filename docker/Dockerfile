@@ -6,15 +6,17 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl && rm -rf /var/lib/apt/lists/*
 
-# Python deps
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir -e ".[dev]" || pip install --no-cache-dir \
-    ccxt pandas numpy pyyaml duckdb optuna pyarrow pydantic typer rich \
-    redis prometheus-client structlog scikit-learn aiohttp \
-    pytest pytest-asyncio pytest-cov ruff mypy scipy
+# Package metadata and source
+COPY pyproject.toml README.md ./
+COPY quantflow ./quantflow
 
-COPY . .
+# Runtime deps
+RUN pip install --no-cache-dir .
+
+# Runtime assets
+COPY docker ./docker
+COPY scripts ./scripts
 
 EXPOSE 8000
 
-CMD ["quantflow", "run", "--mode", "paper"]
+CMD ["quantflow", "run", "--mode", "paper", "--interval", "60"]

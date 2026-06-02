@@ -390,3 +390,83 @@ class TestTradingSessionExtra:
         await session.stop()
         assert session._running is False
         assert stopped[-1] == "stopped"
+
+    @pytest.mark.asyncio
+    async def test_run_data_loop_retries_connect_until_data_feed_recovers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        session = TradingSession(AppConfig(), [_Strategy()])
+        session._running = True
+        seen: list[int] = []
+        health_checks: list[str] = []
+        timeout_checks: list[str] = []
+
+        async def fake_on_bar(bar: Bar) -> None:
+            seen.append(bar.timestamp)
+
+        session.on_bar = fake_on_bar
+
+        def fake_check_health() -> dict[str, bool]:
+            health_checks.append("ok")
+            return {"running": True}
+
+        def fake_check_timeouts() -> list[str]:
+            timeout_checks.append("tick")
+            return []
+
+        session.check_health = fake_check_health
+        session.execution.check_timeouts = fake_check_timeouts
+
+        class FakeFetcher:
+            def __init__(self, config: object) -> None:
+                self.connect_calls = 0
+                self.fetch_calls = 0
+                self.disconnect_calls = 0
+
+            async def connect(self) -> None:
+                self.connect_calls += 1
+                if self.connect_calls == 1:
+                    raise RuntimeError("connect down")
+
+            async def fetch_ohlcv(
+                self, symbol: str, timeframe: str, start: object = None, limit: int = 10
+            ) -> pd.DataFrame:
+                self.fetch_calls += 1
+                session._running = False
+                return pd.DataFrame(
+                    [
+                        {
+                            "timestamp": 10,
+                            "open": 100.0,
+                            "high": 101.0,
+                            "low": 99.0,
+                            "close": 100.5,
+                            "volume": 5.0,
+                        }
+                    ]
+                )
+
+            async def disconnect(self) -> None:
+                self.disconnect_calls += 1
+
+        fetcher_holder: dict[str, FakeFetcher] = {}
+
+        def fake_fetcher_factory(config: object) -> FakeFetcher:
+            fetcher_holder["fetcher"] = FakeFetcher(config)
+            return fetcher_holder["fetcher"]
+
+        async def fake_sleep(seconds: int) -> None:
+            return None
+
+        monkeypatch.setattr("quantflow.data.fetcher.DataFetcher", fake_fetcher_factory)
+        monkeypatch.setattr("quantflow.strategy.engine.asyncio.sleep", fake_sleep)
+
+        await session.run_data_loop("BTC/USDT", interval_seconds=0)
+
+        fetcher = fetcher_holder["fetcher"]
+        assert fetcher.connect_calls == 2
+        assert fetcher.fetch_calls == 1
+        assert fetcher.disconnect_calls == 2
+        assert seen == [10]
+        assert health_checks == ["ok", "ok"]
+        assert timeout_checks == ["tick", "tick"]

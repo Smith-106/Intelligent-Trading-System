@@ -49,6 +49,13 @@ class DataFetcher:
             await self._exchange.load_markets()
             logger.info("Connected to OKX, %d markets loaded", len(self._exchange.markets))
         except Exception as e:
+            if self._exchange is not None:
+                try:
+                    await self._exchange.close()
+                except Exception:
+                    logger.debug("Failed to close exchange after connection error", exc_info=True)
+                finally:
+                    self._exchange = None
             raise GatewayConnectionError(f"Failed to connect to OKX: {e}") from e
 
     async def fetch_ohlcv(

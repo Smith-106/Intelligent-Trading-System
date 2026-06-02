@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   quantflow:
     build:
@@ -8,13 +6,14 @@ services:
     container_name: quantflow
     restart: unless-stopped
     env_file:
-      - ../.env
+      - path: ../.env
+        required: false
     volumes:
       - ../data:/app/data
       - ../quantflow/config:/app/quantflow/config
       - log-data:/app/logs
     ports:
-      - "8000:8000"
+      - "${QUANTFLOW_HOST_PORT:-18000}:8000"
     depends_on:
       - redis
     healthcheck:

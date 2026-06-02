@@ -21,10 +21,10 @@ def check_dependencies():
         "rich": "rich",
         "yaml": "pyyaml",
         "optuna": "optuna",
-        "pandas_ta": "pandas-ta",
         "prometheus_client": "prometheus-client",
     }
     optional = {
+        "build": "build",
         "vectorbt": "vectorbt",
         "redis": "redis",
         "structlog": "structlog",
@@ -85,23 +85,43 @@ def check_data_dir():
     return True
 
 
+def check_project_assets():
+    from pathlib import Path
+    assets = [
+        (Path("quantflow/config/default.yaml"), "default config"),
+        (Path("docker/docker-compose.yaml"), "docker compose"),
+        (Path(".env.example"), "environment template"),
+    ]
+    all_ok = True
+    for asset, label in assets:
+        if asset.exists():
+            print(f"  OK: {label} -> {asset}")
+        else:
+            print(f"  MISSING: {label} -> {asset}")
+            all_ok = False
+    return all_ok
+
+
 def main():
     print("=== QuantFlow Environment Check ===\n")
 
-    print("[1/4] Python version:")
+    print("[1/5] Python version:")
     py_ok = check_python_version()
 
-    print("\n[2/4] Dependencies:")
+    print("\n[2/5] Dependencies:")
     dep_ok = check_dependencies()
 
-    print("\n[3/4] Environment variables:")
+    print("\n[3/5] Environment variables:")
     check_env_vars()
 
-    print("\n[4/4] Data directory:")
+    print("\n[4/5] Data directory:")
     check_data_dir()
 
+    print("\n[5/5] Project assets:")
+    assets_ok = check_project_assets()
+
     print("\n" + "=" * 40)
-    if py_ok and dep_ok:
+    if py_ok and dep_ok and assets_ok:
         print("READY: All required checks passed. Run 'quantflow status' to start.")
     else:
         print("NOT READY: Fix missing items above before running.")

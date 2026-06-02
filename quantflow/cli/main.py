@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -12,7 +13,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from quantflow.common.config import AppConfig, load_config
+from quantflow.common.config import AppConfig, load_config, resolve_config_path
 from quantflow.monitoring.logger import setup_logging
 
 setup_logging()
@@ -75,10 +76,34 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 console = Console()
+DEFAULT_CONFIG_PATH = "quantflow/config/default.yaml"
 
 
 def _load(config_path: str) -> AppConfig:
     return load_config(config_path)
+
+
+def _load_gateway_config_from_env(mode: str, sandbox: bool) -> dict[str, str | bool]:
+    """Load gateway credentials from environment for sandbox/live modes."""
+    gateway_config: dict[str, str | bool] = {"sandbox": sandbox}
+    if mode == "paper":
+        return gateway_config
+
+    required_vars = {
+        "OKX_API_KEY": "api_key",
+        "OKX_SECRET": "secret",
+        "OKX_PASSPHRASE": "passphrase",
+    }
+    missing = [name for name in required_vars if not os.getenv(name)]
+    if missing:
+        missing_text = ", ".join(missing)
+        raise typer.BadParameter(
+            f"Missing required environment variables for {mode} mode: {missing_text}"
+        )
+
+    for env_name, config_key in required_vars.items():
+        gateway_config[config_key] = os.environ[env_name]
+    return gateway_config
 
 
 @app.command()
@@ -87,7 +112,7 @@ def download(
     timeframe: str = typer.Option("1d", help="K-line timeframe"),
     start: str = typer.Option("2024-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-01-01", help="End date (YYYY-MM-DD)"),
-    config: str = typer.Option("config/default.yaml", help="Config file path"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
     """Download historical data from OKX.
 
@@ -156,7 +181,7 @@ def research(
     end: str = typer.Option("2025-01-01", help="End date"),
     capital: float = typer.Option(10000.0, help="Initial capital"),
     fee: float = typer.Option(0.001, help="Trading fee rate"),
-    config: str = typer.Option("config/default.yaml", help="Config file path"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
     """Run strategy backtest research.
 
@@ -221,7 +246,7 @@ def optimize(
     method: str = typer.Option("bayesian", help="Optimization method: bayesian | cmaes"),
     trials: int = typer.Option(200, help="Number of optimization trials"),
     capital: float = typer.Option(10000.0, help="Initial capital"),
-    config: str = typer.Option("config/default.yaml", help="Config file path"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
     """Run parameter optimization.
 
@@ -353,7 +378,7 @@ def validate(
     n_trials: int = typer.Option(100, help="Number of trials for DSR"),
     wfo_windows: int = typer.Option(5, help="Walk-forward windows"),
     capital: float = typer.Option(10000.0, help="Initial capital"),
-    config: str = typer.Option("config/default.yaml", help="Config file path"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
     """Run anti-overfitting validation.
 
@@ -469,8 +494,10 @@ def run(
         "trend_following", help="Strategy name (comma-separated for multiple)"
     ),
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    timeframe: str = typer.Option("1h", help="Market data timeframe"),
+    interval: int = typer.Option(60, min=0, help="Polling interval in seconds"),
     capital: float = typer.Option(100000.0, help="Initial capital"),
-    config: str = typer.Option("config/default.yaml", help="Config file path"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
     """Run strategy in paper or live mode.
 
@@ -511,19 +538,19 @@ def run(
 
     async def _run_session() -> None:
         try:
-            gateway_config: dict[str, str] = {
-                "api_key": "",  # Load from env in production
-                "secret": "",
-                "passphrase": "",
-            }
+            gateway_config = _load_gateway_config_from_env(
+                mode=mode,
+                sandbox=(mode == "sandbox"),
+            )
             await session.start(mode=mode, gateway_config=gateway_config)
             console.print(f"[green]Session started in {mode} mode[/]")
             console.print("[yellow]Press Ctrl+C to stop[/]")
 
-            # Keep running until interrupted
-            while session._running:
-                session.check_health()
-                await asyncio.sleep(60)
+            await session.run_data_loop(
+                symbol=symbol,
+                timeframe=timeframe,
+                interval_seconds=interval,
+            )
 
         except KeyboardInterrupt:
             console.print("\n[yellow]Stopping session...[/]")
@@ -626,8 +653,10 @@ def status() -> None:
     )
 
     # Check config
-    config_path = Path("config/default.yaml")
-    config_status = "Ready" if config_path.exists() else "Missing default.yaml"
+    config_path = resolve_config_path(DEFAULT_CONFIG_PATH)
+    config_status = (
+        f"Ready ({config_path.as_posix()})" if config_path.exists() else "Missing default.yaml"
+    )
 
     # Check Docker
     docker_ok = False

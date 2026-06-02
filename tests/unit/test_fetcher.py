@@ -117,6 +117,26 @@ async def test_connect_wraps_connection_errors(
 
 
 @pytest.mark.asyncio
+async def test_connect_closes_exchange_when_load_markets_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    data_config: DataConfig,
+) -> None:
+    class _BrokenExchange(_FakeExchange):
+        async def load_markets(self) -> dict[str, object]:
+            raise RuntimeError("network down")
+
+    exchange = _BrokenExchange()
+    monkeypatch.setattr("quantflow.data.fetcher.ccxt.okx", lambda config: exchange)
+    fetcher = DataFetcher(data_config)
+
+    with pytest.raises(GatewayConnectionError, match="Failed to connect to OKX: network down"):
+        await fetcher.connect()
+
+    assert exchange.closed is True
+    assert fetcher._exchange is None
+
+
+@pytest.mark.asyncio
 async def test_fetch_ohlcv_requires_connection(data_config: DataConfig) -> None:
     fetcher = DataFetcher(data_config)
 

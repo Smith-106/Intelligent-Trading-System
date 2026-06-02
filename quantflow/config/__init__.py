@@ -10,6 +10,7 @@ from quantflow.common.config import (
     StrategyConfig,
     ValidationConfig,
     load_config,
+    resolve_config_path,
     save_config,
 )
 
@@ -23,5 +24,6 @@ __all__ = [
     "StrategyConfig",
     "ValidationConfig",
     "load_config",
+    "resolve_config_path",
     "save_config",
 ]

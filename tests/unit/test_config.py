@@ -17,6 +17,7 @@ from quantflow.common.config import (
     _sanitize_config,
     _set_nested,
     load_config,
+    resolve_config_path,
     save_config,
 )
 
@@ -142,3 +143,30 @@ class TestConfigHelpers:
         assert sanitized["monitoring"]["alert_channels"][0]["token"] == "***REDACTED***"
         assert sanitized["monitoring"]["webhook"]["password"] == "***REDACTED***"
         assert sanitized["safe"] == "value"
+
+    def test_resolve_config_path_maps_default_aliases_to_packaged_default(self):
+        resolved = resolve_config_path("config/default.yaml")
+
+        assert resolved.exists()
+        assert resolved.as_posix().endswith("quantflow/config/default.yaml")
+
+    def test_resolve_config_path_defaults_when_config_is_none(self):
+        resolved = resolve_config_path()
+
+        assert resolved.exists()
+        assert resolved.name == "default.yaml"
+
+    def test_resolve_config_path_prefers_existing_explicit_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "custom.yaml"
+            path.write_text("data:\n  exchange: okx\n", encoding="utf-8")
+
+            resolved = resolve_config_path(path)
+
+            assert resolved == path
+
+    def test_resolve_config_path_falls_back_to_package_relative_file(self):
+        resolved = resolve_config_path("config/strategies/trend_following.yaml")
+
+        assert resolved.exists()
+        assert resolved.as_posix().endswith("quantflow/config/strategies/trend_following.yaml")
