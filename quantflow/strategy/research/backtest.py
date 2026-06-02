@@ -77,8 +77,7 @@ class BacktestEngine:
         exits = exits.reindex(close.index).fillna(False).astype(bool)
 
         n = len(close)
-        equity = np.empty(n)
-        equity[0] = initial_capital
+        equity = np.full(n, initial_capital, dtype=float)
         in_position = False
         entry_price = 0.0
         trades: list[tuple[float, float]] = []  # (entry_price, exit_price)
@@ -88,6 +87,7 @@ class BacktestEngine:
             if not in_position and entries.iloc[prev_idx]:
                 in_position = True
                 entry_price = close.iloc[i] * (1 + fee)
+                equity[i] = equity[prev_idx]
             elif in_position and exits.iloc[prev_idx]:
                 exit_price = close.iloc[i] * (1 - fee)
                 trades.append((entry_price, exit_price))
@@ -115,7 +115,9 @@ class BacktestEngine:
 
         # Trade stats
         num_trades = len(trades)
-        trade_pnls = [(ep - xp) / ep for xp, ep in trades] if num_trades > 0 else []
+        trade_pnls = [
+            (exit_price - entry_price) / entry_price for entry_price, exit_price in trades
+        ] if num_trades > 0 else []
         wins = [p for p in trade_pnls if p > 0]
         losses = [p for p in trade_pnls if p < 0]
         win_rate = len(wins) / num_trades if num_trades > 0 else 0.0

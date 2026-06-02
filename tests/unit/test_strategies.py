@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from quantflow.common.models import Bar
+from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyContext
 from quantflow.strategy.templates.funding_rate import FundingRateStrategy
 from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
@@ -62,6 +62,82 @@ class TestTrendFollowingStrategy:
         strategy = TrendFollowingStrategy()
         indicators = strategy.get_required_indicators()
         assert len(indicators) > 0
+
+    def test_on_bar_handles_empty_df_empty_entries_and_exit_signal(self):
+        strategy = TrendFollowingStrategy(
+            params={
+                "fast_ma_period": 2,
+                "slow_ma_period": 2,
+                "macd_slow": 2,
+                "macd_signal": 1,
+                "rsi_period": 2,
+                "atr_period": 2,
+                "volume_period": 2,
+            }
+        )
+        ctx = StrategyContext()
+        strategy.on_init(ctx)
+        strategy._bars = [
+            Bar("BTC/USDT", idx, 100.0, 101.0, 99.0, 100.0, 1000.0)
+            for idx in range(strategy._max_bars)
+        ]
+
+        strategy._bars_to_df = lambda: pd.DataFrame()
+        strategy.on_bar(ctx, Bar("BTC/USDT", 9999, 100.0, 101.0, 99.0, 100.5, 1000.0))
+        assert ctx.flush_signals() == []
+
+        signal_df = pd.DataFrame({"close": [100.0, 101.0, 102.0]})
+        strategy._bars_to_df = lambda: signal_df
+        strategy.generate_signals = lambda df: (
+            pd.Series(dtype=bool),
+            pd.Series(dtype=bool),
+        )
+        strategy.on_bar(ctx, Bar("BTC/USDT", 10000, 100.0, 101.0, 99.0, 100.5, 1000.0))
+        assert ctx.flush_signals() == []
+
+        strategy.generate_signals = lambda df: (
+            pd.Series([False] * len(df), index=df.index),
+            pd.Series([False] * (len(df) - 1) + [True], index=df.index),
+        )
+        strategy.on_bar(ctx, Bar("BTC/USDT", 10001, 100.0, 101.0, 99.0, 99.5, 1000.0))
+
+        signals = ctx.flush_signals()
+        assert len(strategy._bars) == strategy._max_bars
+        assert signals
+        assert signals[-1].direction == Direction.SHORT
+
+    def test_on_bar_emits_long_signal_and_bars_to_df_handles_empty_state(self):
+        strategy = TrendFollowingStrategy(
+            params={
+                "fast_ma_period": 2,
+                "slow_ma_period": 2,
+                "macd_slow": 2,
+                "macd_signal": 1,
+                "rsi_period": 2,
+                "atr_period": 2,
+                "volume_period": 2,
+            }
+        )
+        ctx = StrategyContext()
+        strategy.on_init(ctx)
+        strategy._bars = [
+            Bar("BTC/USDT", idx, 100.0, 101.0, 99.0, 100.0, 1000.0)
+            for idx in range(strategy._max_bars)
+        ]
+
+        signal_df = pd.DataFrame({"close": [100.0, 101.0, 102.0]})
+        strategy._bars_to_df = lambda: signal_df
+        strategy.generate_signals = lambda df: (
+            pd.Series([False] * (len(df) - 1) + [True], index=df.index),
+            pd.Series([False] * len(df), index=df.index),
+        )
+
+        strategy.on_bar(ctx, Bar("BTC/USDT", 10002, 100.0, 101.0, 99.0, 101.5, 1000.0))
+
+        signals = ctx.flush_signals()
+        assert signals
+        assert signals[-1].direction == Direction.LONG
+        assert TrendFollowingStrategy()._bars_to_df().empty
 
 
 class TestMeanReversionStrategy:
@@ -156,6 +232,93 @@ class TestVolatilityBreakoutStrategy:
         total_entries = entries.sum()
         assert total_entries >= 0  # at minimum, no errors
 
+    def test_on_bar_handles_empty_df_empty_entries_and_emits_flat_exit(self):
+        strategy = VolatilityBreakoutStrategy(
+            params={
+                "atr_period": 2,
+                "bb_period": 2,
+                "keltner_ema_period": 2,
+                "keltner_atr_period": 2,
+                "volume_period": 2,
+            }
+        )
+        ctx = StrategyContext()
+        strategy.on_init(ctx)
+        strategy._bars = [
+            Bar("BTC/USDT", idx, 100.0, 101.0, 99.0, 100.0, 1000.0)
+            for idx in range(strategy._max_bars)
+        ]
+
+        strategy._bars_to_df = lambda: pd.DataFrame()
+        strategy.on_bar(ctx, Bar("BTC/USDT", 9999, 100.0, 101.0, 99.0, 100.5, 1000.0))
+        assert ctx.flush_signals() == []
+
+        signal_df = pd.DataFrame({"close": [100.0, 101.0, 102.0, 103.0]})
+        strategy._bars_to_df = lambda: signal_df
+        strategy.generate_signals = lambda df: (
+            pd.Series(dtype=bool),
+            pd.Series(dtype=bool),
+        )
+        strategy.on_bar(ctx, Bar("BTC/USDT", 10000, 100.0, 101.0, 99.0, 100.5, 1000.0))
+        assert ctx.flush_signals() == []
+
+        strategy.generate_signals = lambda df: (
+            pd.Series([False] * len(df), index=df.index),
+            pd.Series([False] * (len(df) - 1) + [True], index=df.index),
+        )
+        strategy.on_bar(ctx, Bar("BTC/USDT", 10001, 100.0, 101.0, 99.0, 99.5, 1000.0))
+
+        signals = ctx.flush_signals()
+        assert len(strategy._bars) == strategy._max_bars
+        assert signals
+        assert signals[-1].direction == Direction.FLAT
+
+    def test_on_bar_emits_long_signal(self):
+        strategy = VolatilityBreakoutStrategy(
+            params={
+                "atr_period": 2,
+                "bb_period": 2,
+                "keltner_ema_period": 2,
+                "keltner_atr_period": 2,
+                "volume_period": 2,
+            }
+        )
+        ctx = StrategyContext()
+        strategy.on_init(ctx)
+        min_bars = max(strategy._atr_period * 2, strategy._bb_period, strategy._keltner_ema_period)
+        strategy._bars = [
+            Bar("BTC/USDT", idx, 100.0, 101.0, 99.0, 100.0, 1000.0)
+            for idx in range(min_bars)
+        ]
+        strategy.generate_signals = lambda df: (
+            pd.Series([False] * (len(df) - 1) + [True], index=df.index),
+            pd.Series([False] * len(df), index=df.index),
+        )
+
+        strategy.on_bar(ctx, Bar("BTC/USDT", 30000, 100.0, 101.0, 99.0, 102.0, 1000.0))
+
+        signals = ctx.flush_signals()
+        assert signals
+        assert signals[-1].direction == Direction.LONG
+
+    def test_generate_signals_respects_disabled_middle_exit(self):
+        strategy = VolatilityBreakoutStrategy(
+            params={
+                "atr_period": 2,
+                "bb_period": 2,
+                "keltner_ema_period": 2,
+                "keltner_atr_period": 2,
+                "volume_period": 2,
+                "bb_middle_exit": False,
+            }
+        )
+        df = _make_ohlcv(20)
+
+        entries, exits = strategy.generate_signals(df)
+
+        assert len(entries) == len(df)
+        assert len(exits) == len(df)
+
 
 class TestFundingRateStrategy:
     def test_generate_signals(self):
@@ -210,6 +373,94 @@ class TestFundingRateStrategy:
         strategy.update_open_interest(10500)
         assert len(strategy._open_interests) == 2
 
+    def test_on_bar_emits_exit_signal_and_trims_history(self):
+        strategy = FundingRateStrategy(params={"cooldown_bars": 1})
+        ctx = StrategyContext()
+        strategy.on_init(ctx)
+        strategy._bars = [
+            Bar("BTC/USDT", idx, 100.0, 101.0, 99.0, 100.0, 1000.0)
+            for idx in range(strategy._max_bars)
+        ]
+        strategy._funding_rates = [0.0] * strategy._max_bars
+        strategy._open_interests = [10000.0] * strategy._max_bars
+
+        df = pd.DataFrame(
+            {
+                "funding_rate": [0.001] * 19 + [0.0],
+                "open_interest": [10000.0] * 20,
+            }
+        )
+
+        strategy._build_signal_df = lambda: df
+        strategy.generate_signals = lambda frame: (
+            pd.Series(False, index=frame.index),
+            pd.Series([False] * (len(frame) - 1) + [True], index=frame.index),
+        )
+
+        strategy.on_bar(ctx, Bar("BTC/USDT", 9999, 100.0, 101.0, 99.0, 100.5, 1000.0))
+        signals = ctx.flush_signals()
+
+        assert len(strategy._bars) == strategy._max_bars
+        assert signals
+        assert signals[-1].direction == Direction.FLAT
+
+    def test_on_bar_returns_for_empty_signal_frame_and_empty_entries(self):
+        strategy = FundingRateStrategy(params={"cooldown_bars": 0})
+        ctx = StrategyContext()
+        strategy.on_init(ctx)
+        min_bars = max(strategy._rate_ema_period * 2, strategy._oi_lookback + 1)
+        strategy._bars = [
+            Bar("BTC/USDT", idx, 100.0, 101.0, 99.0, 100.0, 1000.0)
+            for idx in range(min_bars)
+        ]
+        strategy._funding_rates = [0.0] * min_bars
+        strategy._open_interests = [10000.0] * min_bars
+
+        strategy._build_signal_df = lambda: pd.DataFrame()
+        strategy.on_bar(ctx, Bar("BTC/USDT", 9998, 100.0, 101.0, 99.0, 100.5, 1000.0))
+        assert ctx.flush_signals() == []
+
+        strategy._build_signal_df = lambda: pd.DataFrame({"funding_rate": [0.0], "open_interest": [0.0]})
+        strategy.generate_signals = lambda frame: (
+            pd.Series(dtype=bool),
+            pd.Series(dtype=bool),
+        )
+        strategy.on_bar(ctx, Bar("BTC/USDT", 9999, 100.0, 101.0, 99.0, 100.5, 1000.0))
+        assert ctx.flush_signals() == []
+
+    def test_on_bar_uses_short_direction_and_fallback_rate_when_entering(self):
+        strategy = FundingRateStrategy(params={"entry_threshold": 0.001, "cooldown_bars": 2})
+        ctx = StrategyContext()
+        strategy.on_init(ctx)
+        min_bars = max(strategy._rate_ema_period * 2, strategy._oi_lookback + 1)
+        for idx in range(min_bars):
+            strategy._bars.append(Bar("ETH/USDT", idx, 100.0, 101.0, 99.0, 100.0, 1000.0))
+        strategy._funding_rates = [0.002] * min_bars
+        strategy._open_interests = [10000.0] * min_bars
+
+        strategy._build_signal_df = lambda: pd.DataFrame({"funding_rate": [0.0], "open_interest": [0.0]})
+        strategy.generate_signals = lambda frame: (
+            pd.Series([True], index=frame.index),
+            pd.Series([False], index=frame.index),
+        )
+
+        strategy.on_bar(ctx, Bar("ETH/USDT", 10000, 100.0, 101.0, 99.0, 100.5, 1000.0))
+        signals = ctx.flush_signals()
+
+        assert signals
+        assert signals[-1].direction == Direction.SHORT
+        assert strategy._cooldown_counter == 2
+
+    def test_update_methods_trim_to_max_bars(self):
+        strategy = FundingRateStrategy()
+
+        for idx in range(strategy._max_bars + 5):
+            strategy.update_funding_rate(float(idx))
+            strategy.update_open_interest(float(idx))
+
+        assert len(strategy._funding_rates) == strategy._max_bars
+        assert len(strategy._open_interests) == strategy._max_bars
+
 
 class TestMomentumRotationStrategy:
     def test_generate_signals(self):
@@ -252,6 +503,91 @@ class TestMomentumRotationStrategy:
         # Top-2 should have entry signals
         has_entry = [s for s, (e, _) in results.items() if e.any()]
         assert len(has_entry) <= 2  # at most top_n entries
+
+    def test_generate_signals_without_stop_loss_uses_negative_momentum_only(self):
+        strategy = MomentumRotationStrategy(params={"lookback": 3, "stop_loss_pct": 0.0})
+        df = pd.DataFrame(
+            {
+                "close": [100.0, 102.0, 104.0, 110.0, 95.0, 90.0],
+                "volume": [1000.0] * 6,
+            }
+        )
+
+        entries, exits = strategy.generate_signals(df)
+
+        assert len(entries) == len(df)
+        assert exits.iloc[-1]
+
+    def test_on_bar_emits_entry_and_exit_signals_and_trims_history(self):
+        strategy = MomentumRotationStrategy(params={"lookback": 3, "rebalance_interval": 1})
+        ctx = StrategyContext()
+        strategy.on_init(ctx)
+        strategy._bars = [
+            Bar("BTC/USDT", idx, 100.0, 101.0, 99.0, 100.0, 1000.0)
+            for idx in range(strategy._max_bars)
+        ]
+        strategy._bar_count = strategy._lookback - 1
+
+        strategy.generate_signals = lambda df: (
+            pd.Series([False] * (len(df) - 1) + [True], index=df.index),
+            pd.Series([False] * len(df), index=df.index),
+        )
+        strategy.on_bar(ctx, Bar("BTC/USDT", 9999, 100.0, 101.0, 99.0, 105.0, 1000.0))
+
+        signals = ctx.flush_signals()
+        assert len(strategy._bars) == strategy._max_bars
+        assert signals
+        assert signals[-1].direction == Direction.LONG
+        assert strategy._current_positions["BTC/USDT"] == 105.0
+
+        strategy.generate_signals = lambda df: (
+            pd.Series([False] * len(df), index=df.index),
+            pd.Series([False] * (len(df) - 1) + [True], index=df.index),
+        )
+        strategy.on_bar(ctx, Bar("BTC/USDT", 10000, 100.0, 101.0, 99.0, 103.0, 1000.0))
+
+        exit_signals = ctx.flush_signals()
+        assert exit_signals
+        assert exit_signals[-1].direction == Direction.FLAT
+        assert "BTC/USDT" not in strategy._current_positions
+
+    def test_on_bar_returns_for_empty_df_and_empty_entries(self):
+        strategy = MomentumRotationStrategy(params={"lookback": 3, "rebalance_interval": 1})
+        ctx = StrategyContext()
+        strategy.on_init(ctx)
+        strategy._bars = [
+            Bar("BTC/USDT", idx, 100.0, 101.0, 99.0, 100.0, 1000.0)
+            for idx in range(strategy._lookback)
+        ]
+        strategy._bar_count = 0
+
+        strategy._bars_to_df = lambda: pd.DataFrame()
+        strategy.on_bar(ctx, Bar("BTC/USDT", 20000, 100.0, 101.0, 99.0, 101.0, 1000.0))
+        assert ctx.flush_signals() == []
+
+        strategy._bars_to_df = lambda: pd.DataFrame({"close": [100.0, 101.0, 102.0]})
+        strategy.generate_signals = lambda df: (
+            pd.Series(dtype=bool),
+            pd.Series(dtype=bool),
+        )
+        strategy.on_bar(ctx, Bar("BTC/USDT", 20001, 100.0, 101.0, 99.0, 101.0, 1000.0))
+        assert ctx.flush_signals() == []
+
+    def test_cross_sectional_signals_marks_exit_set_members(self):
+        strategy = MomentumRotationStrategy(params={"lookback": 2, "top_n": 1, "exit_rank_threshold": 2})
+        data = {
+            "BTC/USDT": pd.DataFrame({"close": [100.0, 110.0, 121.0]}),
+            "ETH/USDT": pd.DataFrame({"close": [100.0, 101.0, 102.0]}),
+            "DOGE/USDT": pd.DataFrame({"close": [100.0, 95.0, 90.0]}),
+        }
+
+        results = strategy.generate_cross_sectional_signals(data)
+
+        assert results["BTC/USDT"][0].all()
+        assert not results["BTC/USDT"][1].any()
+        assert not results["ETH/USDT"][0].any()
+        assert not results["ETH/USDT"][1].any()
+        assert results["DOGE/USDT"][1].all()
 
 
 class TestMLEnsembleStrategy:

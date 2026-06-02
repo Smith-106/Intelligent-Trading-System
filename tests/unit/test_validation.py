@@ -1,8 +1,8 @@
-"""Tests for validation pipeline: CPCV, DSR, PBO, WFO, Gate."""
-
 import numpy as np
 import pandas as pd
+import pytest
 
+from quantflow.strategy.validation import gate as gate_module
 from quantflow.strategy.validation.cpcv import cpcv_backtest, split_cpcv
 from quantflow.strategy.validation.dsr import _expected_max_sharpe, deflated_sharpe_ratio
 from quantflow.strategy.validation.gate import validation_gate
@@ -10,10 +10,11 @@ from quantflow.strategy.validation.pbo import probability_of_overfitting
 from quantflow.strategy.validation.wfo import walk_forward_optimization
 
 
-def _make_price_series(n: int = 200, trend: float = 0.01) -> pd.Series:
+def _make_price_series(n: int = 200, trend: float = 0.002) -> pd.Series:
     dates = pd.date_range("2024-01-01", periods=n, freq="D")
-    noise = np.random.normal(0, 0.01, n)
-    prices = 100.0 * np.exp(np.cumsum(trend + noise))
+    rng = np.random.default_rng(42)
+    returns = np.clip(trend + rng.normal(0, 0.01, n), -0.05, 0.05)
+    prices = 100.0 * pd.Series(1.0 + returns, index=dates).cumprod().to_numpy()
     return pd.Series(prices, index=dates)
 
 
@@ -59,6 +60,29 @@ class TestCPCV:
         assert result["n_paths"] > 0
         assert 0 <= result["pbo"] <= 1
 
+    def test_split_cpcv_handles_remainder_in_last_group(self):
+        splits = split_cpcv(10, n_groups=3, n_test_groups=1, embargo_pct=0.0)
+
+        assert len(splits) == 3
+        assert max(splits[-1][1]) == 9
+
+    def test_cpcv_backtest_falls_back_to_zero_on_is_and_oos_errors(self, monkeypatch):
+        close = _make_price_series(60)
+        entries, exits = _make_signals(60)
+
+        class FailingEngine:
+            def run_backtest(self, *args, **kwargs):
+                raise RuntimeError("boom")
+
+        monkeypatch.setattr("quantflow.strategy.research.backtest.BacktestEngine", FailingEngine)
+
+        result = cpcv_backtest(close, entries, exits, n_groups=3, n_test_groups=1)
+
+        assert result["is_sharpe_mean"] == 0.0
+        assert result["oos_sharpe_mean"] == 0.0
+        assert result["oos_sharpe_min"] == 0.0
+        assert all(path == {"path": idx, "oos_sharpe": 0.0} for idx, path in enumerate(result["path_results"]))
+
 
 class TestDSR:
     def test_dsr_high_sharpe_passes(self):
@@ -86,6 +110,24 @@ class TestDSR:
         ems_1 = _expected_max_sharpe(1)
         assert ems_1 == 0.0
 
+    def test_dsr_handles_expected_max_failure_and_near_zero_variance(self, monkeypatch):
+        monkeypatch.setattr(
+            "quantflow.strategy.validation.dsr.stats.norm.ppf",
+            lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("bad stats")),
+        )
+
+        result = deflated_sharpe_ratio(
+            observed_sharpe=0.1,
+            n_trials=5,
+            skew=10.0,
+            kurtosis=-100.0,
+            sample_length=2,
+        )
+
+        assert result["expected_max_sharpe"] == 0.0
+        assert result["sr_variance"] < 0
+        assert 0.0 <= result["dsr"] <= 1.0
+
 
 class TestPBO:
     def test_pbo_basic(self):
@@ -105,6 +147,31 @@ class TestPBO:
         result = probability_of_overfitting(close, entries, exits, n_groups=4)
         # PBO should be reasonable (may not always pass due to randomness)
         assert isinstance(result["pbo"], float)
+
+    def test_pbo_falls_back_to_zero_on_is_and_oos_errors(self, monkeypatch):
+        close = _make_price_series(30)
+        entries, exits = _make_signals(30)
+
+        monkeypatch.setattr(
+            "quantflow.strategy.validation.cpcv.split_cpcv",
+            lambda *args, **kwargs: [
+                (np.array([0, 1, 2]), np.array([3, 4])),
+                (np.array([5, 6, 7]), np.array([8, 9])),
+            ],
+        )
+
+        class FailingEngine:
+            def run_backtest(self, *args, **kwargs):
+                raise RuntimeError("boom")
+
+        monkeypatch.setattr("quantflow.strategy.research.backtest.BacktestEngine", FailingEngine)
+
+        result = probability_of_overfitting(close, entries, exits, n_groups=3)
+
+        assert result["is_return_mean"] == 0.0
+        assert result["oos_return_mean"] == 0.0
+        assert result["rank_correlation"] == 0.0
+        assert result["overfit_paths"] == 0
 
 
 class TestWFO:
@@ -126,6 +193,32 @@ class TestWFO:
         assert "is_sharpe_mean" in result
         assert "passed" in result
 
+    def test_wfo_processes_all_windows_without_empty_slices(self, monkeypatch):
+        close = _make_price_series(10)
+        entries, exits = _make_signals(10)
+
+        class FakeEngine:
+            def run_backtest(self, close_slice, *args, **kwargs):
+                if len(close_slice) == 0:
+                    raise AssertionError("should not evaluate empty slice")
+                return type(
+                    "Result",
+                    (),
+                    {
+                        "sharpe_ratio": 1.0,
+                        "total_return": 0.1,
+                        "max_drawdown": 0.05,
+                        "num_trades": 1,
+                    },
+                )()
+
+        monkeypatch.setattr("quantflow.strategy.research.backtest.BacktestEngine", FakeEngine)
+
+        result = walk_forward_optimization(close, entries, exits, n_windows=3, mode="rolling", oos_ratio=0.8)
+
+        assert result["n_windows"] == 3
+        assert len(result["window_results"]) == 3
+
 
 class TestValidationGate:
     def test_gate_returns_dict(self):
@@ -138,3 +231,104 @@ class TestValidationGate:
         assert "decision" in result
         assert result["decision"] in ("GO", "NO-GO")
         assert "checks" in result
+
+    @pytest.fixture
+    def gate_inputs(self):
+        close = _make_price_series(40)
+        entries, exits = _make_signals(40)
+        return close, entries, exits
+
+    def test_gate_stops_when_cpcv_fails(self, monkeypatch, gate_inputs):
+        close, entries, exits = gate_inputs
+        monkeypatch.setattr(
+            gate_module,
+            "cpcv_backtest",
+            lambda *args, **kwargs: {"passed": False, "pbo": 0.8, "path_results": []},
+        )
+
+        result = validation_gate(close, entries, exits)
+
+        assert result["decision"] == "NO-GO"
+        assert result["reason"] == "CPCV PBO=0.800 >= 0.5"
+        assert result["checks"]["cpcv"]["passed"] is False
+
+    def test_gate_stops_when_dsr_fails(self, monkeypatch, gate_inputs):
+        close, entries, exits = gate_inputs
+        monkeypatch.setattr(
+            gate_module,
+            "cpcv_backtest",
+            lambda *args, **kwargs: {
+                "passed": True,
+                "pbo": 0.1,
+                "path_results": [{"oos_sharpe": 1.1}, {"oos_sharpe": 0.9}],
+            },
+        )
+        monkeypatch.setattr(
+            gate_module,
+            "deflated_sharpe_ratio",
+            lambda **kwargs: {"passed": False, "dsr": 0.42},
+        )
+
+        result = validation_gate(close, entries, exits, n_trials=12)
+
+        assert result["decision"] == "NO-GO"
+        assert result["reason"] == "DSR=0.4200 < 0.95"
+        assert result["checks"]["dsr"]["passed"] is False
+
+    def test_gate_stops_when_wfo_fails(self, monkeypatch, gate_inputs):
+        close, entries, exits = gate_inputs
+        monkeypatch.setattr(
+            gate_module,
+            "cpcv_backtest",
+            lambda *args, **kwargs: {
+                "passed": True,
+                "pbo": 0.1,
+                "path_results": [{"oos_sharpe": 1.5}],
+            },
+        )
+        monkeypatch.setattr(
+            gate_module,
+            "deflated_sharpe_ratio",
+            lambda **kwargs: {"passed": True, "dsr": 0.99},
+        )
+        results = iter(
+            [
+                {"passed": False, "oos_efficiency": 0.4},
+                {"passed": True, "oos_efficiency": 0.7},
+            ]
+        )
+        monkeypatch.setattr(gate_module, "walk_forward_optimization", lambda *args, **kwargs: next(results))
+
+        result = validation_gate(close, entries, exits, wfo_windows=2)
+
+        assert result["decision"] == "NO-GO"
+        assert result["reason"] == "WFO rolling eff=0.400, anchored eff=0.700"
+        assert result["checks"]["wfo_rolling"]["passed"] is False
+        assert result["checks"]["wfo_anchored"]["passed"] is True
+
+    def test_gate_returns_go_when_all_checks_pass(self, monkeypatch, gate_inputs):
+        close, entries, exits = gate_inputs
+        monkeypatch.setattr(
+            gate_module,
+            "cpcv_backtest",
+            lambda *args, **kwargs: {
+                "passed": True,
+                "pbo": 0.1,
+                "path_results": [{"oos_sharpe": 1.5}],
+            },
+        )
+        monkeypatch.setattr(
+            gate_module,
+            "deflated_sharpe_ratio",
+            lambda **kwargs: {"passed": True, "dsr": 0.99},
+        )
+        monkeypatch.setattr(
+            gate_module,
+            "walk_forward_optimization",
+            lambda *args, **kwargs: {"passed": True, "oos_efficiency": 0.8},
+        )
+
+        result = validation_gate(close, entries, exits)
+
+        assert result["decision"] == "GO"
+        assert result["reason"] == "All validation checks passed"

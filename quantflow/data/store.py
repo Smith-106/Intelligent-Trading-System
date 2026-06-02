@@ -119,7 +119,7 @@ class DataStore:
     def get_date_range(self, symbol: str) -> tuple[int, int] | None:
         """Get the date range of stored data for a symbol."""
         symbol_name = symbol.replace("/", "_")
-        pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/*/*/*.parquet"
+        pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/*/*.parquet"
         try:
             result = self._db.query(f"""
                 SELECT MIN(timestamp) as min_ts, MAX(timestamp) as max_ts

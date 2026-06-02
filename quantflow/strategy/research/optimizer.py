@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import warnings
 from collections.abc import Callable
 from typing import Any
@@ -57,15 +58,19 @@ class StrategyOptimizer:
                     fee=fee,
                 )
                 if objective == "sharpe":
-                    return result.sharpe_ratio
+                    value = result.sharpe_ratio
                 elif objective == "sortino":
-                    return result.sortino_ratio
+                    value = result.sortino_ratio
                 elif objective == "calmar":
-                    return result.calmar_ratio
+                    value = result.calmar_ratio
                 elif objective == "return":
-                    return result.total_return
+                    value = result.total_return
                 else:
-                    return result.sharpe_ratio
+                    value = result.sharpe_ratio
+                if not math.isfinite(value):
+                    logger.warning("Optuna trial produced non-finite objective: %s", value)
+                    return -10.0
+                return value
             except Exception as e:
                 logger.warning("Optuna trial failed: %s", e)
                 return -10.0

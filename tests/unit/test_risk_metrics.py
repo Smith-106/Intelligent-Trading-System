@@ -75,3 +75,6 @@ class TestSortinoRatio:
         returns = pd.Series(np.random.normal(0.002, 0.01, 252))
         so = sortino_ratio(returns)
         assert so > 0
+
+    def test_sortino_returns_zero_for_single_observation(self):
+        assert sortino_ratio(pd.Series([0.01])) == 0.0

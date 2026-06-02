@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
 
 from quantflow.indicators.elliott_wave import (
+    WaveLabel,
     WaveType,
     classify_corrective,
     classify_impulse,
@@ -151,3 +154,91 @@ class TestElliottWaveStrategy:
         assert isinstance(entries, pd.Series)
         assert isinstance(exits, pd.Series)
         assert len(entries) == len(df)
+
+    def test_generate_signals_returns_empty_for_short_input(self):
+        from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+
+        df = pd.DataFrame(
+            {
+                "open": [100.0, 101.0],
+                "high": [101.0, 102.0],
+                "low": [99.0, 100.0],
+                "close": [100.0, 101.0],
+                "volume": [1000.0, 1000.0],
+            }
+        )
+
+        entries, exits = ElliottWaveStrategy().generate_signals(df)
+
+        assert entries.eq(False).all()
+        assert exits.eq(False).all()
+
+    def test_generate_signals_marks_wave_entries_and_exits(self):
+        from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+
+        df = pd.DataFrame(
+            {
+                "open": [100.0 + idx for idx in range(25)],
+                "high": [101.0 + idx for idx in range(25)],
+                "low": [99.0 + idx for idx in range(25)],
+                "close": [100.0 + idx for idx in range(25)],
+                "volume": [1000.0] * 25,
+            }
+        )
+        wave = pd.DataFrame(
+            {
+                "wave_label": [0] * 25,
+            },
+            index=df.index,
+        )
+        wave.loc[5, "wave_label"] = int(WaveLabel.W2)
+        wave.loc[10, "wave_label"] = int(WaveLabel.W4)
+        wave.loc[15, "wave_label"] = int(WaveLabel.WC)
+        wave.loc[20, "wave_label"] = int(WaveLabel.W5)
+
+        with patch("quantflow.strategy.templates.elliott_wave.elliott_wave", return_value=wave):
+            entries, exits = ElliottWaveStrategy({"use_divergence": False}).generate_signals(df)
+
+        assert entries.iloc[5]
+        assert entries.iloc[10]
+        assert entries.iloc[15]
+        assert exits.iloc[20]
+
+    def test_generate_signals_applies_divergence_and_hooks_are_noops(self):
+        from quantflow.common.models import Bar
+        from quantflow.strategy.base import StrategyContext
+        from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+
+        df = pd.DataFrame(
+            {
+                "open": [100.0 + idx for idx in range(25)],
+                "high": [101.0 + idx for idx in range(25)],
+                "low": [99.0 + idx for idx in range(25)],
+                "close": [100.0 + idx for idx in range(25)],
+                "volume": [1000.0] * 25,
+                "rsi_14": [50.0] * 25,
+            }
+        )
+        empty_wave = pd.DataFrame({"wave_label": [0] * 25}, index=df.index)
+        divergence = pd.Series(0, index=df.index, dtype=int)
+        divergence.iloc[-1] = -1
+        strategy = ElliottWaveStrategy()
+
+        with (
+            patch("quantflow.strategy.templates.elliott_wave.elliott_wave", return_value=empty_wave),
+            patch("quantflow.indicators.elliott_wave.zigzag", return_value=pd.DataFrame()),
+            patch(
+                "quantflow.strategy.templates.elliott_wave.wave_momentum_divergence",
+                return_value=divergence,
+            ),
+        ):
+            entries, exits = strategy.generate_signals(df)
+
+        ctx = StrategyContext()
+        bar = Bar("BTC/USDT", 1, 100.0, 101.0, 99.0, 100.5, 1000.0)
+
+        assert not entries.any()
+        assert exits.iloc[-1]
+        strategy.on_init(ctx)
+        strategy.on_bar(ctx, bar)
+        strategy.on_tick(ctx, {"price": 100.5})

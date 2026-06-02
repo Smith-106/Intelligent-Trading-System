@@ -356,11 +356,11 @@ def wave_momentum_divergence(
         p = pivots.iloc[i]
         p_prev = pivots.iloc[i - 2]
 
-        if p["pivot_idx"] < lookback or p_prev["pivot_idx"] < lookback:
-            continue
+        idx = int(p["pivot_idx"])
+        idx_prev = int(p_prev["pivot_idx"])
 
-        idx = p["pivot_idx"]
-        idx_prev = p_prev["pivot_idx"]
+        if idx < lookback or idx_prev < lookback:
+            continue
 
         if idx >= len(close) or idx_prev >= len(close):
             continue

@@ -78,8 +78,6 @@ def generate_synthetic_wave_data(
 
         # W1: rise 10%
         for i in range(w1_len):
-            if idx >= n_bars:
-                break
             progress = (i + 1) / w1_len
             prices[idx] = base * (1 + 0.10 * progress) + np.random.randn() * base * 0.002
             idx += 1
@@ -87,8 +85,6 @@ def generate_synthetic_wave_data(
         # W2: pullback to ~0.5 retracement
         w1_top = prices[idx - 1]
         for i in range(w2_len):
-            if idx >= n_bars:
-                break
             progress = (i + 1) / w2_len
             prices[idx] = (
                 w1_top - (w1_top - base) * 0.5 * progress + np.random.randn() * base * 0.002
@@ -98,8 +94,6 @@ def generate_synthetic_wave_data(
         # W3: strong rise 25%
         w2_low = prices[idx - 1]
         for i in range(w3_len):
-            if idx >= n_bars:
-                break
             progress = (i + 1) / w3_len
             prices[idx] = w2_low + w2_low * 0.25 * progress + np.random.randn() * base * 0.003
             idx += 1
@@ -108,8 +102,6 @@ def generate_synthetic_wave_data(
         w3_top = prices[idx - 1]
         w3_amp = w3_top - w2_low
         for i in range(w4_len):
-            if idx >= n_bars:
-                break
             progress = (i + 1) / w4_len
             prices[idx] = w3_top - w3_amp * 0.382 * progress + np.random.randn() * base * 0.002
             idx += 1
@@ -117,8 +109,6 @@ def generate_synthetic_wave_data(
         # W5: modest rise 8%
         w4_low = prices[idx - 1]
         for i in range(w5_len):
-            if idx >= n_bars:
-                break
             progress = (i + 1) / w5_len
             prices[idx] = w4_low + w4_low * 0.08 * progress + np.random.randn() * base * 0.002
             idx += 1
@@ -126,8 +116,6 @@ def generate_synthetic_wave_data(
         # A-B-C correction: drop ~15%
         w5_top = prices[idx - 1]
         for i in range(abc_len):
-            if idx >= n_bars:
-                break
             progress = (i + 1) / abc_len
             prices[idx] = w5_top - w5_top * 0.15 * progress + np.random.randn() * base * 0.003
             idx += 1
@@ -200,7 +188,7 @@ def run_backtest(
             # Enter position
             position = (capital * 0.95) / price  # 95% of capital
             entry_price = price
-            capital -= position * price * commission
+            capital -= position * price * (1 + commission)
 
         elif exits.iloc[i] and position > 0:
             # Exit position

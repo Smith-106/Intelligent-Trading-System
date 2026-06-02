@@ -53,10 +53,7 @@ def deflated_sharpe_ratio(
 
     # DSR = P(SR* > E[max(SR)])
     # = Φ((observed - expected_max) / std)
-    if sr_std > 0:
-        dsr = float(stats.norm.cdf((observed_sharpe - expected_max_sr) / sr_std))
-    else:
-        dsr = 1.0 if observed_sharpe > expected_max_sr else 0.0
+    dsr = float(stats.norm.cdf((observed_sharpe - expected_max_sr) / sr_std))
 
     result = {
         "dsr": dsr,

@@ -283,9 +283,6 @@ def walk_forward_optimization(
         oos_start = is_end
         oos_end = (i + 1) * window_size
 
-        if oos_end > n_bars:
-            break
-
         is_idx = np.arange(is_start, is_end)
         oos_idx = np.arange(oos_start, oos_end)
 

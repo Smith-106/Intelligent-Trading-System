@@ -127,7 +127,7 @@ def validate_no_future_leak(df: pd.DataFrame, cutoff_timestamp: int | None = Non
         ts = df[col]
         if col == "datetime" and pd.api.types.is_datetime64_any_dtype(ts):
             # Convert datetime to ms timestamp for comparison
-            ts_ms = ts.astype("int64") // 10**6
+            ts_ms = ts.map(lambda value: int(value.timestamp() * 1000) if pd.notna(value) else pd.NA)
             if ts_ms.max() > cutoff_timestamp:
                 logger.error(
                     "Future data leak in datetime column: max=%d > cutoff=%d",

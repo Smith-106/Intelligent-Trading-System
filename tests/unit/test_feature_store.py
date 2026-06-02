@@ -118,6 +118,63 @@ class TestFeatureStore:
         result = fs.load_features("NONEXIST/USDT")
         assert result.empty
 
+    def test_save_features_ignores_empty_frame(self, tmp_path):
+        fs = FeatureStore(str(tmp_path))
+
+        fs.save_features("BTC/USDT", pd.DataFrame())
+
+        assert not (tmp_path / "features" / "BTC_USDT" / "features.parquet").exists()
+
+    def test_save_features_with_datetime_deduplicates_and_sorts(self, tmp_path):
+        fs = FeatureStore(str(tmp_path))
+        features = pd.DataFrame(
+            {
+                "timestamp": [1704153600000, 1704067200000, 1704153600000],
+                "datetime": pd.to_datetime(
+                    ["2024-01-02T00:00:00Z", "2024-01-01T00:00:00Z", "2024-01-02T00:00:00Z"],
+                    utc=True,
+                ),
+                "value": [2.0, 1.0, 99.0],
+            }
+        )
+
+        fs.save_features("BTC/USDT", features)
+        saved = pd.read_parquet(tmp_path / "features" / "BTC_USDT" / "features.parquet")
+
+        assert list(saved["timestamp"]) == [1704067200000, 1704153600000]
+        assert list(saved["year"]) == [2024, 2024]
+        assert list(saved["month"]) == [1, 1]
+
+    def test_save_features_with_timestamp_column_and_filtered_load(self, tmp_path):
+        fs = FeatureStore(str(tmp_path))
+        features = pd.DataFrame(
+            {
+                "timestamp": [1704067200000, 1704153600000, 1704240000000],
+                "value": [1.0, 2.0, 3.0],
+            }
+        )
+
+        fs.save_features("BTC/USDT", features)
+        loaded = fs.load_features("BTC/USDT", start=1704153600000, end=1704240000000)
+
+        assert list(loaded["timestamp"]) == [1704153600000, 1704240000000]
+        assert list(loaded["value"]) == [2.0, 3.0]
+
+    def test_load_features_returns_empty_on_query_failure(self, tmp_path, monkeypatch):
+        fs = FeatureStore(str(tmp_path))
+        features = pd.DataFrame({"timestamp": [1704067200000], "value": [1.0]})
+        fs.save_features("BTC/USDT", features)
+
+        class BrokenDB:
+            def query(self, sql: str):
+                raise RuntimeError("duckdb unavailable")
+
+        monkeypatch.setattr(fs, "_db", BrokenDB())
+
+        loaded = fs.load_features("BTC/USDT")
+
+        assert loaded.empty
+
     def test_close(self, tmp_path):
         fs = FeatureStore(str(tmp_path))
         fs.close()

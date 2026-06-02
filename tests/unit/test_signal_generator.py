@@ -53,3 +53,18 @@ class TestSignalGenerator:
     def test_consolidate_empty(self):
         gen = SignalGenerator()
         assert gen.consolidate_signals([]) is None
+
+    def test_consolidate_short_bias(self):
+        gen = SignalGenerator()
+        sigs = [
+            Signal("BTC/USDT", Direction.SHORT, 0.4, 49000, "s1"),
+            Signal("BTC/USDT", Direction.SHORT, 0.8, 49000, "s2"),
+        ]
+
+        result = gen.consolidate_signals(sigs)
+
+        assert result is not None
+        assert result.direction == Direction.SHORT
+        assert result.price == 49000
+        assert result.strength == pytest.approx(0.6)
+        assert set(result.strategy_id.split(",")) == {"s1", "s2"}

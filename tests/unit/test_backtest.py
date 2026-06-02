@@ -71,6 +71,21 @@ class TestBacktestEngine:
 
         assert result.num_trades == 1
 
+    def test_equity_curve_stays_finite_while_position_is_open(self):
+        dates = pd.date_range("2024-01-01", periods=6, freq="D")
+        close = pd.Series([100.0, 101.0, 102.0, 103.0, 104.0, 105.0], index=dates)
+        entries = pd.Series(False, index=dates)
+        exits = pd.Series(False, index=dates)
+        entries.iloc[0] = True
+        exits.iloc[4] = True
+
+        engine = BacktestEngine()
+        result = engine.run_backtest(close, entries, exits)
+
+        assert np.isfinite(result.equity_curve).all()
+        assert result.equity_curve.iloc[1] == pytest.approx(result.initial_capital)
+        assert result.equity_curve.iloc[4] == pytest.approx(result.initial_capital)
+
     def test_drawdown_is_negative(self):
         # Create a declining series
         dates = pd.date_range("2024-01-01", periods=50, freq="D")
@@ -129,3 +144,35 @@ class TestBacktestEngine:
         returns = pd.Series([0.01] * 10)
         sortino = BacktestEngine._calc_sortino(returns)
         assert sortino == 0.0
+
+    def test_sortino_short_series_returns_zero(self):
+        returns = pd.Series([0.01])
+        sortino = BacktestEngine._calc_sortino(returns)
+        assert sortino == 0.0
+
+    def test_annual_return_handles_non_finite_total_return(self, monkeypatch):
+        close = pd.Series(
+            [100.0, 110.0, 120.0],
+            index=pd.date_range("2024-01-01", periods=3, freq="D"),
+        )
+        entries = pd.Series([False, False, False], index=close.index)
+        exits = pd.Series([False, False, False], index=close.index)
+        engine = BacktestEngine()
+
+        monkeypatch.setattr("quantflow.strategy.research.backtest.np.isfinite", lambda value: False)
+        result = engine.run_backtest(close, entries, exits)
+
+        assert result.annual_return == float("inf")
+
+    def test_annual_return_clamps_total_loss_to_negative_one(self):
+        dates = pd.date_range("2024-01-01", periods=3, freq="D")
+        close = pd.Series([100.0, 100.0, 0.0], index=dates)
+        entries = pd.Series([True, False, False], index=dates)
+        exits = pd.Series([False, True, False], index=dates)
+
+        engine = BacktestEngine()
+        result = engine.run_backtest(close, entries, exits, fee=0.0)
+
+        assert result.final_capital == pytest.approx(0.0)
+        assert result.total_return == pytest.approx(-1.0)
+        assert result.annual_return == -1.0

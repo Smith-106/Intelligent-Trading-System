@@ -51,50 +51,45 @@ class KillSwitch:
             "errors": [],
         }
 
+        # Step 1: Cancel all pending orders
         try:
-            # Step 1: Cancel all pending orders
-            try:
-                cancelled = await self._gateway.cancel_all_orders()
-                results["cancelled_orders"] = cancelled
-                logger.info("Cancelled %d orders", len(cancelled))
-            except Exception as e:
-                results["errors"].append(f"cancel_orders: {e}")
-                logger.error("Failed to cancel orders: %s", e)
-
-            # Step 2: Close all open positions with market orders
-            try:
-                positions = await self._gateway.query_positions()
-                for pos in positions:
-                    if abs(pos.quantity) > 0:
-                        try:
-                            side = OrderSide.SELL if pos.quantity > 0 else OrderSide.BUY
-                            close_qty = abs(pos.quantity)
-                            order = Order(
-                                order_id="",
-                                symbol=pos.symbol,
-                                side=side,
-                                order_type="market",
-                                quantity=close_qty,
-                            )
-                            order_id = await self._gateway.send_order(order)
-                            results["closed_positions"].append(
-                                {
-                                    "symbol": pos.symbol,
-                                    "quantity": close_qty,
-                                    "order_id": order_id,
-                                }
-                            )
-                            logger.info("Closing %s %s: order %s", pos.symbol, close_qty, order_id)
-                        except Exception as e:
-                            results["errors"].append(f"close_{pos.symbol}: {e}")
-                            logger.error("Failed to close %s: %s", pos.symbol, e)
-            except Exception as e:
-                results["errors"].append(f"query_positions: {e}")
-                logger.error("Failed to query positions: %s", e)
-
+            cancelled = await self._gateway.cancel_all_orders()
+            results["cancelled_orders"] = cancelled
+            logger.info("Cancelled %d orders", len(cancelled))
         except Exception as e:
-            results["errors"].append(f"unexpected: {e}")
-            logger.critical("Unexpected error during kill switch: %s", e)
+            results["errors"].append(f"cancel_orders: {e}")
+            logger.error("Failed to cancel orders: %s", e)
+
+        # Step 2: Close all open positions with market orders
+        try:
+            positions = await self._gateway.query_positions()
+            for pos in positions:
+                if abs(pos.quantity) > 0:
+                    try:
+                        side = OrderSide.SELL if pos.quantity > 0 else OrderSide.BUY
+                        close_qty = abs(pos.quantity)
+                        order = Order(
+                            order_id="",
+                            symbol=pos.symbol,
+                            side=side,
+                            order_type="market",
+                            quantity=close_qty,
+                        )
+                        order_id = await self._gateway.send_order(order)
+                        results["closed_positions"].append(
+                            {
+                                "symbol": pos.symbol,
+                                "quantity": close_qty,
+                                "order_id": order_id,
+                            }
+                        )
+                        logger.info("Closing %s %s: order %s", pos.symbol, close_qty, order_id)
+                    except Exception as e:
+                        results["errors"].append(f"close_{pos.symbol}: {e}")
+                        logger.error("Failed to close %s: %s", pos.symbol, e)
+        except Exception as e:
+            results["errors"].append(f"query_positions: {e}")
+            logger.error("Failed to query positions: %s", e)
 
         return results
 

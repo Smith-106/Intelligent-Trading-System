@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -112,3 +114,81 @@ class TestStrategyOptimizer:
             n_trials=3,
         )
         assert "best_params" in result
+
+    def test_optimize_unknown_objective_falls_back_to_sharpe(self):
+        class _Engine:
+            def run_backtest(
+                self,
+                close,
+                entries,
+                exits,
+                initial_capital,
+                fee,
+            ):
+                class _Result:
+                    sharpe_ratio = 1.23
+                    sortino_ratio = 4.56
+                    calmar_ratio = 7.89
+                    total_return = 9.87
+
+                return _Result()
+
+        close = pd.Series([100.0, 101.0, 102.0], dtype=float)
+
+        def fn(close_series, **params):
+            del params
+            empty = pd.Series(False, index=close_series.index)
+            return empty, empty
+
+        optimizer = StrategyOptimizer(engine=cast(Any, _Engine()))
+        result = optimizer.optimize(
+            close=close,
+            signal_fn=fn,
+            param_space={"threshold": (0, 0)},
+            n_trials=1,
+            objective="unknown-objective",
+        )
+
+        assert result["best_value"] == pytest.approx(1.23)
+        assert result["objective"] == "unknown-objective"
+
+    def test_optimize_downgrades_trial_exceptions(self):
+        class _Engine:
+            def run_backtest(
+                self,
+                close,
+                entries,
+                exits,
+                initial_capital,
+                fee,
+            ):
+                raise RuntimeError("boom")
+
+        close = pd.Series([100.0, 101.0, 102.0], dtype=float)
+
+        def fn(close_series, **params):
+            del params
+            empty = pd.Series(False, index=close_series.index)
+            return empty, empty
+
+        optimizer = StrategyOptimizer(engine=cast(Any, _Engine()))
+        result = optimizer.optimize(
+            close=close,
+            signal_fn=fn,
+            param_space={"threshold": (0, 0)},
+            n_trials=1,
+        )
+
+        assert result["best_value"] == -10.0
+
+    def test_create_sampler_bayesian_falls_back_to_tpe_on_error(self, monkeypatch):
+        import optuna
+
+        def _raise_runtime_error():
+            raise RuntimeError("gps unavailable")
+
+        monkeypatch.setattr(optuna.samplers, "GPSampler", _raise_runtime_error)
+
+        sampler = StrategyOptimizer._create_sampler("bayesian")
+
+        assert isinstance(sampler, optuna.samplers.TPESampler)
