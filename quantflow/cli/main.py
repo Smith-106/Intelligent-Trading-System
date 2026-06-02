@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
+import subprocess
+from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import typer
 from rich.console import Console
@@ -16,6 +19,54 @@ setup_logging()
 
 if TYPE_CHECKING:
     import pandas as pd
+
+    from quantflow.strategy.base import StrategyBase
+
+StrategyFactory: TypeAlias = Callable[[dict[str, Any] | None], "StrategyBase"]
+ParamSpace: TypeAlias = dict[str, tuple[Any, ...]]
+ResultDict: TypeAlias = dict[str, Any]
+
+
+def _get_strategy_factories() -> dict[str, StrategyFactory]:
+    from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
+    from quantflow.strategy.templates.funding_rate import FundingRateStrategy
+    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+    from quantflow.strategy.templates.ml_ensemble import MLEnsembleStrategy
+    from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
+    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
+
+    def trend_following_factory(params: dict[str, Any] | None = None) -> StrategyBase:
+        return TrendFollowingStrategy(params)
+
+    def mean_reversion_factory(params: dict[str, Any] | None = None) -> StrategyBase:
+        return MeanReversionStrategy(params)
+
+    def elliott_wave_factory(params: dict[str, Any] | None = None) -> StrategyBase:
+        return ElliottWaveStrategy(params)
+
+    def volatility_breakout_factory(params: dict[str, Any] | None = None) -> StrategyBase:
+        return VolatilityBreakoutStrategy(params)
+
+    def funding_rate_factory(params: dict[str, Any] | None = None) -> StrategyBase:
+        return FundingRateStrategy(params)
+
+    def momentum_rotation_factory(params: dict[str, Any] | None = None) -> StrategyBase:
+        return MomentumRotationStrategy(params)
+
+    def ml_ensemble_factory(params: dict[str, Any] | None = None) -> StrategyBase:
+        return MLEnsembleStrategy(params)
+
+    return {
+        "trend_following": trend_following_factory,
+        "mean_reversion": mean_reversion_factory,
+        "elliott_wave": elliott_wave_factory,
+        "volatility_breakout": volatility_breakout_factory,
+        "funding_rate": funding_rate_factory,
+        "momentum_rotation": momentum_rotation_factory,
+        "ml_ensemble": ml_ensemble_factory,
+    }
+
 
 app = typer.Typer(
     name="quantflow",
@@ -59,7 +110,9 @@ def download(
                 await fetcher.connect()
             console.print("[green]✓[/] Connected to OKX")
 
-            with console.status(f"[bold blue]Downloading {symbol} {timeframe} ({start} → {end})..."):
+            with console.status(
+                f"[bold blue]Downloading {symbol} {timeframe} ({start} → {end})..."
+            ):
                 df = await fetcher.fetch_ohlcv(symbol, timeframe, start, end)
 
             if df.empty:
@@ -76,11 +129,14 @@ def download(
                 store.save(df, symbol)
 
             date_range = store.get_date_range(symbol)
-            console.print(f"[green]✓[/] Saved [bold]{len(df)}[/] bars for [bold]{symbol}[/] ({timeframe})")
+            console.print(
+                f"[green]✓[/] Saved [bold]{len(df)}[/] bars for [bold]{symbol}[/] ({timeframe})"
+            )
             if date_range:
                 from datetime import datetime
-                s = datetime.fromtimestamp(date_range[0]/1000).strftime("%Y-%m-%d")
-                e = datetime.fromtimestamp(date_range[1]/1000).strftime("%Y-%m-%d")
+
+                s = datetime.fromtimestamp(date_range[0] / 1000).strftime("%Y-%m-%d")
+                e = datetime.fromtimestamp(date_range[1] / 1000).strftime("%Y-%m-%d")
                 console.print(f"  Range: {s} → {e}")
         except Exception as e:
             console.print(f"[red]✗ Error: {e}[/]")
@@ -111,13 +167,6 @@ def research(
     from quantflow.data.store import DataStore
     from quantflow.strategy.research.backtest import BacktestEngine
     from quantflow.strategy.research.report import generate_report
-    from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
-    from quantflow.strategy.templates.funding_rate import FundingRateStrategy
-    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
-    from quantflow.strategy.templates.ml_ensemble import MLEnsembleStrategy
-    from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
-    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
-    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
 
     cfg = _load(config)
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
@@ -135,30 +184,28 @@ def research(
     close = df["close"]
 
     # Select strategy
-    strategy_map = {
-        "trend_following": TrendFollowingStrategy,
-        "mean_reversion": MeanReversionStrategy,
-        "elliott_wave": ElliottWaveStrategy,
-        "volatility_breakout": VolatilityBreakoutStrategy,
-        "funding_rate": FundingRateStrategy,
-        "momentum_rotation": MomentumRotationStrategy,
-        "ml_ensemble": MLEnsembleStrategy,
-    }
-    strategy_cls = strategy_map.get(strategy)
-    if not strategy_cls:
-        console.print(f"[red]Unknown strategy: {strategy}. Available: {list(strategy_map.keys())}[/]")
+    strategy_factories = _get_strategy_factories()
+    strategy_factory = strategy_factories.get(strategy)
+    if not strategy_factory:
+        console.print(
+            f"[red]Unknown strategy: {strategy}. Available: {list(strategy_factories.keys())}[/]"
+        )
         return
 
     console.print(f"[bold blue]Running backtest: {strategy} on {symbol}[/]")
 
     # Generate signals and run backtest
-    strategy_instance = strategy_cls()
+    strategy_instance = strategy_factory(None)
     entries, exits = strategy_instance.generate_signals(df)
     engine = BacktestEngine()
     result = engine.run_backtest(
-        close, entries, exits,
-        initial_capital=capital, fee=fee,
-        strategy_id=strategy, symbol=symbol,
+        close,
+        entries,
+        exits,
+        initial_capital=capital,
+        fee=fee,
+        strategy_id=strategy,
+        symbol=symbol,
     )
 
     # Display report
@@ -184,13 +231,6 @@ def optimize(
     """
     from quantflow.data.store import DataStore
     from quantflow.strategy.research.optimizer import StrategyOptimizer
-    from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
-    from quantflow.strategy.templates.funding_rate import FundingRateStrategy
-    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
-    from quantflow.strategy.templates.ml_ensemble import MLEnsembleStrategy
-    from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
-    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
-    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
 
     cfg = _load(config)
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
@@ -205,43 +245,64 @@ def optimize(
 
     close = df["close"]
 
-    strategy_map = {
-        "trend_following": (TrendFollowingStrategy, {
-            "ma_fast": (3, 15),
-            "ma_medium": (10, 40),
-            "ma_slow": (30, 120),
-            "rsi_buy_min": (20, 50),
-            "rsi_buy_max": (60, 85),
-        }),
-        "mean_reversion": (MeanReversionStrategy, {
-            "rsi_oversold": (20, 40),
-            "rsi_exit": (40, 60),
-            "bb_std": (1.5, 3.0),
-        }),
-        "elliott_wave": (ElliottWaveStrategy, {
-            "zigzag_threshold": (0.02, 0.08),
-            "fib_tolerance": (0.10, 0.25),
-            "atr_stop_mult": (1.0, 3.0),
-        }),
-        "volatility_breakout": (VolatilityBreakoutStrategy, {
-            "atr_threshold": (1.2, 2.0),
-            "atr_shrink_exit": (0.5, 0.9),
-            "volume_threshold": (1.2, 2.0),
-        }),
-        "funding_rate": (FundingRateStrategy, {
-            "entry_threshold": (0.0005, 0.002),
-            "exit_threshold": (0.0001, 0.0005),
-            "oi_change_threshold": (0.02, 0.1),
-        }),
-        "momentum_rotation": (MomentumRotationStrategy, {
-            "lookback": (10, 40),
-            "top_n": (1, 5),
-            "stop_loss_pct": (0.01, 0.05),
-        }),
-        "ml_ensemble": (MLEnsembleStrategy, {
-            "entry_threshold": (0.5, 0.8),
-            "exit_threshold": (0.2, 0.5),
-        }),
+    strategy_map: dict[str, tuple[StrategyFactory, ParamSpace]] = {
+        "trend_following": (
+            _get_strategy_factories()["trend_following"],
+            {
+                "ma_fast": (3, 15),
+                "ma_medium": (10, 40),
+                "ma_slow": (30, 120),
+                "rsi_buy_min": (20, 50),
+                "rsi_buy_max": (60, 85),
+            },
+        ),
+        "mean_reversion": (
+            _get_strategy_factories()["mean_reversion"],
+            {
+                "rsi_oversold": (20, 40),
+                "rsi_exit": (40, 60),
+                "bb_std": (1.5, 3.0),
+            },
+        ),
+        "elliott_wave": (
+            _get_strategy_factories()["elliott_wave"],
+            {
+                "zigzag_threshold": (0.02, 0.08),
+                "fib_tolerance": (0.10, 0.25),
+                "atr_stop_mult": (1.0, 3.0),
+            },
+        ),
+        "volatility_breakout": (
+            _get_strategy_factories()["volatility_breakout"],
+            {
+                "atr_threshold": (1.2, 2.0),
+                "atr_shrink_exit": (0.5, 0.9),
+                "volume_threshold": (1.2, 2.0),
+            },
+        ),
+        "funding_rate": (
+            _get_strategy_factories()["funding_rate"],
+            {
+                "entry_threshold": (0.0005, 0.002),
+                "exit_threshold": (0.0001, 0.0005),
+                "oi_change_threshold": (0.02, 0.1),
+            },
+        ),
+        "momentum_rotation": (
+            _get_strategy_factories()["momentum_rotation"],
+            {
+                "lookback": (10, 40),
+                "top_n": (1, 5),
+                "stop_loss_pct": (0.01, 0.05),
+            },
+        ),
+        "ml_ensemble": (
+            _get_strategy_factories()["ml_ensemble"],
+            {
+                "entry_threshold": (0.5, 0.8),
+                "exit_threshold": (0.2, 0.5),
+            },
+        ),
     }
 
     if strategy not in strategy_map:
@@ -252,7 +313,7 @@ def optimize(
 
     console.print(f"[bold blue]Optimizing {strategy} with {method} ({trials} trials)...[/]")
 
-    def _signal_fn(close_series: pd.Series, **params):
+    def _signal_fn(close_series: pd.Series, **params: Any) -> tuple[pd.Series, pd.Series]:
         s = strategy_cls(params)
         sub_df = df.copy()
         sub_df["close"] = close_series.values
@@ -309,13 +370,6 @@ def validate(
         quantflow validate --method cpcv --groups 10 --test-groups 3
     """
     from quantflow.data.store import DataStore
-    from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
-    from quantflow.strategy.templates.funding_rate import FundingRateStrategy
-    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
-    from quantflow.strategy.templates.ml_ensemble import MLEnsembleStrategy
-    from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
-    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
-    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
 
     cfg = _load(config)
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
@@ -327,63 +381,82 @@ def validate(
     if "datetime" in df.columns:
         df = df.set_index("datetime")
 
-    strategy_map = {
-        "trend_following": TrendFollowingStrategy,
-        "mean_reversion": MeanReversionStrategy,
-        "elliott_wave": ElliottWaveStrategy,
-        "volatility_breakout": VolatilityBreakoutStrategy,
-        "funding_rate": FundingRateStrategy,
-        "momentum_rotation": MomentumRotationStrategy,
-        "ml_ensemble": MLEnsembleStrategy,
-    }
-    strategy_cls = strategy_map.get(strategy)
-    if not strategy_cls:
+    strategy_factories = _get_strategy_factories()
+    strategy_factory = strategy_factories.get(strategy)
+    if not strategy_factory:
         console.print(f"[red]Unknown strategy: {strategy}[/]")
         return
 
-    strategy_instance = strategy_cls()
+    strategy_instance = strategy_factory(None)
     entries, exits = strategy_instance.generate_signals(df)
     close = df["close"]
 
     if method == "cpcv":
         from quantflow.strategy.validation.cpcv import cpcv_backtest
+
         console.print("[bold blue]Running CPCV validation...[/]")
-        result = cpcv_backtest(close, entries, exits, n_groups=groups,
-                               n_test_groups=test_groups, initial_capital=capital)
+        result = cpcv_backtest(
+            close,
+            entries,
+            exits,
+            n_groups=groups,
+            n_test_groups=test_groups,
+            initial_capital=capital,
+        )
         _display_cpcv(result)
 
     elif method == "dsr":
         from quantflow.strategy.research.backtest import BacktestEngine
         from quantflow.strategy.validation.dsr import deflated_sharpe_ratio
+
         bt = BacktestEngine()
         res = bt.run_backtest(close, entries, exits, initial_capital=capital)
         console.print("[bold blue]Running DSR validation...[/]")
-        result = deflated_sharpe_ratio(res.sharpe_ratio, n_trials=n_trials,
-                                        sample_length=len(close))
+        result = deflated_sharpe_ratio(
+            res.sharpe_ratio, n_trials=n_trials, sample_length=len(close)
+        )
         _display_dsr(result)
 
     elif method == "wfo":
         from quantflow.strategy.validation.wfo import walk_forward_optimization
+
         console.print("[bold blue]Running Walk-Forward Optimization...[/]")
-        rolling = walk_forward_optimization(close, entries, exits, n_windows=wfo_windows,
-                                             mode="rolling", initial_capital=capital)
-        anchored = walk_forward_optimization(close, entries, exits, n_windows=wfo_windows,
-                                              mode="anchored", initial_capital=capital)
+        rolling = walk_forward_optimization(
+            close, entries, exits, n_windows=wfo_windows, mode="rolling", initial_capital=capital
+        )
+        anchored = walk_forward_optimization(
+            close, entries, exits, n_windows=wfo_windows, mode="anchored", initial_capital=capital
+        )
         _display_wfo(rolling, anchored)
 
     elif method == "pbo":
         from quantflow.strategy.validation.pbo import probability_of_overfitting
+
         console.print("[bold blue]Running PBO validation...[/]")
-        result = probability_of_overfitting(close, entries, exits,
-                                                      n_trials=n_trials, initial_capital=capital)
+        result = probability_of_overfitting(
+            close,
+            entries,
+            exits,
+            n_groups=groups,
+            n_test_groups=test_groups,
+            initial_capital=capital,
+        )
         _display_pbo(result)
 
     elif method in ("full", "gate"):
         from quantflow.strategy.validation.gate import validation_gate
+
         console.print("[bold blue]Running Full Validation Gate...[/]")
-        result = validation_gate(close, entries, exits, n_trials=n_trials,
-                                  cpcv_groups=groups, cpcv_test_groups=test_groups,
-                                  wfo_windows=wfo_windows, initial_capital=capital)
+        result = validation_gate(
+            close,
+            entries,
+            exits,
+            n_trials=n_trials,
+            cpcv_groups=groups,
+            cpcv_test_groups=test_groups,
+            wfo_windows=wfo_windows,
+            initial_capital=capital,
+        )
         _display_gate(result)
 
     store.close()
@@ -392,7 +465,9 @@ def validate(
 @app.command()
 def run(
     mode: str = typer.Option("paper", help="Run mode: paper | sandbox | live"),
-    strategy: str = typer.Option("trend_following", help="Strategy name (comma-separated for multiple)"),
+    strategy: str = typer.Option(
+        "trend_following", help="Strategy name (comma-separated for multiple)"
+    ),
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
     capital: float = typer.Option(100000.0, help="Initial capital"),
     config: str = typer.Option("config/default.yaml", help="Config file path"),
@@ -408,36 +483,20 @@ def run(
         quantflow run --mode paper --strategy trend_following
         quantflow run --mode paper --strategy trend_following,mean_reversion
     """
-    from quantflow.common.config import load_config
     from quantflow.strategy.engine import TradingSession
-    from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
-    from quantflow.strategy.templates.funding_rate import FundingRateStrategy
-    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
-    from quantflow.strategy.templates.ml_ensemble import MLEnsembleStrategy
-    from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
-    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
-    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
 
     cfg = load_config(config)
     cfg.execution.mode = mode
 
-    strategy_map = {
-        "trend_following": TrendFollowingStrategy,
-        "mean_reversion": MeanReversionStrategy,
-        "elliott_wave": ElliottWaveStrategy,
-        "volatility_breakout": VolatilityBreakoutStrategy,
-        "funding_rate": FundingRateStrategy,
-        "momentum_rotation": MomentumRotationStrategy,
-        "ml_ensemble": MLEnsembleStrategy,
-    }
+    strategy_factories = _get_strategy_factories()
 
     # Support multiple strategies
     strategy_names = [s.strip() for s in strategy.split(",")]
-    strategies = []
+    strategies: list[StrategyBase] = []
     for name in strategy_names:
-        cls = strategy_map.get(name)
-        if cls:
-            strategies.append(cls())
+        factory = strategy_factories.get(name)
+        if factory:
+            strategies.append(factory(None))
         else:
             console.print(f"[red]Unknown strategy: {name}[/]")
             return
@@ -450,9 +509,9 @@ def run(
 
     session = TradingSession(cfg, strategies)
 
-    async def _run_session():
+    async def _run_session() -> None:
         try:
-            gateway_config = {
+            gateway_config: dict[str, str] = {
                 "api_key": "",  # Load from env in production
                 "secret": "",
                 "passphrase": "",
@@ -472,51 +531,60 @@ def run(
             await session.stop()
             console.print("[green]Session stopped[/]")
 
-    import asyncio
     asyncio.run(_run_session())
 
 
-def _display_cpcv(result: dict) -> None:
+def _display_cpcv(result: ResultDict) -> None:
     table = Table(title="CPCV Validation Results")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
     table.add_row("Paths", str(result["n_paths"]))
     table.add_row("PBO", f"{result['pbo']:.3f}")
     table.add_row("OOS Efficiency", f"{result['oos_efficiency']:.3f}")
-    table.add_row("OOS Sharpe (mean±std)", f"{result['oos_sharpe_mean']:.3f}±{result['oos_sharpe_std']:.3f}")
+    table.add_row(
+        "OOS Sharpe (mean±std)", f"{result['oos_sharpe_mean']:.3f}±{result['oos_sharpe_std']:.3f}"
+    )
     table.add_row("OOS Sharpe (min)", f"{result['oos_sharpe_min']:.3f}")
     status = "[green]PASSED[/]" if result["passed"] else "[red]FAILED[/]"
     table.add_row("Status", status)
     console.print(table)
 
 
-def _display_dsr(result: dict) -> None:
+def _display_dsr(result: ResultDict) -> None:
     table = Table(title="Deflated Sharpe Ratio")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
     table.add_row("DSR", f"{result['dsr']:.4f}")
     table.add_row("Observed Sharpe", f"{result['observed_sharpe']:.3f}")
-    table.add_row("Expected Max (N trials)", f"{result['expected_max_sharpe']:.3f} (N={result['n_trials']})")
+    table.add_row(
+        "Expected Max (N trials)", f"{result['expected_max_sharpe']:.3f} (N={result['n_trials']})"
+    )
     status = "[green]PASSED[/]" if result["passed"] else "[red]FAILED[/]"
     table.add_row("Status", status)
     console.print(table)
 
 
-def _display_wfo(rolling: dict, anchored: dict) -> None:
+def _display_wfo(rolling: ResultDict, anchored: ResultDict) -> None:
     table = Table(title="Walk-Forward Optimization")
     table.add_column("Metric", style="cyan")
     table.add_column("Rolling", style="green")
     table.add_column("Anchored", style="green")
-    table.add_row("IS Sharpe", f"{rolling['is_sharpe_mean']:.3f}", f"{anchored['is_sharpe_mean']:.3f}")
-    table.add_row("OOS Sharpe", f"{rolling['oos_sharpe_mean']:.3f}", f"{anchored['oos_sharpe_mean']:.3f}")
-    table.add_row("OOS Efficiency", f"{rolling['oos_efficiency']:.3f}", f"{anchored['oos_efficiency']:.3f}")
+    table.add_row(
+        "IS Sharpe", f"{rolling['is_sharpe_mean']:.3f}", f"{anchored['is_sharpe_mean']:.3f}"
+    )
+    table.add_row(
+        "OOS Sharpe", f"{rolling['oos_sharpe_mean']:.3f}", f"{anchored['oos_sharpe_mean']:.3f}"
+    )
+    table.add_row(
+        "OOS Efficiency", f"{rolling['oos_efficiency']:.3f}", f"{anchored['oos_efficiency']:.3f}"
+    )
     r_status = "PASSED" if rolling["passed"] else "FAILED"
     a_status = "PASSED" if anchored["passed"] else "FAILED"
     table.add_row("Decision", r_status, a_status)
     console.print(table)
 
 
-def _display_pbo(result: dict) -> None:
+def _display_pbo(result: ResultDict) -> None:
     table = Table(title="Probability of Backtest Overfitting")
     table.add_column("Metric", style="cyan")
     table.add_column("Value", style="green")
@@ -530,7 +598,7 @@ def _display_pbo(result: dict) -> None:
     console.print(table)
 
 
-def _display_gate(result: dict) -> None:
+def _display_gate(result: ResultDict) -> None:
     console.print(f"\n[bold]VALIDATION GATE: {result['decision']}[/]")
     if "reason" in result:
         console.print(f"Reason: {result['reason']}")
@@ -544,8 +612,6 @@ def _display_gate(result: dict) -> None:
 @app.command()
 def status() -> None:
     """Show current system status."""
-    from pathlib import Path
-
     table = Table(title="QuantFlow Status")
     table.add_column("Component", style="cyan")
     table.add_column("Status", style="green")
@@ -553,14 +619,17 @@ def status() -> None:
     # Check data availability
     data_dir = Path("data/parquet")
     data_ready = data_dir.exists() and any(data_dir.rglob("*.parquet"))
-    data_status = f"Ready ({len(list(data_dir.rglob('*.parquet')))} files)" if data_ready else "No data — run 'download'"
+    data_status = (
+        f"Ready ({len(list(data_dir.rglob('*.parquet')))} files)"
+        if data_ready
+        else "No data — run 'download'"
+    )
 
     # Check config
     config_path = Path("config/default.yaml")
     config_status = "Ready" if config_path.exists() else "Missing default.yaml"
 
     # Check Docker
-    import subprocess
     docker_ok = False
     try:
         result = subprocess.run(["docker", "--version"], capture_output=True, text=True, timeout=5)
@@ -573,7 +642,10 @@ def status() -> None:
     table.add_row("Data Layer", data_status)
     table.add_row("Config", config_status)
     table.add_row("Indicators", "Ready (21 factors)")
-    table.add_row("Strategies", "trend_following, mean_reversion, elliott_wave, volatility_breakout, funding_rate, momentum_rotation, ml_ensemble")
+    table.add_row(
+        "Strategies",
+        "trend_following, mean_reversion, elliott_wave, volatility_breakout, funding_rate, momentum_rotation, ml_ensemble",
+    )
     table.add_row("Validation", "CPCV + DSR + PBO + WFO + Gate")
     table.add_row("Risk Engine", "Kelly + VaR/CVaR + Drawdown")
     table.add_row("Paper Trade", "Ready (PaperGateway)")

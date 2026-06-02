@@ -106,7 +106,7 @@ class BacktestEngine:
             equity[-1] = equity[-1] * (1 + ret)
 
         equity_series = pd.Series(equity, index=close.index)
-        returns = equity_series.pct_change().fillna(0)
+        returns = equity_series.pct_change().replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
         # Drawdown
         peak = equity_series.cummax()
@@ -126,13 +126,13 @@ class BacktestEngine:
         # Ratios
         total_return = (equity[-1] / initial_capital) - 1
         num_days = max(n, 1)
-        try:
-            if total_return > -1:
-                annual_return = (1 + total_return) ** (365 / num_days) - 1
-            else:
-                annual_return = -1.0
-        except (OverflowError, ValueError):
-            annual_return = -1.0 if total_return < 0 else float("inf")
+        if total_return <= -1:
+            annual_return = -1.0
+        elif not np.isfinite(total_return):
+            annual_return = float("inf")
+        else:
+            log_growth = np.log1p(total_return) * (365 / num_days)
+            annual_return = float(np.expm1(log_growth)) if log_growth < 700 else float("inf")
         sharpe = self._calc_sharpe(returns)
         sortino = self._calc_sortino(returns)
         calmar = abs(annual_return / max_dd) if max_dd != 0 else 0.0
@@ -161,7 +161,7 @@ class BacktestEngine:
         self,
         close: pd.Series,
         param_combos: list[dict[str, Any]],
-        signal_fn: Callable,
+        signal_fn: Callable[..., tuple[pd.Series, pd.Series]],
         initial_capital: float = 10000.0,
         fee: float = 0.001,
     ) -> list[BacktestResult]:
@@ -170,7 +170,9 @@ class BacktestEngine:
         for params in param_combos:
             entries, exits = signal_fn(close, **params)
             result = self.run_backtest(
-                close, entries, exits,
+                close,
+                entries,
+                exits,
                 initial_capital=initial_capital,
                 fee=fee,
                 strategy_id=f"sweep_{hash(frozenset(params.items()))}",
@@ -180,14 +182,14 @@ class BacktestEngine:
 
     @staticmethod
     def _calc_sharpe(returns: pd.Series, risk_free: float = 0.0) -> float:
-        r = returns.dropna()
+        r = returns.replace([np.inf, -np.inf], np.nan).dropna()
         if len(r) < 2 or r.std() == 0:
             return 0.0
         return float((r.mean() - risk_free / 252) / r.std() * np.sqrt(252))
 
     @staticmethod
     def _calc_sortino(returns: pd.Series, risk_free: float = 0.0) -> float:
-        r = returns.dropna()
+        r = returns.replace([np.inf, -np.inf], np.nan).dropna()
         if len(r) < 2:
             return 0.0
         downside = r[r < risk_free / 252]

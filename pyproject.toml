@@ -72,8 +72,33 @@ warn_return_any = true
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["ccxt.*", "vectorbt.*", "optuna.*", "duckdb.*"]
+module = [
+    "ccxt.*",
+    "duckdb.*",
+    "feedparser",
+    "joblib",
+    "optuna.*",
+    "pandas",
+    "scipy",
+    "scipy.*",
+    "sklearn.*",
+    "torch",
+    "transformers",
+    "yaml",
+]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disable_error_code = [
+    "assignment",
+    "attr-defined",
+    "call-arg",
+    "misc",
+    "no-untyped-call",
+    "no-untyped-def",
+    "union-attr",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

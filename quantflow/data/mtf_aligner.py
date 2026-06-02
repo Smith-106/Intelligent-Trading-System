@@ -32,6 +32,7 @@ DEFAULT_TIMEFRAMES = ["1W", "4H", "1H", "15m"]
 @dataclass
 class MTFData:
     """Multi-timeframe aligned data."""
+
     primary: pd.DataFrame  # Weekly/Daily — direction and major structure
     intermediate: pd.DataFrame  # 4H — sub-wave structure and entry zones
     minor: pd.DataFrame  # 1H/15m — precise entry and stop placement

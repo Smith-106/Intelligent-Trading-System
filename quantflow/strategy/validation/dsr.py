@@ -46,8 +46,9 @@ def deflated_sharpe_ratio(
 
     # Adjust for non-normal returns (skew & kurtosis)
     # Var(SR) ≈ (1 - skew*SR + (kurtosis-1)/4 * SR^2) / (T-1)
-    sr_var = (1 - skew * observed_sharpe +
-              (kurtosis - 1) / 4 * observed_sharpe ** 2) / max(sample_length - 1, 1)
+    sr_var = (1 - skew * observed_sharpe + (kurtosis - 1) / 4 * observed_sharpe**2) / max(
+        sample_length - 1, 1
+    )
     sr_std = np.sqrt(max(sr_var, 1e-10))
 
     # DSR = P(SR* > E[max(SR)])
@@ -66,8 +67,14 @@ def deflated_sharpe_ratio(
         "passed": dsr > 0.95,
     }
 
-    logger.info("DSR: %.4f (observed=%.3f, expected_max=%.3f, N=%d, passed=%s)",
-                dsr, observed_sharpe, expected_max_sr, n_trials, result["passed"])
+    logger.info(
+        "DSR: %.4f (observed=%.3f, expected_max=%.3f, N=%d, passed=%s)",
+        dsr,
+        observed_sharpe,
+        expected_max_sr,
+        n_trials,
+        result["passed"],
+    )
     return result
 
 
@@ -80,8 +87,8 @@ def _expected_max_sharpe(n_trials: int) -> float:
         return 0.0
     # More accurate: (1 - euler_gamma) * Z(1-1/N) + euler_gamma * Z(1-1/(N*e))
     try:
-        z1 = stats.norm.ppf(1 - 1 / n_trials)
-        z2 = stats.norm.ppf(1 - 1 / (n_trials * np.e))
+        z1 = float(stats.norm.ppf(1 - 1 / n_trials))
+        z2 = float(stats.norm.ppf(1 - 1 / (n_trials * np.e)))
         euler_gamma = 0.5772
         return (1 - euler_gamma) * z1 + euler_gamma * z2
     except Exception:

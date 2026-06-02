@@ -28,13 +28,17 @@ class SentimentAnalyzer:
             from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
             self._device = device
-            self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)
-            self._model = AutoModelForSequenceClassification.from_pretrained(self._model_name)
-            self._model.to(device)
-            self._model.eval()
+            tokenizer = AutoTokenizer.from_pretrained(self._model_name)
+            model = AutoModelForSequenceClassification.from_pretrained(self._model_name)
+            model.to(device)
+            model.eval()
+            self._tokenizer = tokenizer
+            self._model = model
             logger.info("FinBERT loaded on %s", device)
         except ImportError:
-            logger.warning("transformers/torch not installed. Install: pip install transformers torch")
+            logger.warning(
+                "transformers/torch not installed. Install: pip install transformers torch"
+            )
         except Exception as e:
             logger.error("Failed to load FinBERT: %s", e)
 
@@ -49,8 +53,9 @@ class SentimentAnalyzer:
         try:
             import torch
 
-            inputs = self._tokenizer(text, return_tensors="pt", truncation=True,
-                                     max_length=512, padding=True)
+            inputs = self._tokenizer(
+                text, return_tensors="pt", truncation=True, max_length=512, padding=True
+            )
             inputs = {k: v.to(self._device) for k, v in inputs.items()}
 
             with torch.no_grad():
@@ -104,8 +109,7 @@ class NewsCollector:
     def add_source(self, name: str) -> None:
         self._sources.append(name)
 
-    async def fetch_news(self, query: str = "Bitcoin crypto",
-                         max_items: int = 50) -> pd.DataFrame:
+    async def fetch_news(self, query: str = "Bitcoin crypto", max_items: int = 50) -> pd.DataFrame:
         """Fetch recent news articles from registered sources.
 
         Returns DataFrame with 'date', 'title', 'source' columns.
@@ -128,19 +132,23 @@ class NewsCollector:
                 if source_name == "cryptopanic":
                     feed = feedparser.parse("https://cryptopanic.com/news/rss/?filter=hot")
                     for entry in feed.entries[:max_items]:
-                        articles.append({
-                            "date": entry.get("published", ""),
-                            "title": entry.get("title", ""),
-                            "source": "cryptopanic",
-                        })
+                        articles.append(
+                            {
+                                "date": entry.get("published", ""),
+                                "title": entry.get("title", ""),
+                                "source": "cryptopanic",
+                            }
+                        )
                 elif source_name == "coindesk":
                     feed = feedparser.parse("https://www.coindesk.com/arc/outboundfeeds/rss/")
                     for entry in feed.entries[:max_items]:
-                        articles.append({
-                            "date": entry.get("published", ""),
-                            "title": entry.get("title", ""),
-                            "source": "coindesk",
-                        })
+                        articles.append(
+                            {
+                                "date": entry.get("published", ""),
+                                "title": entry.get("title", ""),
+                                "source": "coindesk",
+                            }
+                        )
                 else:
                     logger.warning("Unknown source: %s", source_name)
             except Exception as e:

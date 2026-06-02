@@ -54,13 +54,14 @@ class EventBus:
     """
 
     def __init__(self) -> None:
-        self._handlers: dict[str, list[Callable]] = defaultdict(list)
+        self._handlers: dict[str, list[Callable[[Event], Any]]] = defaultdict(list)
+        self._background_tasks: set[asyncio.Task[Any]] = set()
 
-    def subscribe(self, event_type: str, handler: Callable) -> None:
+    def subscribe(self, event_type: str, handler: Callable[[Event], Any]) -> None:
         """Register a handler for an event type."""
         self._handlers[event_type].append(handler)
 
-    def unsubscribe(self, event_type: str, handler: Callable) -> None:
+    def unsubscribe(self, event_type: str, handler: Callable[[Event], Any]) -> None:
         """Remove a handler for an event type."""
         handlers = self._handlers.get(event_type, [])
         if handler in handlers:
@@ -76,7 +77,9 @@ class EventBus:
         for handler in handlers:
             try:
                 if inspect.iscoroutinefunction(handler):
-                    asyncio.ensure_future(handler(event))
+                    task = asyncio.create_task(handler(event))
+                    self._background_tasks.add(task)
+                    task.add_done_callback(self._background_tasks.discard)
                 else:
                     handler(event)
             except Exception as e:

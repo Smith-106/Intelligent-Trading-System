@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 import duckdb
 import pandas as pd
 
 logger = logging.getLogger(__name__)
-
-
-import re
 
 _SYMBOL_PATTERN = re.compile(r"^[A-Za-z0-9/_-]{1,20}$")
 
@@ -64,8 +62,12 @@ class DataStore:
 
             existing = self._load_existing(month_path)
             if existing is not None:
-                group_data = pd.concat([existing[DataStore.group_cols(existing)], group[data_cols]], ignore_index=True)
-                group_data = group_data.drop_duplicates(subset=["timestamp"]).sort_values("timestamp")
+                group_data = pd.concat(
+                    [existing[DataStore.group_cols(existing)], group[data_cols]], ignore_index=True
+                )
+                group_data = group_data.drop_duplicates(subset=["timestamp"]).sort_values(
+                    "timestamp"
+                )
             else:
                 year_dir.mkdir(parents=True, exist_ok=True)
                 group_data = group[data_cols]

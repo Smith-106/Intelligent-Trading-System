@@ -33,13 +33,15 @@ class OKXGateway(GatewayBase):
         import ccxt.async_support as ccxt
 
         cfg = config or {}
-        self._exchange = ccxt.okx({
-            "apiKey": cfg.get("api_key", ""),
-            "secret": cfg.get("secret", ""),
-            "password": cfg.get("passphrase", ""),
-            "enableRateLimit": True,
-            "options": {"defaultType": "spot"},
-        })
+        self._exchange = ccxt.okx(
+            {
+                "apiKey": cfg.get("api_key", ""),
+                "secret": cfg.get("secret", ""),
+                "password": cfg.get("passphrase", ""),
+                "enableRateLimit": True,
+                "options": {"defaultType": "spot"},
+            }
+        )
 
         if self._sandbox or cfg.get("sandbox", False):
             self._exchange.set_sandbox_mode(True)
@@ -130,13 +132,15 @@ class OKXGateway(GatewayBase):
             for p in raw:
                 qty = float(p.get("contracts", 0))
                 if qty > 0:
-                    positions.append(Position(
-                        symbol=p["symbol"],
-                        quantity=qty,
-                        entry_price=float(p.get("entryPrice", 0)),
-                        current_price=float(p.get("markPrice", 0)),
-                        unrealized_pnl=float(p.get("unrealizedPnl", 0)),
-                    ))
+                    positions.append(
+                        Position(
+                            symbol=p["symbol"],
+                            quantity=qty,
+                            entry_price=float(p.get("entryPrice", 0)),
+                            current_price=float(p.get("markPrice", 0)),
+                            unrealized_pnl=float(p.get("unrealizedPnl", 0)),
+                        )
+                    )
             return positions
         except Exception as e:
             logger.error("OKX query positions failed: %s", e)

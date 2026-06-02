@@ -17,13 +17,19 @@ def raw_ohlcv():
     n = 100
     dates = pd.date_range("2024-01-01", periods=n, tz="UTC")
     close = 42000 + np.random.normal(0, 500, n)
-    return pd.DataFrame({
-        "timestamp": list(range(1712620800000, 1712620800000 + n * 86400000, 86400000)),
-        "open": close, "high": close * 1.01, "low": close * 0.99,
-        "close": close, "volume": np.random.uniform(100, 1000, n),
-        "symbol": "BTC/USDT", "timeframe": "1d",
-        "datetime": dates,
-    })
+    return pd.DataFrame(
+        {
+            "timestamp": list(range(1712620800000, 1712620800000 + n * 86400000, 86400000)),
+            "open": close,
+            "high": close * 1.01,
+            "low": close * 0.99,
+            "close": close,
+            "volume": np.random.uniform(100, 1000, n),
+            "symbol": "BTC/USDT",
+            "timeframe": "1d",
+            "datetime": dates,
+        }
+    )
 
 
 class TestCleaner:

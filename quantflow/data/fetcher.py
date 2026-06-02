@@ -9,7 +9,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import ccxt.async_support as ccxt
 import pandas as pd
@@ -33,15 +33,17 @@ class DataFetcher:
         self._config = config
         self._exchange: ccxt.okx | None = None
         self._ws_running = False
-        self._ws_task: asyncio.Task | None = None
+        self._ws_task: asyncio.Task[None] | None = None
 
     async def connect(self) -> None:
         try:
-            self._exchange = ccxt.okx({
-                "enableRateLimit": True,
-                "rateLimit": 1000 / self._config.rate_limit,
-                "options": {"defaultType": "spot"},
-            })
+            self._exchange = ccxt.okx(
+                {
+                    "enableRateLimit": True,
+                    "rateLimit": 1000 / self._config.rate_limit,
+                    "options": {"defaultType": "spot"},
+                }
+            )
             if self._config.sandbox:
                 self._exchange.set_sandbox_mode(True)
             await self._exchange.load_markets()
@@ -67,10 +69,13 @@ class DataFetcher:
         if start:
             since = self._exchange.parse8601(f"{start}T00:00:00Z")
 
-        all_bars: list[list] = []
+        all_bars: list[list[Any]] = []
         while True:
             bars = await self._exchange.fetch_ohlcv(
-                symbol, timeframe, since=since, limit=limit,
+                symbol,
+                timeframe,
+                since=since,
+                limit=limit,
             )
             if not bars:
                 break
@@ -89,7 +94,9 @@ class DataFetcher:
         df["symbol"] = symbol
         df["timeframe"] = timeframe
         df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
-        df = df.drop_duplicates(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
+        df = (
+            df.drop_duplicates(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
+        )
         logger.info("Fetched %d bars for %s/%s", len(df), symbol, timeframe)
         return df
 
@@ -97,7 +104,7 @@ class DataFetcher:
         """Fetch current ticker for a symbol."""
         if not self._exchange:
             raise GatewayConnectionError("Not connected")
-        return await self._exchange.fetch_ticker(symbol)
+        return cast(dict[str, Any], await self._exchange.fetch_ticker(symbol))
 
     def get_last_timestamp(self, symbol: str, timeframe: str, parquet_dir: Path) -> int | None:
         """Get the last stored timestamp for incremental updates."""
@@ -115,7 +122,7 @@ class DataFetcher:
             return None
 
     async def disconnect(self) -> None:
-        await self.stop_stream()
+        self.stop_stream()
         if self._exchange:
             await self._exchange.close()
             self._exchange = None
@@ -127,7 +134,7 @@ class DataFetcher:
         self,
         symbol: str,
         timeframe: str = "1m",
-        callback: Callable[[dict], None] | None = None,
+        callback: Callable[[dict[str, Any]], None] | None = None,
         poll_interval: float = 1.0,
     ) -> None:
         """Stream real-time bar data via polling.
@@ -150,9 +157,7 @@ class DataFetcher:
 
         # Try WebSocket (CCXT pro) first
         if hasattr(self._exchange, "watch_ohlcv"):
-            self._ws_task = asyncio.ensure_future(
-                self._stream_ws(symbol, timeframe, callback)
-            )
+            self._ws_task = asyncio.ensure_future(self._stream_ws(symbol, timeframe, callback))
         else:
             self._ws_task = asyncio.ensure_future(
                 self._stream_poll(symbol, timeframe, callback, poll_interval)
@@ -162,18 +167,21 @@ class DataFetcher:
         self,
         symbol: str,
         timeframe: str,
-        callback: Callable[[dict], None] | None,
+        callback: Callable[[dict[str, Any]], None] | None,
     ) -> None:
         """Stream via CCXT pro watch_ohlcv (WebSocket)."""
+        exchange = self._exchange
+        if exchange is None:
+            raise GatewayConnectionError("Not connected. Call connect() first.")
         last_ts = 0
         while self._ws_running:
             try:
-                bars = await self._exchange.watch_ohlcv(symbol, timeframe)
+                bars = await exchange.watch_ohlcv(symbol, timeframe)
                 for bar in bars:
                     ts = bar[0]
                     if ts > last_ts:
                         last_ts = ts
-                        bar_dict = {
+                        bar_dict: dict[str, Any] = {
                             "timestamp": ts,
                             "open": bar[1],
                             "high": bar[2],
@@ -193,20 +201,23 @@ class DataFetcher:
         self,
         symbol: str,
         timeframe: str,
-        callback: Callable[[dict], None] | None,
+        callback: Callable[[dict[str, Any]], None] | None,
         poll_interval: float,
     ) -> None:
         """Stream via REST polling fallback."""
+        exchange = self._exchange
+        if exchange is None:
+            raise GatewayConnectionError("Not connected. Call connect() first.")
         last_ts = 0
         while self._ws_running:
             try:
-                bars = await self._exchange.fetch_ohlcv(symbol, timeframe, limit=1)
+                bars = await exchange.fetch_ohlcv(symbol, timeframe, limit=1)
                 if bars:
                     bar = bars[-1]
                     ts = bar[0]
                     if ts > last_ts:
                         last_ts = ts
-                        bar_dict = {
+                        bar_dict: dict[str, Any] = {
                             "timestamp": ts,
                             "open": bar[1],
                             "high": bar[2],

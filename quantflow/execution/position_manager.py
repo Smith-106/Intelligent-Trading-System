@@ -51,8 +51,9 @@ class PositionManager:
             return
 
         # Weighted average entry price (only on increase)
-        if (quantity_delta > 0 and existing.quantity > 0) or \
-           (quantity_delta < 0 and existing.quantity < 0):
+        if (quantity_delta > 0 and existing.quantity > 0) or (
+            quantity_delta < 0 and existing.quantity < 0
+        ):
             # Increasing position in same direction
             total_cost = existing.entry_price * abs(existing.quantity) + price * abs(quantity_delta)
             total_qty = abs(new_qty)

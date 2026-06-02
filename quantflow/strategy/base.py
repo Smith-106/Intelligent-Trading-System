@@ -25,17 +25,24 @@ class StrategyContext:
         self._data: pd.DataFrame | None = None
         self._params: dict[str, Any] = {}
 
-    def emit_signal(self, symbol: str, direction: Direction,
-                    strength: float = 1.0, price: float = 0.0,
-                    strategy_id: str = "") -> None:
+    def emit_signal(
+        self,
+        symbol: str,
+        direction: Direction,
+        strength: float = 1.0,
+        price: float = 0.0,
+        strategy_id: str = "",
+    ) -> None:
         """Queue a signal for processing."""
-        self._signals.append(Signal(
-            symbol=symbol,
-            direction=direction,
-            strength=max(0.0, min(strength, 1.0)),
-            price=price,
-            strategy_id=strategy_id,
-        ))
+        self._signals.append(
+            Signal(
+                symbol=symbol,
+                direction=direction,
+                strength=max(0.0, min(strength, 1.0)),
+                price=price,
+                strategy_id=strategy_id,
+            )
+        )
 
     def flush_signals(self) -> list[Signal]:
         """Return and clear all queued signals."""

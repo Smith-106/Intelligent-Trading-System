@@ -1,6 +1,5 @@
 """Tests for quantflow.signal.risk_engine."""
 
-
 from quantflow.common.config import RiskConfig
 from quantflow.common.models import Direction, Portfolio, Position, Signal
 from quantflow.signal.risk_engine import RiskEngine

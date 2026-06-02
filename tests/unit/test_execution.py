@@ -14,7 +14,14 @@ from quantflow.execution.position_manager import PositionManager
 class TestOrderManager:
     def test_track_order(self):
         om = OrderManager()
-        req = OrderRequest(symbol="BTC/USDT", side=OrderSide.BUY, order_type="market", quantity=0.1, price=50000, strategy_id="test")
+        req = OrderRequest(
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=0.1,
+            price=50000,
+            strategy_id="test",
+        )
         res = OrderResult(order_id="test-1", status=OrderStatus.SUBMITTED)
         om.track(req, res)
         assert om.total_orders == 1
@@ -77,9 +84,15 @@ class TestPaperGateway:
     async def test_connect_and_order(self):
         pg = PaperGateway()
         await pg.connect()
-        order = Order(order_id="", symbol="BTC/USDT", side=OrderSide.BUY,
-                      order_type="market", quantity=0.1, price=50000)
-        order_id = await pg.send_order(order)
+        order = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=0.1,
+            price=50000,
+        )
+        await pg.send_order(order)
         assert order.status == OrderStatus.FILLED
         assert order.filled_quantity == 0.1
         await pg.disconnect()
@@ -88,11 +101,23 @@ class TestPaperGateway:
     async def test_sell_order(self):
         pg = PaperGateway()
         await pg.connect()
-        buy_order = Order(order_id="", symbol="BTC/USDT", side=OrderSide.BUY,
-                          order_type="market", quantity=1.0, price=50000)
+        buy_order = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=1.0,
+            price=50000,
+        )
         await pg.send_order(buy_order)
-        sell_order = Order(order_id="", symbol="BTC/USDT", side=OrderSide.SELL,
-                           order_type="market", quantity=0.5, price=51000)
+        sell_order = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.SELL,
+            order_type="market",
+            quantity=0.5,
+            price=51000,
+        )
         await pg.send_order(sell_order)
         assert sell_order.status == OrderStatus.FILLED
         await pg.disconnect()
@@ -101,8 +126,14 @@ class TestPaperGateway:
     async def test_query_positions(self):
         pg = PaperGateway()
         await pg.connect()
-        order = Order(order_id="", symbol="BTC/USDT", side=OrderSide.BUY,
-                      order_type="market", quantity=1.0, price=50000)
+        order = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=1.0,
+            price=50000,
+        )
         await pg.send_order(order)
         positions = await pg.query_positions()
         assert len(positions) > 0
@@ -112,9 +143,15 @@ class TestPaperGateway:
     async def test_rejected_no_price(self):
         pg = PaperGateway()
         await pg.connect()
-        order = Order(order_id="", symbol="UNKNOWN/USDT", side=OrderSide.BUY,
-                      order_type="market", quantity=1.0, price=None)
-        order_id = await pg.send_order(order)
+        order = Order(
+            order_id="",
+            symbol="UNKNOWN/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=1.0,
+            price=None,
+        )
+        await pg.send_order(order)
         assert order.status == OrderStatus.REJECTED
         await pg.disconnect()
 

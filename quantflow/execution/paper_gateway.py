@@ -18,7 +18,7 @@ class PaperGateway(GatewayBase):
     Suitable for strategy validation before going live.
     """
 
-    def __init__(self, config: dict | None = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         cfg = config or {}
         self._slippage = cfg.get("slippage", 0.001)
         self._maker_fee = cfg.get("maker_fee", 0.0008)
@@ -32,8 +32,12 @@ class PaperGateway(GatewayBase):
     async def connect(self, config: dict[str, Any] | None = None) -> None:
         self._cash = self._initial_capital
         self._positions.clear()
-        logger.info("PaperGateway connected: capital=$%.2f, slippage=%.4f, taker_fee=%.4f",
-                     self._cash, self._slippage, self._taker_fee)
+        logger.info(
+            "PaperGateway connected: capital=$%.2f, slippage=%.4f, taker_fee=%.4f",
+            self._cash,
+            self._slippage,
+            self._taker_fee,
+        )
 
     async def disconnect(self) -> None:
         logger.info("PaperGateway disconnected. Final equity: $%.2f", self._equity())
@@ -64,16 +68,17 @@ class PaperGateway(GatewayBase):
 
         # Update cash
         if side == "buy":
-            self._cash -= (notional + fee)
+            self._cash -= notional + fee
         else:
-            self._cash += (notional - fee)
+            self._cash += notional - fee
 
         # Update position
         self._update_position(symbol, quantity if side == "buy" else -quantity, fill_price)
         self._prices[symbol] = fill_price
 
-        logger.info("Paper fill: %s %s %.6f @ %.2f (fee=%.2f)",
-                     side, symbol, quantity, fill_price, fee)
+        logger.info(
+            "Paper fill: %s %s %.6f @ %.2f (fee=%.2f)", side, symbol, quantity, fill_price, fee
+        )
 
         order.order_id = order_id
         order.status = OrderStatus.FILLED
@@ -87,7 +92,7 @@ class PaperGateway(GatewayBase):
         logger.debug("Paper cancel: %s (orders fill instantly, nothing to cancel)", order_id)
         return True
 
-    async def cancel_all_orders(self, symbol: str | None = None) -> list[str]:
+    async def cancel_all_orders(self, symbol: str | None = None) -> list[bool]:
         return []
 
     async def query_positions(self) -> list[Position]:
@@ -141,10 +146,8 @@ class PaperGateway(GatewayBase):
         )
 
     def _equity(self) -> float:
-        pos_value = sum(
-            p.quantity * p.current_price for p in self._positions.values()
-        )
-        return self._cash + pos_value
+        pos_value = sum(p.quantity * p.current_price for p in self._positions.values())
+        return float(self._cash + pos_value)
 
     @property
     def is_connected(self) -> bool:

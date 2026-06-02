@@ -1,12 +1,11 @@
-from __future__ import annotations
-
-import copy
 """Configuration management for QuantFlow.
 
 Priority: CLI args > Environment variables > YAML defaults.
 """
 
+from __future__ import annotations
 
+import copy
 import os
 from pathlib import Path
 from typing import Any
@@ -125,7 +124,7 @@ def _load_env_overrides() -> dict[str, Any]:
     for key, value in os.environ.items():
         if not key.startswith(prefix):
             continue
-        path_parts = key[len(prefix):].lower().split("__")
+        path_parts = key[len(prefix) :].lower().split("__")
         # Try to cast to appropriate type
         parsed = _parse_env_value(value)
         _set_nested(result, path_parts, parsed)
@@ -172,7 +171,7 @@ SENSITIVE_FIELDS = {"token", "secret", "api_key", "passphrase", "password"}
 
 def _sanitize_config(data: dict[str, Any]) -> dict[str, Any]:
     """Remove sensitive fields from config dict before serialization."""
-    result = {}
+    result: dict[str, Any] = {}
     for key, value in data.items():
         if key in SENSITIVE_FIELDS:
             result[key] = "***REDACTED***"
@@ -180,8 +179,7 @@ def _sanitize_config(data: dict[str, Any]) -> dict[str, Any]:
             result[key] = _sanitize_config(value)
         elif isinstance(value, list):
             result[key] = [
-                _sanitize_config(item) if isinstance(item, dict) else item
-                for item in value
+                _sanitize_config(item) if isinstance(item, dict) else item for item in value
             ]
         else:
             result[key] = value

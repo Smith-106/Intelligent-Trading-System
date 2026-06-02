@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -29,13 +26,16 @@ class TestIndicatorEngineAPI:
     def test_batch_calculate_accepts_single_df(self):
         engine = IndicatorEngine()
         dates = pd.date_range("2024-01-01", periods=100, freq="D")
-        df = pd.DataFrame({
-            "open": np.random.randn(100).cumsum() + 100,
-            "high": np.random.randn(100).cumsum() + 101,
-            "low": np.random.randn(100).cumsum() + 99,
-            "close": np.random.randn(100).cumsum() + 100,
-            "volume": np.random.randint(100, 10000, 100),
-        }, index=dates)
+        df = pd.DataFrame(
+            {
+                "open": np.random.randn(100).cumsum() + 100,
+                "high": np.random.randn(100).cumsum() + 101,
+                "low": np.random.randn(100).cumsum() + 99,
+                "close": np.random.randn(100).cumsum() + 100,
+                "volume": np.random.randint(100, 10000, 100),
+            },
+            index=dates,
+        )
         result = engine.batch_calculate(df)
         assert isinstance(result, pd.DataFrame)
         assert len(result) == len(df)
@@ -43,13 +43,16 @@ class TestIndicatorEngineAPI:
     def test_batch_calculate_returns_indicator_columns(self):
         engine = IndicatorEngine()
         dates = pd.date_range("2024-01-01", periods=100, freq="D")
-        df = pd.DataFrame({
-            "open": np.random.randn(100).cumsum() + 100,
-            "high": np.random.randn(100).cumsum() + 101,
-            "low": np.random.randn(100).cumsum() + 99,
-            "close": np.random.randn(100).cumsum() + 100,
-            "volume": np.random.randint(100, 10000, 100),
-        }, index=dates)
+        df = pd.DataFrame(
+            {
+                "open": np.random.randn(100).cumsum() + 100,
+                "high": np.random.randn(100).cumsum() + 101,
+                "low": np.random.randn(100).cumsum() + 99,
+                "close": np.random.randn(100).cumsum() + 100,
+                "volume": np.random.randint(100, 10000, 100),
+            },
+            index=dates,
+        )
         result = engine.batch_calculate(df)
         assert "sma_20" in result.columns
         assert "rsi_14" in result.columns
@@ -68,14 +71,16 @@ class TestFeatureStore:
         raw_store = DataStore(str(raw_dir))
 
         dates = pd.date_range("2024-01-01", periods=200, freq="D")
-        df = pd.DataFrame({
-            "timestamp": [int(d.timestamp() * 1000) for d in dates],
-            "open": np.random.randn(200).cumsum() + 50000,
-            "high": np.random.randn(200).cumsum() + 50100,
-            "low": np.random.randn(200).cumsum() + 49900,
-            "close": np.random.randn(200).cumsum() + 50000,
-            "volume": np.random.randint(100, 10000, 200),
-        })
+        df = pd.DataFrame(
+            {
+                "timestamp": [int(d.timestamp() * 1000) for d in dates],
+                "open": np.random.randn(200).cumsum() + 50000,
+                "high": np.random.randn(200).cumsum() + 50100,
+                "low": np.random.randn(200).cumsum() + 49900,
+                "close": np.random.randn(200).cumsum() + 50000,
+                "volume": np.random.randint(100, 10000, 200),
+            }
+        )
         raw_store.save(df, "BTC/USDT")
 
         fs = FeatureStore(str(feat_dir))

@@ -14,19 +14,28 @@ def ohlcv_df():
     n = 200
     dates = pd.date_range("2024-01-01", periods=n, freq="D", tz="UTC")
     close = 42000 * np.exp(np.cumsum(np.random.normal(0.001, 0.02, n)))
-    return pd.DataFrame({
-        "open": close, "high": close * 1.01, "low": close * 0.99,
-        "close": close, "volume": np.random.uniform(500, 2000, n),
-    }, index=dates)
+    return pd.DataFrame(
+        {
+            "open": close,
+            "high": close * 1.01,
+            "low": close * 0.99,
+            "close": close,
+            "volume": np.random.uniform(500, 2000, n),
+        },
+        index=dates,
+    )
 
 
 class TestFactorRegistry:
     def test_register_and_get(self):
         registry = FactorRegistry()
+
         class TestFactor(FactorBase):
             name = "test_factor"
+
             def compute(self, df, **params):
                 return df["close"] * 2
+
         registry.register(TestFactor)
         assert "test_factor" in registry.list_factors()
         assert registry.get("test_factor") == TestFactor
@@ -38,10 +47,13 @@ class TestFactorRegistry:
 
     def test_compute(self, ohlcv_df):
         registry = FactorRegistry()
+
         class DoubleClose(FactorBase):
             name = "double_close"
+
             def compute(self, df, **params):
                 return df["close"] * 2
+
         registry.register(DoubleClose)
         result = registry.compute("double_close", ohlcv_df)
         assert len(result) == len(ohlcv_df)
@@ -70,10 +82,19 @@ class TestIndicatorEngine:
         available = engine.list_available()
         # 21 core factors always computed by batch_calculate
         # 6 additional Elliott Wave factors registered but require explicit params
-        core_factor_names = [f for f in FACTOR_NAMES if f not in {
-            "zigzag_pivots", "wave_count", "fibonacci_levels",
-            "critical_levels", "wave_channel", "divergence",
-        }]
+        core_factor_names = [
+            f
+            for f in FACTOR_NAMES
+            if f
+            not in {
+                "zigzag_pivots",
+                "wave_count",
+                "fibonacci_levels",
+                "critical_levels",
+                "wave_channel",
+                "divergence",
+            }
+        ]
         core_factors = [f for f in available if f in core_factor_names]
         assert len(core_factors) == 21
         for name in core_factors:

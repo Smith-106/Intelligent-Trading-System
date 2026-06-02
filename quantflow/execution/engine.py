@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from quantflow.common.event_bus import Event, EventBus
 from quantflow.common.models import (
@@ -12,14 +13,14 @@ from quantflow.common.models import (
     OrderSide,
     OrderStatus,
 )
-
-EVENT_ORDER = "order"
-EVENT_FILL = "fill"
 from quantflow.execution.gateway_base import GatewayBase
 from quantflow.execution.okx_gateway import OKXGateway
 from quantflow.execution.order_manager import OrderManager
 from quantflow.execution.paper_gateway import PaperGateway
 from quantflow.execution.position_manager import PositionManager
+
+EVENT_ORDER = "order"
+EVENT_FILL = "fill"
 
 logger = logging.getLogger(__name__)
 
@@ -35,14 +36,16 @@ class ExecutionEngine:
         gateway: GatewayBase | None = None,
         event_bus: EventBus | None = None,
         timeout: float = 30.0,
-    ):
+    ) -> None:
         self._gateway = gateway
         self._event_bus = event_bus
         self._timeout = timeout
-        self._order_mgr = OrderManager(timeout=timeout)
+        self._order_mgr = OrderManager(timeout=int(timeout))
         self._position_mgr = PositionManager()
 
-    async def start(self, mode: str = "paper", gateway_config: dict | None = None) -> None:
+    async def start(
+        self, mode: str = "paper", gateway_config: dict[str, Any] | None = None
+    ) -> None:
         """Initialize gateway based on mode."""
         if self._gateway is not None:
             await self._gateway.connect(gateway_config)
@@ -51,7 +54,9 @@ class ExecutionEngine:
         if mode == "paper":
             self._gateway = PaperGateway(gateway_config)
         elif mode in ("live", "okx"):
-            self._gateway = OKXGateway(sandbox=gateway_config.get("sandbox", True) if gateway_config else True)
+            self._gateway = OKXGateway(
+                sandbox=gateway_config.get("sandbox", True) if gateway_config else True
+            )
         else:
             self._gateway = PaperGateway(gateway_config)
 
@@ -119,40 +124,61 @@ class ExecutionEngine:
 
         # Prometheus: track order submission
         from quantflow.monitoring.metrics import ORDERS_TOTAL
+
         ORDERS_TOTAL.labels(
-            symbol=order.symbol, side=order.side.value, strategy_id=order.strategy_id,
+            symbol=order.symbol,
+            side=order.side.value,
+            strategy_id=order.strategy_id,
         ).inc()
 
         if self._event_bus:
-            self._event_bus.publish(Event(
-                type=EVENT_ORDER,
-                data={"order_id": exchange_id, "symbol": order.symbol,
-                      "side": order.side.value, "status": "submitted"},
-            ))
+            self._event_bus.publish(
+                Event(
+                    type=EVENT_ORDER,
+                    data={
+                        "order_id": exchange_id,
+                        "symbol": order.symbol,
+                        "side": order.side.value,
+                        "status": "submitted",
+                    },
+                )
+            )
 
         # For paper/market orders, gateway fills immediately
         if order.status == OrderStatus.FILLED:
             self._order_mgr.update(
-                exchange_id, OrderStatus.FILLED,
+                exchange_id,
+                OrderStatus.FILLED,
                 filled_quantity=order.filled_quantity,
                 filled_price=order.filled_price,
             )
-            qty_signed = order.filled_quantity if order.side == OrderSide.BUY else -order.filled_quantity
+            qty_signed = (
+                order.filled_quantity if order.side == OrderSide.BUY else -order.filled_quantity
+            )
             self._position_mgr.update_position(order.symbol, qty_signed, order.filled_price)
 
             # Prometheus: track order fill
             from quantflow.monitoring.metrics import ORDERS_FILLED
+
             ORDERS_FILLED.labels(
-                symbol=order.symbol, side=order.side.value, strategy_id=order.strategy_id,
+                symbol=order.symbol,
+                side=order.side.value,
+                strategy_id=order.strategy_id,
             ).inc()
 
             if self._event_bus:
-                self._event_bus.publish(Event(
-                    type=EVENT_FILL,
-                    data={"order_id": exchange_id, "symbol": order.symbol,
-                          "side": order.side.value, "quantity": order.filled_quantity,
-                          "price": order.filled_price},
-                ))
+                self._event_bus.publish(
+                    Event(
+                        type=EVENT_FILL,
+                        data={
+                            "order_id": exchange_id,
+                            "symbol": order.symbol,
+                            "side": order.side.value,
+                            "quantity": order.filled_quantity,
+                            "price": order.filled_price,
+                        },
+                    )
+                )
 
         return order
 
@@ -196,8 +222,11 @@ class ExecutionEngine:
         side = OrderSide.SELL if pos.quantity > 0 else OrderSide.BUY
         qty = abs(pos.quantity)
         request = OrderRequest(
-            symbol=symbol, side=side, order_type="market",
-            quantity=qty, strategy_id="close_position",
+            symbol=symbol,
+            side=side,
+            order_type="market",
+            quantity=qty,
+            strategy_id="close_position",
         )
         return await self.submit_order(request)
 

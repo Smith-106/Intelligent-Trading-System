@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Sequence
 from typing import Any
 
 from quantflow.common.config import AppConfig
@@ -15,12 +16,8 @@ from quantflow.common.event_bus import EVENT_BAR, EVENT_RISK, EVENT_SIGNAL, Even
 from quantflow.common.models import Bar, OrderRequest, OrderSide, Signal
 from quantflow.execution.engine import ExecutionEngine
 from quantflow.execution.kill_switch import KillSwitch
-from quantflow.monitoring.alerts import AlertManager, AlertLevel
+from quantflow.monitoring.alerts import AlertLevel, AlertManager
 from quantflow.monitoring.metrics import (
-    PORTFOLIO_CASH,
-    PORTFOLIO_DRAWDOWN,
-    PORTFOLIO_VALUE,
-    POSITIONS_COUNT,
     SIGNALS_GENERATED,
     start_metrics_server,
     update_portfolio_metrics,
@@ -36,11 +33,13 @@ logger = logging.getLogger(__name__)
 class TradingSession:
     """Unified trading session for backtest, paper, or live mode."""
 
-    def __init__(self, config: AppConfig, strategies: list[StrategyBase]) -> None:
+    def __init__(self, config: AppConfig, strategies: Sequence[StrategyBase]) -> None:
         self._config = config
-        self._strategies = strategies
+        self._strategies = list(strategies)
         self._event_bus = EventBus()
-        self._execution = ExecutionEngine(event_bus=self._event_bus, timeout=config.execution.order_timeout)
+        self._execution = ExecutionEngine(
+            event_bus=self._event_bus, timeout=config.execution.order_timeout
+        )
         self._risk_engine = RiskEngine(config.risk)
         self._position_sizer = PositionSizer(
             method="kelly",
@@ -53,7 +52,9 @@ class TradingSession:
         self._running = False
         self._alert_mgr: AlertManager | None = None
 
-    async def start(self, mode: str = "paper", gateway_config: dict | None = None) -> None:
+    async def start(
+        self, mode: str = "paper", gateway_config: dict[str, Any] | None = None
+    ) -> None:
         """Start the trading session."""
         await self._execution.start(mode, gateway_config)
 
@@ -78,7 +79,9 @@ class TradingSession:
             ctx = StrategyContext()
             strategy.on_init(ctx)
             self._contexts[strategy.name] = ctx
-            self._portfolio.set_allocation({s.name: 1.0 / len(self._strategies) for s in self._strategies})
+            self._portfolio.set_allocation(
+                {s.name: 1.0 / len(self._strategies) for s in self._strategies}
+            )
 
         self._running = True
         logger.info("Trading session started: %d strategies, mode=%s", len(self._strategies), mode)
@@ -92,9 +95,16 @@ class TradingSession:
         if self._kill_switch and self._kill_switch.is_active:
             return
 
-        self._event_bus.publish(Event(type=EVENT_BAR, data={
-            "symbol": bar.symbol, "close": bar.close, "timestamp": bar.timestamp,
-        }))
+        self._event_bus.publish(
+            Event(
+                type=EVENT_BAR,
+                data={
+                    "symbol": bar.symbol,
+                    "close": bar.close,
+                    "timestamp": bar.timestamp,
+                },
+            )
+        )
 
         # Update position prices
         self._execution.position_manager.update_market_price(bar.symbol, bar.close)
@@ -140,13 +150,19 @@ class TradingSession:
         risk_decision = self._risk_engine.check(signal, portfolio)
 
         if not risk_decision.passed:
-            logger.warning("Signal blocked by risk: %s (%s)",
-                           signal.strategy_id, risk_decision.reason)
-            self._event_bus.publish(Event(type=EVENT_RISK, data={
-                "type": "signal_blocked",
-                "reason": risk_decision.reason,
-                "strategy_id": signal.strategy_id,
-            }))
+            logger.warning(
+                "Signal blocked by risk: %s (%s)", signal.strategy_id, risk_decision.reason
+            )
+            self._event_bus.publish(
+                Event(
+                    type=EVENT_RISK,
+                    data={
+                        "type": "signal_blocked",
+                        "reason": risk_decision.reason,
+                        "strategy_id": signal.strategy_id,
+                    },
+                )
+            )
             if self._alert_mgr:
                 await self._alert_mgr.send(
                     f"Signal blocked: {risk_decision.reason}",
@@ -155,16 +171,22 @@ class TradingSession:
                 )
             return
 
-        self._event_bus.publish(Event(type=EVENT_SIGNAL, data={
-            "strategy_id": signal.strategy_id,
-            "symbol": signal.symbol,
-            "direction": signal.direction.value,
-            "strength": signal.strength,
-        }))
+        self._event_bus.publish(
+            Event(
+                type=EVENT_SIGNAL,
+                data={
+                    "strategy_id": signal.strategy_id,
+                    "symbol": signal.symbol,
+                    "direction": signal.direction.value,
+                    "strength": signal.strength,
+                },
+            )
+        )
 
         # Prometheus: track signal
         SIGNALS_GENERATED.labels(
-            strategy_id=signal.strategy_id, direction=str(signal.direction.value),
+            strategy_id=signal.strategy_id,
+            direction=str(signal.direction.value),
         ).inc()
 
         # Position sizing (uses signal strength)
@@ -180,13 +202,15 @@ class TradingSession:
         # Submit order
         side = OrderSide.BUY if signal.direction.value > 0 else OrderSide.SELL
 
-        await self._execution.submit_order(OrderRequest(
-            symbol=signal.symbol,
-            side=side,
-            order_type="market",
-            quantity=quantity,
-            strategy_id=signal.strategy_id,
-        ))
+        await self._execution.submit_order(
+            OrderRequest(
+                symbol=signal.symbol,
+                side=side,
+                order_type="market",
+                quantity=quantity,
+                strategy_id=signal.strategy_id,
+            )
+        )
 
     def _on_risk_event(self, event: Event) -> None:
         """Handle risk events — trigger kill switch on emergencies."""
@@ -216,7 +240,8 @@ class TradingSession:
                 # Fetch latest bars
                 try:
                     df = await fetcher.fetch_ohlcv(
-                        symbol, timeframe,
+                        symbol,
+                        timeframe,
                         start=None,
                         limit=10,
                     )

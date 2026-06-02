@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from quantflow.data.redis_cache import RedisCache
 
 
@@ -81,6 +79,7 @@ class TestRedisCache:
     @patch("quantflow.data.redis_cache.redis")
     def test_get_ticker_with_data(self, mock_redis_module):
         import json
+
         mock_client = MagicMock()
         mock_redis_module.from_url.return_value = mock_client
         mock_client.get.return_value = json.dumps({"price": 50000})

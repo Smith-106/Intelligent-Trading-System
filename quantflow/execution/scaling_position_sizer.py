@@ -13,12 +13,12 @@ Risk limits:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 from quantflow.indicators.wave_models import WaveCount
 
 
-class PositionPhase(str, Enum):
+class PositionPhase(StrEnum):
     TRIAL = "trial"  # 试仓 10-15%
     ADD = "add"  # 加仓 20-30%
     CHASE = "chase"  # 追仓 10-15%
@@ -30,6 +30,7 @@ class PositionPhase(str, Enum):
 @dataclass
 class PositionRequest:
     """A position sizing request submitted to RiskEngine."""
+
     phase: PositionPhase
     size_pct: float  # Requested position as % of total capital
     entry_price: float
@@ -50,6 +51,7 @@ class PositionRequest:
 @dataclass
 class ScalingConfig:
     """Configuration for scaling position sizer."""
+
     trial_pct: float = 0.125  # 12.5% (mid of 10-15%)
     add_pct: float = 0.25  # 25% (mid of 20-30%)
     chase_pct: float = 0.125  # 12.5% (mid of 10-15%)
@@ -94,7 +96,7 @@ class ScalingPositionSizer:
     ) -> PositionRequest:
         """Compute trial (试仓) position size at W2/W4 pullback.
 
-        Position = (capital × 2%) / (entry - stop)
+        Position = (capital x 2%) / (entry - stop)
         Capped at trial_pct of capital.
         """
         risk_amount = capital * self.config.single_risk_pct
@@ -209,28 +211,34 @@ class ScalingPositionSizer:
         """
         exits: list[PositionRequest] = []
 
-        exits.append(PositionRequest(
-            phase=PositionPhase.EXIT_FIRST,
-            size_pct=self.config.exit_first_pct,
-            entry_price=entry_price,
-            stop_price=0,
-            target_price=first_target,
-        ))
+        exits.append(
+            PositionRequest(
+                phase=PositionPhase.EXIT_FIRST,
+                size_pct=self.config.exit_first_pct,
+                entry_price=entry_price,
+                stop_price=0,
+                target_price=first_target,
+            )
+        )
 
-        exits.append(PositionRequest(
-            phase=PositionPhase.EXIT_SECOND,
-            size_pct=self.config.exit_second_pct,
-            entry_price=entry_price,
-            stop_price=0,
-            target_price=second_target,
-        ))
+        exits.append(
+            PositionRequest(
+                phase=PositionPhase.EXIT_SECOND,
+                size_pct=self.config.exit_second_pct,
+                entry_price=entry_price,
+                stop_price=0,
+                target_price=second_target,
+            )
+        )
 
-        exits.append(PositionRequest(
-            phase=PositionPhase.EXIT_FINAL,
-            size_pct=self.config.exit_final_pct,
-            entry_price=entry_price,
-            stop_price=0,
-        ))
+        exits.append(
+            PositionRequest(
+                phase=PositionPhase.EXIT_FINAL,
+                size_pct=self.config.exit_final_pct,
+                entry_price=entry_price,
+                stop_price=0,
+            )
+        )
 
         return exits
 
@@ -266,6 +274,7 @@ class ScalingPositionSizer:
         Uses the trial position model as the default sizing method.
         """
         from quantflow.indicators.wave_models import WaveCount
+
         wc = WaveCount()  # neutral wave count for basic sizing
         req = self.compute_trial_position(capital, entry_price, stop_price, wc)
         return min(req.size_pct, self.config.trial_pct)

@@ -72,8 +72,9 @@ class PositionSizer:
         pos = portfolio.positions.get(signal.symbol)
         if pos is not None:
             existing = abs(pos.quantity * pos.current_price)
-            same_direction = (pos.quantity > 0 and signal.direction.value > 0) or \
-                             (pos.quantity < 0 and signal.direction.value < 0)
+            same_direction = (pos.quantity > 0 and signal.direction.value > 0) or (
+                pos.quantity < 0 and signal.direction.value < 0
+            )
             if same_direction:
                 target = max(0.0, target - existing)
 

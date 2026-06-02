@@ -7,12 +7,20 @@ is due to overfitting rather than genuine alpha.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_metric_array(values: list[float]) -> npt.NDArray[np.float64]:
+    """Normalize validation metrics to finite floats to avoid numeric warnings."""
+    arr = np.asarray(values, dtype=float)
+    sanitized = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+    return cast(npt.NDArray[np.float64], sanitized.astype(np.float64, copy=False))
 
 
 def probability_of_overfitting(
@@ -37,14 +45,17 @@ def probability_of_overfitting(
     splits = split_cpcv(n_bars, n_groups, n_test_groups, embargo_pct)
     engine = BacktestEngine()
 
-    is_returns = []
-    oos_returns = []
+    is_returns: list[float] = []
+    oos_returns: list[float] = []
 
     for train_idx, test_idx in splits:
         try:
             is_res = engine.run_backtest(
-                close.iloc[train_idx], entries.iloc[train_idx], exits.iloc[train_idx],
-                initial_capital=initial_capital, fee=fee,
+                close.iloc[train_idx],
+                entries.iloc[train_idx],
+                exits.iloc[train_idx],
+                initial_capital=initial_capital,
+                fee=fee,
             )
             is_returns.append(is_res.total_return)
         except Exception:
@@ -52,35 +63,52 @@ def probability_of_overfitting(
 
         try:
             oos_res = engine.run_backtest(
-                close.iloc[test_idx], entries.iloc[test_idx], exits.iloc[test_idx],
-                initial_capital=initial_capital, fee=fee,
+                close.iloc[test_idx],
+                entries.iloc[test_idx],
+                exits.iloc[test_idx],
+                initial_capital=initial_capital,
+                fee=fee,
             )
             oos_returns.append(oos_res.total_return)
         except Exception:
             oos_returns.append(0.0)
 
-    is_returns = np.array(is_returns)
-    oos_returns = np.array(oos_returns)
+    is_returns_arr = _sanitize_metric_array(is_returns)
+    oos_returns_arr = _sanitize_metric_array(oos_returns)
 
     # PBO: fraction of paths where IS is positive but OOS is negative
-    is_positive = is_returns > 0
-    oos_negative = oos_returns <= 0
+    is_positive = is_returns_arr > 0
+    oos_negative = oos_returns_arr <= 0
     overfit_paths = np.sum(is_positive & oos_negative)
     total_paths = len(splits)
 
     pbo = overfit_paths / total_paths if total_paths > 0 else 1.0
 
+    if len(is_returns_arr) > 1 and np.std(is_returns_arr) > 0 and np.std(oos_returns_arr) > 0:
+        rank_correlation = float(
+            pd.Series(is_returns_arr)
+            .rank()
+            .corr(pd.Series(oos_returns_arr).rank(), method="pearson")
+        )
+    else:
+        rank_correlation = 0.0
+
     result = {
         "pbo": float(pbo),
         "overfit_paths": int(overfit_paths),
         "total_paths": total_paths,
-        "is_return_mean": float(np.mean(is_returns)),
-        "oos_return_mean": float(np.mean(oos_returns)),
-        "rank_correlation": float(np.corrcoef(is_returns, oos_returns)[0, 1])
-            if len(is_returns) > 1 and np.std(is_returns) > 0 and np.std(oos_returns) > 0 else 0.0,
+        "is_return_mean": float(np.mean(is_returns_arr)),
+        "oos_return_mean": float(np.mean(oos_returns_arr)),
+        "rank_correlation": rank_correlation,
         "passed": pbo < 0.5,
     }
 
-    logger.info("PBO: %.3f (%d/%d overfit paths), rank_corr=%.3f, passed=%s",
-                pbo, overfit_paths, total_paths, result["rank_correlation"], result["passed"])
+    logger.info(
+        "PBO: %.3f (%d/%d overfit paths), rank_corr=%.3f, passed=%s",
+        pbo,
+        overfit_paths,
+        total_paths,
+        result["rank_correlation"],
+        result["passed"],
+    )
     return result

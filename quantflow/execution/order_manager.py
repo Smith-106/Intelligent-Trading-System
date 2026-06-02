@@ -22,7 +22,7 @@ class OrderManager:
 
     def track(self, request: OrderRequest, result: OrderResult | None = None) -> Order:
         """Register a new order from a request and optional result."""
-        order_id = result.order_id if result else f"local-{int(time.time()*1000)}"
+        order_id = result.order_id if result else f"local-{int(time.time() * 1000)}"
         order = Order(
             order_id=order_id,
             symbol=request.symbol,
@@ -39,8 +39,7 @@ class OrderManager:
             order.filled_quantity = getattr(result, "filled_quantity", 0.0)
             order.filled_price = getattr(result, "average_price", 0.0)
             order.fee = getattr(result, "fee", 0.0)
-            if result.status in (OrderStatus.FILLED, OrderStatus.CANCELLED,
-                                 OrderStatus.REJECTED):
+            if result.status in (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED):
                 pass  # already terminal
             else:
                 self._pending[order_id] = time.time()
@@ -51,9 +50,14 @@ class OrderManager:
         logger.info("Order tracked: %s %s %s", order_id, order.symbol, order.status.value)
         return order
 
-    def update(self, order_id: str, status: OrderStatus,
-               filled_quantity: float = 0.0, filled_price: float = 0.0,
-               fee: float = 0.0) -> None:
+    def update(
+        self,
+        order_id: str,
+        status: OrderStatus,
+        filled_quantity: float = 0.0,
+        filled_price: float = 0.0,
+        fee: float = 0.0,
+    ) -> None:
         """Update order status from exchange callback."""
         order = self._orders.get(order_id)
         if not order:
@@ -69,16 +73,18 @@ class OrderManager:
         if status in (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED):
             self._pending.pop(order_id, None)
 
-        logger.info("Order %s → %s (filled=%.6f@%.2f)",
-                     order_id, status.value, filled_quantity, filled_price)
+        logger.info(
+            "Order %s → %s (filled=%.6f@%.2f)",
+            order_id,
+            status.value,
+            filled_quantity,
+            filled_price,
+        )
 
     def check_timeouts(self) -> list[str]:
         """Return order IDs that have exceeded the timeout."""
         now = time.time()
-        timed_out = [
-            oid for oid, ts in self._pending.items()
-            if now - ts > self._timeout
-        ]
+        timed_out = [oid for oid, ts in self._pending.items() if now - ts > self._timeout]
         for oid in timed_out:
             logger.warning("Order timeout: %s (%ds)", oid, self._timeout)
             self._pending.pop(oid, None)
@@ -88,9 +94,17 @@ class OrderManager:
         return self._orders.get(order_id)
 
     def get_open_orders(self) -> list[Order]:
-        return [o for o in self._orders.values()
-                if o.status in (OrderStatus.CREATED, OrderStatus.SUBMITTED,
-                                OrderStatus.ACCEPTED, OrderStatus.PARTIAL)]
+        return [
+            o
+            for o in self._orders.values()
+            if o.status
+            in (
+                OrderStatus.CREATED,
+                OrderStatus.SUBMITTED,
+                OrderStatus.ACCEPTED,
+                OrderStatus.PARTIAL,
+            )
+        ]
 
     def get_orders_by_strategy(self, strategy_id: str) -> list[Order]:
         return [o for o in self._orders.values() if o.strategy_id == strategy_id]

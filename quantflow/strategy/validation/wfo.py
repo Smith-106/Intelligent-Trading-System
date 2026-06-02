@@ -12,12 +12,20 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_metric_array(values: list[float]) -> npt.NDArray[np.float64]:
+    """Normalize validation metrics to finite floats to avoid numeric warnings."""
+    arr = np.asarray(values, dtype=float)
+    sanitized = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+    return cast(npt.NDArray[np.float64], sanitized.astype(np.float64, copy=False))
 
 
 @dataclass
@@ -48,7 +56,7 @@ class WFOResult:
     passed: bool
     degradation_threshold: float
     total_test_return: float
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 class WalkForwardOptimization:
@@ -77,7 +85,8 @@ class WalkForwardOptimization:
         close: pd.Series,
         entries: pd.Series,
         exits: pd.Series,
-        optimize_fn: Callable | None = None,
+        optimize_fn: Callable[[pd.Series], tuple[pd.Series, pd.Series, dict[str, Any]]]
+        | None = None,
     ) -> WFOResult:
         """Run walk-forward validation.
 
@@ -129,23 +138,29 @@ class WalkForwardOptimization:
             test_sharpe = self._compute_sharpe(test_close, test_entries, test_exits)
             test_return = self._compute_return(test_close, test_entries, test_exits)
 
-            folds.append(WFOFoldResult(
-                fold_index=i,
-                train_start=train_start,
-                train_end=train_end,
-                test_start=test_start,
-                test_end=test_end,
-                train_sharpe=train_sharpe,
-                test_sharpe=test_sharpe,
-                train_return=train_return,
-                test_return=test_return,
-                best_params=best_params,
-            ))
+            folds.append(
+                WFOFoldResult(
+                    fold_index=i,
+                    train_start=train_start,
+                    train_end=train_end,
+                    test_start=test_start,
+                    test_end=test_end,
+                    train_sharpe=train_sharpe,
+                    test_sharpe=test_sharpe,
+                    train_return=train_return,
+                    test_return=test_return,
+                    best_params=best_params,
+                )
+            )
 
         if not folds:
             return WFOResult(
-                folds=[], mean_train_sharpe=0.0, mean_test_sharpe=0.0,
-                test_sharpe_std=0.0, degradation=0.0, passed=False,
+                folds=[],
+                mean_train_sharpe=0.0,
+                mean_test_sharpe=0.0,
+                test_sharpe_std=0.0,
+                degradation=0.0,
+                passed=False,
                 degradation_threshold=self.degradation_threshold,
                 total_test_return=0.0,
                 details={"error": "no valid folds produced"},
@@ -259,8 +274,8 @@ def walk_forward_optimization(
 
     engine = BacktestEngine()
     window_results = []
-    all_oos_sharpes = []
-    all_is_sharpes = []
+    all_oos_sharpes: list[float] = []
+    all_is_sharpes: list[float] = []
 
     for i in range(n_windows):
         is_start = 0 if mode == "anchored" else i * window_size
@@ -276,8 +291,11 @@ def walk_forward_optimization(
 
         try:
             is_res = engine.run_backtest(
-                close.iloc[is_idx], entries.iloc[is_idx], exits.iloc[is_idx],
-                initial_capital=initial_capital, fee=fee,
+                close.iloc[is_idx],
+                entries.iloc[is_idx],
+                exits.iloc[is_idx],
+                initial_capital=initial_capital,
+                fee=fee,
             )
             is_sharpe = is_res.sharpe_ratio
         except Exception:
@@ -285,8 +303,11 @@ def walk_forward_optimization(
 
         try:
             oos_res = engine.run_backtest(
-                close.iloc[oos_idx], entries.iloc[oos_idx], exits.iloc[oos_idx],
-                initial_capital=initial_capital, fee=fee,
+                close.iloc[oos_idx],
+                entries.iloc[oos_idx],
+                exits.iloc[oos_idx],
+                initial_capital=initial_capital,
+                fee=fee,
             )
             oos_sharpe = oos_res.sharpe_ratio
             oos_return = oos_res.total_return
@@ -300,20 +321,22 @@ def walk_forward_optimization(
 
         all_is_sharpes.append(is_sharpe)
         all_oos_sharpes.append(oos_sharpe)
-        window_results.append({
-            "window": i,
-            "is_sharpe": is_sharpe,
-            "oos_sharpe": oos_sharpe,
-            "oos_return": oos_return,
-            "oos_max_dd": oos_max_dd,
-            "oos_trades": oos_trades,
-        })
+        window_results.append(
+            {
+                "window": i,
+                "is_sharpe": is_sharpe,
+                "oos_sharpe": oos_sharpe,
+                "oos_return": oos_return,
+                "oos_max_dd": oos_max_dd,
+                "oos_trades": oos_trades,
+            }
+        )
 
-    all_is_sharpes = np.array(all_is_sharpes)
-    all_oos_sharpes = np.array(all_oos_sharpes)
+    all_is_sharpes_arr = _sanitize_metric_array(all_is_sharpes)
+    all_oos_sharpes_arr = _sanitize_metric_array(all_oos_sharpes)
 
-    is_mean = float(np.mean(all_is_sharpes))
-    oos_mean = float(np.mean(all_oos_sharpes))
+    is_mean = float(np.mean(all_is_sharpes_arr))
+    oos_mean = float(np.mean(all_oos_sharpes_arr))
     oos_efficiency = oos_mean / max(is_mean, 1e-6)
 
     go_threshold = 0.5
@@ -332,6 +355,12 @@ def walk_forward_optimization(
         "passed": decision == "GO",
     }
 
-    logger.info("WFO(%s): OOS eff=%.3f, IS=%.3f, OOS=%.3f, decision=%s",
-                mode, oos_efficiency, is_mean, oos_mean, decision)
+    logger.info(
+        "WFO(%s): OOS eff=%.3f, IS=%.3f, OOS=%.3f, decision=%s",
+        mode,
+        oos_efficiency,
+        is_mean,
+        oos_mean,
+        decision,
+    )
     return result

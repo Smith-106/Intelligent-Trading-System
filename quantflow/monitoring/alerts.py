@@ -69,7 +69,10 @@ class AlertManager:
         return results
 
     async def _send_telegram(
-        self, message: str, level: AlertLevel, extra: dict | None,
+        self,
+        message: str,
+        level: AlertLevel,
+        extra: dict[str, Any] | None,
     ) -> bool:
         url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
         text = f"[{level.value.upper()}] {message}"
@@ -78,7 +81,9 @@ class AlertManager:
         payload = {"chat_id": self.telegram_chat_id, "text": text, "parse_mode": "HTML"}
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                async with session.post(
+                    url, json=payload, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
                     return resp.status == 200
         except Exception as e:
             logger.error("Telegram alert failed: %s", e)
@@ -96,19 +101,26 @@ class AlertManager:
         }
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                async with session.post(
+                    url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
                     return resp.status == 200
         except Exception as e:
             logger.error("LINE alert failed: %s", e)
             return False
 
     async def _send_webhook(
-        self, message: str, level: AlertLevel, extra: dict | None,
+        self,
+        message: str,
+        level: AlertLevel,
+        extra: dict[str, Any] | None,
     ) -> bool:
         payload = {"level": level.value, "message": message, **(extra or {})}
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(self.webhook_url, json=payload, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                async with session.post(
+                    self.webhook_url, json=payload, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
                     return resp.status < 400
         except Exception as e:
             logger.error("Webhook alert failed: %s", e)

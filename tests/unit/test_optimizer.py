@@ -26,6 +26,7 @@ class TestStrategyOptimizer:
             entries = close_series.pct_change() > threshold
             exits = close_series.pct_change() < -threshold
             return entries, exits
+
         return fn
 
     def test_optimize_bayesian(self, sample_data, simple_signal_fn):
@@ -43,7 +44,7 @@ class TestStrategyOptimizer:
 
     @pytest.mark.skipif(
         True,  # cmaes package not installed in this environment
-        reason="cmaes package not available"
+        reason="cmaes package not available",
     )
     def test_optimize_cmaes(self, sample_data, simple_signal_fn):
         optimizer = StrategyOptimizer()
@@ -73,11 +74,13 @@ class TestStrategyOptimizer:
 
     def test_create_sampler_cmaes(self):
         import optuna
+
         sampler = StrategyOptimizer._create_sampler("cmaes")
         assert isinstance(sampler, optuna.samplers.CmaEsSampler)
 
     def test_create_sampler_grid(self):
         import optuna
+
         sampler = StrategyOptimizer._create_sampler("grid")
         assert isinstance(sampler, optuna.samplers.RandomSampler)
 

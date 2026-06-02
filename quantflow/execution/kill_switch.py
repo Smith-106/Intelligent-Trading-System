@@ -77,11 +77,13 @@ class KillSwitch:
                                 quantity=close_qty,
                             )
                             order_id = await self._gateway.send_order(order)
-                            results["closed_positions"].append({
-                                "symbol": pos.symbol,
-                                "quantity": close_qty,
-                                "order_id": order_id,
-                            })
+                            results["closed_positions"].append(
+                                {
+                                    "symbol": pos.symbol,
+                                    "quantity": close_qty,
+                                    "order_id": order_id,
+                                }
+                            )
                             logger.info("Closing %s %s: order %s", pos.symbol, close_qty, order_id)
                         except Exception as e:
                             results["errors"].append(f"close_{pos.symbol}: {e}")

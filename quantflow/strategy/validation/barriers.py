@@ -54,11 +54,13 @@ def triple_barrier_labels(
                 hold = j - i
                 break
 
-        labels.append({
-            "label": label,
-            "barrier_hit": barrier,
-            "holding_period": hold,
-        })
+        labels.append(
+            {
+                "label": label,
+                "barrier_hit": barrier,
+                "holding_period": hold,
+            }
+        )
 
     return pd.DataFrame(labels, index=close.index)
 
@@ -81,7 +83,7 @@ def minimum_track_record_length(
 
     # MinTRL ≈ (Z_alpha / SR)^2 * (1 - skew*SR + (kurtosis-1)/4*SR^2)
     z_alpha = stats.norm.ppf(confidence)
-    adj_factor = 1 - skew * sharpe + (kurtosis - 1) / 4 * sharpe ** 2
+    adj_factor = 1 - skew * sharpe + (kurtosis - 1) / 4 * sharpe**2
     min_trl = (z_alpha / sharpe) ** 2 * max(adj_factor, 1.0)
 
     return {

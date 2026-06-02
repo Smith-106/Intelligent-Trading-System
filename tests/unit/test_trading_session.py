@@ -3,7 +3,7 @@
 import pytest
 
 from quantflow.common.config import AppConfig
-from quantflow.common.models import Bar, Direction, Signal
+from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyBase, StrategyContext
 from quantflow.strategy.engine import TradingSession
 
@@ -28,6 +28,7 @@ class SimpleTestStrategy(StrategyBase):
 
     def generate_signals(self, df):
         import pandas as pd
+
         entries = pd.Series(False, index=df.index)
         exits = pd.Series(False, index=df.index)
         return entries, exits

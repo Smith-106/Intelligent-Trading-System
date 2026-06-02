@@ -15,7 +15,9 @@ def _make_price_series(n: int = 100, start: float = 100.0, trend: float = 0.01) 
     return pd.Series(prices, index=dates)
 
 
-def _make_signals(n: int, entry_pattern: str = "every_10", exit_pattern: str = "hold_5") -> tuple[pd.Series, pd.Series]:
+def _make_signals(
+    n: int, entry_pattern: str = "every_10", exit_pattern: str = "hold_5"
+) -> tuple[pd.Series, pd.Series]:
     """Create simple entry/exit signal patterns."""
     dates = pd.date_range("2024-01-01", periods=n, freq="D")
     entries = pd.Series(False, index=dates)

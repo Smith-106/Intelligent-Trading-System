@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -18,11 +16,13 @@ class TestAIFactorEngine:
     def sample_data(self):
         np.random.seed(42)
         n = 200
-        features = pd.DataFrame({
-            "rsi": np.random.randn(n).cumsum() + 50,
-            "macd": np.random.randn(n).cumsum(),
-            "volume_ratio": np.random.randn(n).cumsum() + 1,
-        })
+        features = pd.DataFrame(
+            {
+                "rsi": np.random.randn(n).cumsum() + 50,
+                "macd": np.random.randn(n).cumsum(),
+                "volume_ratio": np.random.randn(n).cumsum() + 1,
+            }
+        )
         primary_signals = pd.Series(np.random.choice([1, -1, 0], n), index=features.index)
         forward_returns = pd.Series(np.random.randn(n) * 0.02, index=features.index)
         return features, primary_signals, forward_returns

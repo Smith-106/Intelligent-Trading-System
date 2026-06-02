@@ -15,8 +15,10 @@ class TestEventBus:
     def test_unsubscribe(self):
         bus = EventBus()
         received = []
+
         def handler(e):
             return received.append(1)
+
         bus.subscribe(EVENT_BAR, handler)
         bus.unsubscribe(EVENT_BAR, handler)
         bus.publish(Event(EVENT_BAR))

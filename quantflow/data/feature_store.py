@@ -38,6 +38,7 @@ class FeatureStore:
 
         # Import and compute indicators
         from quantflow.indicators.engine import IndicatorEngine
+
         engine = IndicatorEngine()
         features = engine.compute_all(raw, indicator_names)
 

@@ -18,8 +18,15 @@ from quantflow.common.models import (
 
 class TestBar:
     def test_creation(self):
-        bar = Bar(symbol="BTC/USDT", timestamp=1000, open=42000, high=42500,
-                  low=41800, close=42300, volume=1000)
+        bar = Bar(
+            symbol="BTC/USDT",
+            timestamp=1000,
+            open=42000,
+            high=42500,
+            low=41800,
+            close=42300,
+            volume=1000,
+        )
         assert bar.symbol == "BTC/USDT"
         assert bar.close == 42300
 
@@ -30,8 +37,14 @@ class TestBar:
 
 class TestSignal:
     def test_creation(self):
-        sig = Signal(strategy_id="test", symbol="BTC/USDT", direction=Direction.LONG,
-                     strength=0.8, price=42000, timestamp=1000)
+        sig = Signal(
+            strategy_id="test",
+            symbol="BTC/USDT",
+            direction=Direction.LONG,
+            strength=0.8,
+            price=42000,
+            timestamp=1000,
+        )
         assert sig.direction == Direction.LONG
         assert sig.strength == 0.8
 
@@ -43,8 +56,13 @@ class TestSignal:
 
 class TestOrder:
     def test_creation(self):
-        order = Order(order_id="o1", symbol="BTC/USDT", side=OrderSide.BUY,
-                      order_type=OrderType.MARKET, quantity=0.5)
+        order = Order(
+            order_id="o1",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type=OrderType.MARKET,
+            quantity=0.5,
+        )
         assert order.status == OrderStatus.CREATED
         assert order.filled_quantity == 0.0
 
@@ -62,28 +80,38 @@ class TestDirection:
 
 class TestPosition:
     def test_market_value(self):
-        pos = Position(symbol="BTC/USDT", quantity=0.5, entry_price=40000,
-                       current_price=42000)
+        pos = Position(symbol="BTC/USDT", quantity=0.5, entry_price=40000, current_price=42000)
         assert pos.market_value == 0.5 * 42000
 
     def test_unrealized_pnl(self):
-        pos = Position(symbol="BTC/USDT", quantity=1.0, entry_price=40000,
-                       current_price=42000, unrealized_pnl=2000)
+        pos = Position(
+            symbol="BTC/USDT",
+            quantity=1.0,
+            entry_price=40000,
+            current_price=42000,
+            unrealized_pnl=2000,
+        )
         assert pos.unrealized_pnl == 2000
 
     def test_side_property(self):
         long_pos = Position(symbol="BTC/USDT", quantity=1.0, entry_price=40000, current_price=42000)
         assert long_pos.side == Direction.LONG
-        short_pos = Position(symbol="BTC/USDT", quantity=-1.0, entry_price=40000, current_price=42000)
+        short_pos = Position(
+            symbol="BTC/USDT", quantity=-1.0, entry_price=40000, current_price=42000
+        )
         assert short_pos.side == Direction.SHORT
 
 
 class TestPortfolio:
     def test_total_value(self):
-        p = Portfolio(cash=50000, positions={
-            "BTC/USDT": Position(symbol="BTC/USDT", quantity=1.0,
-                                  entry_price=40000, current_price=42000)
-        })
+        p = Portfolio(
+            cash=50000,
+            positions={
+                "BTC/USDT": Position(
+                    symbol="BTC/USDT", quantity=1.0, entry_price=40000, current_price=42000
+                )
+            },
+        )
         assert p.total_value == 50000 + 42000
 
     def test_empty_portfolio(self):

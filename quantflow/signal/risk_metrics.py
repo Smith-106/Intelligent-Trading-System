@@ -10,9 +10,9 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def value_at_risk(returns: pd.Series | np.ndarray,
-                  confidence: float = 0.95,
-                  method: str = "historical") -> float:
+def value_at_risk(
+    returns: pd.Series | np.ndarray, confidence: float = 0.95, method: str = "historical"
+) -> float:
     """Calculate Value at Risk (VaR).
 
     Parameters
@@ -38,6 +38,7 @@ def value_at_risk(returns: pd.Series | np.ndarray,
         mu = np.mean(r)
         sigma = np.std(r, ddof=1)
         from scipy.stats import norm
+
         var = mu - sigma * norm.ppf(confidence)
     else:
         var = np.percentile(r, (1 - confidence) * 100)
@@ -45,8 +46,7 @@ def value_at_risk(returns: pd.Series | np.ndarray,
     return float(var)
 
 
-def conditional_var(returns: pd.Series | np.ndarray,
-                    confidence: float = 0.95) -> float:
+def conditional_var(returns: pd.Series | np.ndarray, confidence: float = 0.95) -> float:
     """Calculate Conditional VaR (Expected Shortfall).
 
     Average loss in the worst (1-confidence)% of cases.
@@ -78,9 +78,9 @@ def max_drawdown(equity_curve: pd.Series | np.ndarray) -> float:
     return float(np.min(dd))
 
 
-def sharpe_ratio(returns: pd.Series | np.ndarray,
-                 risk_free: float = 0.0,
-                 periods_per_year: int = 365) -> float:
+def sharpe_ratio(
+    returns: pd.Series | np.ndarray, risk_free: float = 0.0, periods_per_year: int = 365
+) -> float:
     """Annualized Sharpe ratio."""
     r = np.asarray(returns, dtype=float)
     r = r[~np.isnan(r)]
@@ -94,9 +94,9 @@ def sharpe_ratio(returns: pd.Series | np.ndarray,
     return float(np.mean(excess) / np.std(excess, ddof=1) * np.sqrt(periods_per_year))
 
 
-def sortino_ratio(returns: pd.Series | np.ndarray,
-                  risk_free: float = 0.0,
-                  periods_per_year: int = 365) -> float:
+def sortino_ratio(
+    returns: pd.Series | np.ndarray, risk_free: float = 0.0, periods_per_year: int = 365
+) -> float:
     """Annualized Sortino ratio (downside deviation only)."""
     r = np.asarray(returns, dtype=float)
     r = r[~np.isnan(r)]
@@ -111,9 +111,11 @@ def sortino_ratio(returns: pd.Series | np.ndarray,
     return float(np.mean(r - target) / np.std(downside, ddof=1) * np.sqrt(periods_per_year))
 
 
-def calmar_ratio(returns: pd.Series | np.ndarray,
-                 equity_curve: pd.Series | np.ndarray,
-                 periods_per_year: int = 365) -> float:
+def calmar_ratio(
+    returns: pd.Series | np.ndarray,
+    equity_curve: pd.Series | np.ndarray,
+    periods_per_year: int = 365,
+) -> float:
     """Calmar ratio: annualized return / max drawdown."""
     r = np.asarray(returns, dtype=float)
     r = r[~np.isnan(r)]

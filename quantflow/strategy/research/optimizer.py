@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -22,8 +23,8 @@ class StrategyOptimizer:
     def optimize(
         self,
         close: pd.Series,
-        signal_fn: Callable,
-        param_space: dict[str, tuple],
+        signal_fn: Callable[..., tuple[pd.Series, pd.Series]],
+        param_space: dict[str, tuple[Any, ...]],
         n_trials: int = 200,
         method: str = "bayesian",
         initial_capital: float = 10000.0,
@@ -32,12 +33,13 @@ class StrategyOptimizer:
     ) -> dict[str, Any]:
         """Run parameter optimization."""
         import optuna
+
         optuna.logging.set_verbosity(optuna.logging.WARNING)
 
         sampler = self._create_sampler(method)
 
         def optuna_objective(trial: optuna.Trial) -> float:
-            params = {}
+            params: dict[str, Any] = {}
             for name, spec in param_space.items():
                 low, high = spec[0], spec[1]
                 if isinstance(low, int) and isinstance(high, int):
@@ -48,7 +50,9 @@ class StrategyOptimizer:
             try:
                 entries, exits = signal_fn(close, **params)
                 result = self._engine.run_backtest(
-                    close, entries, exits,
+                    close,
+                    entries,
+                    exits,
                     initial_capital=initial_capital,
                     fee=fee,
                 )
@@ -83,14 +87,19 @@ class StrategyOptimizer:
         }
 
     @staticmethod
-    def _create_sampler(method: str):
+    def _create_sampler(method: str) -> Any:
         import optuna
+
         if method == "cmaes":
             return optuna.samplers.CmaEsSampler()
         elif method == "grid":
-            return optuna.samplers.RandomSampler()  # GridSampler requires search space; fallback to Random
+            return (
+                optuna.samplers.RandomSampler()
+            )  # GridSampler requires search space; fallback to Random
         else:  # bayesian (default)
             try:
-                return optuna.samplers.GPSampler()
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", optuna.exceptions.ExperimentalWarning)
+                    return optuna.samplers.GPSampler()
             except (AttributeError, Exception):
                 return optuna.samplers.TPESampler()

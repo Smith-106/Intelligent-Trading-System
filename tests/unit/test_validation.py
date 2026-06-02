@@ -2,13 +2,12 @@
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from quantflow.strategy.validation.cpcv import cpcv_backtest, split_cpcv
-from quantflow.strategy.validation.dsr import deflated_sharpe_ratio, _expected_max_sharpe
+from quantflow.strategy.validation.dsr import _expected_max_sharpe, deflated_sharpe_ratio
+from quantflow.strategy.validation.gate import validation_gate
 from quantflow.strategy.validation.pbo import probability_of_overfitting
 from quantflow.strategy.validation.wfo import walk_forward_optimization
-from quantflow.strategy.validation.gate import validation_gate
 
 
 def _make_price_series(n: int = 200, trend: float = 0.01) -> pd.Series:
@@ -132,7 +131,9 @@ class TestValidationGate:
     def test_gate_returns_dict(self):
         close = _make_price_series(200)
         entries, exits = _make_signals(200)
-        result = validation_gate(close, entries, exits, n_trials=10, cpcv_groups=4, cpcv_test_groups=1, wfo_windows=3)
+        result = validation_gate(
+            close, entries, exits, n_trials=10, cpcv_groups=4, cpcv_test_groups=1, wfo_windows=3
+        )
 
         assert "decision" in result
         assert result["decision"] in ("GO", "NO-GO")

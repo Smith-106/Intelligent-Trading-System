@@ -77,8 +77,10 @@ class PortfolioManager:
             if abs(quantity_delta) < 1e-10:
                 return
             self._positions[symbol] = Position(
-                symbol=symbol, quantity=quantity_delta,
-                entry_price=price, current_price=price,
+                symbol=symbol,
+                quantity=quantity_delta,
+                entry_price=price,
+                current_price=price,
                 unrealized_pnl=0.0,
             )
             return
@@ -95,14 +97,18 @@ class PortfolioManager:
             avg_price = total_cost / new_qty
         else:
             closed_qty = min(abs(quantity_delta), abs(existing.quantity))
-            realized = (price - existing.entry_price) * closed_qty * (1 if existing.quantity > 0 else -1)
+            realized = (
+                (price - existing.entry_price) * closed_qty * (1 if existing.quantity > 0 else -1)
+            )
             self._cash += realized
             avg_price = existing.entry_price
 
         upnl = (price - avg_price) * new_qty
         self._positions[symbol] = Position(
-            symbol=symbol, quantity=new_qty,
-            entry_price=avg_price, current_price=price,
+            symbol=symbol,
+            quantity=new_qty,
+            entry_price=avg_price,
+            current_price=price,
             unrealized_pnl=upnl,
         )
 
@@ -115,8 +121,10 @@ class PortfolioManager:
             if pos is not None:
                 upnl = (price - pos.entry_price) * pos.quantity
                 self._positions[symbol] = Position(
-                    symbol=symbol, quantity=pos.quantity,
-                    entry_price=pos.entry_price, current_price=price,
+                    symbol=symbol,
+                    quantity=pos.quantity,
+                    entry_price=pos.entry_price,
+                    current_price=price,
                     unrealized_pnl=upnl,
                 )
 

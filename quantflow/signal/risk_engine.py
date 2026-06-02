@@ -54,6 +54,7 @@ class RiskEngine:
     def _record_risk_event(self, event_type: str, severity: str) -> None:
         """Record risk event to Prometheus."""
         from quantflow.monitoring.metrics import RISK_EVENTS
+
         RISK_EVENTS.labels(event_type=event_type, severity=severity).inc()
 
     def _check_position_limit(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
@@ -64,16 +65,24 @@ class RiskEngine:
             total = portfolio.total_value
             pos_pct = pos_value / total if total > 0 else 0
             if pos_pct >= self._config.position_limit_pct:
-                return RiskDecision(passed=False, reason="position_limit",
-                                    details={"pct": pos_pct, "limit": self._config.position_limit_pct})
+                return RiskDecision(
+                    passed=False,
+                    reason="position_limit",
+                    details={"pct": pos_pct, "limit": self._config.position_limit_pct},
+                )
         return RiskDecision(passed=True)
 
     def _check_portfolio_limit(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
         if len(portfolio.positions) >= self._config.max_positions:
             if signal.symbol not in portfolio.positions:
-                return RiskDecision(passed=False, reason="max_positions",
-                                    details={"count": len(portfolio.positions),
-                                             "limit": self._config.max_positions})
+                return RiskDecision(
+                    passed=False,
+                    reason="max_positions",
+                    details={
+                        "count": len(portfolio.positions),
+                        "limit": self._config.max_positions,
+                    },
+                )
         return RiskDecision(passed=True)
 
     def _check_daily_loss(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
@@ -81,22 +90,30 @@ class RiskEngine:
         total = portfolio.total_value
         pnl_pct = total_pnl / total if total > 0 else 0
         if pnl_pct < self._config.daily_loss_limit:
-            return RiskDecision(passed=False, reason="daily_loss_limit",
-                                details={"pnl_pct": pnl_pct, "limit": self._config.daily_loss_limit})
+            return RiskDecision(
+                passed=False,
+                reason="daily_loss_limit",
+                details={"pnl_pct": pnl_pct, "limit": self._config.daily_loss_limit},
+            )
         return RiskDecision(passed=True)
 
     def _check_weekly_loss(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
         if self._weekly_pnl_pct < self._config.weekly_loss_limit:
-            return RiskDecision(passed=False, reason="weekly_loss_limit",
-                                details={"pnl_pct": self._weekly_pnl_pct,
-                                         "limit": self._config.weekly_loss_limit})
+            return RiskDecision(
+                passed=False,
+                reason="weekly_loss_limit",
+                details={"pnl_pct": self._weekly_pnl_pct, "limit": self._config.weekly_loss_limit},
+            )
         return RiskDecision(passed=True)
 
     def _check_drawdown(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
         dd = portfolio.current_drawdown
         if dd < self._config.max_drawdown:
-            return RiskDecision(passed=False, reason="max_drawdown",
-                                details={"drawdown": dd, "limit": self._config.max_drawdown})
+            return RiskDecision(
+                passed=False,
+                reason="max_drawdown",
+                details={"drawdown": dd, "limit": self._config.max_drawdown},
+            )
         return RiskDecision(passed=True)
 
     def _check_var(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
@@ -106,12 +123,15 @@ class RiskEngine:
 
         returns = np.array(self._returns_history)
         var_95 = np.percentile(returns, 5)
-        cvar_95 = returns[returns <= var_95].mean() if len(returns[returns <= var_95]) > 0 else var_95
+        cvar_95 = (
+            returns[returns <= var_95].mean() if len(returns[returns <= var_95]) > 0 else var_95
+        )
 
         # If CVaR exceeds 5% loss, block the signal
         if cvar_95 < -0.05:
-            return RiskDecision(passed=False, reason="var_breach",
-                                details={"var_95": var_95, "cvar_95": cvar_95})
+            return RiskDecision(
+                passed=False, reason="var_breach", details={"var_95": var_95, "cvar_95": cvar_95}
+            )
         return RiskDecision(passed=True)
 
     def calculate_var(self, confidence: float = 0.95) -> float:

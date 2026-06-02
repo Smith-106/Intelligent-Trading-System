@@ -86,7 +86,9 @@ class AIFactorEngine:
             return MetaLabelResult(
                 predictions=pd.Series(0, index=features.index),
                 probability=pd.Series(0.5, index=features.index),
-                precision=0.0, recall=0.0, accuracy=0.0,
+                precision=0.0,
+                recall=0.0,
+                accuracy=0.0,
             )
 
         # Train/test split (chronological)
@@ -109,7 +111,9 @@ class AIFactorEngine:
 
         # Full predictions for all data
         all_pred = self._model.predict(X)
-        all_prob = self._model.predict_proba(X)[:, 1] if len(self._model.classes_) > 1 else np.ones(len(X))
+        all_prob = (
+            self._model.predict_proba(X)[:, 1] if len(self._model.classes_) > 1 else np.ones(len(X))
+        )
 
         predictions = pd.Series(0, index=features.index, dtype=int)
         probability = pd.Series(0.5, index=features.index)

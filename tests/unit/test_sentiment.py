@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
 
-from quantflow.strategy.sentiment import SentimentAnalyzer, NewsCollector
+from quantflow.strategy.sentiment import NewsCollector, SentimentAnalyzer
 
 
 class TestSentimentAnalyzer:
@@ -41,10 +41,12 @@ class TestSentimentAnalyzer:
 
     def test_compute_sentiment_factor_with_title(self):
         sa = SentimentAnalyzer()
-        news_df = pd.DataFrame({
-            "date": ["2024-01-01", "2024-01-01", "2024-01-02"],
-            "title": ["Bitcoin surges", "Crypto crash", "Market stable"],
-        })
+        news_df = pd.DataFrame(
+            {
+                "date": ["2024-01-01", "2024-01-01", "2024-01-02"],
+                "title": ["Bitcoin surges", "Crypto crash", "Market stable"],
+            }
+        )
         result = sa.compute_sentiment_factor(news_df)
         assert isinstance(result, (pd.Series, pd.DataFrame))
 

@@ -1,6 +1,5 @@
 """Tests for quantflow.signal.position_sizer."""
 
-
 from quantflow.common.models import Direction, Portfolio, Position, Signal
 from quantflow.signal.position_sizer import PositionSizer
 

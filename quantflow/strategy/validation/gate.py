@@ -44,9 +44,13 @@ def validation_gate(
     # Step 1: CPCV
     logger.info("=== Step 1: CPCV Validation ===")
     cpcv_result = cpcv_backtest(
-        close, entries, exits,
-        n_groups=cpcv_groups, n_test_groups=cpcv_test_groups,
-        initial_capital=initial_capital, fee=fee,
+        close,
+        entries,
+        exits,
+        n_groups=cpcv_groups,
+        n_test_groups=cpcv_test_groups,
+        initial_capital=initial_capital,
+        fee=fee,
     )
     results["checks"]["cpcv"] = cpcv_result
     if not cpcv_result["passed"]:
@@ -71,16 +75,24 @@ def validation_gate(
     # Step 3: WFO
     logger.info("=== Step 3: Walk-Forward Validation ===")
     wfo_rolling = walk_forward_optimization(
-        close, entries, exits,
-        n_windows=wfo_windows, mode="rolling",
-        initial_capital=initial_capital, fee=fee,
+        close,
+        entries,
+        exits,
+        n_windows=wfo_windows,
+        mode="rolling",
+        initial_capital=initial_capital,
+        fee=fee,
     )
     results["checks"]["wfo_rolling"] = wfo_rolling
 
     wfo_anchored = walk_forward_optimization(
-        close, entries, exits,
-        n_windows=wfo_windows, mode="anchored",
-        initial_capital=initial_capital, fee=fee,
+        close,
+        entries,
+        exits,
+        n_windows=wfo_windows,
+        mode="anchored",
+        initial_capital=initial_capital,
+        fee=fee,
     )
     results["checks"]["wfo_anchored"] = wfo_anchored
 

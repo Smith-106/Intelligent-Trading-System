@@ -35,25 +35,21 @@ from quantflow.common.models import (
 )
 
 __all__ = [
-    # Event constants
     "EVENT_BAR",
     "EVENT_FILL",
     "EVENT_ORDER",
     "EVENT_RISK",
     "EVENT_SIGNAL",
-    # Config
     "AppConfig",
-    # Models
     "Bar",
     "ConfigError",
-    "GatewayConnectionError",
     "DataConfig",
     "DataError",
     "Direction",
     "Event",
-    # Event Bus
     "EventBus",
     "ExecutionError",
+    "GatewayConnectionError",
     "Order",
     "OrderError",
     "OrderRequest",
@@ -63,7 +59,6 @@ __all__ = [
     "OrderType",
     "Portfolio",
     "Position",
-    # Exceptions
     "QuantFlowError",
     "RiskBreachError",
     "RiskConfig",

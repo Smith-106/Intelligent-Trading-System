@@ -95,8 +95,12 @@ def clean_ohlcv(
         if n_invalid > 0:
             logger.warning("Found %d rows with invalid OHLC relationships", n_invalid)
             # Fix: adjust high/low to encompass open/close
-            df.loc[invalid_ohlc, "high"] = df.loc[invalid_ohlc, ["open", "high", "low", "close"]].max(axis=1)
-            df.loc[invalid_ohlc, "low"] = df.loc[invalid_ohlc, ["open", "high", "low", "close"]].min(axis=1)
+            df.loc[invalid_ohlc, "high"] = df.loc[
+                invalid_ohlc, ["open", "high", "low", "close"]
+            ].max(axis=1)
+            df.loc[invalid_ohlc, "low"] = df.loc[
+                invalid_ohlc, ["open", "high", "low", "close"]
+            ].min(axis=1)
 
     return df
 
@@ -125,14 +129,20 @@ def validate_no_future_leak(df: pd.DataFrame, cutoff_timestamp: int | None = Non
             # Convert datetime to ms timestamp for comparison
             ts_ms = ts.astype("int64") // 10**6
             if ts_ms.max() > cutoff_timestamp:
-                logger.error("Future data leak in datetime column: max=%d > cutoff=%d",
-                             ts_ms.max(), cutoff_timestamp)
+                logger.error(
+                    "Future data leak in datetime column: max=%d > cutoff=%d",
+                    ts_ms.max(),
+                    cutoff_timestamp,
+                )
                 return False
         elif col == "timestamp":
             max_ts = ts.max()
             if max_ts > cutoff_timestamp:
-                logger.error("Future data leak in timestamp column: max=%d > cutoff=%d",
-                             max_ts, cutoff_timestamp)
+                logger.error(
+                    "Future data leak in timestamp column: max=%d > cutoff=%d",
+                    max_ts,
+                    cutoff_timestamp,
+                )
                 return False
 
     return True

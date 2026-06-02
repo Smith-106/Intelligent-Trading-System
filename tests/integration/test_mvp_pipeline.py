@@ -26,14 +26,17 @@ def sample_ohlcv() -> pd.DataFrame:
     open_ = close * (1 + np.random.normal(0, 0.005, n))
     volume = np.random.uniform(500, 2000, n)
 
-    df = pd.DataFrame({
-        "timestamp": (dates.astype(int) // 10**6),
-        "open": open_,
-        "high": high,
-        "low": low,
-        "close": close,
-        "volume": volume,
-    }, index=dates)
+    df = pd.DataFrame(
+        {
+            "timestamp": (dates.astype(int) // 10**6),
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+        },
+        index=dates,
+    )
     df.index.name = "datetime"
     return df
 
