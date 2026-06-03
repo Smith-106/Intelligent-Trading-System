@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.1.2] - 2026-06-03
+
+### Fixed
+- Fixed the release workflow so GitHub Release assets include only the current version's package and checksum files.
+- Fixed release metadata generation so manifest entries carry explicit checksum file paths for the active version.
+
+### Changed
+- Promoted the clean release candidate from `v0.1.1` to `v0.1.2` after detecting that the previous release mixed in historical checksum assets.
+
 ## [0.1.1] - 2026-06-03
 
 ### Added

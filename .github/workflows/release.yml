@@ -33,7 +33,9 @@ jobs:
           else
             TAG="${GITHUB_REF_NAME}"
           fi
+          VERSION="${TAG#v}"
           echo "RELEASE_TAG=${TAG}" >> "${GITHUB_ENV}"
+          echo "RELEASE_VERSION=${VERSION}" >> "${GITHUB_ENV}"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -61,9 +63,10 @@ jobs:
         with:
           name: quantflow-${{ env.RELEASE_TAG }}-artifacts
           path: |
-            dist/quantflow-*.tar.gz
-            dist/quantflow-*.whl
-            dist/*.sha256
+            dist/quantflow-${{ env.RELEASE_VERSION }}.tar.gz
+            dist/quantflow-${{ env.RELEASE_VERSION }}-py3-none-any.whl
+            dist/quantflow-${{ env.RELEASE_VERSION }}.tar.gz.sha256
+            dist/quantflow-${{ env.RELEASE_VERSION }}-py3-none-any.whl.sha256
             dist/SHA256SUMS.txt
             dist/release-manifest.json
 
@@ -73,19 +76,25 @@ jobs:
         shell: bash
         run: |
           NOTES_FILE="docs/release/${RELEASE_TAG}/release-notes.md"
+          TAR_FILE="dist/quantflow-${RELEASE_VERSION}.tar.gz"
+          WHL_FILE="dist/quantflow-${RELEASE_VERSION}-py3-none-any.whl"
+          TAR_SUM="${TAR_FILE}.sha256"
+          WHL_SUM="${WHL_FILE}.sha256"
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             gh release upload "${RELEASE_TAG}" \
-              dist/quantflow-*.tar.gz \
-              dist/quantflow-*.whl \
-              dist/*.sha256 \
+              "${TAR_FILE}" \
+              "${WHL_FILE}" \
+              "${TAR_SUM}" \
+              "${WHL_SUM}" \
               dist/SHA256SUMS.txt \
               dist/release-manifest.json \
               --clobber
           else
             gh release create "${RELEASE_TAG}" \
-              dist/quantflow-*.tar.gz \
-              dist/quantflow-*.whl \
-              dist/*.sha256 \
+              "${TAR_FILE}" \
+              "${WHL_FILE}" \
+              "${TAR_SUM}" \
+              "${WHL_SUM}" \
               dist/SHA256SUMS.txt \
               dist/release-manifest.json \
               --notes-file "${NOTES_FILE}" \

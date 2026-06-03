@@ -62,7 +62,14 @@ def write_checksums(version: str) -> list[dict[str, str]]:
         digest = sha256_of(asset_path)
         checksum_path = DIST_DIR / f"{name}.sha256"
         checksum_path.write_text(f"{digest} *{name}\n", encoding="utf-8")
-        checksums.append({"name": name, "sha256": digest, "path": str(asset_path)})
+        checksums.append(
+            {
+                "name": name,
+                "sha256": digest,
+                "path": str(asset_path),
+                "checksum_path": str(checksum_path),
+            }
+        )
 
     summary_lines = [f"{item['sha256']} *{item['name']}" for item in checksums]
     (DIST_DIR / "SHA256SUMS.txt").write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
@@ -103,7 +110,9 @@ def write_manifest(
                 "name": item["name"],
                 "sha256": item["sha256"],
                 "path": str(Path(item["path"]).relative_to(REPO_ROOT)).replace("\\", "/"),
-                "checksum_path": f"dist/{item['name']}.sha256",
+                "checksum_path": str(Path(item["checksum_path"]).relative_to(REPO_ROOT)).replace(
+                    "\\", "/"
+                ),
             }
             for item in checksums
         ],
@@ -118,7 +127,7 @@ def write_manifest(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build release artifacts for QuantFlow.")
     parser.add_argument("--skip-build", action="store_true", help="Reuse existing dist artifacts.")
-    parser.add_argument("--tag", default="", help="Expected release tag, for example v0.1.0.")
+    parser.add_argument("--tag", default="", help="Expected release tag, for example v1.2.3.")
     return parser.parse_args()
 
 
