@@ -13,6 +13,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from quantflow import __version__
 from quantflow.common.config import AppConfig, load_config, resolve_config_path
 from quantflow.monitoring.logger import setup_logging
 
@@ -666,7 +667,7 @@ def status() -> None:
     except Exception:
         pass
 
-    table.add_row("Version", "0.1.0")
+    table.add_row("Version", __version__)
     table.add_row("Phase", "3 (OKX Live + AI Factors)")
     table.add_row("Data Layer", data_status)
     table.add_row("Config", config_status)

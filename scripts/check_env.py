@@ -56,6 +56,7 @@ def check_dependencies():
 
 def check_env_vars():
     import os
+
     vars_to_check = [
         ("OKX_API_KEY", False),
         ("OKX_SECRET", False),
@@ -76,6 +77,7 @@ def check_env_vars():
 
 def check_data_dir():
     from pathlib import Path
+
     data_dir = Path("data")
     if data_dir.exists():
         parquet_count = len(list(data_dir.rglob("*.parquet")))
@@ -87,6 +89,7 @@ def check_data_dir():
 
 def check_project_assets():
     from pathlib import Path
+
     assets = [
         (Path("quantflow/config/default.yaml"), "default config"),
         (Path("docker/docker-compose.yaml"), "docker compose"),

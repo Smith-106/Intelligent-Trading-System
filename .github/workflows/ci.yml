@@ -33,10 +33,10 @@ jobs:
         run: python -m build
 
       - name: Ruff format check
-        run: python -m ruff format --check quantflow tests
+        run: python -m ruff format --check quantflow tests scripts
 
       - name: Ruff lint
-        run: python -m ruff check quantflow tests
+        run: python -m ruff check quantflow tests scripts
 
       - name: Mypy
         run: python -m mypy quantflow tests

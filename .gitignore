@@ -3,7 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
-dist/
+dist/*
+!dist/*.sha256
+!dist/SHA256SUMS.txt
+!dist/release-manifest.json
 build/
 *.egg
 

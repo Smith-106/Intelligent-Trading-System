@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.1.1] - 2026-06-03
+
+### Added
+- Added `scripts/build_release.py` to build release artifacts, checksums, and a release manifest from one command.
+- Added `.github/workflows/release.yml` to publish GitHub Release assets from a `vX.Y.Z` tag.
+- Added `dist/SHA256SUMS.txt` and `dist/release-manifest.json` as release metadata outputs.
+
+### Changed
+- Promoted the release process from manual artifact collection to a tag-driven, repeatable workflow.
+- Updated release documentation to treat automated release publication as part of the delivery standard.
+- Reserved `v0.1.0` as the historical baseline and moved the current release candidate to `v0.1.1` for source/tag consistency.
+
 ## [0.1.0] - 2026-06-03
 
 ### Added
