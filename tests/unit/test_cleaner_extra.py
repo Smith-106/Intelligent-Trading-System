@@ -50,7 +50,9 @@ def test_clean_ohlcv_forward_fills_missing_prices() -> None:
         }
     )
 
-    cleaned = clean_ohlcv(df, remove_outliers=False, fill_method="ffill", validate_no_future_leak=False)
+    cleaned = clean_ohlcv(
+        df, remove_outliers=False, fill_method="ffill", validate_no_future_leak=False
+    )
 
     assert cleaned.loc[1, "open"] == 100.0
     assert cleaned.loc[1, "high"] == 101.0

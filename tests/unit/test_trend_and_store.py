@@ -60,7 +60,9 @@ class TestTrendFunctions:
 
         assert "supertrend" in supertrend.columns
         assert "supertrend_direction" in supertrend.columns
-        assert set(supertrend["supertrend_direction"].dropna().astype(int).unique()).issubset({-1, 1})
+        assert set(supertrend["supertrend_direction"].dropna().astype(int).unique()).issubset(
+            {-1, 1}
+        )
         assert len(adx) == len(close)
         assert adx.dropna().ge(0).all()
 
@@ -103,7 +105,9 @@ class TestDataStoreHelpers:
             store.save(second, "BTC/USDT")
             merged = store.query("BTC/USDT")
 
-            assert list(merged["timestamp"]) == sorted(set(first["timestamp"]) | set(second["timestamp"]))
+            assert list(merged["timestamp"]) == sorted(
+                set(first["timestamp"]) | set(second["timestamp"])
+            )
             assert len(merged) == 4
             store.close()
 
@@ -137,7 +141,9 @@ class TestDataStoreHelpers:
 
             existing = store._load_existing(parquet_file)
             missing = store._load_existing(Path(tmp) / "pq" / "missing.parquet")
-            grouped = DataStore.group_cols(pd.DataFrame(columns=["timestamp", "year", "month", "close"]))
+            grouped = DataStore.group_cols(
+                pd.DataFrame(columns=["timestamp", "year", "month", "close"])
+            )
 
             assert existing is not None and not existing.empty
             assert missing is None

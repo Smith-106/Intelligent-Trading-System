@@ -70,7 +70,9 @@ def test_fetch_timeframe_returns_none_without_fetcher() -> None:
 
 
 def test_fetch_timeframe_maps_timeframe_and_logs_failures(caplog: pytest.LogCaptureFixture) -> None:
-    fetcher = _FakeFetcher({"7D": RuntimeError("boom"), "4h": _make_frame("2024-01-01", 2, "4h", tz="UTC")})
+    fetcher = _FakeFetcher(
+        {"7D": RuntimeError("boom"), "4h": _make_frame("2024-01-01", 2, "4h", tz="UTC")}
+    )
     aligner = MTFAligner(fetcher=cast(DataFetcher, fetcher))
 
     ok = aligner._fetch_timeframe("BTC/USDT", "4H", "2024-01-01", "2024-01-10")
@@ -112,7 +114,12 @@ def test_reindex_to_utc_returns_empty_or_forward_filled_frames() -> None:
     aligned_index = pd.date_range("2024-01-01 05:00:00", periods=3, freq="1h", tz="UTC")
 
     assert aligner._reindex_to_utc(pd.DataFrame(), aligned_index).empty
-    assert aligner._reindex_to_utc(_make_frame("2024-01-01", 2, "1h", tz="UTC"), pd.DatetimeIndex([])).shape[0] == 2
+    assert (
+        aligner._reindex_to_utc(
+            _make_frame("2024-01-01", 2, "1h", tz="UTC"), pd.DatetimeIndex([])
+        ).shape[0]
+        == 2
+    )
 
     eastern = _make_frame("2024-01-01", 2, "1h", tz="US/Eastern")
     reindexed = aligner._reindex_to_utc(eastern, aligned_index)

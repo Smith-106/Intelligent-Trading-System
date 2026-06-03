@@ -15,7 +15,9 @@ def _pivot(index: int, price: float, direction: PivotDirection) -> PivotPoint:
     return PivotPoint(index=index, price=price, direction=direction, timestamp=index)
 
 
-def _wave(label: int, start_idx: int, start_price: float, end_idx: int, end_price: float) -> WaveSegment:
+def _wave(
+    label: int, start_idx: int, start_price: float, end_idx: int, end_price: float
+) -> WaveSegment:
     direction = PivotDirection.HIGH if end_price >= start_price else PivotDirection.LOW
     return WaveSegment(
         label=label,
@@ -212,7 +214,9 @@ class TestDivergenceDetector:
     def test_check_volume_divergence_returns_none_when_wave5_is_missing(self) -> None:
         detector = DivergenceDetector()
 
-        assert detector._check_volume_divergence({3: _wave(3, 0, 100.0, 2, 130.0)}, _frame()) is None
+        assert (
+            detector._check_volume_divergence({3: _wave(3, 0, 100.0, 2, 130.0)}, _frame()) is None
+        )
 
     def test_check_rsi_divergence_handles_missing_out_of_range_and_bullish_cases(self) -> None:
         detector = DivergenceDetector()

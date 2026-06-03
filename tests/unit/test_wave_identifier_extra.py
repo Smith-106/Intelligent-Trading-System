@@ -27,7 +27,9 @@ def _sequence(points: list[tuple[int, float, PivotDirection]]) -> PivotSequence:
     return PivotSequence(pivots=[_pivot(idx, price, direction) for idx, price, direction in points])
 
 
-def _wave(label: int, start_idx: int, start_price: float, end_idx: int, end_price: float) -> WaveSegment:
+def _wave(
+    label: int, start_idx: int, start_price: float, end_idx: int, end_price: float
+) -> WaveSegment:
     direction = PivotDirection.HIGH if end_price >= start_price else PivotDirection.LOW
     return WaveSegment(
         label=label,
@@ -188,7 +190,9 @@ class TestWaveIdentifierExtra:
     def test_validate_iron_laws_covers_bullish_and_bearish_branches(self) -> None:
         identifier = WaveIdentifier()
 
-        indeterminate = identifier._validate_iron_laws({2: _wave(2, 0, 100.0, 1, 95.0)}, AnalysisMode.PROGRESSIVE, True)
+        indeterminate = identifier._validate_iron_laws(
+            {2: _wave(2, 0, 100.0, 1, 95.0)}, AnalysisMode.PROGRESSIVE, True
+        )
 
         bullish_waves = {
             1: _wave(1, 0, 100.0, 1, 120.0),
@@ -197,9 +201,7 @@ class TestWaveIdentifierExtra:
             4: _wave(4, 3, 100.0, 4, 110.0),
             5: _wave(5, 4, 110.0, 5, 130.0),
         }
-        progressive = identifier._validate_iron_laws(
-            bullish_waves, AnalysisMode.PROGRESSIVE, True
-        )
+        progressive = identifier._validate_iron_laws(bullish_waves, AnalysisMode.PROGRESSIVE, True)
         retrospective = identifier._validate_iron_laws(
             bullish_waves, AnalysisMode.RETROSPECTIVE, True
         )
@@ -237,7 +239,9 @@ class TestWaveIdentifierExtra:
 
         assert diagonal.law3_ok is False
         assert diagonal.law3_diagonal is True
-        assert any("diagonal triangle exception applies" in warning for warning in diagonal.warnings)
+        assert any(
+            "diagonal triangle exception applies" in warning for warning in diagonal.warnings
+        )
 
         assert bearish.law1_ok is False
         assert bearish.law3_ok is False

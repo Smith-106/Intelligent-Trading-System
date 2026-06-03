@@ -153,7 +153,8 @@ class TestCLIBasics:
         assert any(
             event[0] == "start"
             and event[1] == "sandbox"
-            and event[2] == {
+            and event[2]
+            == {
                 "sandbox": True,
                 "api_key": "key",
                 "secret": "secret",

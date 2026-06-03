@@ -147,9 +147,13 @@ class TestTradingSessionExtra:
         session._kill_switch = _FakeKillSwitch()
         session._alert_mgr = _FakeAlertManager()
 
-        monkeypatch.setattr(session.execution.position_manager, "update_market_price", lambda symbol, price: None)
+        monkeypatch.setattr(
+            session.execution.position_manager, "update_market_price", lambda symbol, price: None
+        )
         monkeypatch.setattr(session.portfolio, "update_position", lambda symbol, qty, price: None)
-        monkeypatch.setattr("quantflow.strategy.engine.update_portfolio_metrics", lambda **kwargs: None)
+        monkeypatch.setattr(
+            "quantflow.strategy.engine.update_portfolio_metrics", lambda **kwargs: None
+        )
         monkeypatch.setattr(session.portfolio, "check_drawdown", lambda limit: False)
 
         await session.on_bar(_bar())
@@ -159,15 +163,21 @@ class TestTradingSessionExtra:
         assert session._alert_mgr.sent[0][0] == "KILL SWITCH ACTIVATED: drawdown breach"
 
     @pytest.mark.asyncio
-    async def test_on_bar_skips_strategy_when_context_is_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_on_bar_skips_strategy_when_context_is_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         strategy = _Strategy("ghost")
         session = TradingSession(AppConfig(), [strategy])
         session._running = True
         session._contexts = {}
 
-        monkeypatch.setattr(session.execution.position_manager, "update_market_price", lambda symbol, price: None)
+        monkeypatch.setattr(
+            session.execution.position_manager, "update_market_price", lambda symbol, price: None
+        )
         monkeypatch.setattr(session.portfolio, "update_position", lambda symbol, qty, price: None)
-        monkeypatch.setattr("quantflow.strategy.engine.update_portfolio_metrics", lambda **kwargs: None)
+        monkeypatch.setattr(
+            "quantflow.strategy.engine.update_portfolio_metrics", lambda **kwargs: None
+        )
         monkeypatch.setattr(session.portfolio, "check_drawdown", lambda limit: True)
 
         await session.on_bar(_bar())
@@ -353,7 +363,9 @@ class TestTradingSessionExtra:
         assert fetcher_holder["fetcher"].disconnected is True
 
     @pytest.mark.asyncio
-    async def test_run_data_loop_handles_cancellation_and_stop(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_run_data_loop_handles_cancellation_and_stop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         session = TradingSession(AppConfig(), [_Strategy()])
         session._running = True
         stopped: list[str] = []

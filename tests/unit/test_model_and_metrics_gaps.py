@@ -34,7 +34,9 @@ def _pivot(index: int, price: float, direction: PivotDirection) -> PivotPoint:
     return PivotPoint(index=index, price=price, direction=direction, timestamp=index)
 
 
-def _wave(label: int, start_idx: int, start_price: float, end_idx: int, end_price: float) -> WaveSegment:
+def _wave(
+    label: int, start_idx: int, start_price: float, end_idx: int, end_price: float
+) -> WaveSegment:
     direction = PivotDirection.HIGH if end_price >= start_price else PivotDirection.LOW
     return WaveSegment(
         label=label,
@@ -85,9 +87,7 @@ class TestWaveModelsGaps:
         assert IronLawResult().is_valid is True
         assert IronLawResult(warnings=["soft"]).has_warnings is True
         assert IronLawResult(law1_ok=False).is_valid is False
-        assert (
-            IronLawResult(law2_ok=False, law2_mode=AnalysisMode.RETROSPECTIVE).is_valid is False
-        )
+        assert IronLawResult(law2_ok=False, law2_mode=AnalysisMode.RETROSPECTIVE).is_valid is False
         assert IronLawResult(law3_ok=False, law3_diagonal=True).is_valid is True
         assert IronLawResult(law3_ok=False, law3_diagonal=False).is_valid is False
 

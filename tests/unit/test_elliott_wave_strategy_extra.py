@@ -20,7 +20,9 @@ def _pivot(index: int, price: float, direction: PivotDirection) -> PivotPoint:
     return PivotPoint(index=index, price=price, direction=direction, timestamp=index)
 
 
-def _wave(label: int, start_idx: int, start_price: float, end_idx: int, end_price: float) -> WaveSegment:
+def _wave(
+    label: int, start_idx: int, start_price: float, end_idx: int, end_price: float
+) -> WaveSegment:
     direction = PivotDirection.HIGH if end_price >= start_price else PivotDirection.LOW
     return WaveSegment(
         label=label,
@@ -123,7 +125,9 @@ class TestLiuYudongWaveStrategyExtra:
         assert strategy._check_w3_entry(_ohlcv_frame(10), weak_w3, True) is False
 
         low_volume_df = _ohlcv_frame(30)
-        low_volume_df.loc[:, "volume"] = [100.0] * 20 + [100.0, 100.0, 100.0, 100.0, 100.0] + [1000.0] * 5
+        low_volume_df.loc[:, "volume"] = (
+            [100.0] * 20 + [100.0, 100.0, 100.0, 100.0, 100.0] + [1000.0] * 5
+        )
         low_volume = {
             1: _wave(1, 0, 100.0, 2, 110.0),
             3: _wave(3, 20, 108.0, 24, 123.0),
@@ -155,7 +159,16 @@ class TestLiuYudongWaveStrategyExtra:
         assert strategy._check_w4_entry(df, bad_retracement, True) is False
 
         high_w4_volume = _ohlcv_frame(8)
-        high_w4_volume.loc[:, "volume"] = [1000.0, 1000.0, 1000.0, 1000.0, 900.0, 900.0, 1000.0, 1000.0]
+        high_w4_volume.loc[:, "volume"] = [
+            1000.0,
+            1000.0,
+            1000.0,
+            1000.0,
+            900.0,
+            900.0,
+            1000.0,
+            1000.0,
+        ]
         volume_rejected = {
             3: _wave(3, 0, 100.0, 3, 124.0),
             4: _wave(4, 3, 124.0, 5, 114.0),
@@ -217,7 +230,9 @@ class TestLiuYudongWaveStrategyExtra:
             is True
         )
 
-    def test_check_b_wave_exit_covers_missing_amplitude_retracement_volume_and_success(self) -> None:
+    def test_check_b_wave_exit_covers_missing_amplitude_retracement_volume_and_success(
+        self,
+    ) -> None:
         strategy = LiuYudongWaveStrategy()
         df = _ohlcv_frame(8)
 
@@ -236,7 +251,16 @@ class TestLiuYudongWaveStrategyExtra:
         assert strategy._check_b_wave_exit(df, bad_retracement) is False
 
         high_b_volume = _ohlcv_frame(8)
-        high_b_volume.loc[:, "volume"] = [1000.0, 1000.0, 700.0, 900.0, 1000.0, 1000.0, 1000.0, 1000.0]
+        high_b_volume.loc[:, "volume"] = [
+            1000.0,
+            1000.0,
+            700.0,
+            900.0,
+            1000.0,
+            1000.0,
+            1000.0,
+            1000.0,
+        ]
         volume_rejected = {
             -1: _wave(-1, 0, 110.0, 2, 100.0),
             -2: _wave(-2, 2, 100.0, 3, 105.0),
@@ -286,15 +310,33 @@ class TestLiuYudongWaveStrategyExtra:
         empty_signal = pd.Series(0, index=pd.RangeIndex(130), dtype=int)
 
         with (
-            patch.object(strategy.zigzag, "compute", side_effect=[empty_signal, empty_signal, empty_signal]),
+            patch.object(
+                strategy.zigzag, "compute", side_effect=[empty_signal, empty_signal, empty_signal]
+            ),
             patch.object(strategy, "_extract_pivots", return_value=Mock()),
             patch.object(strategy.wave_identifier, "identify", side_effect=wave_counts),
-            patch.object(strategy.fibonacci_calc, "calculate", return_value=FibonacciLevels(extension={1.618: 149.0})),
+            patch.object(
+                strategy.fibonacci_calc,
+                "calculate",
+                return_value=FibonacciLevels(extension={1.618: 149.0}),
+            ),
             patch.object(strategy.critical_level_det, "detect", return_value=Mock()),
-            patch.object(strategy.wave_channel, "calculate", return_value=ChannelResult(w5_target=148.0)),
-            patch.object(strategy.divergence_det, "detect", return_value=DivergenceResult(bearish=True)),
-            patch.object(strategy, "_compute_macd_histogram", side_effect=lambda close: pd.Series(0.0, index=close.index)),
-            patch.object(strategy, "_compute_rsi", side_effect=lambda close: pd.Series(50.0, index=close.index)),
+            patch.object(
+                strategy.wave_channel, "calculate", return_value=ChannelResult(w5_target=148.0)
+            ),
+            patch.object(
+                strategy.divergence_det, "detect", return_value=DivergenceResult(bearish=True)
+            ),
+            patch.object(
+                strategy,
+                "_compute_macd_histogram",
+                side_effect=lambda close: pd.Series(0.0, index=close.index),
+            ),
+            patch.object(
+                strategy,
+                "_compute_rsi",
+                side_effect=lambda close: pd.Series(50.0, index=close.index),
+            ),
             patch.object(strategy, "_check_w2_entry", return_value=True),
             patch.object(strategy, "_check_w3_entry", return_value=True),
             patch.object(strategy, "_check_w4_entry", return_value=True),

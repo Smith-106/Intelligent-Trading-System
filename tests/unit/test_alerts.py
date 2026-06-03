@@ -58,7 +58,9 @@ async def test_send_dispatches_to_configured_channels(monkeypatch: pytest.Monkey
         webhook_url="https://example.com/hook",
     )
 
-    async def fake_telegram(message: str, level: AlertLevel, extra: dict[str, object] | None) -> bool:
+    async def fake_telegram(
+        message: str, level: AlertLevel, extra: dict[str, object] | None
+    ) -> bool:
         assert message == "hello"
         assert level is AlertLevel.CRITICAL
         assert extra == {"k": "v"}
@@ -69,7 +71,9 @@ async def test_send_dispatches_to_configured_channels(monkeypatch: pytest.Monkey
         assert level is AlertLevel.CRITICAL
         return False
 
-    async def fake_webhook(message: str, level: AlertLevel, extra: dict[str, object] | None) -> bool:
+    async def fake_webhook(
+        message: str, level: AlertLevel, extra: dict[str, object] | None
+    ) -> bool:
         assert message == "hello"
         assert level is AlertLevel.CRITICAL
         assert extra == {"k": "v"}
@@ -158,7 +162,9 @@ async def test_alert_senders_return_false_on_exceptions(
         line_user_id="user-id",
         webhook_url="https://example.com/hook",
     )
-    monkeypatch.setattr("quantflow.monitoring.alerts.aiohttp.ClientSession", lambda: _FailingSession())
+    monkeypatch.setattr(
+        "quantflow.monitoring.alerts.aiohttp.ClientSession", lambda: _FailingSession()
+    )
 
     sender: Callable[..., object] = getattr(manager, sender_name)
     result = await sender(*args)

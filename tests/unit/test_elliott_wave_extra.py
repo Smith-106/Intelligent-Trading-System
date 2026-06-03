@@ -113,7 +113,9 @@ class TestClassifyImpulseExtra:
 
 class TestClassifyCorrectiveExtra:
     def test_rejects_too_short_non_alternating_zero_a_invalid_b_and_invalid_c(self) -> None:
-        too_short = pd.DataFrame({"pivot_idx": [0, 1], "pivot_price": [100.0, 110.0], "pivot_type": [-1, 1]})
+        too_short = pd.DataFrame(
+            {"pivot_idx": [0, 1], "pivot_price": [100.0, 110.0], "pivot_type": [-1, 1]}
+        )
         non_alternating = pd.DataFrame(
             {
                 "pivot_idx": [0, 1, 2],

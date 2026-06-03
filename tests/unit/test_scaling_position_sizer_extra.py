@@ -39,16 +39,13 @@ class TestScalingPositionSizerExtra:
             ).risk_reward_ratio
             is None
         )
-        assert (
-            PositionRequest(
-                phase=PositionPhase.TRIAL,
-                size_pct=0.1,
-                entry_price=100.0,
-                stop_price=95.0,
-                target_price=115.0,
-            ).risk_reward_ratio
-            == pytest.approx(3.0)
-        )
+        assert PositionRequest(
+            phase=PositionPhase.TRIAL,
+            size_pct=0.1,
+            entry_price=100.0,
+            stop_price=95.0,
+            target_price=115.0,
+        ).risk_reward_ratio == pytest.approx(3.0)
 
     def test_trial_add_and_chase_return_zero_when_risk_per_unit_non_positive(self) -> None:
         sizer = ScalingPositionSizer()
@@ -118,7 +115,9 @@ class TestScalingPositionSizerExtra:
         assert stop == 110.0
 
     def test_check_risk_limits_and_size_adapter(self) -> None:
-        sizer = ScalingPositionSizer(ScalingConfig(trial_pct=0.12, daily_loss_limit_pct=0.05, monthly_loss_limit_pct=0.10))
+        sizer = ScalingPositionSizer(
+            ScalingConfig(trial_pct=0.12, daily_loss_limit_pct=0.05, monthly_loss_limit_pct=0.10)
+        )
 
         limits = sizer.check_risk_limits(100000.0, daily_pnl=-5000.0, monthly_pnl=-10000.0)
         sized = sizer.size(100000.0, 100.0, 99.0)

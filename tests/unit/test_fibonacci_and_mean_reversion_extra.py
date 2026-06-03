@@ -18,7 +18,9 @@ def _pivot(index: int, price: float, direction: PivotDirection) -> PivotPoint:
     return PivotPoint(index=index, price=price, direction=direction, timestamp=index)
 
 
-def _wave(label: int, start_idx: int, start_price: float, end_idx: int, end_price: float) -> WaveSegment:
+def _wave(
+    label: int, start_idx: int, start_price: float, end_idx: int, end_price: float
+) -> WaveSegment:
     direction = PivotDirection.HIGH if end_price >= start_price else PivotDirection.LOW
     return WaveSegment(
         label=label,
@@ -57,7 +59,9 @@ class TestFibonacciCalculatorExtra:
         df = pd.DataFrame(index=pd.RangeIndex(2))
         wave_count = WaveCount(pattern=WavePattern.UNKNOWN)
 
-        with patch.object(calc, "calculate", return_value=FibonacciLevels(retracement={0.5: 100.0})):
+        with patch.object(
+            calc, "calculate", return_value=FibonacciLevels(retracement={0.5: 100.0})
+        ):
             result = calc.compute(df, wave_count=wave_count)
 
         assert result.isna().all()
@@ -66,7 +70,9 @@ class TestFibonacciCalculatorExtra:
         calc = FibonacciCalculator()
 
         unknown = calc.calculate(WaveCount(pattern=WavePattern.UNKNOWN))
-        missing_w1 = calc.calculate(WaveCount(pattern=WavePattern.IMPULSE, waves={3: _wave(3, 1, 110.0, 2, 120.0)}))
+        missing_w1 = calc.calculate(
+            WaveCount(pattern=WavePattern.IMPULSE, waves={3: _wave(3, 1, 110.0, 2, 120.0)})
+        )
         zero_amp = calc.calculate(
             WaveCount(
                 pattern=WavePattern.IMPULSE,
@@ -191,7 +197,9 @@ class TestMeanReversionStrategyExtra:
         assert ctx.flush_signals() == []
 
         with (
-            patch.object(strategy, "_bars_to_df", return_value=pd.DataFrame({"close": [100.0, 101.0]})),
+            patch.object(
+                strategy, "_bars_to_df", return_value=pd.DataFrame({"close": [100.0, 101.0]})
+            ),
             patch.object(
                 strategy,
                 "generate_signals",

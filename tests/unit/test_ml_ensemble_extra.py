@@ -72,7 +72,9 @@ class _BrokenMetaModel:
 
 
 class TestMLEnsembleExtra:
-    def test_on_bar_trims_history_and_emits_long_or_flat_signals(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_on_bar_trims_history_and_emits_long_or_flat_signals(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         strategy = MLEnsembleStrategy(params={"lookback": 3})
         strategy._model = object()
         strategy._max_bars = 4
@@ -112,7 +114,9 @@ class TestMLEnsembleExtra:
         assert signals[0].direction == Direction.LONG
         assert signals[1].direction == Direction.FLAT
 
-    def test_on_bar_returns_when_dataframe_or_entries_are_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_on_bar_returns_when_dataframe_or_entries_are_empty(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         strategy = MLEnsembleStrategy(params={"lookback": 2})
         strategy._model = object()
         ctx = StrategyContext()
@@ -143,7 +147,9 @@ class TestMLEnsembleExtra:
 
         assert ctx.flush_signals() == []
 
-    def test_on_bar_returns_before_signal_generation_when_model_missing_or_lookback_shortfall(self) -> None:
+    def test_on_bar_returns_before_signal_generation_when_model_missing_or_lookback_shortfall(
+        self,
+    ) -> None:
         strategy = MLEnsembleStrategy(params={"lookback": 3})
         ctx = StrategyContext()
 
@@ -156,7 +162,9 @@ class TestMLEnsembleExtra:
     def test_generate_signals_handles_single_class_and_prediction_failure(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        strategy = MLEnsembleStrategy(params={"lookback": 5, "entry_threshold": 0.7, "exit_threshold": 0.4})
+        strategy = MLEnsembleStrategy(
+            params={"lookback": 5, "entry_threshold": 0.7, "exit_threshold": 0.4}
+        )
         df = _make_df(20)
         features = pd.DataFrame({"f1": [1.0, 2.0, 3.0]}, index=df.index[-3:])
 
@@ -181,7 +189,9 @@ class TestMLEnsembleExtra:
     def test_generate_signals_uses_positive_class_probability_for_two_class_model(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        strategy = MLEnsembleStrategy(params={"lookback": 5, "entry_threshold": 0.7, "exit_threshold": 0.4})
+        strategy = MLEnsembleStrategy(
+            params={"lookback": 5, "entry_threshold": 0.7, "exit_threshold": 0.4}
+        )
         df = _make_df(20)
         features = pd.DataFrame({"f1": [1.0, 2.0]}, index=df.index[-2:])
         strategy._model = _FakeClassifier()
@@ -213,9 +223,13 @@ class TestMLEnsembleExtra:
         assert not entries.any()
         assert not exits.any()
 
-    def test_train_model_returns_error_on_length_mismatch(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_train_model_returns_error_on_length_mismatch(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         strategy = MLEnsembleStrategy()
-        monkeypatch.setattr(strategy, "_extract_features", lambda df: pd.DataFrame({"x": [1.0, 2.0]}))
+        monkeypatch.setattr(
+            strategy, "_extract_features", lambda df: pd.DataFrame({"x": [1.0, 2.0]})
+        )
 
         result = strategy.train_model(_make_df(5), pd.Series([1, 0, 1]))
 
@@ -280,7 +294,9 @@ class TestMLEnsembleExtra:
             str(tmp_path / "model_meta.joblib"),
         ]
 
-    def test_train_model_handles_save_failure(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_train_model_handles_save_failure(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         strategy = MLEnsembleStrategy(params={"model_path": str(tmp_path / "model.joblib")})
         features = pd.DataFrame({"f1": [1.0, 2.0, 3.0, 4.0, 5.0]})
         labels = pd.Series([1, 0, 1, 0, 1])
@@ -320,7 +336,9 @@ class TestMLEnsembleExtra:
         assert approved.all()
 
         loaded_paths: list[str] = []
-        monkeypatch.setattr(Path, "exists", lambda self: self.name in {"loaded.joblib", "loaded_meta.joblib"})
+        monkeypatch.setattr(
+            Path, "exists", lambda self: self.name in {"loaded.joblib", "loaded_meta.joblib"}
+        )
 
         joblib = ModuleType("joblib")
 

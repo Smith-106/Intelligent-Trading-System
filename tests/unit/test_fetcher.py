@@ -191,9 +191,7 @@ async def test_fetch_ohlcv_paginates_deduplicates_and_applies_end_filter(
 
 @pytest.mark.asyncio
 async def test_fetch_ohlcv_stops_when_page_smaller_than_limit(data_config: DataConfig) -> None:
-    exchange = _FakeExchange(
-        ohlcv_pages=[[[1_704_067_200_000, 1.0, 2.0, 0.5, 1.5, 10.0]]]
-    )
+    exchange = _FakeExchange(ohlcv_pages=[[[1_704_067_200_000, 1.0, 2.0, 0.5, 1.5, 10.0]]])
     fetcher = DataFetcher(data_config)
     fetcher._exchange = exchange
 
@@ -234,7 +232,9 @@ async def test_fetch_ticker_requires_connection(data_config: DataConfig) -> None
         await fetcher.fetch_ticker("BTC/USDT")
 
 
-def test_get_last_timestamp_success_and_failures(monkeypatch: pytest.MonkeyPatch, data_config: DataConfig) -> None:
+def test_get_last_timestamp_success_and_failures(
+    monkeypatch: pytest.MonkeyPatch, data_config: DataConfig
+) -> None:
     fetcher = DataFetcher(data_config)
 
     class _QueryResult:

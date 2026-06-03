@@ -60,7 +60,9 @@ class TestExecutionEngineExtra:
         assert gateway.connected_with == {"token": "abc"}
 
     @pytest.mark.asyncio
-    async def test_start_live_and_fallback_modes_select_gateways(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_start_live_and_fallback_modes_select_gateways(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         created: list[tuple[str, Any]] = []
 
         class FakePaperGateway:
@@ -192,7 +194,9 @@ class TestExecutionEngineExtra:
         assert await engine.cancel("preset-oid", "ETH/USDT") is False
 
     @pytest.mark.asyncio
-    async def test_close_position_submits_opposing_order_for_long_and_short(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_close_position_submits_opposing_order_for_long_and_short(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         engine = ExecutionEngine(gateway=_PresetGateway())
         await engine.start()
         captured: list[tuple[str, OrderSide, float]] = []

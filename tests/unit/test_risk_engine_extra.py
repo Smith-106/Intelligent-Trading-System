@@ -8,7 +8,9 @@ from quantflow.signal.risk_engine import RiskEngine
 
 
 def _signal(symbol: str = "BTC/USDT") -> Signal:
-    return Signal(symbol=symbol, direction=Direction.LONG, strength=0.8, price=100.0, strategy_id="test")
+    return Signal(
+        symbol=symbol, direction=Direction.LONG, strength=0.8, price=100.0, strategy_id="test"
+    )
 
 
 class TestRiskEngineExtra:
@@ -26,7 +28,9 @@ class TestRiskEngineExtra:
         engine = RiskEngine(RiskConfig(position_limit_pct=0.1))
         portfolio = Portfolio(
             cash=0.0,
-            positions={"BTC/USDT": Position("BTC/USDT", quantity=1.0, entry_price=100.0, current_price=0.0)},
+            positions={
+                "BTC/USDT": Position("BTC/USDT", quantity=1.0, entry_price=100.0, current_price=0.0)
+            },
         )
 
         result = engine.check(_signal(), portfolio)

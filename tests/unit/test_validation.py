@@ -81,7 +81,10 @@ class TestCPCV:
         assert result["is_sharpe_mean"] == 0.0
         assert result["oos_sharpe_mean"] == 0.0
         assert result["oos_sharpe_min"] == 0.0
-        assert all(path == {"path": idx, "oos_sharpe": 0.0} for idx, path in enumerate(result["path_results"]))
+        assert all(
+            path == {"path": idx, "oos_sharpe": 0.0}
+            for idx, path in enumerate(result["path_results"])
+        )
 
 
 class TestDSR:
@@ -214,7 +217,9 @@ class TestWFO:
 
         monkeypatch.setattr("quantflow.strategy.research.backtest.BacktestEngine", FakeEngine)
 
-        result = walk_forward_optimization(close, entries, exits, n_windows=3, mode="rolling", oos_ratio=0.8)
+        result = walk_forward_optimization(
+            close, entries, exits, n_windows=3, mode="rolling", oos_ratio=0.8
+        )
 
         assert result["n_windows"] == 3
         assert len(result["window_results"]) == 3
@@ -297,7 +302,9 @@ class TestValidationGate:
                 {"passed": True, "oos_efficiency": 0.7},
             ]
         )
-        monkeypatch.setattr(gate_module, "walk_forward_optimization", lambda *args, **kwargs: next(results))
+        monkeypatch.setattr(
+            gate_module, "walk_forward_optimization", lambda *args, **kwargs: next(results)
+        )
 
         result = validation_gate(close, entries, exits, wfo_windows=2)
 

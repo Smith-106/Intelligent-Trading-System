@@ -85,9 +85,7 @@ async def test_connect_sets_exchange_and_sandbox(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(ccxt, "okx", build_okx)
     gateway = OKXGateway(sandbox=False)
 
-    await gateway.connect(
-        {"api_key": "k", "secret": "s", "passphrase": "p", "sandbox": True}
-    )
+    await gateway.connect({"api_key": "k", "secret": "s", "passphrase": "p", "sandbox": True})
 
     assert gateway.is_connected is True
     assert gateway._exchange is exchange

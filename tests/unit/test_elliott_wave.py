@@ -225,7 +225,9 @@ class TestElliottWaveStrategy:
         strategy = ElliottWaveStrategy()
 
         with (
-            patch("quantflow.strategy.templates.elliott_wave.elliott_wave", return_value=empty_wave),
+            patch(
+                "quantflow.strategy.templates.elliott_wave.elliott_wave", return_value=empty_wave
+            ),
             patch("quantflow.indicators.elliott_wave.zigzag", return_value=pd.DataFrame()),
             patch(
                 "quantflow.strategy.templates.elliott_wave.wave_momentum_divergence",

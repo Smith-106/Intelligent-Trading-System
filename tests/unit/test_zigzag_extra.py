@@ -20,7 +20,9 @@ class TestZigZagIndicatorExtra:
         assert result.overlap_ratio == 0.0
         assert result.thresholds_used == [0.03, 0.05, 0.08, 0.12, 0.15]
 
-    def test_compute_pivot_sequence_uses_zero_timestamp_when_index_is_out_of_range(self, monkeypatch) -> None:
+    def test_compute_pivot_sequence_uses_zero_timestamp_when_index_is_out_of_range(
+        self, monkeypatch
+    ) -> None:
         indicator = ZigZagIndicator()
         high = pd.Series([100.0, 110.0, 105.0], dtype=float)
         low = pd.Series([99.0, 100.0, 95.0], dtype=float)
@@ -33,7 +35,9 @@ class TestZigZagIndicatorExtra:
             ),
         )
 
-        result = indicator.compute_pivot_sequence(high, low, timestamps, thresholds=[0.05], min_overlap_ratio=1.0)
+        result = indicator.compute_pivot_sequence(
+            high, low, timestamps, thresholds=[0.05], min_overlap_ratio=1.0
+        )
 
         assert len(result.pivots) == 1
         assert result.pivots[0].timestamp == 0
@@ -56,7 +60,9 @@ class TestZigZagHelpersExtra:
     def test_merge_pivot_runs_handles_empty_runs_empty_entries_and_no_consensus(self) -> None:
         assert _merge_pivot_runs([]).empty
 
-        empty_entries = _merge_pivot_runs([pd.DataFrame(columns=["pivot_idx", "pivot_price", "pivot_type"])])
+        empty_entries = _merge_pivot_runs(
+            [pd.DataFrame(columns=["pivot_idx", "pivot_price", "pivot_type"])]
+        )
         assert empty_entries.empty
 
         no_consensus = _merge_pivot_runs(

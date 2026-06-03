@@ -147,7 +147,9 @@ class TestVolatilityIndicators:
 
 
 class TestFeatureStoreSmallGaps:
-    def test_compute_features_appends_symbol_and_timestamp(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_compute_features_appends_symbol_and_timestamp(
+        self, tmp_path: pytest.TempPathFactory
+    ) -> None:
         store = FeatureStore(str(tmp_path))
         raw = pd.DataFrame(
             {
@@ -163,7 +165,9 @@ class TestFeatureStoreSmallGaps:
         raw_store.query.return_value = raw
         computed = pd.DataFrame({"timestamp": [1, 2, 3], "feature_a": [0.1, 0.2, 0.3]})
 
-        with patch("quantflow.indicators.engine.IndicatorEngine.compute_all", return_value=computed.copy()) as mock_compute:
+        with patch(
+            "quantflow.indicators.engine.IndicatorEngine.compute_all", return_value=computed.copy()
+        ) as mock_compute:
             result = store.compute_features("BTC/USDT", 3, ["feature_a"], raw_store)
 
         mock_compute.assert_called_once()

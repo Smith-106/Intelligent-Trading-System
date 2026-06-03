@@ -14,11 +14,17 @@ def _pivot(index: int, price: float, direction: PivotDirection) -> PivotPoint:
     return PivotPoint(index=index, price=price, direction=direction, timestamp=index)
 
 
-def _wave(label: int, start_idx: int, start_price: float, end_idx: int, end_price: float) -> WaveSegment:
+def _wave(
+    label: int, start_idx: int, start_price: float, end_idx: int, end_price: float
+) -> WaveSegment:
     direction = PivotDirection.HIGH if end_price >= start_price else PivotDirection.LOW
     return WaveSegment(
         label=label,
-        start=_pivot(start_idx, start_price, PivotDirection.LOW if direction == PivotDirection.HIGH else PivotDirection.HIGH),
+        start=_pivot(
+            start_idx,
+            start_price,
+            PivotDirection.LOW if direction == PivotDirection.HIGH else PivotDirection.HIGH,
+        ),
         end=_pivot(end_idx, end_price, direction),
     )
 
@@ -33,7 +39,9 @@ class TestWaveChannel:
         df = _frame(5)
 
         result_none = channel.compute(df)
-        result_corrective = channel.compute(df, wave_count=WaveCount(pattern=WavePattern.CORRECTIVE))
+        result_corrective = channel.compute(
+            df, wave_count=WaveCount(pattern=WavePattern.CORRECTIVE)
+        )
 
         assert result_none.isna().all()
         assert result_corrective.isna().all()

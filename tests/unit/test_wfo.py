@@ -38,10 +38,14 @@ class TestWalkForwardOptimizationClass:
         assert result.passed is False
         assert result.details == {"error": "no valid folds produced"}
 
-    def test_run_uses_optimize_fn_and_aggregates_fold_metrics(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_run_uses_optimize_fn_and_aggregates_fold_metrics(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         close = _close_series(20)
         entries, exits = _signal_series(20)
-        wfo = WalkForwardOptimization(n_folds=4, test_ratio=0.4, anchored=True, degradation_threshold=0.6)
+        wfo = WalkForwardOptimization(
+            n_folds=4, test_ratio=0.4, anchored=True, degradation_threshold=0.6
+        )
         optimize_calls: list[int] = []
         sharpe_values = iter([2.0, 1.5, 1.0, 0.8, 3.0, 1.8])
         return_values = iter([0.2, 0.1, 0.15, 0.05, 0.3, 0.12])
@@ -68,10 +72,14 @@ class TestWalkForwardOptimizationClass:
         assert result.total_test_return == pytest.approx(0.1 + 0.05)
         assert result.passed is True
 
-    def test_run_sets_degradation_zero_when_mean_train_is_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_run_sets_degradation_zero_when_mean_train_is_zero(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         close = _close_series(20)
         entries, exits = _signal_series(20)
-        wfo = WalkForwardOptimization(n_folds=4, test_ratio=0.4, anchored=False, degradation_threshold=0.1)
+        wfo = WalkForwardOptimization(
+            n_folds=4, test_ratio=0.4, anchored=False, degradation_threshold=0.1
+        )
         sharpe_values = iter([0.0, 1.0, 0.0, 0.5, 0.0, -0.5])
         return_values = iter([0.0, 0.1, 0.0, 0.1, 0.0, 0.1])
 
@@ -89,7 +97,9 @@ class TestWalkForwardOptimizationClass:
     ) -> None:
         close = _close_series(20)
         entries, exits = _signal_series(20)
-        wfo = WalkForwardOptimization(n_folds=4, test_ratio=0.4, anchored=True, degradation_threshold=0.1)
+        wfo = WalkForwardOptimization(
+            n_folds=4, test_ratio=0.4, anchored=True, degradation_threshold=0.1
+        )
         sharpe_values = iter([1.0, 0.8, 1.2, 0.7])
         return_values = iter([0.1, 0.05, 0.2, 0.08])
 
@@ -130,7 +140,9 @@ class TestWalkForwardOptimizationClass:
 
 
 class TestWalkForwardOptimizationFunction:
-    def test_function_interface_handles_is_and_oos_exceptions(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_function_interface_handles_is_and_oos_exceptions(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         close = _close_series(12)
         entries, exits = _signal_series(12)
 
@@ -153,7 +165,9 @@ class TestWalkForwardOptimizationFunction:
 
         monkeypatch.setattr("quantflow.strategy.research.backtest.BacktestEngine", FakeEngine)
 
-        result = walk_forward_optimization(close, entries, exits, n_windows=2, mode="rolling", oos_ratio=0.5)
+        result = walk_forward_optimization(
+            close, entries, exits, n_windows=2, mode="rolling", oos_ratio=0.5
+        )
 
         assert result["n_windows"] == 2
         assert result["window_results"][0]["is_sharpe"] == 0.0
@@ -161,7 +175,9 @@ class TestWalkForwardOptimizationFunction:
         assert result["window_results"][0]["oos_trades"] == 0
         assert result["window_results"][1]["oos_return"] == pytest.approx(0.12)
 
-    def test_function_interface_supports_zero_length_oos_windows(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_function_interface_supports_zero_length_oos_windows(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         close = _close_series(10)
         entries, exits = _signal_series(10)
 
@@ -176,7 +192,9 @@ class TestWalkForwardOptimizationFunction:
 
         monkeypatch.setattr("quantflow.strategy.research.backtest.BacktestEngine", FakeEngine)
 
-        result = walk_forward_optimization(close, entries, exits, n_windows=6, mode="anchored", oos_ratio=0.6)
+        result = walk_forward_optimization(
+            close, entries, exits, n_windows=6, mode="anchored", oos_ratio=0.6
+        )
 
         assert result["n_windows"] == 6
         assert result["mode"] == "anchored"
