@@ -135,7 +135,7 @@ class TradingSession:
                     "KILL SWITCH ACTIVATED: drawdown breach",
                     AlertLevel.CRITICAL,
                     extra={"drawdown": pf.current_drawdown},
-            )
+                )
             self._running = False
             self._record_bar_latency(bar.symbol, started_at)
             return

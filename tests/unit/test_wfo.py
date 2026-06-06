@@ -172,11 +172,13 @@ class TestWalkForwardOptimizationFunction:
         def signal_fn(frame: pd.DataFrame, **params):
             calls.append(("signal", len(frame), dict(params)))
             threshold = int(params["threshold"])
-            generated_entries = (frame["close"] % threshold == 0)
+            generated_entries = frame["close"] % threshold == 0
             generated_exits = pd.Series(False, index=frame.index)
             return generated_entries, generated_exits
 
-        monkeypatch.setattr("quantflow.strategy.research.optimizer.StrategyOptimizer", FakeOptimizer)
+        monkeypatch.setattr(
+            "quantflow.strategy.research.optimizer.StrategyOptimizer", FakeOptimizer
+        )
         monkeypatch.setattr("quantflow.strategy.research.backtest.BacktestEngine", FakeEngine)
 
         result = walk_forward_optimization(

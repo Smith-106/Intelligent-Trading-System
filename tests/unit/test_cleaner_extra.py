@@ -82,7 +82,8 @@ def test_internal_validate_no_future_leak_handles_missing_and_nondatetime_column
 
 
 def test_internal_validate_no_future_leak_raises_for_future_datetime() -> None:
-    df = pd.DataFrame({"timestamp": pd.to_datetime(["2999-01-01T00:00:00Z"], utc=True)})
+    future_timestamp = pd.Timestamp.now(tz="UTC") + pd.Timedelta(days=1)
+    df = pd.DataFrame({"timestamp": [future_timestamp]})
 
     with pytest.raises(ValueError, match="Future data detected"):
         _validate_no_future_leak(df, "timestamp")

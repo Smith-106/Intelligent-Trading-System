@@ -70,9 +70,7 @@ class TestStrategyOptimizer:
         )
         assert "best_params" in result
 
-    def test_optimize_grid_uses_local_sweep_without_optuna_study(
-        self, sample_data, monkeypatch
-    ):
+    def test_optimize_grid_uses_local_sweep_without_optuna_study(self, sample_data, monkeypatch):
         import optuna
 
         class _Engine:

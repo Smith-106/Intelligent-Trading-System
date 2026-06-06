@@ -1,6 +1,7 @@
 # QuantFlow v0.1.2 Test Report
 
 发布日期：2026-06-03
+复验日期：2026-06-06
 
 ## 本地验证
 
@@ -31,8 +32,8 @@ python -m pytest tests --cov=quantflow --cov-report=term-missing --cov-report=te
 
 - `ruff` 通过
 - `mypy` 通过
-- `587 passed, 2 skipped`
-- 覆盖率 `99.96%`
+- `601 passed, 2 skipped`
+- 覆盖率 `98.17%`
 
 ### 3. Wheel 安装冒烟
 
@@ -40,6 +41,7 @@ python -m pytest tests --cov=quantflow --cov-report=term-missing --cov-report=te
 
 - `python -m quantflow.cli.main status` 通过
 - `quantflow status` 通过
+- `quantflow benchmark --bars 120 --trials 1 --wfo-windows 1 --skip-subprocess --json` 通过，`failures: []`
 - 状态页版本号为 `0.1.2`
 
 ### 4. 环境 / Docker

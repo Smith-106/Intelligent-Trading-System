@@ -6,13 +6,13 @@
   "assets": [
     {
       "name": "quantflow-0.1.2.tar.gz",
-      "sha256": "daca1ac156e887cf693f7b87ff54c646afea95437f14088bd92443d8692229b5",
+      "sha256": "84b5d735ef1db6704bf377661e1e93353c4e4f04aa273b3c2abce77ec4e5fb84",
       "path": "dist/quantflow-0.1.2.tar.gz",
       "checksum_path": "dist/quantflow-0.1.2.tar.gz.sha256"
     },
     {
       "name": "quantflow-0.1.2-py3-none-any.whl",
-      "sha256": "d15a777fffab6199d301f23b5dab9a52227fc3870785377baf64a9b0d6eb8b3d",
+      "sha256": "c913c298d6bcb38b11eb24a55e53c7b727637ac52b046190389f38c26090d5da",
       "path": "dist/quantflow-0.1.2-py3-none-any.whl",
       "checksum_path": "dist/quantflow-0.1.2-py3-none-any.whl.sha256"
     }

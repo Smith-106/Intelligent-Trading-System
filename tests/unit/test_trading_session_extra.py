@@ -288,9 +288,7 @@ class TestTradingSessionExtra:
         )
         monkeypatch.setattr(session.portfolio, "check_drawdown", lambda limit: True)
         monkeypatch.setattr("quantflow.strategy.engine.BAR_PROCESSING_LATENCY", FakeHistogram())
-        monkeypatch.setattr(
-            "quantflow.strategy.engine.SIGNAL_PROCESSING_LATENCY", FakeHistogram()
-        )
+        monkeypatch.setattr("quantflow.strategy.engine.SIGNAL_PROCESSING_LATENCY", FakeHistogram())
 
         await session.on_bar(_bar())
 

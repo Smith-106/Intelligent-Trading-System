@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pandas as pd
 from typer.testing import CliRunner
@@ -231,7 +232,7 @@ class TestCLIBasics:
                 "volume": 1000.0,
             }
         )
-        calls: list[dict[str, object]] = []
+        calls: list[dict[str, Any]] = []
 
         class FakeDataStore:
             def __init__(self, parquet_dir, duckdb_path) -> None:

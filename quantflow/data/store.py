@@ -193,9 +193,7 @@ class DataStore:
         start_period = DataStore._timestamp_period(start, lower_bound=True)
         end_period = DataStore._timestamp_period(end, lower_bound=False)
         return [
-            path
-            for path in paths
-            if start_period <= DataStore._path_period(path) <= end_period
+            path for path in paths if start_period <= DataStore._path_period(path) <= end_period
         ]
 
     @staticmethod
