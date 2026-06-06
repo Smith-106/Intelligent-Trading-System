@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from quantflow.data.store import DataStore, _validate_symbol
+from quantflow.data.store import DataStore, _validate_columns, _validate_symbol
 from quantflow.indicators import trend
 
 
@@ -85,6 +85,15 @@ class TestDataStoreHelpers:
         with pytest.raises(ValueError, match="Invalid symbol format"):
             _validate_symbol("BTC;DROP TABLE")
 
+    def test_validate_columns_deduplicates_and_rejects_invalid_values(self):
+        assert _validate_columns(["timestamp", "close", "close"]) == ["timestamp", "close"]
+
+        with pytest.raises(ValueError, match="columns must not be empty"):
+            _validate_columns([])
+
+        with pytest.raises(ValueError, match="Invalid column name"):
+            _validate_columns(["timestamp", "close;DROP TABLE"])
+
     def test_save_requires_datetime_or_timestamp(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = DataStore(str(Path(tmp) / "pq"))
@@ -130,6 +139,44 @@ class TestDataStoreHelpers:
                 frame["timestamp"].iloc[2],
             ]
             assert date_range == (frame["timestamp"].min(), frame["timestamp"].max())
+            store.close()
+
+    def test_query_projects_columns_and_prunes_month_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = DataStore(str(Path(tmp) / "pq"), str(Path(tmp) / "db.duckdb"))
+            dates = pd.to_datetime(
+                ["2024-01-30", "2024-01-31", "2024-02-01", "2024-02-02"],
+                utc=True,
+            )
+            frame = pd.DataFrame(
+                {
+                    "timestamp": [int(d.timestamp() * 1000) for d in dates],
+                    "datetime": dates,
+                    "open": [100.0, 101.0, 102.0, 103.0],
+                    "high": [101.0, 102.0, 103.0, 104.0],
+                    "low": [99.0, 100.0, 101.0, 102.0],
+                    "close": [100.5, 101.5, 102.5, 103.5],
+                    "volume": [10.0, 11.0, 12.0, 13.0],
+                    "timeframe": ["1d"] * 4,
+                }
+            )
+            store.save(frame, "BTC/USDT")
+
+            jan_paths = store._candidate_paths(
+                Path(tmp) / "pq" / "BTC_USDT",
+                int(frame["timestamp"].iloc[0]),
+                int(frame["timestamp"].iloc[1]),
+            )
+            result = store.query(
+                "BTC/USDT",
+                start=frame["timestamp"].iloc[0],
+                end=frame["timestamp"].iloc[1],
+                columns=("timestamp", "close"),
+            )
+
+            assert [path.name for path in jan_paths] == ["01.parquet"]
+            assert list(result.columns) == ["timestamp", "close"]
+            assert result["timestamp"].tolist() == frame["timestamp"].iloc[:2].tolist()
             store.close()
 
     def test_get_date_range_handles_missing_symbol_and_existing_helpers(self):

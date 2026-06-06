@@ -241,6 +241,54 @@ class TestTradingSessionExtra:
             ("short", "sell", 0.3),
         ]
 
+    @pytest.mark.asyncio
+    async def test_on_bar_records_bar_and_signal_latency_metrics(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        observations: list[tuple[dict[str, str], float]] = []
+
+        class FakeHistogram:
+            def labels(self, **labels: str) -> object:
+                class Child:
+                    def observe(self, value: float) -> None:
+                        observations.append((labels, value))
+
+                return Child()
+
+        signal = Signal(
+            symbol="BTC/USDT",
+            direction=Direction.LONG,
+            strength=0.5,
+            price=100.0,
+            strategy_id="latency",
+        )
+        strategy = _Strategy("latency", signal=signal)
+        session = TradingSession(AppConfig(), [strategy])
+        session._running = True
+        session._contexts = {"latency": StrategyContext()}
+        session.portfolio.set_allocation({"latency": 1.0})
+        session._risk_engine.check = lambda signal, portfolio: RiskDecision(passed=True)
+        session._position_sizer.size = lambda signal, portfolio: 0.0
+
+        monkeypatch.setattr(
+            session.execution.position_manager, "update_market_price", lambda symbol, price: None
+        )
+        monkeypatch.setattr(session.portfolio, "update_position", lambda symbol, qty, price: None)
+        monkeypatch.setattr(
+            "quantflow.strategy.engine.update_portfolio_metrics", lambda **kwargs: None
+        )
+        monkeypatch.setattr(session.portfolio, "check_drawdown", lambda limit: True)
+        monkeypatch.setattr("quantflow.strategy.engine.BAR_PROCESSING_LATENCY", FakeHistogram())
+        monkeypatch.setattr(
+            "quantflow.strategy.engine.SIGNAL_PROCESSING_LATENCY", FakeHistogram()
+        )
+
+        await session.on_bar(_bar())
+
+        assert any(labels == {"symbol": "BTC/USDT"} for labels, _ in observations)
+        assert any(labels == {"strategy_id": "latency"} for labels, _ in observations)
+        assert all(value >= 0 for _, value in observations)
+
     def test_on_risk_event_and_check_health_cover_remaining_branches(self) -> None:
         session = TradingSession(AppConfig(), [_Strategy()])
         session._kill_switch = _FakeKillSwitch(active=False)

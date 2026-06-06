@@ -12,6 +12,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 _SYMBOL_PATTERN = re.compile(r"^[A-Za-z0-9/_-]{1,20}$")
+_COLUMN_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def _validate_symbol(symbol: str) -> str:
@@ -22,6 +23,18 @@ def _validate_symbol(symbol: str) -> str:
             "Only alphanumeric, /, _, - characters allowed (max 20 chars)."
         )
     return symbol.replace("/", "_")
+
+
+def _validate_columns(columns: list[str] | tuple[str, ...] | None) -> list[str] | None:
+    """Validate column names used in dynamically generated SQL."""
+    if columns is None:
+        return None
+    if not columns:
+        raise ValueError("columns must not be empty")
+    invalid = [column for column in columns if not _COLUMN_PATTERN.match(column)]
+    if invalid:
+        raise ValueError(f"Invalid column name(s): {invalid!r}")
+    return list(dict.fromkeys(columns))
 
 
 class DataStore:
@@ -82,27 +95,38 @@ class DataStore:
         start: int | None = None,
         end: int | None = None,
         timeframe: str | None = None,
+        columns: list[str] | tuple[str, ...] | None = None,
     ) -> pd.DataFrame:
         """Query stored data via DuckDB."""
-        symbol_name = symbol.replace("/", "_")
-        # Use forward slashes for DuckDB glob pattern (cross-platform)
-        pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/**/*.parquet"
+        symbol_name = _validate_symbol(symbol)
+        selected_columns = _validate_columns(columns)
+        source = self._read_parquet_source(symbol_name, start, end)
+        if source is None:
+            return pd.DataFrame(columns=selected_columns or None)
 
+        select_clause = "*" if selected_columns is None else ", ".join(selected_columns)
         conditions = []
+        params: list[int | str] = []
         if start is not None:
-            conditions.append(f"timestamp >= {start}")
+            conditions.append("timestamp >= ?")
+            params.append(int(start))
         if end is not None:
-            conditions.append(f"timestamp <= {end}")
+            conditions.append("timestamp <= ?")
+            params.append(int(end))
         if timeframe is not None:
-            conditions.append(f"timeframe = '{timeframe}'")
+            conditions.append("timeframe = ?")
+            params.append(timeframe)
 
         where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
 
         try:
-            result = self._db.query(f"""
-                SELECT * FROM read_parquet('{pattern}'){where}
+            result = self._db.execute(
+                f"""
+                SELECT {select_clause} FROM read_parquet({source}){where}
                 ORDER BY timestamp
-            """).df()
+                """,
+                params,
+            ).df()
             return result
         except Exception as e:
             logger.warning("Query failed for %s: %s", symbol, e)
@@ -138,6 +162,52 @@ class DataStore:
         if path.exists():
             return pd.read_parquet(path)
         return None
+
+    def _read_parquet_source(
+        self,
+        symbol_name: str,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> str | None:
+        symbol_dir = self._parquet_dir / symbol_name
+        if not symbol_dir.exists():
+            return None
+
+        paths = self._candidate_paths(symbol_dir, start, end)
+        if start is None and end is None:
+            if not paths:
+                pattern = f"{symbol_dir.as_posix()}/**/*.parquet"
+                return f"'{pattern}'"
+        if not paths:
+            return None
+
+        escaped = [f"'{path.as_posix().replace(chr(39), chr(39) + chr(39))}'" for path in paths]
+        return f"[{', '.join(escaped)}]"
+
+    @staticmethod
+    def _candidate_paths(symbol_dir: Path, start: int | None, end: int | None) -> list[Path]:
+        paths = sorted(symbol_dir.glob("*/*.parquet"))
+        if start is None and end is None:
+            return paths
+
+        start_period = DataStore._timestamp_period(start, lower_bound=True)
+        end_period = DataStore._timestamp_period(end, lower_bound=False)
+        return [
+            path
+            for path in paths
+            if start_period <= DataStore._path_period(path) <= end_period
+        ]
+
+    @staticmethod
+    def _timestamp_period(timestamp: int | None, *, lower_bound: bool) -> tuple[int, int]:
+        if timestamp is None:
+            return (0, 1) if lower_bound else (9999, 12)
+        dt = pd.to_datetime(timestamp, unit="ms", utc=True)
+        return int(dt.year), int(dt.month)
+
+    @staticmethod
+    def _path_period(path: Path) -> tuple[int, int]:
+        return int(path.parent.name), int(path.stem)
 
     @staticmethod
     def group_cols(df: pd.DataFrame) -> list[str]:

@@ -37,6 +37,39 @@ class TestExecutionEngine:
         await engine.stop()
 
     @pytest.mark.asyncio
+    async def test_submit_records_order_latency_metric(self, monkeypatch):
+        observations: list[tuple[dict[str, str], float]] = []
+
+        class FakeHistogram:
+            def labels(self, **labels: str) -> object:
+                class Child:
+                    def observe(self, value: float) -> None:
+                        observations.append((labels, value))
+
+                return Child()
+
+        monkeypatch.setattr("quantflow.execution.engine.ORDER_LATENCY", FakeHistogram())
+
+        engine = ExecutionEngine()
+        await engine.start(mode="paper")
+        order = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=0.1,
+            price=50000.0,
+            strategy_id="test",
+        )
+
+        await engine.submit(order)
+
+        assert len(observations) == 1
+        assert observations[0][0] == {"symbol": "BTC/USDT"}
+        assert observations[0][1] >= 0
+        await engine.stop()
+
+    @pytest.mark.asyncio
     async def test_submit_order_no_gateway(self):
         engine = ExecutionEngine()
         order = Order(

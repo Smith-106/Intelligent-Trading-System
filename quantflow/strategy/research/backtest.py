@@ -77,6 +77,31 @@ class BacktestEngine:
         exits = exits.reindex(close.index).fillna(False).astype(bool)
 
         n = len(close)
+        if n == 0:
+            empty_curve = pd.Series(dtype=float)
+            return BacktestResult(
+                strategy_id=strategy_id,
+                symbol=symbol,
+                start_date="",
+                end_date="",
+                initial_capital=initial_capital,
+                final_capital=initial_capital,
+                total_return=0.0,
+                annual_return=0.0,
+                sharpe_ratio=0.0,
+                sortino_ratio=0.0,
+                calmar_ratio=0.0,
+                max_drawdown=0.0,
+                win_rate=0.0,
+                profit_factor=0.0,
+                num_trades=0,
+                equity_curve=empty_curve,
+                drawdown_curve=empty_curve,
+            )
+
+        close_values = close.to_numpy(dtype=float, copy=False)
+        entry_values = entries.to_numpy(dtype=bool, copy=False)
+        exit_values = exits.to_numpy(dtype=bool, copy=False)
         equity = np.full(n, initial_capital, dtype=float)
         in_position = False
         entry_price = 0.0
@@ -84,12 +109,12 @@ class BacktestEngine:
 
         for i in range(1, n):
             prev_idx = i - 1
-            if not in_position and entries.iloc[prev_idx]:
+            if not in_position and entry_values[prev_idx]:
                 in_position = True
-                entry_price = close.iloc[i] * (1 + fee)
+                entry_price = close_values[i] * (1 + fee)
                 equity[i] = equity[prev_idx]
-            elif in_position and exits.iloc[prev_idx]:
-                exit_price = close.iloc[i] * (1 - fee)
+            elif in_position and exit_values[prev_idx]:
+                exit_price = close_values[i] * (1 - fee)
                 trades.append((entry_price, exit_price))
                 ret = (exit_price - entry_price) / entry_price
                 equity[i] = equity[prev_idx] * (1 + ret)
@@ -100,7 +125,7 @@ class BacktestEngine:
 
         # Close any open position at last bar
         if in_position and n > 0:
-            exit_price = close.iloc[-1] * (1 - fee)
+            exit_price = close_values[-1] * (1 - fee)
             trades.append((entry_price, exit_price))
             ret = (exit_price - entry_price) / entry_price
             equity[-1] = equity[-1] * (1 + ret)

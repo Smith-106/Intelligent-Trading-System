@@ -46,6 +46,27 @@ class TestCLIBasics:
         assert result.exit_code == 0
         assert "mode" in result.output.lower()
 
+    def test_benchmark_command_reports_core_performance_paths(self):
+        result = runner.invoke(
+            app,
+            [
+                "benchmark",
+                "--bars",
+                "80",
+                "--trials",
+                "1",
+                "--wfo-windows",
+                "1",
+                "--skip-subprocess",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "QuantFlow Performance Baseline" in result.output
+        assert "query rows/sec" in result.output
+        assert "TradingSession.on_bar batch" in result.output
+        assert "paper submit_order batch" in result.output
+
     def test_run_command_starts_session_and_enters_data_loop(self, monkeypatch) -> None:
         events: list[tuple[object, ...]] = []
 

@@ -721,6 +721,214 @@ def _signal_quality_summary(result: ResultDict) -> str:
 
 
 @app.command()
+def benchmark(
+    bars: int = typer.Option(500, min=80, help="Synthetic OHLCV bars for local benchmarks"),
+    trials: int = typer.Option(3, min=1, help="Optimization trials for the benchmark loop"),
+    wfo_windows: int = typer.Option(2, min=1, help="WFO windows for validation benchmark"),
+    test_target: str = typer.Option(
+        "tests/unit/test_cli.py", help="Pytest target for test-runtime baseline"
+    ),
+    skip_subprocess: bool = typer.Option(
+        False, "--skip-subprocess", help="Skip CLI startup and pytest subprocess baselines"
+    ),
+) -> None:
+    """Run a synthetic performance baseline across key QuantFlow paths."""
+    import sys
+    import tempfile
+    from time import perf_counter
+
+    import numpy as np
+    import pandas as pd
+
+    from quantflow.common.config import AppConfig
+    from quantflow.common.models import Bar, Direction, OrderRequest, OrderSide
+    from quantflow.data.store import DataStore
+    from quantflow.execution.engine import ExecutionEngine
+    from quantflow.strategy.base import StrategyBase, StrategyContext
+    from quantflow.strategy.engine import TradingSession
+    from quantflow.strategy.research.backtest import BacktestEngine
+    from quantflow.strategy.research.optimizer import StrategyOptimizer
+    from quantflow.strategy.validation.wfo import walk_forward_optimization
+
+    dates = pd.date_range("2024-01-01", periods=bars, freq="h", tz="UTC")
+    rng = np.random.default_rng(42)
+    close_values = 100.0 + np.cumsum(rng.normal(0.02, 0.8, bars))
+    frame = pd.DataFrame(
+        {
+            "timestamp": [int(dt.timestamp() * 1000) for dt in dates],
+            "datetime": dates,
+            "open": close_values - 0.2,
+            "high": close_values + 0.5,
+            "low": close_values - 0.5,
+            "close": close_values,
+            "volume": rng.uniform(10.0, 100.0, bars),
+            "symbol": "BTC/USDT",
+            "timeframe": "1h",
+        }
+    )
+    close = pd.Series(close_values, index=dates)
+    rolling_mean = close.rolling(12, min_periods=1).mean()
+    entries = (close > rolling_mean).fillna(False)
+    exits = (close < rolling_mean).fillna(False)
+    rows: list[tuple[str, str, str]] = []
+
+    def _time(area: str, metric: str, action: Callable[[], Any]) -> Any:
+        started_at = perf_counter()
+        value = action()
+        elapsed_ms = (perf_counter() - started_at) * 1000
+        rows.append((area, metric, f"{elapsed_ms:.2f} ms"))
+        return value
+
+    def _throughput(area: str, metric: str, count: int, elapsed_ms: float) -> None:
+        per_second = count / max(elapsed_ms / 1000, 1e-9)
+        rows.append((area, metric, f"{per_second:.0f}/s"))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        store = DataStore(str(Path(tmp) / "pq"), str(Path(tmp) / "db.duckdb"))
+        _time("data", "save synthetic parquet", lambda: store.save(frame, "BTC/USDT"))
+
+        started_at = perf_counter()
+        queried = store.query(
+            "BTC/USDT",
+            start=int(frame["timestamp"].iloc[bars // 4]),
+            end=int(frame["timestamp"].iloc[-1]),
+            timeframe="1h",
+            columns=("timestamp", "close", "volume"),
+        )
+        query_ms = (perf_counter() - started_at) * 1000
+        rows.append(("data", "query projected range", f"{query_ms:.2f} ms"))
+        _throughput("data", "query rows/sec", len(queried), query_ms)
+        store.close()
+
+    engine = BacktestEngine()
+    _time("research", "backtest", lambda: engine.run_backtest(close, entries, exits))
+
+    def _signal_fn(close_series: pd.Series, threshold: float = 1.0) -> tuple[pd.Series, pd.Series]:
+        mean = close_series.rolling(12, min_periods=1).mean()
+        return close_series > mean * threshold, close_series < mean * threshold
+
+    optimizer = StrategyOptimizer(engine=engine)
+    _time(
+        "research",
+        f"optimizer {trials} trials",
+        lambda: optimizer.optimize(
+            close,
+            _signal_fn,
+            {"threshold": (0.98, 1.02)},
+            n_trials=trials,
+            method="grid",
+        ),
+    )
+    _time(
+        "validation",
+        "optimized WFO",
+        lambda: walk_forward_optimization(
+            close,
+            entries,
+            exits,
+            n_windows=wfo_windows,
+            signal_fn=lambda data, threshold=1.0: _signal_fn(data["close"], threshold),
+            param_space={"threshold": (0.98, 1.02)},
+            data=pd.DataFrame({"close": close}, index=close.index),
+            n_trials=trials,
+            method="grid",
+        ),
+    )
+
+    class NoSignalStrategy(StrategyBase):
+        def __init__(self) -> None:
+            super().__init__(name="benchmark_no_signal")
+
+        def on_bar(self, ctx: StrategyContext, bar: Bar) -> None:
+            if bar.close < 0:
+                ctx.emit_signal(bar.symbol, Direction.LONG, 1.0, bar.close, self.name)
+
+        def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+            empty = pd.Series(False, index=df.index)
+            return empty, empty
+
+    async def _runtime_baselines() -> None:
+        strategy = NoSignalStrategy()
+        session = TradingSession(AppConfig(), [strategy])
+        await session.start(mode="paper")
+        try:
+            bar_slice = frame.tail(min(bars, 200))
+            started = perf_counter()
+            for row in bar_slice.itertuples(index=False):
+                await session.on_bar(
+                    Bar(
+                        symbol="BTC/USDT",
+                        timestamp=int(row.timestamp),
+                        open=float(row.open),
+                        high=float(row.high),
+                        low=float(row.low),
+                        close=float(row.close),
+                        volume=float(row.volume),
+                    )
+                )
+            elapsed_ms = (perf_counter() - started) * 1000
+            rows.append(("runtime", "TradingSession.on_bar batch", f"{elapsed_ms:.2f} ms"))
+            _throughput("runtime", "bars/sec", len(bar_slice), elapsed_ms)
+        finally:
+            await session.stop()
+
+        execution = ExecutionEngine()
+        await execution.start(mode="paper")
+        try:
+            started = perf_counter()
+            for _ in range(25):
+                await execution.submit_order(
+                    OrderRequest(
+                        symbol="BTC/USDT",
+                        side=OrderSide.BUY,
+                        order_type="market",
+                        quantity=0.001,
+                        price=float(close.iloc[-1]),
+                        strategy_id="benchmark",
+                    )
+                )
+            elapsed_ms = (perf_counter() - started) * 1000
+            rows.append(("execution", "paper submit_order batch", f"{elapsed_ms:.2f} ms"))
+            _throughput("execution", "orders/sec", 25, elapsed_ms)
+        finally:
+            await execution.stop()
+
+    asyncio.run(_runtime_baselines())
+
+    if not skip_subprocess:
+        _time(
+            "cli",
+            "startup --help",
+            lambda: subprocess.run(
+                [sys.executable, "-m", "quantflow.cli.main", "--help"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            ),
+        )
+        _time(
+            "test",
+            f"pytest {test_target}",
+            lambda: subprocess.run(
+                [sys.executable, "-m", "pytest", test_target, "-q"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            ),
+        )
+
+    table = Table(title="QuantFlow Performance Baseline")
+    table.add_column("Area", style="cyan")
+    table.add_column("Metric", style="green")
+    table.add_column("Value", style="magenta")
+    for area, metric, value in rows:
+        table.add_row(area, metric, value)
+    console.print(table)
+
+
+@app.command()
 def status() -> None:
     """Show current system status."""
     table = Table(title="QuantFlow Status")

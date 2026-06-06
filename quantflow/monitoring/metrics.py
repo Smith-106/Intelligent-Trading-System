@@ -62,6 +62,20 @@ ORDER_LATENCY = Histogram(
     buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
 )
 
+BAR_PROCESSING_LATENCY = Histogram(
+    "quantflow_bar_processing_latency_seconds",
+    "End-to-end TradingSession.on_bar processing latency",
+    ["symbol"],
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
+)
+
+SIGNAL_PROCESSING_LATENCY = Histogram(
+    "quantflow_signal_processing_latency_seconds",
+    "Signal risk, sizing, and execution pipeline latency",
+    ["strategy_id"],
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0],
+)
+
 
 def start_metrics_server(port: int = 9090) -> None:
     """Start Prometheus metrics HTTP server."""

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from time import perf_counter
 from typing import Any
 
 from quantflow.common.event_bus import Event, EventBus
@@ -18,6 +19,7 @@ from quantflow.execution.okx_gateway import OKXGateway
 from quantflow.execution.order_manager import OrderManager
 from quantflow.execution.paper_gateway import PaperGateway
 from quantflow.execution.position_manager import PositionManager
+from quantflow.monitoring.metrics import ORDER_LATENCY, ORDERS_FILLED, ORDERS_TOTAL
 
 EVENT_ORDER = "order"
 EVENT_FILL = "fill"
@@ -93,11 +95,13 @@ class ExecutionEngine:
         if not self._gateway:
             raise RuntimeError("Gateway not initialized — call start() first")
 
+        started_at = perf_counter()
         try:
             exchange_id = await self._gateway.send_order(order)
         except Exception as e:
             order.status = OrderStatus.REJECTED
             logger.error("Order rejected by gateway: %s", e)
+            self._record_order_latency(order.symbol, started_at)
             return order
         order.order_id = exchange_id
 
@@ -121,9 +125,6 @@ class ExecutionEngine:
                 side=order.side.value,
             ),
         )
-
-        # Prometheus: track order submission
-        from quantflow.monitoring.metrics import ORDERS_TOTAL
 
         ORDERS_TOTAL.labels(
             symbol=order.symbol,
@@ -157,9 +158,6 @@ class ExecutionEngine:
             )
             self._position_mgr.update_position(order.symbol, qty_signed, order.filled_price)
 
-            # Prometheus: track order fill
-            from quantflow.monitoring.metrics import ORDERS_FILLED
-
             ORDERS_FILLED.labels(
                 symbol=order.symbol,
                 side=order.side.value,
@@ -180,7 +178,12 @@ class ExecutionEngine:
                     )
                 )
 
+        self._record_order_latency(order.symbol, started_at)
         return order
+
+    @staticmethod
+    def _record_order_latency(symbol: str, started_at: float) -> None:
+        ORDER_LATENCY.labels(symbol=symbol).observe(perf_counter() - started_at)
 
     async def submit_order(self, request: OrderRequest) -> Order:
         """Submit an OrderRequest through the gateway.

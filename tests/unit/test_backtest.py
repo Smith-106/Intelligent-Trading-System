@@ -60,6 +60,20 @@ class TestBacktestEngine:
         assert result.num_trades == 0
         assert result.final_capital == pytest.approx(result.initial_capital)
 
+    def test_empty_input_returns_zero_trade_result(self):
+        close = pd.Series(dtype=float)
+        entries = pd.Series(dtype=bool)
+        exits = pd.Series(dtype=bool)
+        engine = BacktestEngine()
+
+        result = engine.run_backtest(close, entries, exits)
+
+        assert result.num_trades == 0
+        assert result.final_capital == pytest.approx(result.initial_capital)
+        assert result.total_return == 0.0
+        assert result.equity_curve.empty
+        assert result.drawdown_curve.empty
+
     def test_single_trade(self):
         close = _make_price_series(50, trend=0.01)
         entries = pd.Series(False, index=close.index)

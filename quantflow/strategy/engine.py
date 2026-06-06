@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Sequence
+from time import perf_counter
 from typing import Any
 
 from quantflow.common.config import AppConfig
@@ -18,6 +19,8 @@ from quantflow.execution.engine import ExecutionEngine
 from quantflow.execution.kill_switch import KillSwitch
 from quantflow.monitoring.alerts import AlertLevel, AlertManager
 from quantflow.monitoring.metrics import (
+    BAR_PROCESSING_LATENCY,
+    SIGNAL_PROCESSING_LATENCY,
     SIGNALS_GENERATED,
     start_metrics_server,
     update_portfolio_metrics,
@@ -95,6 +98,7 @@ class TradingSession:
         if self._kill_switch and self._kill_switch.is_active:
             return
 
+        started_at = perf_counter()
         self._event_bus.publish(
             Event(
                 type=EVENT_BAR,
@@ -129,8 +133,9 @@ class TradingSession:
                     "KILL SWITCH ACTIVATED: drawdown breach",
                     AlertLevel.CRITICAL,
                     extra={"drawdown": self._portfolio.current_drawdown},
-                )
+            )
             self._running = False
+            self._record_bar_latency(bar.symbol, started_at)
             return
 
         for strategy in self._strategies:
@@ -144,8 +149,11 @@ class TradingSession:
             for signal in signals:
                 await self._process_signal(signal)
 
+        self._record_bar_latency(bar.symbol, started_at)
+
     async def _process_signal(self, signal: Signal) -> None:
         """Process a signal through risk check → position sizing → execution."""
+        started_at = perf_counter()
         portfolio = self._portfolio.portfolio
         risk_decision = self._risk_engine.check(signal, portfolio)
 
@@ -169,6 +177,7 @@ class TradingSession:
                     AlertLevel.WARNING,
                     extra={"strategy_id": signal.strategy_id, "symbol": signal.symbol},
                 )
+            self._record_signal_latency(signal.strategy_id, started_at)
             return
 
         self._event_bus.publish(
@@ -194,6 +203,7 @@ class TradingSession:
         size = self._position_sizer.size(signal, portfolio) * allocation
 
         if size <= 0:
+            self._record_signal_latency(signal.strategy_id, started_at)
             return
 
         # Calculate quantity
@@ -210,6 +220,17 @@ class TradingSession:
                 quantity=quantity,
                 strategy_id=signal.strategy_id,
             )
+        )
+        self._record_signal_latency(signal.strategy_id, started_at)
+
+    @staticmethod
+    def _record_bar_latency(symbol: str, started_at: float) -> None:
+        BAR_PROCESSING_LATENCY.labels(symbol=symbol).observe(perf_counter() - started_at)
+
+    @staticmethod
+    def _record_signal_latency(strategy_id: str, started_at: float) -> None:
+        SIGNAL_PROCESSING_LATENCY.labels(strategy_id=strategy_id).observe(
+            perf_counter() - started_at
         )
 
     def _on_risk_event(self, event: Event) -> None:
