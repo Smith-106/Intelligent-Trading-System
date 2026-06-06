@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import subprocess
 from collections.abc import Callable
@@ -731,6 +732,21 @@ def benchmark(
     skip_subprocess: bool = typer.Option(
         False, "--skip-subprocess", help="Skip CLI startup and pytest subprocess baselines"
     ),
+    json_output: bool = typer.Option(
+        False, "--json", help="Print machine-readable benchmark metrics"
+    ),
+    min_query_rows_per_sec: float | None = typer.Option(
+        None, "--min-query-rows-per-sec", help="Fail if data query throughput is lower"
+    ),
+    min_bars_per_sec: float | None = typer.Option(
+        None, "--min-bars-per-sec", help="Fail if TradingSession throughput is lower"
+    ),
+    min_orders_per_sec: float | None = typer.Option(
+        None, "--min-orders-per-sec", help="Fail if paper order throughput is lower"
+    ),
+    max_backtest_ms: float | None = typer.Option(
+        None, "--max-backtest-ms", help="Fail if backtest latency is higher"
+    ),
 ) -> None:
     """Run a synthetic performance baseline across key QuantFlow paths."""
     import sys
@@ -742,8 +758,10 @@ def benchmark(
 
     from quantflow.common.config import AppConfig
     from quantflow.common.models import Bar, Direction, OrderRequest, OrderSide
+    from quantflow.data.feature_store import FeatureStore
     from quantflow.data.store import DataStore
     from quantflow.execution.engine import ExecutionEngine
+    from quantflow.indicators.engine import IndicatorEngine
     from quantflow.strategy.base import StrategyBase, StrategyContext
     from quantflow.strategy.engine import TradingSession
     from quantflow.strategy.research.backtest import BacktestEngine
@@ -771,17 +789,36 @@ def benchmark(
     entries = (close > rolling_mean).fillna(False)
     exits = (close < rolling_mean).fillna(False)
     rows: list[tuple[str, str, str]] = []
+    metrics: dict[str, float] = {}
+    records: list[dict[str, str | float]] = []
+
+    def _metric_key(area: str, metric: str) -> str:
+        normalized = metric.lower().replace(" ", "_").replace("/", "_per_")
+        return f"{area}.{normalized}"
+
+    def _record(area: str, metric: str, value: float, unit: str) -> None:
+        metrics[_metric_key(area, metric)] = value
+        records.append(
+            {
+                "area": area,
+                "metric": metric,
+                "value": round(value, 6),
+                "unit": unit,
+            }
+        )
 
     def _time(area: str, metric: str, action: Callable[[], Any]) -> Any:
         started_at = perf_counter()
         value = action()
         elapsed_ms = (perf_counter() - started_at) * 1000
         rows.append((area, metric, f"{elapsed_ms:.2f} ms"))
+        _record(area, metric, elapsed_ms, "ms")
         return value
 
     def _throughput(area: str, metric: str, count: int, elapsed_ms: float) -> None:
         per_second = count / max(elapsed_ms / 1000, 1e-9)
         rows.append((area, metric, f"{per_second:.0f}/s"))
+        _record(area, metric, per_second, "per_second")
 
     with tempfile.TemporaryDirectory() as tmp:
         store = DataStore(str(Path(tmp) / "pq"), str(Path(tmp) / "db.duckdb"))
@@ -797,8 +834,43 @@ def benchmark(
         )
         query_ms = (perf_counter() - started_at) * 1000
         rows.append(("data", "query projected range", f"{query_ms:.2f} ms"))
+        _record("data", "query projected range", query_ms, "ms")
         _throughput("data", "query rows/sec", len(queried), query_ms)
         store.close()
+
+    indicator_engine = IndicatorEngine()
+    _time("indicators", "batch calculate all", lambda: indicator_engine.batch_calculate(frame))
+    _time(
+        "indicators",
+        "compute requested subset",
+        lambda: indicator_engine.compute_all(frame, ["rsi_14", "atr_14"]),
+    )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        feature_store = FeatureStore(
+            str(Path(tmp) / "features"), str(Path(tmp) / "features.duckdb")
+        )
+        feature_frame = frame[["timestamp", "datetime", "close", "volume"]].copy()
+        feature_frame["rsi_14"] = indicator_engine.compute_all(frame, ["rsi_14"])["rsi_14"]
+        _time(
+            "feature_store",
+            "save feature partitions",
+            lambda: feature_store.save_features("BTC/USDT", feature_frame),
+        )
+
+        feature_start = int(frame["timestamp"].iloc[bars // 4])
+        feature_end = int(frame["timestamp"].iloc[-1])
+        started_at = perf_counter()
+        feature_rows = feature_store.load_features(
+            "BTC/USDT",
+            start=feature_start,
+            end=feature_end,
+        )
+        feature_query_ms = (perf_counter() - started_at) * 1000
+        rows.append(("feature_store", "load projected range", f"{feature_query_ms:.2f} ms"))
+        _record("feature_store", "load projected range", feature_query_ms, "ms")
+        _throughput("feature_store", "load rows/sec", len(feature_rows), feature_query_ms)
+        feature_store.close()
 
     engine = BacktestEngine()
     _time("research", "backtest", lambda: engine.run_backtest(close, entries, exits))
@@ -868,6 +940,7 @@ def benchmark(
                 )
             elapsed_ms = (perf_counter() - started) * 1000
             rows.append(("runtime", "TradingSession.on_bar batch", f"{elapsed_ms:.2f} ms"))
+            _record("runtime", "TradingSession.on_bar batch", elapsed_ms, "ms")
             _throughput("runtime", "bars/sec", len(bar_slice), elapsed_ms)
         finally:
             await session.stop()
@@ -889,6 +962,7 @@ def benchmark(
                 )
             elapsed_ms = (perf_counter() - started) * 1000
             rows.append(("execution", "paper submit_order batch", f"{elapsed_ms:.2f} ms"))
+            _record("execution", "paper submit_order batch", elapsed_ms, "ms")
             _throughput("execution", "orders/sec", 25, elapsed_ms)
         finally:
             await execution.stop()
@@ -919,13 +993,85 @@ def benchmark(
             ),
         )
 
-    table = Table(title="QuantFlow Performance Baseline")
-    table.add_column("Area", style="cyan")
-    table.add_column("Metric", style="green")
-    table.add_column("Value", style="magenta")
-    for area, metric, value in rows:
-        table.add_row(area, metric, value)
-    console.print(table)
+    threshold_checks = [
+        (
+            "data.query_rows_per_sec",
+            metrics.get("data.query_rows_per_sec"),
+            min_query_rows_per_sec,
+            ">=",
+            "per_second",
+        ),
+        (
+            "runtime.bars_per_sec",
+            metrics.get("runtime.bars_per_sec"),
+            min_bars_per_sec,
+            ">=",
+            "per_second",
+        ),
+        (
+            "execution.orders_per_sec",
+            metrics.get("execution.orders_per_sec"),
+            min_orders_per_sec,
+            ">=",
+            "per_second",
+        ),
+        (
+            "research.backtest",
+            metrics.get("research.backtest"),
+            max_backtest_ms,
+            "<=",
+            "ms",
+        ),
+    ]
+    failures = []
+    for key, value, threshold, operator, unit in threshold_checks:
+        if threshold is None or value is None:
+            continue
+        failed = value < threshold if operator == ">=" else value > threshold
+        if failed:
+            failures.append(
+                {
+                    "metric": key,
+                    "value": round(value, 6),
+                    "operator": operator,
+                    "threshold": threshold,
+                    "unit": unit,
+                }
+            )
+
+    if json_output:
+        console.print_json(
+            json.dumps(
+                {
+                    "params": {
+                        "bars": bars,
+                        "trials": trials,
+                        "wfo_windows": wfo_windows,
+                        "test_target": test_target,
+                        "skip_subprocess": skip_subprocess,
+                    },
+                    "metrics": records,
+                    "failures": failures,
+                }
+            )
+        )
+    else:
+        table = Table(title="QuantFlow Performance Baseline")
+        table.add_column("Area", style="cyan")
+        table.add_column("Metric", style="green")
+        table.add_column("Value", style="magenta")
+        for area, metric, display_value in rows:
+            table.add_row(area, metric, display_value)
+        console.print(table)
+        for failure in failures:
+            console.print(
+                "[red]Benchmark threshold failed:[/] "
+                f"{failure['metric']}={failure['value']} {failure['unit']} "
+                f"{failure['operator']} {failure['threshold']}"
+            )
+
+    if failures:
+        raise typer.Exit(1)
 
 
 @app.command()

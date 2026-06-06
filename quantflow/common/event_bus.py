@@ -7,6 +7,7 @@ import inspect
 import logging
 from collections import defaultdict
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from quantflow.common.models import (
@@ -45,6 +46,12 @@ class Event:
         return f"Event({self.type!r})"
 
 
+@dataclass(frozen=True, slots=True)
+class _HandlerRegistration:
+    handler: Callable[[Event], Any]
+    is_async: bool
+
+
 class EventBus:
     """Publish-subscribe event bus with sync and async handler support.
 
@@ -54,18 +61,22 @@ class EventBus:
     """
 
     def __init__(self) -> None:
-        self._handlers: dict[str, list[Callable[[Event], Any]]] = defaultdict(list)
+        self._handlers: dict[str, list[_HandlerRegistration]] = defaultdict(list)
         self._background_tasks: set[asyncio.Task[Any]] = set()
 
     def subscribe(self, event_type: str, handler: Callable[[Event], Any]) -> None:
         """Register a handler for an event type."""
-        self._handlers[event_type].append(handler)
+        self._handlers[event_type].append(
+            _HandlerRegistration(handler=handler, is_async=inspect.iscoroutinefunction(handler))
+        )
 
     def unsubscribe(self, event_type: str, handler: Callable[[Event], Any]) -> None:
         """Remove a handler for an event type."""
         handlers = self._handlers.get(event_type, [])
-        if handler in handlers:
-            handlers.remove(handler)
+        for registered in handlers:
+            if registered.handler == handler:
+                handlers.remove(registered)
+                break
 
     def publish(self, event: Event) -> None:
         """Publish an event to all registered handlers (sync).
@@ -74,26 +85,26 @@ class EventBus:
         For awaiting async handlers, use publish_async().
         """
         handlers = self._handlers.get(event.type, [])
-        for handler in handlers:
+        for registered in handlers:
             try:
-                if inspect.iscoroutinefunction(handler):
-                    task = asyncio.create_task(handler(event))
+                if registered.is_async:
+                    task = asyncio.create_task(registered.handler(event))
                     self._background_tasks.add(task)
                     task.add_done_callback(self._background_tasks.discard)
                 else:
-                    handler(event)
+                    registered.handler(event)
             except Exception as e:
                 logger.error("Event handler error [%s]: %s", event.type, e)
 
     async def publish_async(self, event: Event) -> None:
         """Publish an event, awaiting both sync and async handlers."""
         handlers = self._handlers.get(event.type, [])
-        for handler in handlers:
+        for registered in handlers:
             try:
-                if inspect.iscoroutinefunction(handler):
-                    await handler(event)
+                if registered.is_async:
+                    await registered.handler(event)
                 else:
-                    handler(event)
+                    registered.handler(event)
             except Exception as e:
                 logger.error("Event handler error [%s]: %s", event.type, e)
 

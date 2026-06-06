@@ -139,10 +139,67 @@ class IndicatorEngine:
             indicator_names: If provided, only compute these indicators.
                 If None, compute all 21 standard indicators.
         """
-        result = self.batch_calculate(df)
-        if indicator_names:
-            keep = set(df.columns) | set(indicator_names)
-            result = result[[c for c in result.columns if c in keep]]
+        if not indicator_names:
+            return self.batch_calculate(df)
+
+        result = df.copy()
+        if "close" not in result.columns:
+            return result
+
+        requested = set(indicator_names)
+        close = result["close"]
+        high = result.get("high", close)
+        low = result.get("low", close)
+        vol = result.get("volume", pd.Series(1.0, index=result.index))
+
+        if "sma_20" in requested:
+            result["sma_20"] = trend.sma(close, 20)
+        if "sma_50" in requested:
+            result["sma_50"] = trend.sma(close, 50)
+        if "ema_12" in requested:
+            result["ema_12"] = trend.ema(close, 12)
+        if "ema_26" in requested:
+            result["ema_26"] = trend.ema(close, 26)
+
+        macd_columns = {"macd", "macd_signal", "macd_histogram"}
+        if requested & macd_columns:
+            macd_df = trend.macd(close)
+            for col in macd_columns & requested:
+                result[col] = macd_df[col]
+
+        if "rsi_14" in requested:
+            result["rsi_14"] = momentum.rsi(close, 14)
+
+        stoch_columns = {"stoch_k", "stoch_d"}
+        if requested & stoch_columns:
+            stoch_df = momentum.stochastic(high, low, close)
+            for col in stoch_columns & requested:
+                result[col] = stoch_df[col]
+
+        if "williams_r_14" in requested:
+            result["williams_r_14"] = momentum.williams_r(high, low, close, 14)
+        if "atr_14" in requested:
+            result["atr_14"] = volatility.atr(high, low, close, 14)
+
+        bb_columns = {"bb_upper", "bb_middle", "bb_lower"}
+        if requested & bb_columns:
+            bb_df = volatility.bollinger_bands(close, 20, 2.0)
+            for col in bb_columns & requested:
+                result[col] = bb_df[col]
+
+        if "adx_14" in requested:
+            result["adx_14"] = trend.adx(high, low, close, 14)
+        if "obv" in requested:
+            result["obv"] = volume.obv(close, vol)
+        if "vwap" in requested:
+            result["vwap"] = volume.vwap(high, low, close, vol)
+        if "mfi_14" in requested:
+            result["mfi_14"] = volume.mfi(high, low, close, vol, 14)
+        if "volume_sma_20" in requested:
+            result["volume_sma_20"] = volume.volume_sma(vol, 20)
+        if "volume_ratio" in requested:
+            result["volume_ratio"] = volume.volume_ratio(vol, 20)
+
         return result
 
     # Alias for backwards compatibility

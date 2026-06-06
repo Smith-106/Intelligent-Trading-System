@@ -7,6 +7,7 @@ with information leakage prevention via embargo periods.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from itertools import combinations
 from typing import Any, cast
 
@@ -20,7 +21,7 @@ from quantflow.strategy.validation.signal_quality import (
 )
 
 logger = logging.getLogger(__name__)
-SignalFunction = Any
+SignalFunction = Callable[..., tuple[pd.Series, pd.Series]]
 
 
 def _sanitize_metric_array(values: list[float]) -> npt.NDArray[np.float64]:
@@ -104,7 +105,9 @@ def cpcv_backtest(
     quality_rows: list[dict[str, Any]] = []
 
     engine = BacktestEngine()
-    source_data = data.copy() if data is not None else pd.DataFrame({"close": close}, index=close.index)
+    source_data = (
+        data.copy() if data is not None else pd.DataFrame({"close": close}, index=close.index)
+    )
     uses_oos_signal_generation = signal_fn is not None
     optimized = signal_fn is not None and param_space is not None
 
@@ -115,18 +118,21 @@ def cpcv_backtest(
         test_frame = source_data.iloc[test_idx].copy()
         best_params: dict[str, Any] = {}
 
-        if optimized:
+        if signal_fn is not None and param_space is not None:
+            optimized_signal_fn = signal_fn
+            optimized_param_space = param_space
             optimizer = StrategyOptimizer(engine=engine)
 
             def _train_signal_fn(
                 train_close_slice: pd.Series,
                 train_data: pd.DataFrame = train_frame,
+                train_signal_fn: SignalFunction = optimized_signal_fn,
                 **params: Any,
             ) -> tuple[pd.Series, pd.Series]:
                 train_slice = train_data.copy()
                 if "close" in train_slice.columns:
                     train_slice["close"] = train_close_slice.to_numpy()
-                generated_entries, generated_exits = signal_fn(train_slice, **params)
+                generated_entries, generated_exits = train_signal_fn(train_slice, **params)
                 return (
                     generated_entries.reindex(train_slice.index).fillna(False).astype(bool),
                     generated_exits.reindex(train_slice.index).fillna(False).astype(bool),
@@ -136,7 +142,7 @@ def cpcv_backtest(
                 optimization = optimizer.optimize(
                     train_close,
                     _train_signal_fn,
-                    param_space,
+                    optimized_param_space,
                     n_trials=n_trials,
                     method=method,
                     initial_capital=initial_capital,
@@ -218,7 +224,9 @@ def cpcv_backtest(
             )
         except Exception:
             oos_sharpes.append(0.0)
-            signal_quality = signal_quality_metrics(test_close, test_entries, test_exits, oos_sharpe=0.0)
+            signal_quality = signal_quality_metrics(
+                test_close, test_entries, test_exits, oos_sharpe=0.0
+            )
             quality_rows.append(signal_quality)
             if uses_oos_signal_generation:
                 path_results.append(

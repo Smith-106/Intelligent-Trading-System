@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def _positive_class_probability(model: Any, features: pd.DataFrame) -> np.ndarray:
-    probas = model.predict_proba(features)
+    probas = np.asarray(model.predict_proba(features), dtype=float)
     if probas.shape[1] == 1:
         return np.ones(len(features), dtype=float) * float(probas[:, 0].mean())
 

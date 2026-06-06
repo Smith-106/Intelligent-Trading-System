@@ -213,9 +213,16 @@ class TestIndicatorEngineGaps:
 
         assert result.equals(df)
 
-    def test_compute_all_filters_to_requested_indicator_subset(self) -> None:
+    def test_compute_all_filters_to_requested_indicator_subset(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         engine = IndicatorEngine()
         df = _ohlcv(25)
+
+        def fail_sma(*args: object, **kwargs: object) -> pd.Series:
+            raise AssertionError("sma should not be computed for an RSI/ATR subset")
+
+        monkeypatch.setattr("quantflow.indicators.engine.trend.sma", fail_sma)
 
         result = engine.compute_all(df, ["rsi_14", "atr_14"])
 

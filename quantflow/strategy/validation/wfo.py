@@ -302,7 +302,9 @@ def walk_forward_optimization(
     all_oos_sharpes: list[float] = []
     all_is_sharpes: list[float] = []
     quality_rows: list[dict[str, Any]] = []
-    source_data = data.copy() if data is not None else pd.DataFrame({"close": close}, index=close.index)
+    source_data = (
+        data.copy() if data is not None else pd.DataFrame({"close": close}, index=close.index)
+    )
     uses_oos_signal_generation = signal_fn is not None
     optimized = signal_fn is not None and param_space is not None
 
@@ -320,19 +322,21 @@ def walk_forward_optimization(
         oos_close = close.iloc[oos_idx]
         best_params: dict[str, Any] = {}
 
-        if optimized:
+        if signal_fn is not None and param_space is not None:
+            optimized_signal_fn = signal_fn
+            optimized_param_space = param_space
             optimizer = StrategyOptimizer(engine=engine)
 
             def _train_signal_fn(
                 train_close_slice: pd.Series,
                 train_data: pd.DataFrame = train_frame,
+                train_signal_fn: SignalFunction = optimized_signal_fn,
                 **params: Any,
             ) -> tuple[pd.Series, pd.Series]:
                 train_slice = train_data.copy()
                 if "close" in train_slice.columns:
                     train_slice["close"] = train_close_slice.to_numpy()
-                assert signal_fn is not None
-                generated_entries, generated_exits = signal_fn(train_slice, **params)
+                generated_entries, generated_exits = train_signal_fn(train_slice, **params)
                 return (
                     generated_entries.reindex(train_slice.index).fillna(False).astype(bool),
                     generated_exits.reindex(train_slice.index).fillna(False).astype(bool),
@@ -342,7 +346,7 @@ def walk_forward_optimization(
                 optimization = optimizer.optimize(
                     train_close,
                     _train_signal_fn,
-                    param_space,
+                    optimized_param_space,
                     n_trials=n_trials,
                     method=method,
                     initial_capital=initial_capital,

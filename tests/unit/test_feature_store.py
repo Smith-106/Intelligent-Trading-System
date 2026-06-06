@@ -123,7 +123,7 @@ class TestFeatureStore:
 
         fs.save_features("BTC/USDT", pd.DataFrame())
 
-        assert not (tmp_path / "features" / "BTC_USDT" / "features.parquet").exists()
+        assert not list((tmp_path / "features" / "BTC_USDT").glob("**/*.parquet"))
 
     def test_save_features_with_datetime_deduplicates_and_sorts(self, tmp_path):
         fs = FeatureStore(str(tmp_path))
@@ -139,11 +139,29 @@ class TestFeatureStore:
         )
 
         fs.save_features("BTC/USDT", features)
-        saved = pd.read_parquet(tmp_path / "features" / "BTC_USDT" / "features.parquet")
+        saved = pd.read_parquet(tmp_path / "features" / "BTC_USDT" / "2024" / "01.parquet")
 
         assert list(saved["timestamp"]) == [1704067200000, 1704153600000]
         assert list(saved["year"]) == [2024, 2024]
         assert list(saved["month"]) == [1, 1]
+
+    def test_save_features_without_timestamp_derives_timestamp_from_datetime(self, tmp_path):
+        fs = FeatureStore(str(tmp_path))
+        features = pd.DataFrame(
+            {
+                "datetime": pd.to_datetime(
+                    ["2024-01-02T00:00:00Z", "2024-01-01T00:00:00Z"],
+                    utc=True,
+                ),
+                "value": [2.0, 1.0],
+            }
+        )
+
+        fs.save_features("BTC/USDT", features)
+        loaded = fs.load_features("BTC/USDT")
+
+        assert list(loaded["timestamp"]) == [1704067200000, 1704153600000]
+        assert list(loaded["value"]) == [1.0, 2.0]
 
     def test_save_features_with_timestamp_column_and_filtered_load(self, tmp_path):
         fs = FeatureStore(str(tmp_path))
@@ -159,6 +177,23 @@ class TestFeatureStore:
 
         assert list(loaded["timestamp"]) == [1704153600000, 1704240000000]
         assert list(loaded["value"]) == [2.0, 3.0]
+
+    def test_load_features_supports_legacy_single_file_layout(self, tmp_path):
+        fs = FeatureStore(str(tmp_path))
+        symbol_dir = tmp_path / "features" / "BTC_USDT"
+        symbol_dir.mkdir(parents=True)
+        legacy = pd.DataFrame(
+            {
+                "timestamp": [1704067200000, 1704153600000],
+                "value": [1.0, 2.0],
+            }
+        )
+        legacy.to_parquet(symbol_dir / "features.parquet", index=False)
+
+        loaded = fs.load_features("BTC/USDT", start=1704153600000)
+
+        assert list(loaded["timestamp"]) == [1704153600000]
+        assert list(loaded["value"]) == [2.0]
 
     def test_load_features_returns_empty_on_query_failure(self, tmp_path, monkeypatch):
         fs = FeatureStore(str(tmp_path))

@@ -54,19 +54,29 @@ class FeatureStore:
         symbol_dir = self._parquet_dir / symbol.replace("/", "_")
         symbol_dir.mkdir(parents=True, exist_ok=True)
 
-        if "datetime" in features.columns:
-            features["year"] = features["datetime"].dt.year
-            features["month"] = features["datetime"].dt.month
-        elif "timestamp" in features.columns:
-            dt = pd.to_datetime(features["timestamp"], unit="ms", utc=True)
-            features["year"] = dt.dt.year
-            features["month"] = dt.dt.month
+        store_df = features.copy()
+        if "datetime" in store_df.columns:
+            if "timestamp" not in store_df.columns:
+                dt = pd.to_datetime(store_df["datetime"], utc=True)
+                store_df["timestamp"] = dt.map(lambda value: int(value.timestamp() * 1000))
+            store_df["year"] = store_df["datetime"].dt.year
+            store_df["month"] = store_df["datetime"].dt.month
+        elif "timestamp" in store_df.columns:
+            dt = pd.to_datetime(store_df["timestamp"], unit="ms", utc=True)
+            store_df["year"] = dt.dt.year
+            store_df["month"] = dt.dt.month
+        else:
+            raise ValueError("Features must have 'datetime' or 'timestamp' column")
 
-        path = symbol_dir / "features.parquet"
-        existing = pd.read_parquet(path) if path.exists() else pd.DataFrame()
-        combined = pd.concat([existing, features], ignore_index=True)
-        combined = combined.drop_duplicates(subset=["timestamp"]).sort_values("timestamp")
-        combined.to_parquet(path, index=False, compression="zstd")
+        for (year, month), group in store_df.groupby(["year", "month"]):
+            year_dir = symbol_dir / str(int(year))
+            year_dir.mkdir(parents=True, exist_ok=True)
+            month_path = year_dir / f"{int(month):02d}.parquet"
+
+            existing = pd.read_parquet(month_path) if month_path.exists() else pd.DataFrame()
+            combined = pd.concat([existing, group], ignore_index=True)
+            combined = combined.drop_duplicates(subset=["timestamp"]).sort_values("timestamp")
+            combined.to_parquet(month_path, index=False, compression="zstd")
 
         logger.info("Saved %d feature rows for %s", len(features), symbol)
 
@@ -78,8 +88,8 @@ class FeatureStore:
     ) -> pd.DataFrame:
         """Load historical features for backtesting."""
         symbol_name = symbol.replace("/", "_")
-        path = self._parquet_dir / symbol_name / "features.parquet"
-        if not path.exists():
+        source = self._read_feature_source(symbol_name, start, end)
+        if source is None:
             return pd.DataFrame()
 
         conditions = []
@@ -91,7 +101,7 @@ class FeatureStore:
 
         try:
             return self._db.query(f"""
-                SELECT * FROM read_parquet('{path}'){where}
+                SELECT * FROM read_parquet({source}){where}
                 ORDER BY timestamp
             """).df()
         except Exception:
@@ -99,3 +109,45 @@ class FeatureStore:
 
     def close(self) -> None:
         self._db.close()
+
+    def _read_feature_source(
+        self,
+        symbol_name: str,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> str | None:
+        symbol_dir = self._parquet_dir / symbol_name
+        legacy_path = symbol_dir / "features.parquet"
+        if legacy_path.exists():
+            return f"'{legacy_path.as_posix()}'"
+        if not symbol_dir.exists():
+            return None
+
+        paths = self._candidate_paths(symbol_dir, start, end)
+        if not paths:
+            return None
+        escaped = [f"'{path.as_posix().replace(chr(39), chr(39) + chr(39))}'" for path in paths]
+        return f"[{', '.join(escaped)}]"
+
+    @staticmethod
+    def _candidate_paths(symbol_dir: Path, start: int | None, end: int | None) -> list[Path]:
+        paths = sorted(symbol_dir.glob("*/*.parquet"))
+        if start is None and end is None:
+            return paths
+
+        start_period = FeatureStore._timestamp_period(start, lower_bound=True)
+        end_period = FeatureStore._timestamp_period(end, lower_bound=False)
+        return [
+            path for path in paths if start_period <= FeatureStore._path_period(path) <= end_period
+        ]
+
+    @staticmethod
+    def _timestamp_period(timestamp: int | None, *, lower_bound: bool) -> tuple[int, int]:
+        if timestamp is None:
+            return (0, 1) if lower_bound else (9999, 12)
+        dt = pd.to_datetime(timestamp, unit="ms", utc=True)
+        return int(dt.year), int(dt.month)
+
+    @staticmethod
+    def _path_period(path: Path) -> tuple[int, int]:
+        return int(path.parent.name), int(path.stem)

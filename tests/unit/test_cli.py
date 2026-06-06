@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pandas as pd
 from typer.testing import CliRunner
 
@@ -64,8 +66,37 @@ class TestCLIBasics:
         assert result.exit_code == 0
         assert "QuantFlow Performance Baseline" in result.output
         assert "query rows/sec" in result.output
+        assert "batch calculate all" in result.output
+        assert "save feature partitions" in result.output
         assert "TradingSession.on_bar batch" in result.output
         assert "paper submit_order batch" in result.output
+
+    def test_benchmark_json_reports_threshold_failures(self):
+        result = runner.invoke(
+            app,
+            [
+                "benchmark",
+                "--bars",
+                "80",
+                "--trials",
+                "1",
+                "--wfo-windows",
+                "1",
+                "--skip-subprocess",
+                "--json",
+                "--min-bars-per-sec",
+                "1000000000",
+            ],
+        )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.output)
+        assert payload["params"]["bars"] == 80
+        metric_names = {item["metric"] for item in payload["metrics"]}
+        assert "compute requested subset" in metric_names
+        assert "load rows/sec" in metric_names
+        assert payload["failures"]
+        assert payload["failures"][0]["metric"] == "runtime.bars_per_sec"
 
     def test_run_command_starts_session_and_enters_data_loop(self, monkeypatch) -> None:
         events: list[tuple[object, ...]] = []
@@ -247,7 +278,9 @@ class TestCLIBasics:
             }
 
         monkeypatch.setattr("quantflow.data.store.DataStore", FakeDataStore)
-        monkeypatch.setattr("quantflow.strategy.validation.gate.validation_gate", fake_validation_gate)
+        monkeypatch.setattr(
+            "quantflow.strategy.validation.gate.validation_gate", fake_validation_gate
+        )
 
         result = runner.invoke(
             app,

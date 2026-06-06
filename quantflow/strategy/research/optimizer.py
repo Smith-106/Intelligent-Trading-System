@@ -116,7 +116,9 @@ class StrategyOptimizer:
                 best_value = value
                 best_params = params
 
-        logger.info("Grid optimization complete: best_value=%.4f, params=%s", best_value, best_params)
+        logger.info(
+            "Grid optimization complete: best_value=%.4f, params=%s", best_value, best_params
+        )
 
         return {
             "best_params": best_params,
@@ -183,15 +185,13 @@ class StrategyOptimizer:
             total_candidates *= len(grid_values)
 
         if total_candidates <= n_trials:
-            return [
-                dict(zip(names, combo, strict=True))
-                for combo in product(*values)
-            ]
+            return [dict(zip(names, combo, strict=True)) for combo in product(*values)]
 
-        indexes = [
-            round(i * (total_candidates - 1) / (n_trials - 1))
-            for i in range(n_trials)
-        ] if n_trials > 1 else [0]
+        indexes = (
+            [round(i * (total_candidates - 1) / (n_trials - 1)) for i in range(n_trials)]
+            if n_trials > 1
+            else [0]
+        )
 
         candidates: list[dict[str, Any]] = []
         for index in indexes:
@@ -217,8 +217,8 @@ class StrategyOptimizer:
             span = high - low
             if span <= 0:
                 return [low]
-            step = max(1, round(span / max(n_trials - 1, 1)))
-            values = list(range(low, high + 1, step))
+            int_step = max(1, round(span / max(n_trials - 1, 1)))
+            values = list(range(low, high + 1, int_step))
             if values[-1] != high:
                 values.append(high)
             return values[:n_trials]
@@ -229,8 +229,8 @@ class StrategyOptimizer:
         high_float = float(high)
         if low_float == high_float:
             return [low_float]
-        step = (high_float - low_float) / (n_trials - 1)
-        return [low_float + step * i for i in range(n_trials)]
+        float_step = (high_float - low_float) / (n_trials - 1)
+        return [low_float + float_step * i for i in range(n_trials)]
 
     @staticmethod
     def _create_sampler(method: str) -> Any:
