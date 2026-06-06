@@ -140,6 +140,65 @@ class TestWalkForwardOptimizationClass:
 
 
 class TestWalkForwardOptimizationFunction:
+    def test_function_interface_optimizes_train_window_and_recomputes_oos_signals(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        close = _close_series(18)
+        entries, exits = _signal_series(18)
+        df = pd.DataFrame({"close": close, "volume": 1.0}, index=close.index)
+        calls: list[tuple[str, int, dict[str, object]]] = []
+
+        class FakeOptimizer:
+            def __init__(self, engine=None) -> None:
+                self.engine = engine
+
+            def optimize(self, close, signal_fn, param_space, **kwargs):
+                train_entries, _ = signal_fn(close, threshold=2)
+                calls.append(("optimize", len(close), dict(param_space)))
+                assert train_entries.index.equals(close.index)
+                return {"best_params": {"threshold": 2}}
+
+        class FakeEngine:
+            def run_backtest(self, close_slice, entries_slice, exits_slice, initial_capital, fee):
+                if len(close_slice) == 0:
+                    raise RuntimeError("empty slice")
+                return SimpleNamespace(
+                    sharpe_ratio=1.0 if bool(entries_slice.any()) else 0.1,
+                    total_return=0.2 if bool(entries_slice.any()) else 0.0,
+                    max_drawdown=-0.01,
+                    num_trades=int(entries_slice.sum()),
+                )
+
+        def signal_fn(frame: pd.DataFrame, **params):
+            calls.append(("signal", len(frame), dict(params)))
+            threshold = int(params["threshold"])
+            generated_entries = (frame["close"] % threshold == 0)
+            generated_exits = pd.Series(False, index=frame.index)
+            return generated_entries, generated_exits
+
+        monkeypatch.setattr("quantflow.strategy.research.optimizer.StrategyOptimizer", FakeOptimizer)
+        monkeypatch.setattr("quantflow.strategy.research.backtest.BacktestEngine", FakeEngine)
+
+        result = walk_forward_optimization(
+            close,
+            entries,
+            exits,
+            n_windows=3,
+            mode="rolling",
+            oos_ratio=0.5,
+            signal_fn=signal_fn,
+            param_space={"threshold": (2, 3)},
+            data=df,
+            n_trials=2,
+        )
+
+        assert result["optimized"] is True
+        assert result["oos_recomputed"] is True
+        assert all(window["best_params"] == {"threshold": 2} for window in result["window_results"])
+        assert "precision" in result["signal_quality"]
+        assert any(kind == "optimize" for kind, _, _ in calls)
+        assert any(kind == "signal" and params == {"threshold": 2} for kind, _, params in calls)
+
     def test_function_interface_handles_is_and_oos_exceptions(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

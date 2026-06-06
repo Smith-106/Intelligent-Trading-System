@@ -268,14 +268,9 @@ class TestMLEnsembleExtra:
 
         sklearn = ModuleType("sklearn")
         ensemble = ModuleType("sklearn.ensemble")
-        model_selection = ModuleType("sklearn.model_selection")
         ensemble.GradientBoostingClassifier = _FakeClassifier
-        model_selection.cross_val_score = lambda model, x, y, cv, scoring: np.array(
-            [0.6, 0.8, 1.0, 0.7, 0.9]
-        )
         monkeypatch.setitem(sys.modules, "sklearn", sklearn)
         monkeypatch.setitem(sys.modules, "sklearn.ensemble", ensemble)
-        monkeypatch.setitem(sys.modules, "sklearn.model_selection", model_selection)
 
         joblib = ModuleType("joblib")
         joblib.dump = lambda model, path: dumps.append(str(path))
@@ -283,10 +278,16 @@ class TestMLEnsembleExtra:
 
         result = strategy.train_model(df, labels, meta_labels=meta_labels)
 
-        assert result["cv_accuracy_mean"] == pytest.approx(0.8)
-        assert result["cv_accuracy_std"] > 0
+        assert result["validation_method"] == "time_series_expanding_oos"
+        assert result["cv_accuracy_mean"] == result["oos_accuracy"]
+        assert result["cv_accuracy_std"] == 0.0
+        assert 0.0 <= result["oos_precision"] <= 1.0
+        assert 0.0 <= result["oos_recall"] <= 1.0
+        assert 0.0 <= result["oos_brier_score"] <= 1.0
+        assert isinstance(result["oos_sharpe"], float)
         assert result["n_features"] == 2
         assert result["n_samples"] == 4
+        assert result["n_oos_samples"] > 0
         assert strategy._model is not None
         assert strategy._meta_model is not None
         assert dumps == [
@@ -305,12 +306,9 @@ class TestMLEnsembleExtra:
 
         sklearn = ModuleType("sklearn")
         ensemble = ModuleType("sklearn.ensemble")
-        model_selection = ModuleType("sklearn.model_selection")
         ensemble.GradientBoostingClassifier = _FakeClassifier
-        model_selection.cross_val_score = lambda model, x, y, cv, scoring: np.array([0.5] * 5)
         monkeypatch.setitem(sys.modules, "sklearn", sklearn)
         monkeypatch.setitem(sys.modules, "sklearn.ensemble", ensemble)
-        monkeypatch.setitem(sys.modules, "sklearn.model_selection", model_selection)
 
         joblib = ModuleType("joblib")
 

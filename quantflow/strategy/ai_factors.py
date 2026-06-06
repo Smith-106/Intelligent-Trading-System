@@ -17,6 +17,31 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
+def _positive_class_probability(model: Any, x: np.ndarray) -> np.ndarray:
+    probas = model.predict_proba(x)
+    if probas.shape[1] == 1:
+        return np.ones(len(x), dtype=float) * float(probas[:, 0].mean())
+
+    classes = list(getattr(model, "classes_", []))
+    if 1 in classes:
+        return probas[:, classes.index(1)]
+    return probas[:, -1]
+
+
+def _expanding_splits(n_samples: int, max_splits: int = 5) -> list[tuple[slice, slice]]:
+    if n_samples < 50:
+        return []
+    n_splits = min(max_splits, max(1, n_samples // 30))
+    test_size = max(5, n_samples // (n_splits + 1))
+    first_test_start = max(30, n_samples - n_splits * test_size)
+    splits = []
+    for test_start in range(first_test_start, n_samples, test_size):
+        test_end = min(test_start + test_size, n_samples)
+        if test_end > test_start:
+            splits.append((slice(0, test_start), slice(test_start, test_end)))
+    return splits
+
+
 @dataclass
 class MetaLabelResult:
     """Result from Meta-Labeling binary classification."""
@@ -161,16 +186,20 @@ class AIFactorEngine:
         if len(X) < 50:
             return pd.Series(0.5, index=features.index)
 
-        model = GradientBoostingClassifier(
-            n_estimators=50,
-            max_depth=3,
-            random_state=self.random_state,
-        )
-        model.fit(X, y)
-        prob = model.predict_proba(X)[:, 1] if len(model.classes_) > 1 else np.ones(len(X))
-
         result = pd.Series(0.5, index=features.index)
-        result.loc[valid_idx] = prob
+        splits = _expanding_splits(len(X))
+        if not splits:
+            return result
+
+        for train_slice, test_slice in splits:
+            model = GradientBoostingClassifier(
+                n_estimators=50,
+                max_depth=3,
+                random_state=self.random_state,
+            )
+            model.fit(X[train_slice], y[train_slice])
+            result.loc[valid_idx[test_slice]] = _positive_class_probability(model, X[test_slice])
+
         return result
 
     def feature_selection(

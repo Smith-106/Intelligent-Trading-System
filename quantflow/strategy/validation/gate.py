@@ -10,6 +10,7 @@ All must pass for GO decision.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 import pandas as pd
@@ -19,6 +20,7 @@ from quantflow.strategy.validation.dsr import deflated_sharpe_ratio
 from quantflow.strategy.validation.wfo import walk_forward_optimization
 
 logger = logging.getLogger(__name__)
+SignalFunction = Callable[..., tuple[pd.Series, pd.Series]]
 
 
 def validation_gate(
@@ -31,6 +33,12 @@ def validation_gate(
     wfo_windows: int = 5,
     initial_capital: float = 10000.0,
     fee: float = 0.001,
+    signal_fn: SignalFunction | None = None,
+    param_space: dict[str, tuple[Any, ...]] | None = None,
+    data: pd.DataFrame | None = None,
+    optimize_trials: int = 50,
+    optimize_method: str = "bayesian",
+    optimize_objective: str = "sharpe",
 ) -> dict[str, Any]:
     """Run the full GO/NO-GO validation pipeline.
 
@@ -51,6 +59,12 @@ def validation_gate(
         n_test_groups=cpcv_test_groups,
         initial_capital=initial_capital,
         fee=fee,
+        signal_fn=signal_fn,
+        param_space=param_space,
+        data=data,
+        n_trials=optimize_trials,
+        method=optimize_method,
+        objective=optimize_objective,
     )
     results["checks"]["cpcv"] = cpcv_result
     if not cpcv_result["passed"]:
@@ -82,6 +96,12 @@ def validation_gate(
         mode="rolling",
         initial_capital=initial_capital,
         fee=fee,
+        signal_fn=signal_fn,
+        param_space=param_space,
+        data=data,
+        n_trials=optimize_trials,
+        method=optimize_method,
+        objective=optimize_objective,
     )
     results["checks"]["wfo_rolling"] = wfo_rolling
 
@@ -93,6 +113,12 @@ def validation_gate(
         mode="anchored",
         initial_capital=initial_capital,
         fee=fee,
+        signal_fn=signal_fn,
+        param_space=param_space,
+        data=data,
+        n_trials=optimize_trials,
+        method=optimize_method,
+        objective=optimize_objective,
     )
     results["checks"]["wfo_anchored"] = wfo_anchored
 

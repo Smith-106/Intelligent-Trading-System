@@ -70,6 +70,72 @@ def _get_strategy_factories() -> dict[str, StrategyFactory]:
     }
 
 
+def _get_strategy_specs() -> dict[str, tuple[StrategyFactory, ParamSpace]]:
+    factories = _get_strategy_factories()
+    return {
+        "trend_following": (
+            factories["trend_following"],
+            {
+                "fast_ma_period": (3, 15),
+                "slow_ma_period": (30, 120),
+                "rsi_oversold": (20, 40),
+                "rsi_overbought": (60, 85),
+                "atr_multiplier": (1.2, 3.0),
+                "volume_threshold": (0.8, 2.0),
+            },
+        ),
+        "mean_reversion": (
+            factories["mean_reversion"],
+            {
+                "rsi_oversold": (20, 40),
+                "rsi_overbought": (60, 85),
+                "bb_std": (1.5, 3.0),
+                "exit_rsi_overbought": (50, 75),
+                "exit_rsi_oversold": (25, 50),
+            },
+        ),
+        "elliott_wave": (
+            factories["elliott_wave"],
+            {
+                "zigzag_threshold": (0.02, 0.08),
+                "fib_tolerance": (0.10, 0.25),
+                "atr_stop_mult": (1.0, 3.0),
+            },
+        ),
+        "volatility_breakout": (
+            factories["volatility_breakout"],
+            {
+                "atr_threshold": (1.2, 2.0),
+                "atr_shrink_exit": (0.5, 0.9),
+                "volume_threshold": (1.2, 2.0),
+            },
+        ),
+        "funding_rate": (
+            factories["funding_rate"],
+            {
+                "entry_threshold": (0.0005, 0.002),
+                "exit_threshold": (0.0001, 0.0005),
+                "oi_change_threshold": (0.02, 0.1),
+            },
+        ),
+        "momentum_rotation": (
+            factories["momentum_rotation"],
+            {
+                "lookback": (10, 40),
+                "top_n": (1, 5),
+                "stop_loss_pct": (0.01, 0.05),
+            },
+        ),
+        "ml_ensemble": (
+            factories["ml_ensemble"],
+            {
+                "entry_threshold": (0.5, 0.8),
+                "exit_threshold": (0.2, 0.5),
+            },
+        ),
+    }
+
+
 app = typer.Typer(
     name="quantflow",
     help="Personal Crypto quantitative trading system\n\nCommands: download → research → optimize → validate → run",
@@ -271,65 +337,7 @@ def optimize(
 
     close = df["close"]
 
-    strategy_map: dict[str, tuple[StrategyFactory, ParamSpace]] = {
-        "trend_following": (
-            _get_strategy_factories()["trend_following"],
-            {
-                "ma_fast": (3, 15),
-                "ma_medium": (10, 40),
-                "ma_slow": (30, 120),
-                "rsi_buy_min": (20, 50),
-                "rsi_buy_max": (60, 85),
-            },
-        ),
-        "mean_reversion": (
-            _get_strategy_factories()["mean_reversion"],
-            {
-                "rsi_oversold": (20, 40),
-                "rsi_exit": (40, 60),
-                "bb_std": (1.5, 3.0),
-            },
-        ),
-        "elliott_wave": (
-            _get_strategy_factories()["elliott_wave"],
-            {
-                "zigzag_threshold": (0.02, 0.08),
-                "fib_tolerance": (0.10, 0.25),
-                "atr_stop_mult": (1.0, 3.0),
-            },
-        ),
-        "volatility_breakout": (
-            _get_strategy_factories()["volatility_breakout"],
-            {
-                "atr_threshold": (1.2, 2.0),
-                "atr_shrink_exit": (0.5, 0.9),
-                "volume_threshold": (1.2, 2.0),
-            },
-        ),
-        "funding_rate": (
-            _get_strategy_factories()["funding_rate"],
-            {
-                "entry_threshold": (0.0005, 0.002),
-                "exit_threshold": (0.0001, 0.0005),
-                "oi_change_threshold": (0.02, 0.1),
-            },
-        ),
-        "momentum_rotation": (
-            _get_strategy_factories()["momentum_rotation"],
-            {
-                "lookback": (10, 40),
-                "top_n": (1, 5),
-                "stop_loss_pct": (0.01, 0.05),
-            },
-        ),
-        "ml_ensemble": (
-            _get_strategy_factories()["ml_ensemble"],
-            {
-                "entry_threshold": (0.5, 0.8),
-                "exit_threshold": (0.2, 0.5),
-            },
-        ),
-    }
+    strategy_map = _get_strategy_specs()
 
     if strategy not in strategy_map:
         console.print(f"[red]Unknown strategy: {strategy}[/]")
@@ -377,6 +385,8 @@ def validate(
     groups: int = typer.Option(8, help="CPCV groups"),
     test_groups: int = typer.Option(2, help="CPCV test groups"),
     n_trials: int = typer.Option(100, help="Number of trials for DSR"),
+    optimize_trials: int = typer.Option(50, help="Optimization trials per OOS validation window"),
+    optimize_method: str = typer.Option("bayesian", help="Optimization method for OOS validation"),
     wfo_windows: int = typer.Option(5, help="Walk-forward windows"),
     capital: float = typer.Option(10000.0, help="Initial capital"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
@@ -407,20 +417,25 @@ def validate(
     if "datetime" in df.columns:
         df = df.set_index("datetime")
 
-    strategy_factories = _get_strategy_factories()
-    strategy_factory = strategy_factories.get(strategy)
-    if not strategy_factory:
+    strategy_specs = _get_strategy_specs()
+    strategy_spec = strategy_specs.get(strategy)
+    if not strategy_spec:
         console.print(f"[red]Unknown strategy: {strategy}[/]")
         return
 
+    strategy_factory, param_space = strategy_spec
     strategy_instance = strategy_factory(None)
     entries, exits = strategy_instance.generate_signals(df)
     close = df["close"]
 
+    def _signal_fn(frame: pd.DataFrame, **params: Any) -> tuple[pd.Series, pd.Series]:
+        s = strategy_factory(params)
+        return s.generate_signals(frame)
+
     if method == "cpcv":
         from quantflow.strategy.validation.cpcv import cpcv_backtest
 
-        console.print("[bold blue]Running CPCV validation...[/]")
+        console.print("[bold blue]Running CPCV validation with train-window optimization...[/]")
         result = cpcv_backtest(
             close,
             entries,
@@ -428,6 +443,11 @@ def validate(
             n_groups=groups,
             n_test_groups=test_groups,
             initial_capital=capital,
+            signal_fn=_signal_fn,
+            param_space=param_space,
+            data=df,
+            n_trials=optimize_trials,
+            method=optimize_method,
         )
         _display_cpcv(result)
 
@@ -446,12 +466,32 @@ def validate(
     elif method == "wfo":
         from quantflow.strategy.validation.wfo import walk_forward_optimization
 
-        console.print("[bold blue]Running Walk-Forward Optimization...[/]")
+        console.print("[bold blue]Running Walk-Forward Optimization with OOS regeneration...[/]")
         rolling = walk_forward_optimization(
-            close, entries, exits, n_windows=wfo_windows, mode="rolling", initial_capital=capital
+            close,
+            entries,
+            exits,
+            n_windows=wfo_windows,
+            mode="rolling",
+            initial_capital=capital,
+            signal_fn=_signal_fn,
+            param_space=param_space,
+            data=df,
+            n_trials=optimize_trials,
+            method=optimize_method,
         )
         anchored = walk_forward_optimization(
-            close, entries, exits, n_windows=wfo_windows, mode="anchored", initial_capital=capital
+            close,
+            entries,
+            exits,
+            n_windows=wfo_windows,
+            mode="anchored",
+            initial_capital=capital,
+            signal_fn=_signal_fn,
+            param_space=param_space,
+            data=df,
+            n_trials=optimize_trials,
+            method=optimize_method,
         )
         _display_wfo(rolling, anchored)
 
@@ -472,7 +512,7 @@ def validate(
     elif method in ("full", "gate"):
         from quantflow.strategy.validation.gate import validation_gate
 
-        console.print("[bold blue]Running Full Validation Gate...[/]")
+        console.print("[bold blue]Running Full Validation Gate with true OOS validation...[/]")
         result = validation_gate(
             close,
             entries,
@@ -482,6 +522,11 @@ def validate(
             cpcv_test_groups=test_groups,
             wfo_windows=wfo_windows,
             initial_capital=capital,
+            signal_fn=_signal_fn,
+            param_space=param_space,
+            data=df,
+            optimize_trials=optimize_trials,
+            optimize_method=optimize_method,
         )
         _display_gate(result)
 
@@ -573,6 +618,7 @@ def _display_cpcv(result: ResultDict) -> None:
         "OOS Sharpe (mean±std)", f"{result['oos_sharpe_mean']:.3f}±{result['oos_sharpe_std']:.3f}"
     )
     table.add_row("OOS Sharpe (min)", f"{result['oos_sharpe_min']:.3f}")
+    _add_signal_quality_rows(table, result.get("signal_quality", {}))
     status = "[green]PASSED[/]" if result["passed"] else "[red]FAILED[/]"
     table.add_row("Status", status)
     console.print(table)
@@ -606,6 +652,12 @@ def _display_wfo(rolling: ResultDict, anchored: ResultDict) -> None:
     table.add_row(
         "OOS Efficiency", f"{rolling['oos_efficiency']:.3f}", f"{anchored['oos_efficiency']:.3f}"
     )
+    for label, key in _SIGNAL_QUALITY_ROWS:
+        table.add_row(
+            label,
+            _format_signal_quality(rolling.get("signal_quality", {}), key),
+            _format_signal_quality(anchored.get("signal_quality", {}), key),
+        )
     r_status = "PASSED" if rolling["passed"] else "FAILED"
     a_status = "PASSED" if anchored["passed"] else "FAILED"
     table.add_row("Decision", r_status, a_status)
@@ -634,7 +686,38 @@ def _display_gate(result: ResultDict) -> None:
         passed = check_result.get("passed", False)
         status = "[green]✓[/]" if passed else "[red]✗[/]"
         console.print(f"  {status} {check_name}")
+        if check_result.get("signal_quality"):
+            console.print(f"    Signal quality: {_signal_quality_summary(check_result)}")
     console.print()
+
+
+_SIGNAL_QUALITY_ROWS = (
+    ("Signal Precision", "precision"),
+    ("Signal Recall", "recall"),
+    ("Signal Hit Rate", "hit_rate"),
+    ("Signal Brier Score", "brier_score"),
+    ("Signal OOS Sharpe", "oos_sharpe"),
+)
+
+
+def _format_signal_quality(quality: ResultDict, key: str) -> str:
+    value = quality.get(key)
+    return "n/a" if value is None else f"{float(value):.3f}"
+
+
+def _add_signal_quality_rows(table: Table, quality: ResultDict) -> None:
+    if not quality:
+        return
+
+    for label, key in _SIGNAL_QUALITY_ROWS:
+        table.add_row(label, _format_signal_quality(quality, key))
+
+
+def _signal_quality_summary(result: ResultDict) -> str:
+    quality = result.get("signal_quality", {})
+    return ", ".join(
+        f"{key}={_format_signal_quality(quality, key)}" for _label, key in _SIGNAL_QUALITY_ROWS
+    )
 
 
 @app.command()

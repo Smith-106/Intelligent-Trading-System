@@ -339,3 +339,60 @@ class TestValidationGate:
 
         assert result["decision"] == "GO"
         assert result["reason"] == "All validation checks passed"
+
+    def test_gate_passes_optimization_context_to_oos_validators(self, monkeypatch, gate_inputs):
+        close, entries, exits = gate_inputs
+        data = pd.DataFrame({"close": close}, index=close.index)
+        param_space = {"lookback": (3, 8)}
+
+        def signal_fn(frame, **params):
+            entries = pd.Series(params["lookback"] == 5, index=frame.index)
+            exits = pd.Series(False, index=frame.index)
+            return entries, exits
+
+        cpcv_calls = []
+        wfo_calls = []
+
+        def fake_cpcv(*args, **kwargs):
+            cpcv_calls.append((args, kwargs))
+            return {
+                "passed": True,
+                "pbo": 0.1,
+                "path_results": [{"oos_sharpe": 1.2}, {"oos_sharpe": 0.8}],
+            }
+
+        def fake_wfo(*args, **kwargs):
+            wfo_calls.append((args, kwargs))
+            return {"passed": True, "oos_efficiency": 0.7}
+
+        monkeypatch.setattr(gate_module, "cpcv_backtest", fake_cpcv)
+        monkeypatch.setattr(
+            gate_module,
+            "deflated_sharpe_ratio",
+            lambda **kwargs: {"passed": True, "dsr": 0.99},
+        )
+        monkeypatch.setattr(gate_module, "walk_forward_optimization", fake_wfo)
+
+        result = validation_gate(
+            close,
+            entries,
+            exits,
+            signal_fn=signal_fn,
+            param_space=param_space,
+            data=data,
+            optimize_trials=7,
+            optimize_method="random",
+            optimize_objective="total_return",
+        )
+
+        assert result["decision"] == "GO"
+        assert len(cpcv_calls) == 1
+        assert len(wfo_calls) == 2
+
+        for _args, kwargs in [*cpcv_calls, *wfo_calls]:
+            assert kwargs["signal_fn"] is signal_fn
+            assert kwargs["param_space"] is param_space
+            assert kwargs["data"] is data
+            assert kwargs["n_trials"] == 7
+            assert kwargs["method"] == "random"
+            assert kwargs["objective"] == "total_return"

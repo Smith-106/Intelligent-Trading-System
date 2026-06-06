@@ -6,12 +6,67 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyBase, StrategyContext
 
 logger = logging.getLogger(__name__)
+
+
+def _positive_class_probability(model: Any, features: pd.DataFrame) -> np.ndarray:
+    probas = model.predict_proba(features)
+    if probas.shape[1] == 1:
+        return np.ones(len(features), dtype=float) * float(probas[:, 0].mean())
+
+    classes = list(getattr(model, "classes_", []))
+    if 1 in classes:
+        return probas[:, classes.index(1)]
+    return probas[:, -1]
+
+
+def _time_series_splits(n_samples: int, max_splits: int = 5) -> list[tuple[slice, slice]]:
+    if n_samples < 3:
+        return []
+    n_splits = min(max_splits, max(1, n_samples - 2))
+    test_size = max(1, n_samples // (n_splits + 1))
+    first_test_start = max(2, n_samples - n_splits * test_size)
+    splits = []
+    for test_start in range(first_test_start, n_samples, test_size):
+        test_end = min(test_start + test_size, n_samples)
+        if test_end > test_start:
+            splits.append((slice(0, test_start), slice(test_start, test_end)))
+    return splits
+
+
+def _safe_sharpe(returns: pd.Series) -> float:
+    r = returns.replace([np.inf, -np.inf], np.nan).dropna()
+    if len(r) < 2 or r.std() == 0:
+        return 0.0
+    return float(r.mean() / r.std() * np.sqrt(252))
+
+
+def _classification_metrics(
+    y_true: pd.Series,
+    y_pred: pd.Series,
+    y_proba: pd.Series,
+) -> dict[str, float]:
+    true = y_true.astype(int)
+    pred = y_pred.astype(int)
+    tp = int(((true == 1) & (pred == 1)).sum())
+    fp = int(((true == 0) & (pred == 1)).sum())
+    fn = int(((true == 1) & (pred == 0)).sum())
+    accuracy = float((true == pred).mean()) if len(true) > 0 else 0.0
+    precision = tp / (tp + fp) if tp + fp > 0 else 0.0
+    recall = tp / (tp + fn) if tp + fn > 0 else 0.0
+    brier = float(np.mean((y_proba.astype(float) - true.astype(float)) ** 2))
+    return {
+        "accuracy": accuracy,
+        "precision": float(precision),
+        "recall": float(recall),
+        "brier_score": brier,
+    }
 
 
 class MLEnsembleStrategy(StrategyBase):
@@ -134,7 +189,6 @@ class MLEnsembleStrategy(StrategyBase):
         """
         try:
             from sklearn.ensemble import GradientBoostingClassifier
-            from sklearn.model_selection import cross_val_score
         except ImportError as e:
             raise ImportError("scikit-learn required: pip install scikit-learn") from e
 
@@ -145,6 +199,37 @@ class MLEnsembleStrategy(StrategyBase):
         # Drop NaN rows
         valid = features.dropna()
         valid_labels = labels.loc[valid.index]
+        splits = _time_series_splits(len(valid))
+        if not splits:
+            return {"error": "Insufficient data for time-series validation"}
+
+        oos_pred = pd.Series(index=valid.index, dtype=int)
+        oos_proba = pd.Series(index=valid.index, dtype=float)
+
+        for train_slice, test_slice in splits:
+            fold_model = GradientBoostingClassifier(
+                n_estimators=100, max_depth=4, learning_rate=0.1, random_state=42
+            )
+            train_x = valid.iloc[train_slice]
+            train_y = valid_labels.iloc[train_slice]
+            test_x = valid.iloc[test_slice]
+            fold_model.fit(train_x, train_y)
+            fold_proba = _positive_class_probability(fold_model, test_x)
+            oos_proba.loc[test_x.index] = fold_proba
+            oos_pred.loc[test_x.index] = (fold_proba >= 0.5).astype(int)
+
+        evaluated_idx = oos_proba.dropna().index
+        if len(evaluated_idx) == 0:
+            return {"error": "No out-of-sample predictions produced"}
+
+        y_oos = valid_labels.loc[evaluated_idx].astype(int)
+        pred_oos = oos_pred.loc[evaluated_idx].astype(int)
+        proba_oos = oos_proba.loc[evaluated_idx].astype(float).clip(0.0, 1.0)
+
+        forward_returns = df["close"].pct_change().shift(-1).reindex(evaluated_idx).fillna(0.0)
+        signed_returns = forward_returns.where(pred_oos == 1, -forward_returns)
+        oos_sharpe = _safe_sharpe(signed_returns)
+        metrics = _classification_metrics(y_oos, pred_oos, proba_oos)
 
         self._model = GradientBoostingClassifier(
             n_estimators=100, max_depth=4, learning_rate=0.1, random_state=42
@@ -152,19 +237,15 @@ class MLEnsembleStrategy(StrategyBase):
         self._model.fit(valid, valid_labels)
         self._feature_cols = list(valid.columns)
 
-        cv_scores = cross_val_score(self._model, valid, valid_labels, cv=5, scoring="accuracy")
-
-        # Train meta-labeling model if meta_labels provided
+        # Train meta-labeling model from primary OOS predictions when available.
         if meta_labels is not None:
-            meta_valid = meta_labels.loc[valid.index]
-            primary_preds = self._model.predict(valid)
+            meta_valid = meta_labels.loc[evaluated_idx]
             meta_features = pd.DataFrame(
                 {
-                    "primary_pred": primary_preds,
-                    "primary_proba": self._model.predict_proba(valid)[:, 1]
-                    if self._model.n_classes_ == 2
-                    else self._model.predict_proba(valid)[:, 0],
-                }
+                    "primary_pred": pred_oos.to_numpy(),
+                    "primary_proba": proba_oos.to_numpy(),
+                },
+                index=evaluated_idx,
             )
             self._meta_model = GradientBoostingClassifier(
                 n_estimators=50, max_depth=3, random_state=42
@@ -183,10 +264,17 @@ class MLEnsembleStrategy(StrategyBase):
             logger.warning(f"Failed to save model: {e}")
 
         return {
-            "cv_accuracy_mean": float(cv_scores.mean()),
-            "cv_accuracy_std": float(cv_scores.std()),
+            "validation_method": "time_series_expanding_oos",
+            "cv_accuracy_mean": metrics["accuracy"],
+            "cv_accuracy_std": 0.0,
+            "oos_accuracy": metrics["accuracy"],
+            "oos_precision": metrics["precision"],
+            "oos_recall": metrics["recall"],
+            "oos_brier_score": metrics["brier_score"],
+            "oos_sharpe": oos_sharpe,
             "n_features": len(self._feature_cols),
             "n_samples": len(valid),
+            "n_oos_samples": len(evaluated_idx),
         }
 
     def compute_meta_labels(

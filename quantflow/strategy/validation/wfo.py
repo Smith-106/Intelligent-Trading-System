@@ -18,7 +18,14 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from quantflow.strategy.validation.signal_quality import (
+    aggregate_signal_quality,
+    signal_quality_metrics,
+)
+
 logger = logging.getLogger(__name__)
+
+SignalFunction = Callable[..., tuple[pd.Series, pd.Series]]
 
 
 def _sanitize_metric_array(values: list[float]) -> npt.NDArray[np.float64]:
@@ -250,6 +257,12 @@ def walk_forward_optimization(
     oos_ratio: float = 0.3,
     initial_capital: float = 10000.0,
     fee: float = 0.001,
+    signal_fn: SignalFunction | None = None,
+    param_space: dict[str, tuple[Any, ...]] | None = None,
+    data: pd.DataFrame | None = None,
+    n_trials: int = 50,
+    method: str = "bayesian",
+    objective: str = "sharpe",
 ) -> dict[str, Any]:
     """Backward-compatible function interface for Walk-Forward Optimization.
 
@@ -262,20 +275,36 @@ def walk_forward_optimization(
         oos_ratio: Fraction of each window for OOS testing.
         initial_capital: Starting capital.
         fee: Trading fee rate.
+        signal_fn: Optional callable(frame, **params) -> (entries, exits). When
+            supplied with param_space, every train window is optimized and the
+            selected params are applied to the OOS window.
+        param_space: Parameter search space for train-window optimization.
+        data: Full OHLCV frame used by signal_fn. Defaults to a close-only frame.
+        n_trials: Number of optimization trials per WFO window.
+        method: Optimizer sampler method.
+        objective: Optimization objective.
 
     Returns:
         Dict with aggregated results and GO/NO-GO decision.
     """
     from quantflow.strategy.research.backtest import BacktestEngine
+    from quantflow.strategy.research.optimizer import StrategyOptimizer
 
     n_bars = len(close)
-    window_size = n_bars // n_windows
+    if n_windows < 1:
+        raise ValueError("n_windows must be >= 1")
+
+    window_size = max(n_bars // n_windows, 1)
     oos_size = int(window_size * oos_ratio)
 
     engine = BacktestEngine()
     window_results = []
     all_oos_sharpes: list[float] = []
     all_is_sharpes: list[float] = []
+    quality_rows: list[dict[str, Any]] = []
+    source_data = data.copy() if data is not None else pd.DataFrame({"close": close}, index=close.index)
+    uses_oos_signal_generation = signal_fn is not None
+    optimized = signal_fn is not None and param_space is not None
 
     for i in range(n_windows):
         is_start = 0 if mode == "anchored" else i * window_size
@@ -283,14 +312,76 @@ def walk_forward_optimization(
         oos_start = is_end
         oos_end = (i + 1) * window_size
 
-        is_idx = np.arange(is_start, is_end)
-        oos_idx = np.arange(oos_start, oos_end)
+        is_idx = np.arange(max(is_start, 0), min(is_end, n_bars))
+        oos_idx = np.arange(max(oos_start, 0), min(oos_end, n_bars))
+        train_frame = source_data.iloc[is_idx].copy()
+        oos_frame = source_data.iloc[oos_idx].copy()
+        train_close = close.iloc[is_idx]
+        oos_close = close.iloc[oos_idx]
+        best_params: dict[str, Any] = {}
+
+        if optimized:
+            optimizer = StrategyOptimizer(engine=engine)
+
+            def _train_signal_fn(
+                train_close_slice: pd.Series,
+                train_data: pd.DataFrame = train_frame,
+                **params: Any,
+            ) -> tuple[pd.Series, pd.Series]:
+                train_slice = train_data.copy()
+                if "close" in train_slice.columns:
+                    train_slice["close"] = train_close_slice.to_numpy()
+                assert signal_fn is not None
+                generated_entries, generated_exits = signal_fn(train_slice, **params)
+                return (
+                    generated_entries.reindex(train_slice.index).fillna(False).astype(bool),
+                    generated_exits.reindex(train_slice.index).fillna(False).astype(bool),
+                )
+
+            try:
+                optimization = optimizer.optimize(
+                    train_close,
+                    _train_signal_fn,
+                    param_space,
+                    n_trials=n_trials,
+                    method=method,
+                    initial_capital=initial_capital,
+                    fee=fee,
+                    objective=objective,
+                )
+                best_params = dict(optimization.get("best_params", {}))
+            except Exception as exc:
+                logger.warning("WFO window %d train optimization failed: %s", i, exc)
+                best_params = {}
+
+        if signal_fn is not None:
+            try:
+                train_entries, train_exits = signal_fn(train_frame, **best_params)
+                train_entries = train_entries.reindex(train_frame.index).fillna(False).astype(bool)
+                train_exits = train_exits.reindex(train_frame.index).fillna(False).astype(bool)
+            except Exception as exc:
+                logger.warning("WFO window %d train signal generation failed: %s", i, exc)
+                train_entries = pd.Series(False, index=train_frame.index)
+                train_exits = pd.Series(False, index=train_frame.index)
+            try:
+                oos_entries, oos_exits = signal_fn(oos_frame, **best_params)
+                oos_entries = oos_entries.reindex(oos_frame.index).fillna(False).astype(bool)
+                oos_exits = oos_exits.reindex(oos_frame.index).fillna(False).astype(bool)
+            except Exception as exc:
+                logger.warning("WFO window %d OOS signal generation failed: %s", i, exc)
+                oos_entries = pd.Series(False, index=oos_frame.index)
+                oos_exits = pd.Series(False, index=oos_frame.index)
+        else:
+            train_entries = entries.iloc[is_idx]
+            train_exits = exits.iloc[is_idx]
+            oos_entries = entries.iloc[oos_idx]
+            oos_exits = exits.iloc[oos_idx]
 
         try:
             is_res = engine.run_backtest(
-                close.iloc[is_idx],
-                entries.iloc[is_idx],
-                exits.iloc[is_idx],
+                train_close,
+                train_entries,
+                train_exits,
                 initial_capital=initial_capital,
                 fee=fee,
             )
@@ -300,9 +391,9 @@ def walk_forward_optimization(
 
         try:
             oos_res = engine.run_backtest(
-                close.iloc[oos_idx],
-                entries.iloc[oos_idx],
-                exits.iloc[oos_idx],
+                oos_close,
+                oos_entries,
+                oos_exits,
                 initial_capital=initial_capital,
                 fee=fee,
             )
@@ -316,16 +407,31 @@ def walk_forward_optimization(
             oos_max_dd = 0.0
             oos_trades = 0
 
+        signal_quality = signal_quality_metrics(
+            oos_close,
+            oos_entries,
+            oos_exits,
+            oos_sharpe=oos_sharpe,
+        )
+        quality_rows.append(signal_quality)
         all_is_sharpes.append(is_sharpe)
         all_oos_sharpes.append(oos_sharpe)
         window_results.append(
             {
                 "window": i,
+                "is_start": int(is_start),
+                "is_end": int(is_end),
+                "oos_start": int(oos_start),
+                "oos_end": int(oos_end),
                 "is_sharpe": is_sharpe,
                 "oos_sharpe": oos_sharpe,
                 "oos_return": oos_return,
                 "oos_max_dd": oos_max_dd,
                 "oos_trades": oos_trades,
+                "best_params": best_params,
+                "optimized": optimized,
+                "oos_recomputed": uses_oos_signal_generation,
+                "signal_quality": signal_quality,
             }
         )
 
@@ -347,6 +453,9 @@ def walk_forward_optimization(
         "oos_sharpe_mean": oos_mean,
         "oos_efficiency": oos_efficiency,
         "oos_efficiency_threshold": go_threshold,
+        "optimized": optimized,
+        "oos_recomputed": uses_oos_signal_generation,
+        "signal_quality": aggregate_signal_quality(quality_rows),
         "decision": decision,
         "window_results": window_results,
         "passed": decision == "GO",
