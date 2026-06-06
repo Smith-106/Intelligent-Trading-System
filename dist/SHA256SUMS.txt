@@ -1,2 +1,2 @@
-84b5d735ef1db6704bf377661e1e93353c4e4f04aa273b3c2abce77ec4e5fb84 *quantflow-0.1.2.tar.gz
-c913c298d6bcb38b11eb24a55e53c7b727637ac52b046190389f38c26090d5da *quantflow-0.1.2-py3-none-any.whl
+66afe67fd438328aaee459a9febbae1efba1e3fff2a58970688b16fe974e0bba *quantflow-0.1.2.tar.gz
+977d80a1f97caa0827619b5f712b40d0b92b1ee7e5304bdf43c892aefbead7d0 *quantflow-0.1.2-py3-none-any.whl
