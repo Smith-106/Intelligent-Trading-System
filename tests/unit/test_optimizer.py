@@ -70,6 +70,64 @@ class TestStrategyOptimizer:
         )
         assert "best_params" in result
 
+    def test_optimize_grid_uses_local_sweep_without_optuna_study(
+        self, sample_data, monkeypatch
+    ):
+        import optuna
+
+        class _Engine:
+            def run_backtest(
+                self,
+                close,
+                entries,
+                exits,
+                initial_capital,
+                fee,
+            ):
+                del close, entries, exits, initial_capital, fee
+
+                class _Result:
+                    sharpe_ratio = 1.0
+                    sortino_ratio = 1.0
+                    calmar_ratio = 1.0
+                    total_return = 1.0
+
+                return _Result()
+
+        def _raise_create_study(*args, **kwargs):
+            raise AssertionError("grid search should not create an Optuna study")
+
+        def signal_fn(close_series, **params):
+            assert params
+            empty = pd.Series(False, index=close_series.index)
+            return empty, empty
+
+        monkeypatch.setattr(optuna, "create_study", _raise_create_study)
+
+        optimizer = StrategyOptimizer(engine=cast(Any, _Engine()))
+        result = optimizer.optimize(
+            close=sample_data,
+            signal_fn=signal_fn,
+            param_space={"threshold": (0.0, 0.05)},
+            n_trials=3,
+            method="grid",
+        )
+
+        assert result["method"] == "grid"
+        assert result["n_trials"] == 3
+
+    def test_grid_candidates_cover_multi_parameter_space(self):
+        candidates = StrategyOptimizer._grid_candidates(
+            {"fast": (1, 5), "slow": (10, 50)},
+            n_trials=3,
+        )
+
+        assert candidates == [
+            {"fast": 1, "slow": 10},
+            {"fast": 3, "slow": 30},
+            {"fast": 5, "slow": 50},
+        ]
+
     def test_create_sampler_bayesian(self):
         sampler = StrategyOptimizer._create_sampler("bayesian")
         assert sampler is not None

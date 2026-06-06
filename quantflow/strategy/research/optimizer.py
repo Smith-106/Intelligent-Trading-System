@@ -1,4 +1,4 @@
-"""Optuna-based parameter optimization."""
+"""Parameter optimization with Optuna samplers and local grid search."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import logging
 import math
 import warnings
 from collections.abc import Callable
+from itertools import product
 from typing import Any
 
 import pandas as pd
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class StrategyOptimizer:
-    """Optimize strategy parameters using Optuna."""
+    """Optimize strategy parameters using Optuna or deterministic local sweeps."""
 
     def __init__(self, engine: BacktestEngine | None = None) -> None:
         self._engine = engine or BacktestEngine()
@@ -33,6 +34,17 @@ class StrategyOptimizer:
         objective: str = "sharpe",
     ) -> dict[str, Any]:
         """Run parameter optimization."""
+        if method == "grid":
+            return self._optimize_grid(
+                close,
+                signal_fn,
+                param_space,
+                n_trials=n_trials,
+                initial_capital=initial_capital,
+                fee=fee,
+                objective=objective,
+            )
+
         import optuna
 
         optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -48,32 +60,15 @@ class StrategyOptimizer:
                 else:
                     params[name] = trial.suggest_float(name, float(low), float(high))
 
-            try:
-                entries, exits = signal_fn(close, **params)
-                result = self._engine.run_backtest(
-                    close,
-                    entries,
-                    exits,
-                    initial_capital=initial_capital,
-                    fee=fee,
-                )
-                if objective == "sharpe":
-                    value = result.sharpe_ratio
-                elif objective == "sortino":
-                    value = result.sortino_ratio
-                elif objective == "calmar":
-                    value = result.calmar_ratio
-                elif objective == "return":
-                    value = result.total_return
-                else:
-                    value = result.sharpe_ratio
-                if not math.isfinite(value):
-                    logger.warning("Optuna trial produced non-finite objective: %s", value)
-                    return -10.0
-                return value
-            except Exception as e:
-                logger.warning("Optuna trial failed: %s", e)
-                return -10.0
+            return self._evaluate_params(
+                close,
+                signal_fn,
+                params,
+                initial_capital=initial_capital,
+                fee=fee,
+                objective=objective,
+                source="Optuna trial",
+            )
 
         study = optuna.create_study(direction="maximize", sampler=sampler)
         study.optimize(optuna_objective, n_trials=n_trials, show_progress_bar=False)
@@ -90,6 +85,152 @@ class StrategyOptimizer:
             "method": method,
             "objective": objective,
         }
+
+    def _optimize_grid(
+        self,
+        close: pd.Series,
+        signal_fn: Callable[..., tuple[pd.Series, pd.Series]],
+        param_space: dict[str, tuple[Any, ...]],
+        n_trials: int,
+        initial_capital: float,
+        fee: float,
+        objective: str,
+    ) -> dict[str, Any]:
+        """Run deterministic local grid search without Optuna study overhead."""
+        best_params: dict[str, Any] = {}
+        best_value = -10.0
+        evaluated = 0
+
+        for params in self._grid_candidates(param_space, n_trials):
+            value = self._evaluate_params(
+                close,
+                signal_fn,
+                params,
+                initial_capital=initial_capital,
+                fee=fee,
+                objective=objective,
+                source="Grid trial",
+            )
+            evaluated += 1
+            if value > best_value:
+                best_value = value
+                best_params = params
+
+        logger.info("Grid optimization complete: best_value=%.4f, params=%s", best_value, best_params)
+
+        return {
+            "best_params": best_params,
+            "best_value": best_value,
+            "n_trials": evaluated,
+            "method": "grid",
+            "objective": objective,
+        }
+
+    def _evaluate_params(
+        self,
+        close: pd.Series,
+        signal_fn: Callable[..., tuple[pd.Series, pd.Series]],
+        params: dict[str, Any],
+        initial_capital: float,
+        fee: float,
+        objective: str,
+        source: str,
+    ) -> float:
+        try:
+            entries, exits = signal_fn(close, **params)
+            result = self._engine.run_backtest(
+                close,
+                entries,
+                exits,
+                initial_capital=initial_capital,
+                fee=fee,
+            )
+            value = self._objective_value(result, objective)
+            if not math.isfinite(value):
+                logger.warning("%s produced non-finite objective: %s", source, value)
+                return -10.0
+            return value
+        except Exception as e:
+            logger.warning("%s failed: %s", source, e)
+            return -10.0
+
+    @staticmethod
+    def _objective_value(result: Any, objective: str) -> float:
+        if objective == "sharpe":
+            return float(result.sharpe_ratio)
+        if objective == "sortino":
+            return float(result.sortino_ratio)
+        if objective == "calmar":
+            return float(result.calmar_ratio)
+        if objective == "return":
+            return float(result.total_return)
+        return float(result.sharpe_ratio)
+
+    @staticmethod
+    def _grid_candidates(
+        param_space: dict[str, tuple[Any, ...]],
+        n_trials: int,
+    ) -> list[dict[str, Any]]:
+        if n_trials < 1:
+            return []
+        if not param_space:
+            return [{}]
+
+        names = list(param_space)
+        values = [StrategyOptimizer._grid_values(param_space[name], n_trials) for name in names]
+        total_candidates = 1
+        for grid_values in values:
+            total_candidates *= len(grid_values)
+
+        if total_candidates <= n_trials:
+            return [
+                dict(zip(names, combo, strict=True))
+                for combo in product(*values)
+            ]
+
+        indexes = [
+            round(i * (total_candidates - 1) / (n_trials - 1))
+            for i in range(n_trials)
+        ] if n_trials > 1 else [0]
+
+        candidates: list[dict[str, Any]] = []
+        for index in indexes:
+            combo: list[Any] = []
+            remainder = index
+            for grid_values in reversed(values):
+                value_index = remainder % len(grid_values)
+                combo.append(grid_values[value_index])
+                remainder //= len(grid_values)
+            combo.reverse()
+            candidates.append(dict(zip(names, combo, strict=True)))
+        return candidates
+
+    @staticmethod
+    def _grid_values(spec: tuple[Any, ...], n_trials: int) -> list[Any]:
+        if len(spec) > 2:
+            return list(spec)[:n_trials]
+
+        low, high = spec[0], spec[1]
+        if isinstance(low, int) and isinstance(high, int):
+            if n_trials == 1:
+                return [low]
+            span = high - low
+            if span <= 0:
+                return [low]
+            step = max(1, round(span / max(n_trials - 1, 1)))
+            values = list(range(low, high + 1, step))
+            if values[-1] != high:
+                values.append(high)
+            return values[:n_trials]
+
+        if n_trials == 1:
+            return [float(low)]
+        low_float = float(low)
+        high_float = float(high)
+        if low_float == high_float:
+            return [low_float]
+        step = (high_float - low_float) / (n_trials - 1)
+        return [low_float + step * i for i in range(n_trials)]
 
     @staticmethod
     def _create_sampler(method: str) -> Any:
