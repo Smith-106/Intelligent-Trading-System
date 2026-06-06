@@ -78,13 +78,14 @@ class TradingSession:
         # Start Prometheus metrics server
         start_metrics_server(self._config.monitoring.prometheus_port)
 
+        if self._strategies:
+            allocation = {s.name: 1.0 / len(self._strategies) for s in self._strategies}
+            self._portfolio.set_allocation(allocation)
+
         for strategy in self._strategies:
             ctx = StrategyContext()
             strategy.on_init(ctx)
             self._contexts[strategy.name] = ctx
-            self._portfolio.set_allocation(
-                {s.name: 1.0 / len(self._strategies) for s in self._strategies}
-            )
 
         self._running = True
         logger.info("Trading session started: %d strategies, mode=%s", len(self._strategies), mode)
@@ -116,10 +117,11 @@ class TradingSession:
 
         # Update Prometheus portfolio metrics
         pf = self._portfolio.portfolio
+        total_value = pf.total_value
         update_portfolio_metrics(
-            total_value=self._portfolio.total_value,
+            total_value=total_value,
             cash=pf.cash,
-            drawdown=self._portfolio.current_drawdown,
+            drawdown=pf.current_drawdown,
             n_positions=len(pf.positions),
         )
 
@@ -132,7 +134,7 @@ class TradingSession:
                 await self._alert_mgr.send(
                     "KILL SWITCH ACTIVATED: drawdown breach",
                     AlertLevel.CRITICAL,
-                    extra={"drawdown": self._portfolio.current_drawdown},
+                    extra={"drawdown": pf.current_drawdown},
             )
             self._running = False
             self._record_bar_latency(bar.symbol, started_at)
@@ -279,17 +281,17 @@ class TradingSession:
                     )
 
                     if not df.empty and "timestamp" in df.columns:
-                        for _, row in df.iterrows():
-                            ts = int(row["timestamp"])
+                        for row in df.itertuples(index=False):
+                            ts = int(row.timestamp)
                             if last_timestamp is None or ts > last_timestamp:
                                 bar = Bar(
                                     symbol=symbol,
                                     timestamp=ts,
-                                    open=float(row["open"]),
-                                    high=float(row["high"]),
-                                    low=float(row["low"]),
-                                    close=float(row["close"]),
-                                    volume=float(row["volume"]),
+                                    open=float(row.open),
+                                    high=float(row.high),
+                                    low=float(row.low),
+                                    close=float(row.close),
+                                    volume=float(row.volume),
                                 )
                                 await self.on_bar(bar)
                                 last_timestamp = ts

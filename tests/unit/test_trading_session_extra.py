@@ -108,6 +108,14 @@ class TestTradingSessionExtra:
 
         monkeypatch.setattr(session.execution, "start", fake_start)
         monkeypatch.setattr("quantflow.strategy.engine.start_metrics_server", lambda port: None)
+        allocation_calls: list[dict[str, float]] = []
+        original_set_allocation = session.portfolio.set_allocation
+
+        def track_set_allocation(allocation: dict[str, float]) -> None:
+            allocation_calls.append(dict(allocation))
+            original_set_allocation(allocation)
+
+        monkeypatch.setattr(session.portfolio, "set_allocation", track_set_allocation)
 
         await session.start(mode="paper")
 
@@ -117,6 +125,7 @@ class TestTradingSessionExtra:
         assert strategies[1].init_calls == 1
         assert session.portfolio.get_strategy_allocation("alpha") == 0.5
         assert session.portfolio.get_strategy_allocation("beta") == 0.5
+        assert allocation_calls == [{"alpha": 0.5, "beta": 0.5}]
 
     @pytest.mark.asyncio
     async def test_on_bar_returns_early_when_not_running_or_kill_switch_active(self) -> None:
