@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quantflow"
-version = "0.1.2"
+version = "0.1.3"
 description = "Personal quantitative trading system for Crypto (OKX)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,7 +30,7 @@ dependencies = [
     "scikit-learn>=1.5",
     "structlog>=24.0",
     "feedparser>=6.0",
-    "aiohttp>=3.9",
+    "aiohttp>=3.14.0",
 ]
 
 [project.optional-dependencies]
@@ -53,8 +53,38 @@ dev = [
 [project.scripts]
 quantflow = "quantflow.cli.main:app"
 
+[tool.hatch.build]
+skip-excluded-dirs = true
+exclude = [
+    "/.codegraph",
+    "/.mypy_cache",
+    "/.pytest_cache",
+    "/.ruff_cache",
+    "/.venv",
+    "/.workflow",
+    "/data",
+    "/dist",
+    "/docker/grafana_data",
+    "/docker/redis_data",
+    "/htmlcov",
+    "/tests",
+    "/Ctest_out.txt",
+]
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "quantflow",
+    "pyproject.toml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    ".env.example",
+    "requirements-lock.txt",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["quantflow"]
+only-packages = true
 
 [tool.ruff]
 target-version = "py311"

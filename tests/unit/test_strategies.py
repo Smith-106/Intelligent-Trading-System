@@ -26,6 +26,29 @@ def _make_ohlcv(n: int = 200, seed: int = 42) -> pd.DataFrame:
     )
 
 
+def _bars_from_df(df: pd.DataFrame, symbol: str = "BTC/USDT") -> list[Bar]:
+    return [
+        Bar(
+            symbol,
+            idx * 60000,
+            float(row.open) if "open" in df.columns else float(row.close),
+            float(row.high),
+            float(row.low),
+            float(row.close),
+            float(row.volume),
+        )
+        for idx, row in enumerate(df.itertuples(index=False))
+    ]
+
+
+def _stream_bars(strategy, df: pd.DataFrame) -> None:
+    ctx = StrategyContext()
+    strategy.on_init(ctx)
+    for bar in _bars_from_df(df):
+        strategy.on_bar(ctx, bar)
+        ctx.flush_signals()
+
+
 class TestTrendFollowingStrategy:
     def test_generate_signals(self):
         strategy = TrendFollowingStrategy()
@@ -82,23 +105,15 @@ class TestTrendFollowingStrategy:
             for idx in range(strategy._max_bars)
         ]
 
-        strategy._bars_to_df = lambda: pd.DataFrame()
+        strategy._latest_signal = lambda: (False, False)
         strategy.on_bar(ctx, Bar("BTC/USDT", 9999, 100.0, 101.0, 99.0, 100.5, 1000.0))
         assert ctx.flush_signals() == []
 
-        signal_df = pd.DataFrame({"close": [100.0, 101.0, 102.0]})
-        strategy._bars_to_df = lambda: signal_df
-        strategy.generate_signals = lambda df: (
-            pd.Series(dtype=bool),
-            pd.Series(dtype=bool),
-        )
+        strategy._latest_signal = lambda: (False, False)
         strategy.on_bar(ctx, Bar("BTC/USDT", 10000, 100.0, 101.0, 99.0, 100.5, 1000.0))
         assert ctx.flush_signals() == []
 
-        strategy.generate_signals = lambda df: (
-            pd.Series([False] * len(df), index=df.index),
-            pd.Series([False] * (len(df) - 1) + [True], index=df.index),
-        )
+        strategy._latest_signal = lambda: (False, True)
         strategy.on_bar(ctx, Bar("BTC/USDT", 10001, 100.0, 101.0, 99.0, 99.5, 1000.0))
 
         signals = ctx.flush_signals()
@@ -125,12 +140,7 @@ class TestTrendFollowingStrategy:
             for idx in range(strategy._max_bars)
         ]
 
-        signal_df = pd.DataFrame({"close": [100.0, 101.0, 102.0]})
-        strategy._bars_to_df = lambda: signal_df
-        strategy.generate_signals = lambda df: (
-            pd.Series([False] * (len(df) - 1) + [True], index=df.index),
-            pd.Series([False] * len(df), index=df.index),
-        )
+        strategy._latest_signal = lambda: (True, False)
 
         strategy.on_bar(ctx, Bar("BTC/USDT", 10002, 100.0, 101.0, 99.0, 101.5, 1000.0))
 
@@ -138,6 +148,28 @@ class TestTrendFollowingStrategy:
         assert signals
         assert signals[-1].direction == Direction.LONG
         assert TrendFollowingStrategy()._bars_to_df().empty
+
+    def test_latest_signal_matches_vectorized_last_row(self):
+        strategy = TrendFollowingStrategy()
+        df = _make_ohlcv(120)
+        strategy._bars = _bars_from_df(df)
+
+        latest_entry, latest_exit = strategy._latest_signal()
+        entries, exits = strategy.generate_signals(df)
+
+        assert latest_entry is bool(entries.iloc[-1])
+        assert latest_exit is bool(exits.iloc[-1])
+
+    def test_incremental_on_bar_matches_vectorized_last_row(self):
+        strategy = TrendFollowingStrategy()
+        df = _make_ohlcv(120)
+
+        _stream_bars(strategy, df)
+        latest_entry, latest_exit = strategy._latest_signal()
+        entries, exits = strategy.generate_signals(df)
+
+        assert latest_entry is bool(entries.iloc[-1])
+        assert latest_exit is bool(exits.iloc[-1])
 
 
 class TestMeanReversionStrategy:
@@ -158,6 +190,28 @@ class TestMeanReversionStrategy:
         strategy = MeanReversionStrategy()
         indicators = strategy.get_required_indicators()
         assert len(indicators) > 0
+
+    def test_latest_signal_matches_vectorized_last_row(self):
+        strategy = MeanReversionStrategy()
+        df = _make_ohlcv(120)
+        strategy._bars = _bars_from_df(df)
+
+        latest_direction, latest_exit = strategy._latest_signal()
+        entries, exits = strategy.generate_signals(df)
+
+        assert (latest_direction is not None) is bool(entries.iloc[-1])
+        assert latest_exit is bool(exits.iloc[-1])
+
+    def test_incremental_on_bar_matches_vectorized_last_row(self):
+        strategy = MeanReversionStrategy()
+        df = _make_ohlcv(120)
+
+        _stream_bars(strategy, df)
+        latest_direction, latest_exit = strategy._latest_signal()
+        entries, exits = strategy.generate_signals(df)
+
+        assert (latest_direction is not None) is bool(entries.iloc[-1])
+        assert latest_exit is bool(exits.iloc[-1])
 
 
 class TestVolatilityBreakoutStrategy:
@@ -249,23 +303,15 @@ class TestVolatilityBreakoutStrategy:
             for idx in range(strategy._max_bars)
         ]
 
-        strategy._bars_to_df = lambda: pd.DataFrame()
+        strategy._latest_signal = lambda: (False, False)
         strategy.on_bar(ctx, Bar("BTC/USDT", 9999, 100.0, 101.0, 99.0, 100.5, 1000.0))
         assert ctx.flush_signals() == []
 
-        signal_df = pd.DataFrame({"close": [100.0, 101.0, 102.0, 103.0]})
-        strategy._bars_to_df = lambda: signal_df
-        strategy.generate_signals = lambda df: (
-            pd.Series(dtype=bool),
-            pd.Series(dtype=bool),
-        )
+        strategy._latest_signal = lambda: (False, False)
         strategy.on_bar(ctx, Bar("BTC/USDT", 10000, 100.0, 101.0, 99.0, 100.5, 1000.0))
         assert ctx.flush_signals() == []
 
-        strategy.generate_signals = lambda df: (
-            pd.Series([False] * len(df), index=df.index),
-            pd.Series([False] * (len(df) - 1) + [True], index=df.index),
-        )
+        strategy._latest_signal = lambda: (False, True)
         strategy.on_bar(ctx, Bar("BTC/USDT", 10001, 100.0, 101.0, 99.0, 99.5, 1000.0))
 
         signals = ctx.flush_signals()
@@ -289,10 +335,7 @@ class TestVolatilityBreakoutStrategy:
         strategy._bars = [
             Bar("BTC/USDT", idx, 100.0, 101.0, 99.0, 100.0, 1000.0) for idx in range(min_bars)
         ]
-        strategy.generate_signals = lambda df: (
-            pd.Series([False] * (len(df) - 1) + [True], index=df.index),
-            pd.Series([False] * len(df), index=df.index),
-        )
+        strategy._latest_signal = lambda: (True, False)
 
         strategy.on_bar(ctx, Bar("BTC/USDT", 30000, 100.0, 101.0, 99.0, 102.0, 1000.0))
 
@@ -317,6 +360,28 @@ class TestVolatilityBreakoutStrategy:
 
         assert len(entries) == len(df)
         assert len(exits) == len(df)
+
+    def test_latest_signal_matches_vectorized_last_row(self):
+        strategy = VolatilityBreakoutStrategy()
+        df = _make_ohlcv(120)
+        strategy._bars = _bars_from_df(df)
+
+        latest_entry, latest_exit = strategy._latest_signal()
+        entries, exits = strategy.generate_signals(df)
+
+        assert latest_entry is bool(entries.iloc[-1])
+        assert latest_exit is bool(exits.iloc[-1])
+
+    def test_incremental_on_bar_matches_vectorized_last_row(self):
+        strategy = VolatilityBreakoutStrategy()
+        df = _make_ohlcv(120)
+
+        _stream_bars(strategy, df)
+        latest_entry, latest_exit = strategy._latest_signal()
+        entries, exits = strategy.generate_signals(df)
+
+        assert latest_entry is bool(entries.iloc[-1])
+        assert latest_exit is bool(exits.iloc[-1])
 
 
 class TestFundingRateStrategy:

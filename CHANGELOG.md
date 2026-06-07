@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.1.3] - 2026-06-07
+
+### Added
+- Added `quantflow/strategy/templates/_runtime.py` to share numeric helpers across event-driven strategy hot paths.
+- Added `runtime.three_strategy_bars_per_sec` to `quantflow benchmark` so the three-strategy `on_bar()` path can be checked as a release gate.
+- Added the `docs/release/v0.1.3/` release-candidate documentation set.
+
+### Changed
+- Promoted project version metadata from `0.1.2` to `0.1.3` so source, tag, and release assets can align with the current `HEAD`.
+- Reworked `trend_following`、`mean_reversion` 和 `volatility_breakout` 的 event-driven path to use incremental calculations instead of rebuilding a DataFrame on every bar.
+- Regenerated `requirements-lock.txt` from a clean installed-wheel environment and removed the stale editable Git entry plus host-only development dependencies.
+- Raised the minimum `aiohttp` requirement to `3.14.0`.
+- Restricted Hatch `sdist` selection to release-safe files only, excluding `.workflow`、`.codegraph`、`tests` and other non-release artifacts from source packages.
+
+### Fixed
+- Refreshed release checksum and manifest generation against the `v0.1.3` artifact names.
+- Expanded CLI and strategy tests so the incremental runtime path stays aligned with the vectorized signal path.
+
 ## [0.1.2] - 2026-06-03
 
 ### Fixed

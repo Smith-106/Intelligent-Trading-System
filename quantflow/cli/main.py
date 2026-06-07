@@ -741,6 +741,11 @@ def benchmark(
     min_bars_per_sec: float | None = typer.Option(
         None, "--min-bars-per-sec", help="Fail if TradingSession throughput is lower"
     ),
+    min_three_strategy_bars_per_sec: float | None = typer.Option(
+        None,
+        "--min-three-strategy-bars-per-sec",
+        help="Fail if the three-strategy event hot path throughput is lower",
+    ),
     min_orders_per_sec: float | None = typer.Option(
         None, "--min-orders-per-sec", help="Fail if paper order throughput is lower"
     ),
@@ -766,6 +771,9 @@ def benchmark(
     from quantflow.strategy.engine import TradingSession
     from quantflow.strategy.research.backtest import BacktestEngine
     from quantflow.strategy.research.optimizer import StrategyOptimizer
+    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
     from quantflow.strategy.validation.wfo import walk_forward_optimization
 
     dates = pd.date_range("2024-01-01", periods=bars, freq="h", tz="UTC")
@@ -920,6 +928,17 @@ def benchmark(
             return empty, empty
 
     async def _runtime_baselines() -> None:
+        def _bar_from_row(row: Any) -> Bar:
+            return Bar(
+                symbol="BTC/USDT",
+                timestamp=int(row.timestamp),
+                open=float(row.open),
+                high=float(row.high),
+                low=float(row.low),
+                close=float(row.close),
+                volume=float(row.volume),
+            )
+
         strategy = NoSignalStrategy()
         session = TradingSession(AppConfig(), [strategy])
         await session.start(mode="paper")
@@ -927,23 +946,47 @@ def benchmark(
             bar_slice = frame.tail(min(bars, 200))
             started = perf_counter()
             for row in bar_slice.itertuples(index=False):
-                await session.on_bar(
-                    Bar(
-                        symbol="BTC/USDT",
-                        timestamp=int(row.timestamp),
-                        open=float(row.open),
-                        high=float(row.high),
-                        low=float(row.low),
-                        close=float(row.close),
-                        volume=float(row.volume),
-                    )
-                )
+                await session.on_bar(_bar_from_row(row))
             elapsed_ms = (perf_counter() - started) * 1000
             rows.append(("runtime", "TradingSession.on_bar batch", f"{elapsed_ms:.2f} ms"))
             _record("runtime", "TradingSession.on_bar batch", elapsed_ms, "ms")
             _throughput("runtime", "bars/sec", len(bar_slice), elapsed_ms)
         finally:
             await session.stop()
+
+        hot_path_bars = max(bars, 2000)
+        hot_rng = np.random.default_rng(142)
+        hot_dates = pd.date_range("2024-06-01", periods=hot_path_bars, freq="min", tz="UTC")
+        hot_close = 100.0 + np.cumsum(hot_rng.normal(0.01, 0.6, hot_path_bars))
+        hot_frame = pd.DataFrame(
+            {
+                "timestamp": [int(dt.timestamp() * 1000) for dt in hot_dates],
+                "open": hot_close - 0.2,
+                "high": hot_close + 0.5,
+                "low": hot_close - 0.5,
+                "close": hot_close,
+                "volume": hot_rng.uniform(10.0, 100.0, hot_path_bars),
+            }
+        )
+        hot_strategies = [
+            TrendFollowingStrategy(),
+            MeanReversionStrategy(),
+            VolatilityBreakoutStrategy(),
+        ]
+        hot_contexts = [StrategyContext() for _ in hot_strategies]
+        for hot_strategy, hot_context in zip(hot_strategies, hot_contexts, strict=True):
+            hot_strategy.on_init(hot_context)
+
+        started = perf_counter()
+        for row in hot_frame.itertuples(index=False):
+            hot_bar = _bar_from_row(row)
+            for hot_strategy, hot_context in zip(hot_strategies, hot_contexts, strict=True):
+                hot_strategy.on_bar(hot_context, hot_bar)
+                hot_context.flush_signals()
+        elapsed_ms = (perf_counter() - started) * 1000
+        rows.append(("runtime", "three strategy on_bar batch", f"{elapsed_ms:.2f} ms"))
+        _record("runtime", "three strategy on_bar batch", elapsed_ms, "ms")
+        _throughput("runtime", "three strategy bars/sec", len(hot_frame), elapsed_ms)
 
         execution = ExecutionEngine()
         await execution.start(mode="paper")
@@ -1005,6 +1048,13 @@ def benchmark(
             "runtime.bars_per_sec",
             metrics.get("runtime.bars_per_sec"),
             min_bars_per_sec,
+            ">=",
+            "per_second",
+        ),
+        (
+            "runtime.three_strategy_bars_per_sec",
+            metrics.get("runtime.three_strategy_bars_per_sec"),
+            min_three_strategy_bars_per_sec,
             ">=",
             "per_second",
         ),

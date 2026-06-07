@@ -192,52 +192,31 @@ class TestMeanReversionStrategyExtra:
         ctx = StrategyContext()
         strategy._bars = [_bar(0, 100.0), _bar(1, 101.0)]
 
-        with patch.object(strategy, "_bars_to_df", return_value=pd.DataFrame()):
+        with patch.object(strategy, "_latest_signal", return_value=(None, False)):
             strategy.on_bar(ctx, _bar(2, 102.0))
         assert ctx.flush_signals() == []
 
-        with (
-            patch.object(
-                strategy, "_bars_to_df", return_value=pd.DataFrame({"close": [100.0, 101.0]})
-            ),
-            patch.object(
-                strategy,
-                "generate_signals",
-                return_value=(pd.Series(dtype=bool), pd.Series(dtype=bool)),
-            ),
-        ):
+        with patch.object(strategy, "_latest_signal", return_value=(None, False)):
             strategy.on_bar(ctx, _bar(3, 103.0))
         assert ctx.flush_signals() == []
 
     def test_on_bar_emits_long_short_and_flat_signals(self) -> None:
         strategy = MeanReversionStrategy({"bb_period": 2, "volume_period": 2, "rsi_period": 2})
-        base_df = pd.DataFrame({"close": [100.0, 101.0, 102.0]})
 
-        def run_case(rsi_value: float, entries_last: bool, exits_last: bool) -> list[Signal]:
+        def run_case(entry_direction: Direction | None, exits_last: bool) -> list[Signal]:
             ctx = StrategyContext()
             strategy._bars = [_bar(0, 100.0), _bar(1, 101.0)]
-            with (
-                patch.object(strategy, "_bars_to_df", return_value=base_df),
-                patch.object(
-                    strategy,
-                    "generate_signals",
-                    return_value=(
-                        pd.Series([False, False, entries_last], dtype=bool),
-                        pd.Series([False, False, exits_last], dtype=bool),
-                    ),
-                ),
-                patch.object(
-                    strategy,
-                    "_compute_rsi",
-                    return_value=pd.Series([50.0, 50.0, rsi_value], dtype=float),
-                ),
+            with patch.object(
+                strategy,
+                "_latest_signal",
+                return_value=(entry_direction, exits_last),
             ):
                 strategy.on_bar(ctx, _bar(2, 102.0))
             return ctx.flush_signals()
 
-        long_signals = run_case(20.0, True, False)
-        short_signals = run_case(80.0, True, False)
-        flat_signals = run_case(50.0, False, True)
+        long_signals = run_case(Direction.LONG, False)
+        short_signals = run_case(Direction.SHORT, False)
+        flat_signals = run_case(None, True)
 
         assert len(long_signals) == 1
         assert long_signals[0].direction == Direction.LONG

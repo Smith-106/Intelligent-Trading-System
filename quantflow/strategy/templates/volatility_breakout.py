@@ -10,6 +10,19 @@ import pandas as pd
 from quantflow.common.models import Bar, Direction
 from quantflow.indicators.volatility import atr, bollinger_bands, keltner_channel
 from quantflow.strategy.base import StrategyBase, StrategyContext
+from quantflow.strategy.templates._runtime import (
+    closes,
+    ewm_next,
+    ewm_series,
+    highs,
+    lows,
+    rolling_average_true_ranges,
+    rolling_mean_at,
+    rolling_mean_optional_at,
+    rolling_std_at,
+    true_range_value,
+    volumes,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +46,21 @@ class VolatilityBreakoutStrategy(StrategyBase):
         self._bb_middle_exit = p.get("bb_middle_exit", True)
 
         self._bars: list[Bar] = []
+        self._close_values: list[float] = []
+        self._high_values: list[float] = []
+        self._low_values: list[float] = []
+        self._volume_values: list[float] = []
+        self._true_range_values: list[float] = []
+        self._atr_values: list[float | None] = []
+        self._keltner_atr_values: list[float | None] = []
+        self._keltner_ema_value: float | None = None
+        self._kc_upper_values: list[float | None] = []
+        self._kc_lower_values: list[float | None] = []
+        self._bb_middle_values: list[float | None] = []
+        self._bb_upper_values: list[float | None] = []
+        self._bb_lower_values: list[float | None] = []
+        self._bb_width_values: list[float | None] = []
+        self._bb_width_ma_values: list[float | None] = []
         self._max_bars = (
             max(
                 self._atr_period,
@@ -48,41 +76,250 @@ class VolatilityBreakoutStrategy(StrategyBase):
         ctx.params = self._params
 
     def on_bar(self, ctx: StrategyContext, bar: Bar) -> None:
+        """Event-driven bar handler using an incremental latest-row path."""
         self._bars.append(bar)
+        self._close_values.append(bar.close)
+        self._high_values.append(bar.high)
+        self._low_values.append(bar.low)
+        self._volume_values.append(bar.volume)
+        if len(self._close_values) == len(self._bars):
+            self._append_runtime_state(bar)
+
         if len(self._bars) > self._max_bars:
             self._bars = self._bars[-self._max_bars :]
+            self._close_values = self._close_values[-self._max_bars :]
+            self._high_values = self._high_values[-self._max_bars :]
+            self._low_values = self._low_values[-self._max_bars :]
+            self._volume_values = self._volume_values[-self._max_bars :]
+            self._true_range_values = self._true_range_values[-self._max_bars :]
+            self._atr_values = self._atr_values[-self._max_bars :]
+            self._keltner_atr_values = self._keltner_atr_values[-self._max_bars :]
+            self._kc_upper_values = self._kc_upper_values[-self._max_bars :]
+            self._kc_lower_values = self._kc_lower_values[-self._max_bars :]
+            self._bb_middle_values = self._bb_middle_values[-self._max_bars :]
+            self._bb_upper_values = self._bb_upper_values[-self._max_bars :]
+            self._bb_lower_values = self._bb_lower_values[-self._max_bars :]
+            self._bb_width_values = self._bb_width_values[-self._max_bars :]
+            self._bb_width_ma_values = self._bb_width_ma_values[-self._max_bars :]
 
         min_bars = max(self._atr_period * 2, self._bb_period, self._keltner_ema_period)
         if len(self._bars) < min_bars:
             return
 
-        df = self._bars_to_df()
-        if df.empty:
-            return
-
-        entries, exits = self.generate_signals(df)
-        if entries.empty:
-            return
-
-        last_idx = len(entries) - 1
-        symbol = bar.symbol
-
-        if entries.iloc[last_idx]:
+        entry, exit_ = self._latest_signal()
+        if entry:
             ctx.emit_signal(
-                symbol,
+                bar.symbol,
                 Direction.LONG,
                 strength=0.8,
                 price=bar.close,
                 strategy_id=self.name,
             )
-        elif exits.iloc[last_idx]:
+        elif exit_:
             ctx.emit_signal(
-                symbol,
+                bar.symbol,
                 Direction.FLAT,
                 strength=0.5,
                 price=bar.close,
                 strategy_id=self.name,
             )
+
+    def _latest_signal(self) -> tuple[bool, bool]:
+        """Compute the latest event-mode signal without rebuilding a DataFrame."""
+        close_values, high_values, low_values, volume_values = self._runtime_values()
+        last_idx = len(close_values) - 1
+
+        if self._runtime_state_is_current():
+            atr_values = self._atr_values
+            atr_value = atr_values[-1]
+            atr_ma = rolling_mean_optional_at(atr_values, last_idx, self._atr_period * 2)
+            bb_middle = self._bb_middle_values[-1]
+            bb_upper = self._bb_upper_values[-1]
+            bb_lower = self._bb_lower_values[-1]
+            bb_width = self._bb_width_values[-1]
+            bb_width_ma = self._bb_width_ma_values[-1]
+            previous_bb_upper = self._bb_upper_values[last_idx - 1]
+            previous_bb_lower = self._bb_lower_values[last_idx - 1]
+            previous_kc_upper = self._kc_upper_values[last_idx - 1]
+            previous_kc_lower = self._kc_lower_values[last_idx - 1]
+        else:
+            atr_values = rolling_average_true_ranges(
+                high_values,
+                low_values,
+                close_values,
+                self._atr_period,
+            )
+            atr_value = atr_values[-1]
+            atr_ma = rolling_mean_optional_at(atr_values, last_idx, self._atr_period * 2)
+            bb_middle = rolling_mean_at(close_values, last_idx, self._bb_period)
+            bb_std = rolling_std_at(close_values, last_idx, self._bb_period)
+            previous_bb = self._bollinger_at(last_idx - 1, close_values)
+            previous_kc = self._keltner_at(
+                last_idx - 1,
+                high_values,
+                low_values,
+                close_values,
+            )
+            if bb_middle is None or bb_std is None or previous_bb is None or previous_kc is None:
+                return False, False
+            bb_upper = bb_middle + self._bb_std * bb_std
+            bb_lower = bb_middle - self._bb_std * bb_std
+            if bb_middle == 0:
+                return False, False
+            bb_width = (bb_upper - bb_lower) / bb_middle
+            bb_width_ma = self._bb_width_mean_at(last_idx, close_values)
+            previous_bb_upper, previous_bb_lower = previous_bb
+            previous_kc_upper, previous_kc_lower = previous_kc
+
+        volume_ma = rolling_mean_at(volume_values, last_idx, self._volume_period)
+        if (
+            atr_value is None
+            or atr_ma is None
+            or bb_middle is None
+            or bb_upper is None
+            or bb_lower is None
+            or bb_width is None
+            or bb_width_ma is None
+            or previous_bb_upper is None
+            or previous_bb_lower is None
+            or previous_kc_upper is None
+            or previous_kc_lower is None
+            or volume_ma is None
+            or bb_middle == 0
+        ):
+            return False, False
+
+        previous_squeeze = (
+            previous_bb_lower > previous_kc_lower and previous_bb_upper < previous_kc_upper
+        )
+        atr_spike = atr_value > atr_ma * self._atr_threshold
+        bb_expanding = bb_width > bb_width_ma
+        vol_surge = volume_values[-1] > volume_ma * self._volume_threshold
+
+        close = close_values[-1]
+        entries_long = (
+            atr_spike and bb_expanding and close > bb_upper and vol_surge and previous_squeeze
+        )
+        entries_short = (
+            atr_spike and bb_expanding and close < bb_lower and vol_surge and previous_squeeze
+        )
+        entry = entries_long or entries_short
+
+        atr_shrink = atr_value < atr_ma * self._atr_shrink_exit
+        middle_return = False
+        if self._bb_middle_exit:
+            middle_return = abs(close - bb_middle) / bb_middle < 0.005
+        return entry, atr_shrink or middle_return
+
+    def _append_runtime_state(self, bar: Bar) -> None:
+        previous_close = self._close_values[-2] if len(self._close_values) > 1 else None
+        true_range = true_range_value(bar.high, bar.low, bar.close, previous_close)
+        self._true_range_values.append(true_range)
+        last_idx = len(self._true_range_values) - 1
+
+        self._atr_values.append(
+            rolling_mean_at(self._true_range_values, last_idx, self._atr_period)
+        )
+        keltner_atr = rolling_mean_at(
+            self._true_range_values,
+            last_idx,
+            self._keltner_atr_period,
+        )
+        self._keltner_atr_values.append(keltner_atr)
+        self._keltner_ema_value = ewm_next(
+            self._keltner_ema_value,
+            bar.close,
+            self._keltner_ema_period,
+        )
+        if keltner_atr is None:
+            self._kc_upper_values.append(None)
+            self._kc_lower_values.append(None)
+        else:
+            self._kc_upper_values.append(
+                self._keltner_ema_value + self._keltner_multiplier * keltner_atr
+            )
+            self._kc_lower_values.append(
+                self._keltner_ema_value - self._keltner_multiplier * keltner_atr
+            )
+
+        bb_middle = rolling_mean_at(self._close_values, last_idx, self._bb_period)
+        bb_std = rolling_std_at(self._close_values, last_idx, self._bb_period)
+        self._bb_middle_values.append(bb_middle)
+        if bb_middle is None or bb_std is None or bb_middle == 0:
+            self._bb_upper_values.append(None)
+            self._bb_lower_values.append(None)
+            self._bb_width_values.append(None)
+        else:
+            bb_upper = bb_middle + self._bb_std * bb_std
+            bb_lower = bb_middle - self._bb_std * bb_std
+            self._bb_upper_values.append(bb_upper)
+            self._bb_lower_values.append(bb_lower)
+            self._bb_width_values.append((bb_upper - bb_lower) / bb_middle)
+        self._bb_width_ma_values.append(
+            rolling_mean_optional_at(self._bb_width_values, last_idx, self._bb_period)
+        )
+
+    def _runtime_state_is_current(self) -> bool:
+        return (
+            len(self._close_values) == len(self._bars)
+            and len(self._atr_values) == len(self._bars)
+            and len(self._bb_width_ma_values) == len(self._bars)
+            and len(self._kc_upper_values) == len(self._bars)
+            and len(self._kc_lower_values) == len(self._bars)
+        )
+
+    def _runtime_values(self) -> tuple[list[float], list[float], list[float], list[float]]:
+        if len(self._close_values) == len(self._bars):
+            return self._close_values, self._high_values, self._low_values, self._volume_values
+        return closes(self._bars), highs(self._bars), lows(self._bars), volumes(self._bars)
+
+    def _bollinger_at(
+        self,
+        index: int,
+        close_values: list[float],
+    ) -> tuple[float, float] | None:
+        middle = rolling_mean_at(close_values, index, self._bb_period)
+        std = rolling_std_at(close_values, index, self._bb_period)
+        if middle is None or std is None:
+            return None
+        return middle + self._bb_std * std, middle - self._bb_std * std
+
+    def _bb_width_mean_at(self, index: int, close_values: list[float]) -> float | None:
+        if index + 1 < (self._bb_period * 2) - 1:
+            return None
+        widths: list[float] = []
+        for width_idx in range(index + 1 - self._bb_period, index + 1):
+            bands = self._bollinger_at(width_idx, close_values)
+            middle = rolling_mean_at(close_values, width_idx, self._bb_period)
+            if bands is None or middle is None or middle == 0:
+                return None
+            upper, lower = bands
+            widths.append((upper - lower) / middle)
+        return sum(widths) / float(self._bb_period)
+
+    def _keltner_at(
+        self,
+        index: int,
+        high_values: list[float],
+        low_values: list[float],
+        close_values: list[float],
+    ) -> tuple[float, float] | None:
+        if index < 0:
+            return None
+        ema_values = ewm_series(close_values[: index + 1], self._keltner_ema_period)
+        atr_values = rolling_average_true_ranges(
+            high_values[: index + 1],
+            low_values[: index + 1],
+            close_values[: index + 1],
+            self._keltner_atr_period,
+        )
+        atr_value = atr_values[-1] if atr_values else None
+        if not ema_values or atr_value is None:
+            return None
+        middle = ema_values[-1]
+        upper = middle + self._keltner_multiplier * atr_value
+        lower = middle - self._keltner_multiplier * atr_value
+        return upper, lower
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         min_bars = max(self._atr_period * 2, self._bb_period, self._keltner_ema_period)

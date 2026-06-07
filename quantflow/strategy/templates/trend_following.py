@@ -1,4 +1,4 @@
-"""Trend following strategy — MA crossover + MACD + RSI + ATR + Volume filters."""
+"""Trend following strategy: MA crossover + MACD + RSI + ATR + volume filters."""
 
 from __future__ import annotations
 
@@ -9,6 +9,19 @@ import pandas as pd
 
 from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyBase, StrategyContext
+from quantflow.strategy.templates._runtime import (
+    closes,
+    ewm_next,
+    ewm_series,
+    highs,
+    lows,
+    rolling_average_true_ranges,
+    rolling_mean_at,
+    rolling_mean_optional_at,
+    simple_rsi_last,
+    true_range_value,
+    volumes,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +29,9 @@ logger = logging.getLogger(__name__)
 class TrendFollowingStrategy(StrategyBase):
     """Multi-filter trend following strategy.
 
-    Entry long:  fast MA > slow MA AND MACD histogram > 0 AND RSI < overbought
-                 AND ATR < volatility cap AND volume > volume threshold
-    Entry short: fast MA < slow MA AND MACD histogram < 0 AND RSI > oversold
-                 AND ATR < volatility cap AND volume > volume threshold
+    Entry long: fast MA > slow MA, MACD histogram > 0, RSI below overbought,
+    ATR below cap, and volume above threshold.
+    Entry short: symmetric trend-down conditions.
     """
 
     def __init__(self, params: dict[str, Any] | None = None) -> None:
@@ -38,8 +50,17 @@ class TrendFollowingStrategy(StrategyBase):
         self._volume_period = p.get("volume_period", 20)
         self._volume_threshold = p.get("volume_threshold", 1.0)
 
-        # State for event-driven mode
         self._bars: list[Bar] = []
+        self._close_values: list[float] = []
+        self._high_values: list[float] = []
+        self._low_values: list[float] = []
+        self._volume_values: list[float] = []
+        self._ema_fast_value: float | None = None
+        self._ema_slow_value: float | None = None
+        self._macd_signal_value: float | None = None
+        self._macd_hist_value: float | None = None
+        self._true_range_values: list[float] = []
+        self._atr_values: list[float | None] = []
         self._max_bars = (
             max(
                 self._slow_period,
@@ -55,36 +76,117 @@ class TrendFollowingStrategy(StrategyBase):
         ctx.params = self._params
 
     def on_bar(self, ctx: StrategyContext, bar: Bar) -> None:
-        """Event-driven bar handler — accumulate bars and emit signals."""
+        """Event-driven bar handler using an incremental latest-row path."""
         self._bars.append(bar)
+        self._close_values.append(bar.close)
+        self._high_values.append(bar.high)
+        self._low_values.append(bar.low)
+        self._volume_values.append(bar.volume)
+        if len(self._close_values) == len(self._bars):
+            self._append_runtime_state(bar)
+
         if len(self._bars) > self._max_bars:
             self._bars = self._bars[-self._max_bars :]
+            self._close_values = self._close_values[-self._max_bars :]
+            self._high_values = self._high_values[-self._max_bars :]
+            self._low_values = self._low_values[-self._max_bars :]
+            self._volume_values = self._volume_values[-self._max_bars :]
+            self._true_range_values = self._true_range_values[-self._max_bars :]
+            self._atr_values = self._atr_values[-self._max_bars :]
 
-        # Need enough bars for indicators
         if len(self._bars) < self._slow_period + self._macd_signal:
             return
 
-        df = self._bars_to_df()
-        if df.empty:
-            return
-
-        entries, exits = self.generate_signals(df)
-        if entries.empty:
-            return
-
-        last_idx = len(entries) - 1
-        symbol = bar.symbol
-
-        if entries.iloc[last_idx]:
+        entry, exit_ = self._latest_signal()
+        if entry:
             ctx.emit_signal(
-                symbol, Direction.LONG, strength=0.8, price=bar.close, strategy_id=self.name
+                bar.symbol,
+                Direction.LONG,
+                strength=0.8,
+                price=bar.close,
+                strategy_id=self.name,
             )
-        elif exits.iloc[last_idx]:
-            # For exits, emit opposite direction to close
-            # Check if we have a position — simplified: always signal to exit
+        elif exit_:
             ctx.emit_signal(
-                symbol, Direction.SHORT, strength=0.5, price=bar.close, strategy_id=self.name
+                bar.symbol,
+                Direction.SHORT,
+                strength=0.5,
+                price=bar.close,
+                strategy_id=self.name,
             )
+
+    def _latest_signal(self) -> tuple[bool, bool]:
+        """Compute the last signal without rebuilding a DataFrame."""
+        close_values, high_values, low_values, volume_values = self._runtime_values()
+        last_idx = len(close_values) - 1
+
+        fast_ma = rolling_mean_at(close_values, last_idx, self._fast_period)
+        slow_ma = rolling_mean_at(close_values, last_idx, self._slow_period)
+        volume_ma = rolling_mean_at(volume_values, last_idx, self._volume_period)
+        rsi = simple_rsi_last(close_values, self._rsi_period)
+        if fast_ma is None or slow_ma is None or volume_ma is None or rsi is None:
+            return False, False
+
+        if self._runtime_state_is_current() and self._macd_hist_value is not None:
+            macd_hist = self._macd_hist_value
+            atr_values = self._atr_values
+        else:
+            ema_fast = ewm_series(close_values, self._macd_fast)
+            ema_slow = ewm_series(close_values, self._macd_slow)
+            macd_line = [fast - slow for fast, slow in zip(ema_fast, ema_slow, strict=False)]
+            macd_signal = ewm_series(macd_line, self._macd_signal)
+            if not macd_signal:
+                return False, False
+            macd_hist = macd_line[-1] - macd_signal[-1]
+            atr_values = rolling_average_true_ranges(
+                high_values,
+                low_values,
+                close_values,
+                self._atr_period,
+            )
+
+        atr = atr_values[-1]
+        atr_cap_mean = rolling_mean_optional_at(atr_values, last_idx, self._slow_period)
+        if atr is None or atr_cap_mean is None:
+            return False, False
+        atr_cap = atr_cap_mean * self._atr_multiplier
+
+        vol_ok = volume_values[-1] > volume_ma * self._volume_threshold
+        atr_ok = atr < atr_cap
+        trend_up = fast_ma > slow_ma and macd_hist > 0
+        trend_down = fast_ma < slow_ma and macd_hist < 0
+        entry = trend_up and rsi < self._rsi_overbought and vol_ok and atr_ok
+        exit_ = trend_down and rsi > self._rsi_oversold and vol_ok and atr_ok
+        return entry, exit_
+
+    def _append_runtime_state(self, bar: Bar) -> None:
+        previous_close = self._close_values[-2] if len(self._close_values) > 1 else None
+        true_range = true_range_value(bar.high, bar.low, bar.close, previous_close)
+        self._true_range_values.append(true_range)
+        last_idx = len(self._true_range_values) - 1
+        self._atr_values.append(
+            rolling_mean_at(self._true_range_values, last_idx, self._atr_period)
+        )
+
+        self._ema_fast_value = ewm_next(self._ema_fast_value, bar.close, self._macd_fast)
+        self._ema_slow_value = ewm_next(self._ema_slow_value, bar.close, self._macd_slow)
+        macd_line = self._ema_fast_value - self._ema_slow_value
+        self._macd_signal_value = ewm_next(
+            self._macd_signal_value,
+            macd_line,
+            self._macd_signal,
+        )
+        self._macd_hist_value = macd_line - self._macd_signal_value
+
+    def _runtime_state_is_current(self) -> bool:
+        return len(self._close_values) == len(self._bars) and len(self._atr_values) == len(
+            self._bars
+        )
+
+    def _runtime_values(self) -> tuple[list[float], list[float], list[float], list[float]]:
+        if len(self._close_values) == len(self._bars):
+            return self._close_values, self._high_values, self._low_values, self._volume_values
+        return closes(self._bars), highs(self._bars), lows(self._bars), volumes(self._bars)
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         """Vectorized signal generation."""
@@ -97,18 +199,15 @@ class TrendFollowingStrategy(StrategyBase):
         low = df.get("low", close)
         volume = df.get("volume", pd.Series(1.0, index=df.index))
 
-        # Indicator calculations
         fast_ma = close.rolling(self._fast_period).mean()
         slow_ma = close.rolling(self._slow_period).mean()
 
-        # MACD
         ema_fast = close.ewm(span=self._macd_fast, adjust=False).mean()
         ema_slow = close.ewm(span=self._macd_slow, adjust=False).mean()
         macd_line = ema_fast - ema_slow
         macd_signal = macd_line.ewm(span=self._macd_signal, adjust=False).mean()
         macd_hist = macd_line - macd_signal
 
-        # RSI
         delta = close.diff()
         gain = delta.clip(lower=0)
         loss = -delta.clip(upper=0)
@@ -117,7 +216,6 @@ class TrendFollowingStrategy(StrategyBase):
         rs = avg_gain / avg_loss.replace(0, 1e-10)
         rsi = 100 - (100 / (1 + rs))
 
-        # ATR
         tr = pd.concat(
             [
                 high - low,
@@ -129,20 +227,17 @@ class TrendFollowingStrategy(StrategyBase):
         atr = tr.rolling(self._atr_period).mean()
         atr_cap = atr.rolling(self._slow_period).mean() * self._atr_multiplier
 
-        # Volume filter
         vol_ma = volume.rolling(self._volume_period).mean()
         vol_ok = volume > vol_ma * self._volume_threshold
 
-        # Entry conditions
         trend_up = (fast_ma > slow_ma) & (macd_hist > 0)
         trend_down = (fast_ma < slow_ma) & (macd_hist < 0)
         rsi_ok_long = rsi < self._rsi_overbought
         rsi_ok_short = rsi > self._rsi_oversold
-        vol_ok_signal = vol_ok
         atr_ok = atr < atr_cap
 
-        entries = trend_up & rsi_ok_long & vol_ok_signal & atr_ok
-        exits = trend_down & rsi_ok_short & vol_ok_signal & atr_ok
+        entries = trend_up & rsi_ok_long & vol_ok & atr_ok
+        exits = trend_down & rsi_ok_short & vol_ok & atr_ok
 
         return entries.fillna(False), exits.fillna(False)
 

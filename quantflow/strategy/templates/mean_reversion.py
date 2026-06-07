@@ -1,4 +1,4 @@
-"""Mean reversion strategy — RSI + Bollinger Band + Volume confirmation."""
+"""Mean reversion strategy: RSI + Bollinger Band + volume confirmation."""
 
 from __future__ import annotations
 
@@ -9,18 +9,19 @@ import pandas as pd
 
 from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyBase, StrategyContext
+from quantflow.strategy.templates._runtime import (
+    closes,
+    rolling_mean_at,
+    rolling_std_at,
+    simple_rsi_last,
+    volumes,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class MeanReversionStrategy(StrategyBase):
-    """Mean reversion strategy using RSI + Bollinger Bands.
-
-    Entry long:  RSI < oversold AND close < BB_lower AND volume > vol_ma
-    Entry short: RSI > overbought AND close > BB_upper AND volume > vol_ma
-    Exit long:   close > BB_middle OR RSI > exit_overbought
-    Exit short:  close < BB_middle OR RSI < exit_oversold
-    """
+    """Mean reversion strategy using RSI + Bollinger Bands."""
 
     def __init__(self, params: dict[str, Any] | None = None) -> None:
         super().__init__(name="mean_reversion", params=params)
@@ -36,46 +37,75 @@ class MeanReversionStrategy(StrategyBase):
         self._exit_rsi_oversold = p.get("exit_rsi_oversold", 40)
 
         self._bars: list[Bar] = []
+        self._close_values: list[float] = []
+        self._volume_values: list[float] = []
         self._max_bars = max(self._rsi_period, self._bb_period, self._volume_period) + 50
 
     def on_init(self, ctx: StrategyContext) -> None:
         ctx.params = self._params
 
     def on_bar(self, ctx: StrategyContext, bar: Bar) -> None:
-        """Event-driven bar handler."""
+        """Event-driven bar handler using an incremental latest-row path."""
         self._bars.append(bar)
+        self._close_values.append(bar.close)
+        self._volume_values.append(bar.volume)
         if len(self._bars) > self._max_bars:
             self._bars = self._bars[-self._max_bars :]
+            self._close_values = self._close_values[-self._max_bars :]
+            self._volume_values = self._volume_values[-self._max_bars :]
 
         if len(self._bars) < self._bb_period:
             return
 
-        df = self._bars_to_df()
-        if df.empty:
-            return
-
-        entries, exits = self.generate_signals(df)
-        if entries.empty:
-            return
-
-        last_idx = len(entries) - 1
-        symbol = bar.symbol
-
-        if entries.iloc[last_idx]:
-            # Determine direction from RSI
-            rsi_val = self._compute_rsi(df["close"]).iloc[last_idx]
-            if rsi_val < self._rsi_oversold:
-                ctx.emit_signal(
-                    symbol, Direction.LONG, strength=0.7, price=bar.close, strategy_id=self.name
-                )
-            elif rsi_val > self._rsi_overbought:
-                ctx.emit_signal(
-                    symbol, Direction.SHORT, strength=0.7, price=bar.close, strategy_id=self.name
-                )
-        elif exits.iloc[last_idx]:
+        entry_direction, exit_ = self._latest_signal()
+        if entry_direction is not None:
             ctx.emit_signal(
-                symbol, Direction.FLAT, strength=0.3, price=bar.close, strategy_id=self.name
+                bar.symbol,
+                entry_direction,
+                strength=0.7,
+                price=bar.close,
+                strategy_id=self.name,
             )
+        elif exit_:
+            ctx.emit_signal(
+                bar.symbol,
+                Direction.FLAT,
+                strength=0.3,
+                price=bar.close,
+                strategy_id=self.name,
+            )
+
+    def _latest_signal(self) -> tuple[Direction | None, bool]:
+        """Compute the latest event-mode signal without rebuilding a DataFrame."""
+        close_values, volume_values = self._runtime_values()
+        last_idx = len(close_values) - 1
+
+        rsi = simple_rsi_last(close_values, self._rsi_period)
+        bb_middle = rolling_mean_at(close_values, last_idx, self._bb_period)
+        bb_std = rolling_std_at(close_values, last_idx, self._bb_period)
+        volume_ma = rolling_mean_at(volume_values, last_idx, self._volume_period)
+        if rsi is None or bb_middle is None or bb_std is None or volume_ma is None:
+            return None, False
+
+        close = close_values[-1]
+        bb_upper = bb_middle + self._bb_std * bb_std
+        bb_lower = bb_middle - self._bb_std * bb_std
+        vol_ok = volume_values[-1] > volume_ma * self._volume_threshold
+
+        if vol_ok and rsi < self._rsi_oversold and close < bb_lower:
+            return Direction.LONG, False
+        if vol_ok and rsi > self._rsi_overbought and close > bb_upper:
+            return Direction.SHORT, False
+
+        exit_ = (close > bb_middle and rsi > self._exit_rsi_overbought) or (
+            close < bb_middle and rsi < self._exit_rsi_oversold
+        )
+        return None, exit_
+
+    def _runtime_values(self) -> tuple[list[float], list[float]]:
+        if len(self._close_values) == len(self._bars):
+            return self._close_values, self._volume_values
+        return closes(self._bars), volumes(self._bars)
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         """Vectorized signal generation."""
@@ -86,26 +116,21 @@ class MeanReversionStrategy(StrategyBase):
         close = df["close"]
         volume = df.get("volume", pd.Series(1.0, index=df.index))
 
-        # RSI
         rsi = self._compute_rsi(close)
 
-        # Bollinger Bands
         bb_middle = close.rolling(self._bb_period).mean()
         bb_std = close.rolling(self._bb_period).std()
         bb_upper = bb_middle + self._bb_std * bb_std
         bb_lower = bb_middle - self._bb_std * bb_std
 
-        # Volume filter
         vol_ma = volume.rolling(self._volume_period).mean()
         vol_ok = volume > vol_ma * self._volume_threshold
 
-        # Entry: oversold + below BB lower (long) or overbought + above BB upper (short)
         entries = vol_ok & (
             ((rsi < self._rsi_oversold) & (close < bb_lower))
             | ((rsi > self._rsi_overbought) & (close > bb_upper))
         )
 
-        # Exit: price returns to middle band or RSI normalizes
         exits = ((close > bb_middle) & (rsi > self._exit_rsi_overbought)) | (
             (close < bb_middle) & (rsi < self._exit_rsi_oversold)
         )

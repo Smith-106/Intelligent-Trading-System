@@ -70,6 +70,7 @@ class TestCLIBasics:
         assert "batch calculate all" in result.output
         assert "save feature partitions" in result.output
         assert "TradingSession.on_bar batch" in result.output
+        assert "three strategy bars/sec" in result.output
         assert "paper submit_order batch" in result.output
 
     def test_benchmark_json_reports_threshold_failures(self):
@@ -96,6 +97,7 @@ class TestCLIBasics:
         metric_names = {item["metric"] for item in payload["metrics"]}
         assert "compute requested subset" in metric_names
         assert "load rows/sec" in metric_names
+        assert "three strategy bars/sec" in metric_names
         assert payload["failures"]
         assert payload["failures"][0]["metric"] == "runtime.bars_per_sec"
 
