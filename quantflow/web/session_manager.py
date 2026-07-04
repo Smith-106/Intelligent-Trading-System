@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from collections import Counter
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -29,8 +30,6 @@ EVENT_FLUSH_INTERVAL_SECONDS = 1.0
 
 
 def _gateway_config_from_env(mode: str, sandbox: bool) -> dict[str, str | bool]:
-    import os
-
     gateway_config: dict[str, str | bool] = {"sandbox": sandbox}
     if mode == "paper":
         return gateway_config
@@ -85,6 +84,23 @@ def _safe_number(value: Any) -> Any:
     return value
 
 
+def _redact_secrets(text: str) -> str:
+    """Redact environment-known secret values from a string.
+
+    Exception messages and error logs can embed OKX API credentials / tokens
+    passed through gateway layers. Replace any occurrence of those secret
+    values with a placeholder before persisting or exposing them.
+    """
+    if not text:
+        return text
+    redacted = text
+    for env_name in ("OKX_API_KEY", "OKX_SECRET", "OKX_PASSPHRASE"):
+        value = os.environ.get(env_name)
+        if value and value in redacted:
+            redacted = redacted.replace(value, "***REDACTED***")
+    return redacted
+
+
 def _jsonable(value: Any) -> Any:
     if isinstance(value, dict):
         return {str(key): _jsonable(item) for key, item in value.items()}
@@ -128,10 +144,13 @@ class StationSessionManager:
             if self._runtime and not self._runtime.loop_task.done():
                 raise RuntimeError("A trading session is already running.")
 
-            config = load_config(
-                resolve_config_path_safe(request.config_path or self._config_path)
-            )
+            config = load_config(resolve_config_path_safe(request.config_path or self._config_path))
             config.execution.mode = request.mode
+            # CLAUDE.md mandates live/sandbox mode must have the kill switch
+            # enabled. Enforce it at session start rather than only checking
+            # for a kill switch object at trigger time.
+            if request.mode in ("live", "sandbox") and not config.risk.kill_switch_enabled:
+                raise ValueError(f"Kill switch must be enabled for {request.mode} mode.")
             strategy_factories = get_strategy_factories()
             strategies = []
             for strategy_name in request.strategies:
@@ -187,13 +206,17 @@ class StationSessionManager:
         except asyncio.CancelledError:
             runtime.last_error = None
         except Exception as exc:
-            runtime.last_error = str(exc)
+            # Redact values from environment-known secrets (OKX credentials,
+            # tokens) before storing/exposing — exception text from gateway /
+            # config layers can otherwise leak them into the dashboard and
+            # the persisted session_events log.
+            runtime.last_error = _redact_secrets(str(exc))
             self._record_lifecycle_event(
                 runtime,
                 event_type="session_error",
                 title="Session error",
                 level="error",
-                message=str(exc),
+                message=_redact_secrets(str(exc)),
                 data={"source": "data_loop"},
             )
 
@@ -313,14 +336,17 @@ class StationSessionManager:
             {
                 "symbol": position["symbol"],
                 "quantity": position["quantity"],
-                "side": "long" if position["quantity"] > 0 else "short" if position["quantity"] < 0 else "flat",
+                "side": "long"
+                if position["quantity"] > 0
+                else "short"
+                if position["quantity"] < 0
+                else "flat",
                 "entry_price": position["entry_price"],
                 "current_price": position["current_price"],
                 "market_value": position["market_value"],
                 "unrealized_pnl": position["unrealized_pnl"],
                 "pnl_pct": (
-                    position["unrealized_pnl"]
-                    / abs(position["entry_price"] * position["quantity"])
+                    position["unrealized_pnl"] / abs(position["entry_price"] * position["quantity"])
                     if position["entry_price"] and position["quantity"]
                     else 0.0
                 ),
@@ -336,7 +362,9 @@ class StationSessionManager:
                 "status": order["status"],
                 "quantity": order["quantity"],
                 "price": order["price"],
-                "notional": order["quantity"] * order["price"] if order["price"] is not None else None,
+                "notional": order["quantity"] * order["price"]
+                if order["price"] is not None
+                else None,
                 "strategy_id": order["strategy_id"],
             }
             for order in state["open_orders"]
@@ -584,7 +612,9 @@ class StationSessionManager:
                 and last_point.get("open_positions") == point["open_positions"]
                 and last_point.get("pending_orders") == point["pending_orders"]
             )
-            if (captured_at - last_at).total_seconds() < MIN_TELEMETRY_INTERVAL_SECONDS and same_state:
+            if (
+                captured_at - last_at
+            ).total_seconds() < MIN_TELEMETRY_INTERVAL_SECONDS and same_state:
                 runtime.telemetry_points[-1] = point
             else:
                 runtime.telemetry_points.append(point)
@@ -633,7 +663,9 @@ class StationSessionManager:
         uptime_seconds = int((now - started_at).total_seconds())
         equity = float(portfolio.get("equity", 0.0) or 0.0)
         market_value = float(portfolio.get("market_value", 0.0) or 0.0)
-        gross_exposure_value = sum(abs(float(item.get("market_value", 0.0) or 0.0)) for item in snapshot["positions"])
+        gross_exposure_value = sum(
+            abs(float(item.get("market_value", 0.0) or 0.0)) for item in snapshot["positions"]
+        )
         exposure_pct = market_value / equity if equity > 0 else 0.0
 
         status_label = "Stopped"

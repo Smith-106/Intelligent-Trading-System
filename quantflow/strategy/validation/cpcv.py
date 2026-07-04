@@ -84,10 +84,10 @@ def split_cpcv(
         raise ValueError(
             f"CPCV group size collapsed to 0 for {n_bars} bars across {n_groups} groups."
         )
-    groups = [np.arange(i * group_size, min((i + 1) * group_size, n_bars)) for i in range(n_groups)]
-    # Handle remainder
-    if groups[-1][-1] < n_bars - 1:
-        groups[-1] = np.arange(groups[-1][0], n_bars)
+    # Distribute bars as evenly as possible so group sizes differ by at most 1.
+    # Dumping all remainder bars into the last group biased OOS test sizes
+    # (the last group could be much larger than the others).
+    groups = [arr for arr in np.array_split(np.arange(n_bars), n_groups)]
 
     embargo_bars = max(1, int(n_bars * embargo_pct))
     splits = []

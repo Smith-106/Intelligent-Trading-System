@@ -91,7 +91,13 @@ class ElliottWaveStrategy(StrategyBase):
 
         last_idx = len(entries) - 1
         if entries.iloc[last_idx] and not self._in_position:
-            ctx.emit_signal(bar.symbol, Direction.LONG, strength=0.7, price=bar.close, strategy_id=self.name)
+            # Determine direction from the slope leading into the entry
+            # (the prior impulse). Always emitting LONG would take the wrong
+            # side after a bearish impulse/correction.
+            direction = self._entry_direction(df, last_idx)
+            ctx.emit_signal(
+                bar.symbol, direction, strength=0.7, price=bar.close, strategy_id=self.name
+            )
             self._in_position = True
             self._entry_price = bar.close
             self._bars_since_entry = 0
@@ -101,6 +107,23 @@ class ElliottWaveStrategy(StrategyBase):
 
         # on_bar exit mechanisms
         self._check_position_exits(ctx, bar)
+
+    @staticmethod
+    def _entry_direction(df: pd.DataFrame, idx: int) -> Direction:
+        """Infer the prior-impulse direction from the local close slope.
+
+        Corrections (W2/W4/WC) follow an impulse; trading in the impulse's
+        direction avoids systematically buying after bearish corrections.
+        """
+        close = df["close"]
+        lookback = min(10, idx)
+        if lookback <= 1:
+            return Direction.LONG
+        start = float(close.iloc[idx - lookback])
+        end = float(close.iloc[idx])
+        if end < start:
+            return Direction.SHORT
+        return Direction.LONG
 
     def on_tick(self, ctx: StrategyContext, tick: Any) -> None:
         pass

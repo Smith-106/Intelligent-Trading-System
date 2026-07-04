@@ -3,24 +3,17 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, UTC
-from types import SimpleNamespace
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from quantflow.common.event_bus import Event, EventBus
-from quantflow.common.models import EVENT_FILL, EVENT_ORDER, EVENT_RISK, EVENT_SIGNAL
 from quantflow.web.history import StationHistoryStore
 from quantflow.web.session_manager import (
+    MAX_TELEMETRY_POINTS,
+    SessionRuntime,
     SessionStartRequest,
     StationSessionManager,
-    SessionRuntime,
-    _format_duration,
-    _jsonable,
-    _safe_number,
-    MIN_TELEMETRY_INTERVAL_SECONDS,
-    MAX_TELEMETRY_POINTS,
 )
 
 
@@ -32,7 +25,9 @@ class TestSessionManagerStartUnknownStrategy:
         manager = StationSessionManager(history_store=store)
         with patch("quantflow.web.session_manager.get_strategy_factories", return_value={}):
             with pytest.raises(ValueError, match="Unknown strategy"):
-                await manager.start(SessionStartRequest(mode="paper", strategies=["nonexistent_strategy"]))
+                await manager.start(
+                    SessionStartRequest(mode="paper", strategies=["nonexistent_strategy"])
+                )
 
 
 class TestSessionManagerStartCapitalAdjustment:
@@ -49,21 +44,29 @@ class TestSessionManagerStartCapitalAdjustment:
         mock_session.portfolio.cash = 90000.0
         mock_session.last_error = None
         mock_session.adjust_capital = MagicMock()
-        mock_session.snapshot_state = MagicMock(return_value={
-            "health": {"running": False, "open_positions": 0, "pending_orders": 0},
-            "cash": 100000.0,
-            "portfolio": {
-                "equity": 100000, "cash": 100000, "total_value": 100000,
-                "market_value": 0, "drawdown": 0, "positions": 0,
-            },
-            "positions": [],
-            "open_orders": [],
-            "kill_switch": {"active": False, "reason": None},
-        })
+        mock_session.snapshot_state = MagicMock(
+            return_value={
+                "health": {"running": False, "open_positions": 0, "pending_orders": 0},
+                "cash": 100000.0,
+                "portfolio": {
+                    "equity": 100000,
+                    "cash": 100000,
+                    "total_value": 100000,
+                    "market_value": 0,
+                    "drawdown": 0,
+                    "positions": 0,
+                },
+                "positions": [],
+                "open_orders": [],
+                "kill_switch": {"active": False, "reason": None},
+            }
+        )
         mock_session.start = AsyncMock()
+
         # run_data_loop must return a coroutine (async def)
         async def _run_data_loop(**kwargs):
             pass
+
         mock_session.run_data_loop = _run_data_loop
 
         # Patch snapshot to return serializable dict
@@ -77,34 +80,65 @@ class TestSessionManagerStartCapitalAdjustment:
             "positions": [],
             "open_orders": [],
             "dashboard": {"status_label": "Stopped", "status_tone": "muted"},
-            "telemetry": {"labels": [], "equity": [], "cash": [], "market_value": [], "drawdown": [], "open_positions": [], "pending_orders": []},
+            "telemetry": {
+                "labels": [],
+                "equity": [],
+                "cash": [],
+                "market_value": [],
+                "drawdown": [],
+                "open_positions": [],
+                "pending_orders": [],
+            },
             "started_at": "2024-01-01T00:00:00+00:00",
             "updated_at": "2024-01-01T00:00:00+00:00",
-            "request": {"mode": "paper", "symbol": "BTC/USDT", "timeframe": "1h", "strategies": ["trend_following"]},
+            "request": {
+                "mode": "paper",
+                "symbol": "BTC/USDT",
+                "timeframe": "1h",
+                "strategies": ["trend_following"],
+            },
         }
 
-        with patch("quantflow.web.session_manager.load_config") as mock_load, \
-             patch("quantflow.web.session_manager.get_strategy_factories") as mock_factories, \
-             patch("quantflow.web.session_manager.TradingSession", return_value=mock_session), \
-             patch("quantflow.web.session_manager._gateway_config_from_env", return_value={"sandbox": False}), \
-             patch.object(manager, "_attach_event_observers"), \
-             patch.object(manager, "_record_lifecycle_event"), \
-             patch("quantflow.web.session_manager.asyncio.create_task") as mock_create_task, \
-             patch.object(manager, "snapshot", new_callable=AsyncMock, return_value=serializable_snapshot):
+        with (
+            patch("quantflow.web.session_manager.load_config") as mock_load,
+            patch("quantflow.web.session_manager.get_strategy_factories") as mock_factories,
+            patch("quantflow.web.session_manager.TradingSession", return_value=mock_session),
+            patch(
+                "quantflow.web.session_manager._gateway_config_from_env",
+                return_value={"sandbox": False},
+            ),
+            patch.object(manager, "_attach_event_observers"),
+            patch.object(manager, "_record_lifecycle_event"),
+            patch("quantflow.web.session_manager.asyncio.create_task") as mock_create_task,
+            patch.object(
+                manager, "snapshot", new_callable=AsyncMock, return_value=serializable_snapshot
+            ),
+        ):
             mock_config = MagicMock()
             mock_load.return_value = mock_config
             mock_factories.return_value = {"trend_following": lambda _: mock_strategy}
             mock_task = MagicMock()
             mock_task.done.return_value = True
-            mock_create_task.return_value = mock_task
+
+            # The real asyncio.create_task schedules the coroutine returned by
+            # session.run_data_loop(...). Our mock must likewise consume/close
+            # that coroutine, otherwise it leaks as an un-awaited coroutine
+            # finalizing during an unrelated test (pytest unraisable warning).
+            def _fake_create_task(coro, *args, **kwargs):
+                coro.close()
+                return mock_task
+
+            mock_create_task.side_effect = _fake_create_task
 
             # Request with capital 100000 → cash_delta = 100000 - 90000 = 10000
-            await manager.start(SessionStartRequest(
-                mode="paper",
-                strategies=["trend_following"],
-                capital=100000.0,
-                config_path="quantflow/config/default.yaml",
-            ))
+            await manager.start(
+                SessionStartRequest(
+                    mode="paper",
+                    strategies=["trend_following"],
+                    capital=100000.0,
+                    config_path="quantflow/config/default.yaml",
+                )
+            )
 
             # Capital adjustment now flows through the session facade
             # (adjust_capital) instead of mutating portfolio private attrs.
@@ -199,12 +233,26 @@ class TestRecordTelemetryPointSameState:
 
         runtime = MagicMock(spec=SessionRuntime)
         runtime.telemetry_points = [
-            {"timestamp": "2024-01-01T00:00:00+00:00", "running": True, "equity": 100000, "cash": 50000, "market_value": 50000, "drawdown": -0.01, "open_positions": 1, "pending_orders": 0},
+            {
+                "timestamp": "2024-01-01T00:00:00+00:00",
+                "running": True,
+                "equity": 100000,
+                "cash": 50000,
+                "market_value": 50000,
+                "drawdown": -0.01,
+                "open_positions": 1,
+                "pending_orders": 0,
+            },
         ]
 
         snapshot = {
             "running": True,
-            "portfolio": {"equity": 100000, "cash": 50000, "market_value": 50000, "drawdown": -0.01},
+            "portfolio": {
+                "equity": 100000,
+                "cash": 50000,
+                "market_value": 50000,
+                "drawdown": -0.01,
+            },
             "health": {"open_positions": 1, "pending_orders": 0},
             "positions": [],
             "open_orders": [],
@@ -225,7 +273,7 @@ class TestRecordTelemetryPointSameState:
         base = datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC)
         runtime.telemetry_points = [
             {
-                "timestamp": (base + __import__("datetime").timedelta(hours=i)).isoformat(),
+                "timestamp": (base + timedelta(hours=i)).isoformat(),
                 "running": True,
                 "equity": 100000 + i,
                 "cash": 50000,
@@ -240,7 +288,12 @@ class TestRecordTelemetryPointSameState:
         # Different state → appends, then trims
         snapshot = {
             "running": True,
-            "portfolio": {"equity": 200000, "cash": 100000, "market_value": 100000, "drawdown": -0.02},
+            "portfolio": {
+                "equity": 200000,
+                "cash": 100000,
+                "market_value": 100000,
+                "drawdown": -0.02,
+            },
             "health": {"open_positions": 2, "pending_orders": 1},
             "positions": [],
             "open_orders": [],

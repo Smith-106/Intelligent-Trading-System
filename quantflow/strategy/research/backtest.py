@@ -6,6 +6,7 @@ Replaces VectorBT dependency which is incompatible with Python 3.14+ (requires n
 from __future__ import annotations
 
 import logging
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -191,16 +192,21 @@ class BacktestEngine:
 
         # Ratios
         total_return = (equity[-1] / initial_capital) - 1
-        num_days = max(n, 1)
+        periods_per_year = self._periods_per_year(close.index)
+        # Span of the backtest in years, derived from the bar frequency rather
+        # than assuming daily bars (crypto trades intraday; hourly bars would
+        # otherwise understate annualization by ~24x).
+        bars_per_year = periods_per_year
+        n_years = n / bars_per_year if bars_per_year > 0 else 1.0
         if total_return <= -1:
             annual_return = -1.0
         elif not np.isfinite(total_return):
             annual_return = float("inf")
         else:
-            log_growth = np.log1p(total_return) * (365 / num_days)
+            log_growth = np.log1p(total_return) / max(n_years, 1e-12)
             annual_return = float(np.expm1(log_growth)) if log_growth < 700 else float("inf")
-        sharpe = self._calc_sharpe(returns)
-        sortino = self._calc_sortino(returns)
+        sharpe = self._calc_sharpe(returns, periods_per_year=periods_per_year)
+        sortino = self._calc_sortino(returns, periods_per_year=periods_per_year)
         calmar = abs(annual_return / max_dd) if max_dd != 0 else 0.0
 
         return BacktestResult(
@@ -247,18 +253,61 @@ class BacktestEngine:
         return sorted(results, key=lambda r: r.sharpe_ratio, reverse=True)
 
     @staticmethod
-    def _calc_sharpe(returns: pd.Series, risk_free: float = 0.0) -> float:
+    def _periods_per_year(index: pd.Index) -> float:
+        """Infer the number of bars per year from the index frequency.
+
+        Falls back to 365 (daily) when the frequency cannot be inferred, so
+        annualization is correct for the common daily case and improved for
+        intraday crypto bars (hourly -> 8760, etc.) instead of always
+        assuming daily.
+        """
+        inferred = None
+        try:
+            inferred = pd.infer_freq(index)
+        except (TypeError, ValueError):
+            inferred = None
+        if inferred:
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    offset = pd.tseries.frequencies.to_offset(inferred)
+                if offset is not None and offset.nanos > 0:
+                    return float(365 * 24 * 3600 * 1_000_000_000 / offset.nanos)
+            except (TypeError, ValueError, AttributeError):
+                pass
+        # Try median timedelta between consecutive bars.
+        try:
+            if len(index) >= 2:
+                deltas = pd.Series(index).diff().dropna()
+                if len(deltas) > 0:
+                    median_delta = deltas.median()
+                    if pd.notna(median_delta) and median_delta > pd.Timedelta(0):
+                        return float(pd.Timedelta(days=365) / median_delta)
+        except (TypeError, ValueError):
+            pass
+        return 365.0
+
+    @staticmethod
+    def _calc_sharpe(
+        returns: pd.Series, risk_free: float = 0.0, periods_per_year: float = 365.0
+    ) -> float:
         r = returns.replace([np.inf, -np.inf], np.nan).dropna()
         if len(r) < 2 or r.std() == 0:
             return 0.0
-        return float((r.mean() - risk_free / 252) / r.std() * np.sqrt(252))
+        # Annualize using the inferred bar frequency rather than a hardcoded
+        # 252 (daily equities) which is wrong for intraday crypto bars.
+        ann = max(periods_per_year, 1.0)
+        return float((r.mean() - risk_free / ann) / r.std() * np.sqrt(ann))
 
     @staticmethod
-    def _calc_sortino(returns: pd.Series, risk_free: float = 0.0) -> float:
+    def _calc_sortino(
+        returns: pd.Series, risk_free: float = 0.0, periods_per_year: float = 365.0
+    ) -> float:
         r = returns.replace([np.inf, -np.inf], np.nan).dropna()
         if len(r) < 2:
             return 0.0
-        downside = r[r < risk_free / 252]
+        ann = max(periods_per_year, 1.0)
+        downside = r[r < risk_free / ann]
         if len(downside) == 0 or downside.std() == 0:
             return 0.0
-        return float((r.mean() - risk_free / 252) / downside.std() * np.sqrt(252))
+        return float((r.mean() - risk_free / ann) / downside.std() * np.sqrt(ann))
