@@ -1,0 +1,17 @@
+{
+  "call_chains": [
+    "Engine._process_signal (engine.py:267) -> PositionSizer.size(signal, portfolio, strategy_win_rates) [default win_rate=0.5, win_loss_ratio=2.0] -> result * allocation (line 270) -> quantity = size / signal.price -> ExecutionEngine.submit_order"
+  ],
+  "recent_changes": [
+    "eebbc25 (2026-07-05): max_position_pct=config.risk.position_limit_pct (was *100); kelly_fraction=config.risk.kelly_fraction (was hardcoded 0.5); RiskConfig.{cvar_limit,kelly_fraction} added",
+    "44b98c9 (2026-06-02, v1.0): original max_position_pct=config.risk.position_limit_pct * 100 — units bug present since inception"
+  ],
+  "error_gaps": [
+    "No test exercised the engine->PositionSizer wiring with a win_rate high enough to engage the clamp; test_max_position_cap tested the clamp in isolation (direct construction) but the engine path was never covered. The *100 bug therefore survived 5 commits including a perf-optimization run and a v0.1.3 RC."
+  ],
+  "similar_patterns": [
+    "All *_pct fields in RiskConfig are fractions [0,1]; the *100 in engine.py was the only consumer treating one as a percentage. Audited: risk_engine._check_position_limit uses position_limit_pct as a fraction correctly; portfolio.set_capital_baseline uses capital as absolute; no other *100 on *_pct fields."
+  ],
+  "cli_tool": "manual trace + python -c probe (no dedicated CLI debugger available)",
+  "timestamp": "2026-07-05T01:54:00"
+}

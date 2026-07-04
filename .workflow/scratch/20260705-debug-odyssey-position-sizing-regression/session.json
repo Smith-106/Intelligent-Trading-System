@@ -1,0 +1,25 @@
+{
+  "session_id": "20260705-debug-odyssey-position-sizing-regression",
+  "slug": "position-sizing-regression",
+  "issue": "After the LOW-tier fix in commit eebbc25 (max_position_pct units bug: was position_limit_pct*100=2000% no-op clamp, now the fraction 0.20=20%), the PositionSizer.max_position_pct clamp is suddenly ACTIVE for all engine-driven trades. This is a 10-100x reduction in max order notional. Did this silently regress live/paper trade sizing, and is the new 20% clamp actually correct given the rest of the sizing pipeline (kelly_fraction, signal strength, fee deduction, min_order_notional)?",
+  "template": "regression",
+  "flags": {"auto": true, "auto_confirm": true, "skip_fix": false, "skip_generalize": false},
+  "current_state": "S_CONFIRM",
+  "diagnosis_retries": 0,
+  "root_cause": {
+    "hypothesis": "H1 (confirmed): The eebbc25 max_position_pct units fix (position_limit_pct*100 -> position_limit_pct) activates a previously-no-op 20% clamp for engine-driven trades. This is the INTENDED enforcement of the risk config, not a regression. The pre-fix *100 (2000% cap) was the actual latent defect present since v1.0 (44b98c9), silently ignoring position_limit_pct. Default-path trades (engine win_rate=0.5 -> 12.5% sizing) are unaffected; only high-win-rate strategies (win_rate>~0.62) get correctly capped at 20% instead of exceeding it (e.g. win_rate=0.7: 27.45% -> 20%). Per-symbol signal consolidation (engine.py:189-200) makes the clamp a correct per-symbol limit matching position_limit_pct's documented semantics.",
+    "evidence_refs": ["evidence.ndjson diagnosis H1", "empirical probe 12475/19960/27445", "test_max_position_cap line 24", "git blame 44b98c9->eebbc25"]
+  },
+  "confirmation": null,
+  "patterns": [],
+  "generalization_stats": null,
+  "phase_goals": [
+    {"id": "G1", "goal": "Root cause identified", "done_when": "phase=diagnosis result=confirmed", "phase": "S_DIAGNOSE", "skip_when": null, "status": "done"},
+    {"id": "G2", "goal": "Explore context gathered", "done_when": "explore.json >=1 category", "phase": "S_EXPLORE", "skip_when": null, "status": "done"},
+    {"id": "G3", "goal": "Fix applied and confirmed", "done_when": "confirmation.overall == confirmed", "phase": "S_CONFIRM", "skip_when": "skip_fix", "status": "in_progress"},
+    {"id": "G4", "goal": "Pattern generalized", "done_when": "patterns[] >=1 entry", "phase": "S_GENERALIZE", "skip_when": "skip_generalize", "status": "pending"},
+    {"id": "G5", "goal": "Discoveries triaged", "done_when": "all scan hits classified", "phase": "S_DISCOVER", "skip_when": "skip_generalize", "status": "pending"},
+    {"id": "G6", "goal": "Learnings persisted", "done_when": "spec entries created OR none actionable", "phase": "S_RECORD", "skip_when": null, "status": "pending"}
+  ],
+  "dimensions": ["correctness", "regression"]
+}
