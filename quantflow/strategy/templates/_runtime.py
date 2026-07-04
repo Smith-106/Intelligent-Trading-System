@@ -178,3 +178,49 @@ def profit_target_exit(
                     in_position = False
 
     return exits
+
+
+def profit_target_exit_series(
+    close: pd.Series,
+    entries: pd.Series,
+    profit_take_pct: pd.Series,
+    max_holding_bars: int,
+    direction: int = 1,
+) -> pd.Series:
+    """Like :func:`profit_target_exit` but with a per-bar profit target.
+
+    ``profit_take_pct`` is a Series aligned to ``close``; the value at the
+    entry bar is captured and used for the lifetime of that position, so a
+    target conditioned on the entry bar's own RSI can be applied without
+    look-ahead bias.
+    """
+    n = len(close)
+    exits = pd.Series(False, index=close.index, dtype=bool)
+
+    entry_price = 0.0
+    in_position = False
+    bars_since_entry = 0
+    held_pct = 0.0
+
+    for i in range(n):
+        if entries.iloc[i] and not in_position:
+            entry_price = float(close.iloc[i])
+            in_position = True
+            bars_since_entry = 0
+            held_pct = float(profit_take_pct.iloc[i]) if i < len(profit_take_pct) else 0.0
+            continue
+
+        if in_position:
+            bars_since_entry += 1
+            if direction == 1:  # LONG
+                target_price = entry_price * (1.0 + held_pct)
+                if float(close.iloc[i]) >= target_price or bars_since_entry >= max_holding_bars:
+                    exits.iloc[i] = True
+                    in_position = False
+            else:  # SHORT
+                target_price = entry_price * (1.0 - held_pct)
+                if float(close.iloc[i]) <= target_price or bars_since_entry >= max_holding_bars:
+                    exits.iloc[i] = True
+                    in_position = False
+
+    return exits

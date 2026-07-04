@@ -14,7 +14,7 @@ from typing import Any
 
 from quantflow.common.config import AppConfig
 from quantflow.common.event_bus import EVENT_BAR, EVENT_RISK, EVENT_SIGNAL, Event, EventBus
-from quantflow.common.models import Bar, OrderRequest, OrderSide, OrderStatus, Signal
+from quantflow.common.models import Bar, Direction, OrderRequest, OrderSide, OrderStatus, Signal
 from quantflow.execution.engine import ExecutionEngine
 from quantflow.execution.kill_switch import KillSwitch
 from quantflow.indicators.regime import MarketRegimeDetector
@@ -205,6 +205,16 @@ class TradingSession:
         """Process a signal through risk check → position sizing → execution."""
         started_at = perf_counter()
         portfolio = self._portfolio.portfolio
+
+        # FLAT signals close the existing position (reduce-only) rather than
+        # opening a new short. Without this, a FLAT exit on a long would fall
+        # through the `direction.value > 0` branch below and submit a SELL that
+        # opens a brand-new short instead of flattening.
+        if signal.direction == Direction.FLAT:
+            await self._close_position_for_signal(signal)
+            self._record_signal_latency(signal.strategy_id, started_at)
+            return
+
         risk_decision = self._risk_engine.check(signal, portfolio)
 
         if not risk_decision.passed:
@@ -286,6 +296,40 @@ class TradingSession:
             )
             self._update_portfolio_observability()
         self._record_signal_latency(signal.strategy_id, started_at)
+
+    async def _close_position_for_signal(self, signal: Signal) -> None:
+        """Flatten the existing position for a FLAT signal (reduce-only).
+
+        Sizes the close order to the current held quantity so a FLAT exit
+        flattens the position instead of opening a new short.
+        """
+        pos = self._portfolio.get_position(signal.symbol)
+        if pos is None or abs(pos.quantity) < 1e-10:
+            return
+        side = OrderSide.SELL if pos.quantity > 0 else OrderSide.BUY
+        quantity = abs(pos.quantity)
+        order = await self._execution.submit_order(
+            OrderRequest(
+                symbol=signal.symbol,
+                side=side,
+                order_type="market",
+                quantity=quantity,
+                strategy_id=signal.strategy_id,
+            )
+        )
+        if order.status == OrderStatus.FILLED:
+            filled_quantity = order.filled_quantity or quantity
+            fill_price = order.filled_price or order.price or signal.price
+            # Reduce-only: opposite sign of the held position.
+            signed_quantity = -pos.quantity * (filled_quantity / max(abs(pos.quantity), 1e-10))
+            self._portfolio.update_position(
+                order.symbol,
+                signed_quantity,
+                fill_price,
+                fee=order.fee,
+                strategy_id=order.strategy_id,
+            )
+            self._update_portfolio_observability()
 
     def _update_portfolio_observability(self) -> None:
         snapshot = self._portfolio.snapshot()

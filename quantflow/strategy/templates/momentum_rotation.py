@@ -158,25 +158,38 @@ class MomentumRotationStrategy(StrategyBase):
         if not scores:
             return {}
 
-        # Rank by latest momentum
-        latest_scores = {s: scores[s].iloc[-1] for s in scores}
-        sorted_symbols = sorted(latest_scores.keys(), key=lambda s: latest_scores[s], reverse=True)
-        top_set = set(sorted_symbols[: self._top_n])
-        exit_set = set(sorted_symbols[self._exit_rank_threshold :])
-
+        # Build a per-bar ranked frame so that, at each timestamp, ranking is
+        # computed from momentum available up to that bar only (no look-ahead).
+        # Using the latest (end-of-sample) momentum to rank and then emitting
+        # entries at the start of the sample would leak future information.
+        aligned = pd.DataFrame({symbol: series for symbol, series in scores.items()})
         results: dict[str, tuple[pd.Series, pd.Series]] = {}
+        if aligned.empty:
+            return {
+                symbol: (
+                    pd.Series(False, index=df.index, dtype=bool),
+                    pd.Series(False, index=df.index, dtype=bool),
+                )
+                for symbol, df in data.items()
+            }
+
+        rank_df = aligned.rank(axis=1, method="min", ascending=False)
+
         for symbol, df in data.items():
+            if symbol not in aligned.columns:
+                results[symbol] = (
+                    pd.Series(False, index=df.index, dtype=bool),
+                    pd.Series(False, index=df.index, dtype=bool),
+                )
+                continue
             idx = df.index
-            if symbol in top_set:
-                entries = pd.Series(True, index=idx)
-                exits = pd.Series(False, index=idx)
-            elif symbol in exit_set:
-                entries = pd.Series(False, index=idx)
-                exits = pd.Series(True, index=idx)
-            else:
-                entries = pd.Series(False, index=idx)
-                exits = pd.Series(False, index=idx)
-            results[symbol] = (entries, exits)
+            col_rank = rank_df[symbol].reindex(idx)
+            entries = col_rank <= self._top_n
+            exits = col_rank > self._exit_rank_threshold
+            results[symbol] = (
+                entries.fillna(False).astype(bool),
+                exits.fillna(False).astype(bool),
+            )
 
         return results
 

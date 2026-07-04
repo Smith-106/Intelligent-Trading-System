@@ -16,6 +16,7 @@ from quantflow.strategy.templates._runtime import (
     highs,
     lows,
     profit_target_exit,
+    profit_target_exit_series,
     rolling_average_true_ranges,
     rolling_mean_at,
     rolling_mean_optional_at,
@@ -275,16 +276,28 @@ class TrendFollowingStrategy(StrategyBase):
         # Profit target exit (LONG direction only — trend_following entries are LONG)
         effective_pct = self._profit_take_pct
         if self._rsi_adaptive_profit:
-            # RSI-adaptive: tighter target when overbought at entry
-            rsi_at_entry = rsi[entries]
-            if len(rsi_at_entry) > 0:
-                avg_entry_rsi = float(rsi_at_entry.mean())
-                if avg_entry_rsi > 70:
-                    effective_pct = self._profit_take_pct * 0.8
-                elif avg_entry_rsi < 30:
-                    effective_pct = self._profit_take_pct * 1.2
-
-        profit_exits = profit_target_exit(close, entries, effective_pct, self._max_holding_bars, direction=1)
+            # RSI-adaptive: tighter target when overbought at entry.
+            # Per-bar effective pct using ONLY the RSI value at each entry bar
+            # (forward-filled while in position) — never the RSI of future
+            # entry bars, which would be a look-ahead bias.
+            rsi_at_entry = rsi.where(entries)
+            rsi_at_entry = rsi_at_entry.ffill()
+            tight = self._profit_take_pct * 0.8
+            wide = self._profit_take_pct * 1.2
+            effective_pct_series = effective_pct * pd.Series(
+                1.0, index=close.index
+            )
+            overbought = rsi_at_entry > 70
+            oversold = rsi_at_entry < 30
+            effective_pct_series = effective_pct_series.where(~overbought, tight)
+            effective_pct_series = effective_pct_series.where(~oversold, wide)
+            profit_exits = profit_target_exit_series(
+                close, entries, effective_pct_series, self._max_holding_bars, direction=1
+            )
+        else:
+            profit_exits = profit_target_exit(
+                close, entries, effective_pct, self._max_holding_bars, direction=1
+            )
 
         # Trailing stop exit — track highest HIGH for LONG positions
         trailing_atr = atr

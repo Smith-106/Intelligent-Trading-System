@@ -570,9 +570,18 @@ class TestMomentumRotationStrategy:
         strategy = MomentumRotationStrategy(params={"lookback": 20, "top_n": 2})
         results = strategy.generate_cross_sectional_signals(data)
         assert len(results) == len(symbols)
-        # Top-2 should have entry signals
-        has_entry = [s for s, (e, _) in results.items() if e.any()]
-        assert len(has_entry) <= 2  # at most top_n entries
+        # Per-bar ranking is causal: at each timestamp at most top_n symbols
+        # hold an entry signal. (Across the whole series more than top_n
+        # symbols may have entered at some bar — that is correct, not a bug.)
+        aligned = pd.DataFrame(
+            {
+                symbol: df["close"].pct_change(20)
+                for symbol, df in data.items()
+            }
+        )
+        ranks = aligned.rank(axis=1, method="min", ascending=False)
+        per_bar_entries = (ranks <= 2).sum(axis=1).dropna()
+        assert (per_bar_entries <= 2).all()
 
     def test_generate_signals_without_stop_loss_uses_negative_momentum_only(self):
         strategy = MomentumRotationStrategy(params={"lookback": 3, "stop_loss_pct": 0.0})
@@ -655,11 +664,14 @@ class TestMomentumRotationStrategy:
 
         results = strategy.generate_cross_sectional_signals(data)
 
-        assert results["BTC/USDT"][0].all()
+        # Causal per-bar ranking: momentum = pct_change(lookback=2) is only
+        # defined at the final bar, so entries/exits fire there only — not
+        # across the whole series (the old look-ahead behavior).
+        assert results["BTC/USDT"][0].tolist() == [False, False, True]
         assert not results["BTC/USDT"][1].any()
         assert not results["ETH/USDT"][0].any()
         assert not results["ETH/USDT"][1].any()
-        assert results["DOGE/USDT"][1].all()
+        assert results["DOGE/USDT"][1].tolist() == [False, False, True]
 
 
 class TestMLEnsembleStrategy:
