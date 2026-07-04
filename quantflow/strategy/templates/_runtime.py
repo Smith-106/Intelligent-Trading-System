@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 
+import pandas as pd
+
 from quantflow.common.models import Bar
 
 
@@ -124,3 +126,55 @@ def rolling_mean_optional_at(
         return None
     checked = [float(value) for value in window if value is not None]
     return sum(checked) / period
+
+
+def profit_target_exit(
+    close: pd.Series,
+    entries: pd.Series,
+    profit_take_pct: float,
+    max_holding_bars: int,
+    direction: int = 1,
+) -> pd.Series:
+    """Compute boolean exit series for profit target + max holding period.
+
+    Exits when price crosses profit target in the given direction,
+    or holding period exceeds max_holding_bars since entry.
+
+    Args:
+        close: Close price series.
+        entries: Boolean entry signal series.
+        profit_take_pct: Profit target as fraction (e.g. 0.10 = 10%).
+        max_holding_bars: Maximum bars to hold a position.
+        direction: 1 for LONG (default), -1 for SHORT.
+
+    Returns:
+        Boolean Series indicating profit target / max-hold exit signals.
+    """
+    n = len(close)
+    exits = pd.Series(False, index=close.index, dtype=bool)
+
+    entry_price = 0.0
+    in_position = False
+    bars_since_entry = 0
+
+    for i in range(n):
+        if entries.iloc[i] and not in_position:
+            entry_price = float(close.iloc[i])
+            in_position = True
+            bars_since_entry = 0
+            continue
+
+        if in_position:
+            bars_since_entry += 1
+            if direction == 1:  # LONG
+                target_price = entry_price * (1.0 + profit_take_pct)
+                if float(close.iloc[i]) >= target_price or bars_since_entry >= max_holding_bars:
+                    exits.iloc[i] = True
+                    in_position = False
+            else:  # SHORT
+                target_price = entry_price * (1.0 - profit_take_pct)
+                if float(close.iloc[i]) <= target_price or bars_since_entry >= max_holding_bars:
+                    exits.iloc[i] = True
+                    in_position = False
+
+    return exits

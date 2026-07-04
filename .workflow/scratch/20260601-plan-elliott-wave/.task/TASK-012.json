@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-012",
+  "title": "VectorBT 回测集成 + 验证",
+  "feature": "F-008",
+  "wave": 3,
+  "priority": "P2",
+  "status": "completed",
+  "files_to_create": ["quantflow/strategy/research/elliott_wave_backtest.py", "tests/integration/test_elliott_wave.py"],
+  "files_to_modify": [],
+  "description": "使用 VectorBT 回测验证波浪策略。集成 CPCV + WFO 防过拟合验证。参数敏感性 grid search。",
+  "acceptance_criteria": [
+    "回测指标: 胜率≥55%, 盈亏比≥2:1, 最大回撤≤15%, 年化收益≥20%, 夏普≥1.5",
+    "回测周期 ≥100 笔交易",
+    "集成 CPCV + WFO 防过拟合验证",
+    "参数敏感性 grid search (回撤比率 0.382/0.5/0.618)",
+    "所有现有测试不回归"
+  ],
+  "cross_refs": ["S-003 (参数敏感性)", "TS-09 (CPCV+DSR+PBO+WFO)"]
+}

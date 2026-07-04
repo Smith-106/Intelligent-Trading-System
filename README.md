@@ -103,6 +103,9 @@ quantflow run --mode paper --strategy trend_following --symbol BTC/USDT --timefr
 # 查看状态
 quantflow status
 
+# 启动业务前端
+quantflow station --host 127.0.0.1 --port 8088
+
 # 环境自检
 python scripts/check_env.py
 ```

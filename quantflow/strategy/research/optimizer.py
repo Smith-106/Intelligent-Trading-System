@@ -166,6 +166,8 @@ class StrategyOptimizer:
             return float(result.calmar_ratio)
         if objective == "return":
             return float(result.total_return)
+        if objective == "win_rate":
+            return float(result.win_rate)
         return float(result.sharpe_ratio)
 
     @staticmethod

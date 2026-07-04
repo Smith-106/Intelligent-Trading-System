@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "ant_id": "ANT-3-1",
+  "iteration": 3,
+  "assignment": {"start_node": "macd_threshold_tuning", "max_path_length": 5},
+  "path": ["macd_threshold_tuning", "param_optimization_search", "trend_entry_filter", "exit_rule_early_exit", "backtest_validation"],
+  "path_decisions": [
+    {"from": "macd_threshold_tuning", "to": "param_optimization_search", "rationale": "Pheromone strong (0.103). MACD params are not in any param_space — infrastructure fix needed before MACD can be tuned", "guided_by": "pheromone", "pheromone_weight": 0.103, "deviation_from_hint": false},
+    {"from": "param_optimization_search", "to": "trend_entry_filter", "rationale": "With param_spaces defined, the N-of-M entry logic becomes optimizable. min_conditions should be in param_space", "guided_by": "evidence", "pheromone_weight": 0.072, "deviation_from_hint": true},
+    {"from": "trend_entry_filter", "to": "exit_rule_early_exit", "rationale": "Entry + exit fixes compound: more entries from N-of-M + profit targets from early exit = higher win_rate", "guided_by": "evidence", "pheromone_weight": 0.072, "deviation_from_hint": true},
+    {"from": "exit_rule_early_exit", "to": "backtest_validation", "rationale": "Win_rate objective in validation gate is the infrastructure capstone that makes all changes survive validation", "guided_by": "evidence", "pheromone_weight": 0.072, "deviation_from_hint": true}
+  ],
+  "self_score": 0.84,
+  "self_confidence": 0.76,
+  "evidence": [
+    "quantflow/strategy/templates/trend_following.py:42-44",
+    "quantflow/strategy/research/optimizer.py:25-36",
+    "quantflow/strategy/templates/trend_following.py:239",
+    "quantflow/strategy/templates/trend_following.py:109-115",
+    "quantflow/strategy/validation/gate.py:41",
+    "quantflow/strategy/research/backtest.py:35",
+    "quantflow/strategy/validation/barriers.py:18-23",
+    "quantflow/config/strategies/trend_following.yaml"
+  ],
+  "candidate_solution": {
+    "type": "object",
+    "summary": "End-to-end implementation plan: (1) param_space JSON files, (2) MACD crypto params, (3) min_conditions + N-of-M, (4) profit_target_mixin, (5) win_rate gate",
+    "content": {
+      "implementation_order": [
+        {"priority": "P0", "change": "Create per-strategy param_space JSON files with ALL tunable parameters", "rationale": "Infrastructure prerequisite — enables all other optimizations"},
+        {"priority": "P0", "change": "Add win_rate objective to optimizer._objective_value() and validation gate", "rationale": "Must be done before any parameter tuning to avoid Sharpe-wins-over-win_rate trap"},
+        {"priority": "P0", "change": "Add profit_target_exit() to _runtime.py shared across all templates", "rationale": "Highest single-impact change — converts marginal winners to guaranteed winners"},
+        {"priority": "P1", "change": "Add min_conditions param to trend_following, mean_reversion, volatility_breakout", "rationale": "Second-highest impact — increases trade frequency with maintained quality"},
+        {"priority": "P1", "change": "Add MACD fast/slow/signal ranges to trend_following param_space", "rationale": "Crypto-appropriate MACD may outperform standard 12/26/9"},
+        {"priority": "P2", "change": "Fix signal consolidation from net-vote to strength-weighted", "rationale": "Preserves high-conviction signals when strategies disagree"},
+        {"priority": "P2", "change": "Add per-strategy risk budgets to RiskEngine", "rationale": "Prevents one-strategy drawdown from blocking uncorrelated strategies"},
+        {"priority": "P2", "change": "Populate PositionSizer with actual per-strategy win_rate", "rationale": "Correct Kelly sizing improves risk/reward calibration"},
+        {"priority": "P3", "change": "Tighten RSI thresholds: trend 60/40, mean_rev 25/75", "rationale": "Crypto-specific thresholds may outperform standard 70/30"},
+        {"priority": "P3", "change": "Reduce ATR multiplier default from 2.0 to 1.5 for trend_following", "rationale": "Less restrictive volatility filter allows more trend entries"}
+      ]
+    }
+  },
+  "blockers": [],
+  "notes": "The key meta-insight across all 3 iterations: the system has 3 architectural gaps that compound to suppress win_rate: (1) NO profit target / trailing stop exits (signals reverse before profits are locked), (2) AND-logic entry filters that are too restrictive (few trades = low win_rate sampling), (3) Sharpe-optimized validation pipeline that selects against win_rate. Fixing any one alone helps; fixing all three is multiplicative."
+}

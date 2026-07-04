@@ -1,0 +1,72 @@
+{
+  "swarm": {
+    "n_ants": 4,
+    "max_iterations": 3,
+    "elite_keep": 2
+  },
+  "aco": {
+    "alpha": 1.0,
+    "beta": 2.0,
+    "rho": 0.2,
+    "q": 1.0,
+    "tau_init": 1.0,
+    "tau_min": 0.01,
+    "tau_max": 10.0
+  },
+  "task_space": {
+    "type": "graph",
+    "nodes": [
+      "trend_entry_filter",
+      "mean_rev_entry_filter",
+      "vol_breakout_entry_filter",
+      "rsi_threshold_tuning",
+      "macd_threshold_tuning",
+      "atr_threshold_tuning",
+      "volume_threshold_tuning",
+      "exit_rule_early_exit",
+      "exit_rule_trailing_stop",
+      "risk_engine_signal_filter",
+      "signal_consolidation",
+      "multi_strategy_combination",
+      "param_optimization_search",
+      "backtest_validation"
+    ],
+    "max_path_length": 5,
+    "start_nodes": "any",
+    "edges": "complete"
+  },
+  "scoring": {
+    "mode": "fallback",
+    "self_score_discount": 0.5
+  },
+  "ant_prompt": {
+    "objective": "Find the most impactful code-level changes to improve the win rate (胜率) of QuantFlow trading strategies. Analyze entry filters, exit rules, parameter tuning opportunities, risk engine behavior, and signal consolidation logic. For each node visited, identify specific file:line references and propose concrete code changes with estimated win-rate impact.",
+    "evidence_requirements": [
+      "At least 2 file:line references per node visited",
+      "Concrete code change proposal (not just description)",
+      "Estimated impact on win rate (low/medium/high)",
+      "Reference to existing strategy parameters and their current values"
+    ],
+    "tools_hint": "Use Read + Grep for code analysis. Focus on quantflow/strategy/templates/, quantflow/signal/, quantflow/strategy/validation/signal_quality.py"
+  },
+  "convergence": {
+    "max_iterations": 3,
+    "stagnation": {
+      "enabled": true,
+      "patience": 2,
+      "min_delta": 0.01
+    },
+    "entropy_floor": {
+      "enabled": true,
+      "threshold": 0.5
+    },
+    "budget_tokens": {
+      "enabled": false,
+      "max": 200000
+    },
+    "target_score": {
+      "enabled": true,
+      "value": 0.90
+    }
+  }
+}

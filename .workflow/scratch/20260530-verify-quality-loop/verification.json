@@ -1,0 +1,190 @@
+{
+  "phase": "quality-loop",
+  "status": "gaps_found",
+  "verified_at": "2026-05-30T13:35:00Z",
+  "verifier": "maestro-verify",
+  "must_haves": {
+    "truths": [
+      {"claim": "Data pipeline: OKX fetch → Parquet+DuckDB query", "status": "VERIFIED", "evidence": "fetcher.py:52-94, store.py:23-92"},
+      {"claim": "21 indicators compute correctly", "status": "VERIFIED", "evidence": "engine.py:14-23, batch_calculate:32-82"},
+      {"claim": "Strategies generate signals (trend+mean_reversion)", "status": "VERIFIED", "evidence": "trend_following.py:79-134, mean_reversion.py:77-111"},
+      {"claim": "Backtest engine runs vectorized simulation", "status": "VERIFIED", "evidence": "backtest.py:57-158 (pure pandas/numpy, not VectorBT lib)"},
+      {"claim": "Optuna optimization works", "status": "VERIFIED_WITH_CAVEAT", "evidence": "optimizer.py:16-92, GPSampler may crash on Optuna<3.5"},
+      {"claim": "Validation pipeline CPCV→DSR→PBO→WFO→Gate", "status": "VERIFIED", "evidence": "gate.py:24-100 chains all validations"},
+      {"claim": "Signal→Risk→Sizer→Execution pipeline wired", "status": "VERIFIED", "evidence": "engine.py:137-189 _process_signal"},
+      {"claim": "Paper trading with slippage+fees", "status": "VERIFIED", "evidence": "paper_gateway.py:14-151"},
+      {"claim": "OKX gateway with sandbox mode", "status": "VERIFIED", "evidence": "okx_gateway.py:18-149"},
+      {"claim": "Kill switch cancels+flattens", "status": "VERIFIED", "evidence": "kill_switch.py:14-110"},
+      {"claim": "Prometheus metrics + Telegram/LINE alerts", "status": "VERIFIED", "evidence": "metrics.py:1-86, alerts.py:1-115"},
+      {"claim": "CLI 6 commands", "status": "VERIFIED", "evidence": "cli/main.py:1-524"}
+    ],
+    "artifacts": {
+      "verified": 39,
+      "orphaned": 5,
+      "stub": 0,
+      "missing": 0,
+      "orphaned_modules": ["feature_store.py", "redis_cache.py", "sentiment.py", "ai_factors.py", "logger.py"]
+    },
+    "key_links": {
+      "wired": 10,
+      "not_wired": 5,
+      "broken_links": [
+        "FeatureStore→IndicatorEngine (API mismatch: compute_all vs batch_calculate + signature)",
+        "OKXGateway→WebSocket subscribe (no-op stub)",
+        "NewsCollector._sources→fetch_news (dead collection)",
+        "SentimentAnalyzer/AIFactorEngine→pipeline (orphaned)",
+        "RedisCache→DataFetcher/Session (orphaned)"
+      ]
+    }
+  },
+  "gaps": [
+    {
+      "id": "GAP-001",
+      "severity": "critical",
+      "description": "FeatureStore.compute_features() calls engine.compute_all(raw, indicator_names) but IndicatorEngine only has batch_calculate(df). Method name AND signature mismatch. Runtime AttributeError/TypeError.",
+      "fix_direction": "Add compute_all(df, indicator_names=None) to IndicatorEngine that filters which indicators to compute, or fix feature_store.py to call batch_calculate(raw) without indicator_names"
+    },
+    {
+      "id": "GAP-002",
+      "severity": "high",
+      "description": "optimizer.py:92 uses GPSampler() unconditionally — crashes on Optuna <3.5 with no fallback",
+      "fix_direction": "Try/except GPSampler with TPESampler fallback"
+    },
+    {
+      "id": "GAP-003",
+      "severity": "high",
+      "description": "OKXGateway has no WebSocket subscription. GatewayBase.subscribe() is no-op stub. E11-S2 requires watch_ohlcv/watch_orders.",
+      "fix_direction": "Add subscribe() override with ccxt pro watch methods, or integrate DataFetcher streaming into TradingSession"
+    },
+    {
+      "id": "GAP-004",
+      "severity": "medium",
+      "description": "NewsCollector._sources list populated by add_source() but fetch_news never iterates it. Dead code. Only CryptoPanic hardcoded.",
+      "fix_direction": "Refactor fetch_news to iterate self._sources, add 2-3 more news sources"
+    },
+    {
+      "id": "GAP-005",
+      "severity": "medium",
+      "description": "SentimentAnalyzer and AIFactorEngine orphaned — not imported by TradingSession, CLI, or FeatureStore",
+      "fix_direction": "Wire into TradingSession as optional signal filter; add CLI flags for AI-enhanced modes"
+    },
+    {
+      "id": "GAP-006",
+      "severity": "medium",
+      "description": "RedisCache never imported by any consumer. Data flow in CLAUDE.md says 'CCXT→Redis Cache→EventBus' but not implemented.",
+      "fix_direction": "Integrate RedisCache into DataFetcher for latest bar caching, or remove if not needed"
+    },
+    {
+      "id": "GAP-007",
+      "severity": "medium",
+      "description": "FactorRegistry defined but IndicatorEngine bypasses it with direct function calls. Extensible factor system not functionally wired.",
+      "fix_direction": "Refactor IndicatorEngine to use FactorRegistry, or document registry is for future extension"
+    },
+    {
+      "id": "GAP-008",
+      "severity": "medium",
+      "description": "optimizer grid search uses RandomSampler instead of actual GridSampler. 'grid' method is fake grid search.",
+      "fix_direction": "Implement proper GridSampler with search space dict, or rename to 'random'"
+    },
+    {
+      "id": "GAP-009",
+      "severity": "low",
+      "description": "VectorBTEngine named after VectorBT but uses pure pandas/numpy. CLAUDE.md references VectorBT as tech stack.",
+      "fix_direction": "Update CLAUDE.md to reflect pure numpy backtest engine"
+    },
+    {
+      "id": "GAP-010",
+      "severity": "low",
+      "description": "setup_logging() in logger.py never called by any module",
+      "fix_direction": "Call setup_logging() in cli/main.py or __init__.py"
+    },
+    {
+      "id": "GAP-011",
+      "severity": "low",
+      "description": "CLI optimize _signal_fn closure captures wrong scope — ignores close_series and **params",
+      "fix_direction": "Fix _signal_fn to use close_series and params properly"
+    }
+  ],
+  "constraint_violations": [],
+  "antipatterns": [
+    {"pattern": "API signature mismatch: compute_all vs batch_calculate", "file": "quantflow/data/feature_store.py", "line": 42, "severity": "blocker"},
+    {"pattern": "Dead registry: FactorRegistry bypassed by IndicatorEngine", "file": "quantflow/indicators/engine.py", "line": 32, "severity": "warning"},
+    {"pattern": "Dead collection: NewsCollector._sources never iterated", "file": "quantflow/strategy/sentiment.py", "line": 102, "severity": "warning"},
+    {"pattern": "No-op subscribe: OKXGateway doesn't override GatewayBase.subscribe()", "file": "quantflow/execution/okx_gateway.py", "line": 18, "severity": "warning"},
+    {"pattern": "Orphaned: RedisCache never imported", "file": "quantflow/data/redis_cache.py", "line": 16, "severity": "warning"},
+    {"pattern": "Orphaned: SentimentAnalyzer/AIFactorEngine not wired", "file": "quantflow/strategy/sentiment.py", "line": 16, "severity": "warning"},
+    {"pattern": "Fake grid search: RandomSampler used instead of GridSampler", "file": "quantflow/strategy/research/optimizer.py", "line": 90, "severity": "warning"},
+    {"pattern": "Closure captures wrong variable: _signal_fn ignores params", "file": "quantflow/cli/main.py", "line": 213, "severity": "warning"},
+    {"pattern": "Misleading class name: VectorBTEngine doesn't use VectorBT", "file": "quantflow/strategy/research/backtest.py", "line": 57, "severity": "info"}
+  ],
+  "fix_plans": [
+    {
+      "cluster": "API Mismatch Fix",
+      "objective": "Fix FeatureStore→IndicatorEngine API mismatch",
+      "gaps": ["GAP-001"],
+      "tasks": [
+        {"action": "Add compute_all(df, indicator_names=None) to IndicatorEngine that filters and delegates to batch_calculate", "verify": "FeatureStore.compute_features() runs without error"},
+        {"action": "Update feature_store.py:42 to call engine.compute_all correctly", "verify": "Unit test for FeatureStore.compute_features passes"}
+      ]
+    },
+    {
+      "cluster": "Optimizer Robustness",
+      "objective": "Fix GPSampler compatibility and grid search accuracy",
+      "gaps": ["GAP-002", "GAP-008"],
+      "tasks": [
+        {"action": "Add try/except fallback: GPSampler → TPESampler", "verify": "Optimizer works on Optuna <3.5"},
+        {"action": "Implement proper GridSampler with search space dict", "verify": "Grid method produces actual grid search results"}
+      ]
+    },
+    {
+      "cluster": "WebSocket Subscription",
+      "objective": "Add WebSocket streaming to OKXGateway",
+      "gaps": ["GAP-003"],
+      "tasks": [
+        {"action": "Add subscribe() override to OKXGateway using ccxt pro watch methods", "verify": "WebSocket subscription receives real-time data"}
+      ]
+    },
+    {
+      "cluster": "Orphaned Module Integration",
+      "objective": "Wire orphaned modules into pipeline",
+      "gaps": ["GAP-004", "GAP-005", "GAP-006", "GAP-010"],
+      "tasks": [
+        {"action": "Refactor NewsCollector to iterate self._sources, add more sources", "verify": "Multiple news sources return data"},
+        {"action": "Wire SentimentAnalyzer into TradingSession as optional filter", "verify": "Sentiment signals influence trading decisions when enabled"},
+        {"action": "Integrate RedisCache into DataFetcher for latest bar caching", "verify": "RedisCache stores and retrieves latest bars"},
+        {"action": "Call setup_logging() in CLI entry point", "verify": "Structured logging active"}
+      ]
+    },
+    {
+      "cluster": "Minor Fixes",
+      "objective": "Fix low-severity issues",
+      "gaps": ["GAP-007", "GAP-009", "GAP-011"],
+      "tasks": [
+        {"action": "Document FactorRegistry as extension point", "verify": "CLAUDE.md updated"},
+        {"action": "Update CLAUDE.md tech stack to reflect pure numpy backtest", "verify": "Tech stack accurate"},
+        {"action": "Fix _signal_fn closure in CLI optimize", "verify": "Optimizer uses params correctly"}
+      ]
+    }
+  ],
+  "test_baseline": {
+    "total_tests": 168,
+    "passed": 167,
+    "skipped": 1,
+    "failed": 0,
+    "warnings": 6,
+    "coverage_gaps": [
+      {"module": "data/fetcher.py", "has_tests": false, "reason": "requires network/API"},
+      {"module": "data/redis_cache.py", "has_tests": false, "reason": "requires Redis server"},
+      {"module": "data/feature_store.py", "has_tests": false, "reason": "untested due to API mismatch"},
+      {"module": "strategy/sentiment.py", "has_tests": false, "reason": "requires transformers model"},
+      {"module": "strategy/ai_factors.py", "has_tests": false, "reason": "requires sklearn model"},
+      {"module": "execution/okx_gateway.py", "has_tests": false, "reason": "requires OKX API key"},
+      {"module": "monitoring/logger.py", "has_tests": false, "reason": "lightweight, low risk"}
+    ]
+  },
+  "human_verification": [
+    "OKX sandbox mode end-to-end order lifecycle (requires API key)",
+    "Telegram/LINE alert delivery (requires bot token)",
+    "Grafana dashboard renders correctly (requires Docker stack)"
+  ]
+}

@@ -56,7 +56,7 @@ class PortfolioManager:
     @property
     def total_value(self) -> float:
         """Cash + sum of position market values."""
-        pos_value = sum(p.current_price * abs(p.quantity) for p in self._positions.values())
+        pos_value = sum(p.market_value for p in self._positions.values())
         return self._cash + pos_value
 
     # --- Position management ---
@@ -70,38 +70,63 @@ class PortfolioManager:
         pos = self._positions.get(symbol)
         return pos is not None and abs(pos.quantity) > 1e-10
 
-    def update_position(self, symbol: str, quantity_delta: float, price: float) -> None:
+    def update_position(
+        self,
+        symbol: str,
+        quantity_delta: float,
+        price: float,
+        *,
+        fee: float = 0.0,
+        strategy_id: str = "",
+    ) -> None:
         """Update or create a position after a fill."""
         existing = self._positions.get(symbol)
-        if existing is None:
-            if abs(quantity_delta) < 1e-10:
+        if abs(quantity_delta) < 1e-10:
+            if existing is None:
+                self._refresh_drawdown()
                 return
+            self._positions[symbol] = Position(
+                symbol=symbol,
+                quantity=existing.quantity,
+                entry_price=existing.entry_price,
+                current_price=price,
+                unrealized_pnl=(price - existing.entry_price) * existing.quantity,
+                strategy_id=existing.strategy_id,
+            )
+            self._refresh_drawdown()
+            return
+
+        # Cash follows trade notional directly; fee always reduces equity.
+        self._cash -= quantity_delta * price
+        if fee:
+            self._cash -= fee
+
+        if existing is None:
             self._positions[symbol] = Position(
                 symbol=symbol,
                 quantity=quantity_delta,
                 entry_price=price,
                 current_price=price,
                 unrealized_pnl=0.0,
+                strategy_id=strategy_id,
             )
+            self._refresh_drawdown()
             return
 
         new_qty = existing.quantity + quantity_delta
         if abs(new_qty) < 1e-10:
-            realized = (price - existing.entry_price) * existing.quantity
-            self._cash += realized
             del self._positions[symbol]
+            self._refresh_drawdown()
             return
 
-        if quantity_delta * existing.quantity > 0:
-            total_cost = existing.entry_price * existing.quantity + price * quantity_delta
-            avg_price = total_cost / new_qty
-        else:
-            closed_qty = min(abs(quantity_delta), abs(existing.quantity))
-            realized = (
-                (price - existing.entry_price) * closed_qty * (1 if existing.quantity > 0 else -1)
+        if existing.quantity * quantity_delta > 0:
+            total_cost = (
+                existing.entry_price * abs(existing.quantity)
+                + price * abs(quantity_delta)
             )
-            self._cash += realized
-            avg_price = existing.entry_price
+            avg_price = total_cost / abs(new_qty)
+        else:
+            avg_price = price if existing.quantity * new_qty < 0 else existing.entry_price
 
         upnl = (price - avg_price) * new_qty
         self._positions[symbol] = Position(
@@ -110,7 +135,9 @@ class PortfolioManager:
             entry_price=avg_price,
             current_price=price,
             unrealized_pnl=upnl,
+            strategy_id=existing.strategy_id or strategy_id,
         )
+        self._refresh_drawdown()
 
     # --- Mark-to-market ---
 
@@ -126,17 +153,14 @@ class PortfolioManager:
                     entry_price=pos.entry_price,
                     current_price=price,
                     unrealized_pnl=upnl,
+                    strategy_id=pos.strategy_id,
                 )
 
     def mark_to_market(self, price_feed: dict[str, float]) -> dict[str, float]:
         """Mark all positions to market and return unrealized P&L per symbol."""
         self.update_market_prices(price_feed)
         pnl = {s: p.unrealized_pnl for s, p in self._positions.items()}
-        total = self.total_value
-        if total > self._peak_equity:
-            self._peak_equity = total
-        if self._peak_equity > 0:
-            self._current_drawdown = (total - self._peak_equity) / self._peak_equity
+        self._refresh_drawdown()
         return pnl
 
     def total_unrealized_pnl(self) -> float:
@@ -148,6 +172,7 @@ class PortfolioManager:
     def update_cash(self, amount: float) -> None:
         """Adjust cash balance by amount (positive=deposit, negative=withdrawal)."""
         self._cash += amount
+        self._refresh_drawdown()
 
     def set_allocation(self, allocation: dict[str, float]) -> None:
         """Set target allocation weights per strategy."""
@@ -184,3 +209,10 @@ class PortfolioManager:
             "drawdown": self._current_drawdown,
             "peak_equity": self._peak_equity,
         }
+
+    def _refresh_drawdown(self) -> None:
+        total = self.total_value
+        if total > self._peak_equity:
+            self._peak_equity = total
+        if self._peak_equity > 0:
+            self._current_drawdown = (total - self._peak_equity) / self._peak_equity

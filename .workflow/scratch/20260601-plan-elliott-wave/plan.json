@@ -1,0 +1,27 @@
+{
+  "plan_id": "PLN-elliott-wave",
+  "title": "柳玉东波浪理论交易系统实现计划",
+  "source": "brainstorm:brainstorm-elliott-wave-20260601",
+  "created_at": "2026-06-01T04:30:00Z",
+  "waves": [
+    {
+      "wave": 1,
+      "title": "L2 指标层核心——ZigZag + 浪型识别 + 斐波那契 + 临界位",
+      "tasks": ["TASK-001", "TASK-002", "TASK-003", "TASK-004"],
+      "rationale": "L2 是所有下游模块的基础，必须先完成。ZigZag是浪型识别的输入，浪型识别是斐波那契和临界位的前提。"
+    },
+    {
+      "wave": 2,
+      "title": "L2 辅助验证 + L3 策略层 + L4 信号风控",
+      "tasks": ["TASK-005", "TASK-006", "TASK-007", "TASK-008"],
+      "rationale": "波浪通道和背离验证依赖WaveCount；策略依赖L2输出；信号风控依赖策略和临界位。"
+    },
+    {
+      "wave": 3,
+      "title": "L1 数据层 + L4 仓位管理 + CLI + 配置 + 回测",
+      "tasks": ["TASK-009", "TASK-010", "TASK-011", "TASK-012"],
+      "rationale": "MTF对齐和仓位管理可并行；CLI/配置/回测依赖前面所有模块。"
+    }
+  ],
+  "task_ids": ["TASK-001","TASK-002","TASK-003","TASK-004","TASK-005","TASK-006","TASK-007","TASK-008","TASK-009","TASK-010","TASK-011","TASK-012"]
+}

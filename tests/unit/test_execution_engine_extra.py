@@ -49,6 +49,12 @@ class _ErrorGateway(_PresetGateway):
         raise RuntimeError("gateway down")
 
 
+class _RejectedGateway(_PresetGateway):
+    async def send_order(self, order: Order) -> str:
+        order.status = OrderStatus.REJECTED
+        return "rejected-oid"
+
+
 class TestExecutionEngineExtra:
     @pytest.mark.asyncio
     async def test_start_reuses_injected_gateway(self) -> None:
@@ -134,6 +140,29 @@ class TestExecutionEngineExtra:
         result = await engine.submit(order)
 
         assert result.status == OrderStatus.REJECTED
+
+    @pytest.mark.asyncio
+    async def test_submit_tracks_rejected_gateway_status_without_pending_order(self) -> None:
+        engine = ExecutionEngine(gateway=_RejectedGateway())
+        await engine.start()
+        order = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=1.0,
+            price=100.0,
+            strategy_id="reject",
+        )
+
+        result = await engine.submit(order)
+
+        assert result.status == OrderStatus.REJECTED
+        tracked = engine.order_manager.get_order("rejected-oid")
+        assert tracked is not None
+        assert tracked.status == OrderStatus.REJECTED
+        assert engine.order_manager.pending_count == 0
+        assert engine.order_manager.get_open_orders() == []
 
     @pytest.mark.asyncio
     async def test_submit_emits_fill_and_updates_position_for_sell_orders(self) -> None:
@@ -241,3 +270,23 @@ class TestExecutionEngineExtra:
 
         assert engine.position_manager.position_count == 2
         assert engine.position_manager.get_position("ETH/USDT").quantity == -2.0
+
+    def test_update_market_price_refreshes_position_manager_and_gateway_reference_price(self) -> None:
+        class _PriceAwareGateway(_PresetGateway):
+            def __init__(self) -> None:
+                super().__init__()
+                self.price_updates: list[tuple[str, float]] = []
+
+            def update_price(self, symbol: str, price: float) -> None:
+                self.price_updates.append((symbol, price))
+
+        gateway = _PriceAwareGateway()
+        engine = ExecutionEngine(gateway=gateway)
+        engine.position_manager.update_position("BTC/USDT", 1.0, 100.0)
+
+        engine.update_market_price("BTC/USDT", 123.0)
+
+        position = engine.position_manager.get_position("BTC/USDT")
+        assert position is not None
+        assert position.current_price == 123.0
+        assert gateway.price_updates == [("BTC/USDT", 123.0)]

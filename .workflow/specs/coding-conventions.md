@@ -38,6 +38,19 @@ Auto-generated from project analysis. Update manually as patterns evolve.
 
 ## Entries
 
+<spec-entry category="coding" keywords="策略双模式,generate_signals,on_bar,向量化,事件驱动" date="2026-06-13" title="策略双模式: generate_signals 向量化 + on_bar 事件驱动" description="策略模板标准双 API 模式">
+### 策略双模式: generate_signals 向量化 + on_bar 事件驱动
+
+所有策略模板遵循双模式：
+1. `generate_signals(df)` — 向量化研究/回测 API，输入完整 DataFrame，输出 (entries, exits) boolean Series
+2. `on_bar(ctx, bar)` — 事件驱动 live/paper API，接收单根 bar，通过 emit_signal 生成信号
+
+两种模式必须保证信号 parity，通过确定性 fixture 测试验证。
+
+**来源**: PLAN-001 DD-004 设计决策
+**模式参考**: trend_following.py 双模式实现
+</spec-entry>
+
 <spec-entry category="coding" keywords="search,codegraph,代码搜索" date="2026-06-01">
 
 ### mcp-semantic-search

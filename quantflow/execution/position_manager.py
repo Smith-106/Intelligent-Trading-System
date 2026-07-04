@@ -26,9 +26,17 @@ class PositionManager:
                 entry_price=pos.entry_price,
                 current_price=price,
                 unrealized_pnl=unrealized,
+                strategy_id=pos.strategy_id,
             )
 
-    def update_position(self, symbol: str, quantity_delta: float, price: float) -> None:
+    def update_position(
+        self,
+        symbol: str,
+        quantity_delta: float,
+        price: float,
+        *,
+        strategy_id: str = "",
+    ) -> None:
         """Update position after a fill. Negative delta reduces position."""
         existing = self._positions.get(symbol)
         if existing is None:
@@ -40,6 +48,7 @@ class PositionManager:
                 entry_price=price,
                 current_price=price,
                 unrealized_pnl=0.0,
+                strategy_id=strategy_id,
             )
             return
 
@@ -67,6 +76,7 @@ class PositionManager:
             quantity=new_qty,
             entry_price=avg_price,
             current_price=price,
+            strategy_id=existing.strategy_id or strategy_id,
         )
 
     def get_position(self, symbol: str) -> Position | None:

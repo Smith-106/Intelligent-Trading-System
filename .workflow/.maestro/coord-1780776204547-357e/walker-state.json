@@ -1,0 +1,75 @@
+{
+  "session_id": "coord-1780776204547-357e",
+  "graph_id": "roadmap-driven",
+  "current_node": "init",
+  "status": "failed",
+  "context": {
+    "inputs": {
+      "workflowRoot": "C:\\Users\\niko\\Desktop\\智能交易系统",
+      "phase": "",
+      "intent": "推进 QuantFlow 到可发布：基于当前 NO-GO 审计结果，修复发布阻塞项，建立发布里程碑，补齐打包、哈希、安全扫描、tag/release 一致性与发布证据，直到形成可验证的 release candidate",
+      "description": "推进 QuantFlow 到可发布：基于当前 NO-GO 审计结果，修复发布阻塞项，建立发布里程碑，补齐打包、哈希、安全扫描、tag/release 一致性与发布证据，直到形成可验证的 release candidate"
+    },
+    "project": {
+      "initialized": false,
+      "current_phase": null,
+      "phase_status": "pending",
+      "phase_artifacts": {},
+      "execution": {
+        "tasks_completed": 0,
+        "tasks_total": 0
+      },
+      "verification_status": "pending",
+      "review_verdict": null,
+      "uat_status": "pending",
+      "phases_total": 0,
+      "phases_completed": 0,
+      "accumulated_context": null
+    },
+    "result": {
+      "status": "FAILURE",
+      "phase": "<number, or \"none\">",
+      "verification_status": "<passed or failed or pending, if applicable>",
+      "review_verdict": "<PASS or WARN or BLOCK, if applicable>",
+      "uat_status": "<passed or failed or pending, if applicable>",
+      "artifacts": [
+        "<comma-separated file paths",
+        "or \"none\">"
+      ],
+      "summary": "<one-line what was accomplished>"
+    },
+    "analysis": null,
+    "visits": {
+      "init": 1
+    },
+    "var": {}
+  },
+  "history": [
+    {
+      "node_id": "init",
+      "node_type": "command",
+      "entered_at": "2026-06-06T20:03:24.557Z",
+      "exec_id": "coord-mq2s69hv",
+      "summary": "<one-line what was accomplished>",
+      "retry_count": 0,
+      "outcome": "failure",
+      "error_message": "exec_failure: <one-line what was accomplished>",
+      "exited_at": "2026-06-06T20:13:24.739Z"
+    }
+  ],
+  "fork_state": null,
+  "delegate_stack": [],
+  "created_at": "2026-06-06T20:03:24.551Z",
+  "updated_at": "2026-06-06T20:13:24.743Z",
+  "tool": "codex",
+  "auto_mode": true,
+  "step_mode": true,
+  "intent": "推进 QuantFlow 到可发布：基于当前 NO-GO 审计结果，修复发布阻塞项，建立发布里程碑，补齐打包、哈希、安全扫描、tag/release 一致性与发布证据，直到形成可验证的 release candidate",
+  "recovery": {
+    "total_retries": 0,
+    "total_failures": 1,
+    "auto_skips": 0,
+    "consecutive_failures": 1,
+    "last_error": "exec_failure: <one-line what was accomplished>"
+  }
+}

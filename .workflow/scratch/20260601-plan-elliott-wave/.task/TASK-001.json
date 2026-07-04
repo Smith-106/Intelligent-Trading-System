@@ -1,0 +1,19 @@
+{
+  "task_id": "TASK-001",
+  "title": "ZigZag 转折点检测器",
+  "feature": "F-001",
+  "wave": 1,
+  "priority": "P0",
+  "status": "pending",
+  "files_to_create": ["quantflow/indicators/zigzag.py"],
+  "files_to_modify": ["quantflow/indicators/engine.py"],
+  "description": "实现多参数 ZigZag 指标，自动标记价格转折点，输出 PivotSequence。支持 >80% 重叠共识机制。",
+  "acceptance_criteria": [
+    "ZigZagIndicator 继承 FactorBase 并实现 compute()",
+    "多参数运行取 >80% 重叠共识转折点",
+    "PivotSequence/PivotPoint dataclass 定义完整",
+    "单元测试验证已知 BTC 历史转折点识别准确率 >80%",
+    "在 FactorRegistry 注册 zigzag_pivots 因子"
+  ],
+  "cross_refs": ["C-002 (min_overlap>80%)", "G-001 (输出PivotSequence)"]
+}

@@ -1,0 +1,10 @@
+{
+  "fast_ma_period": [5, 30],
+  "slow_ma_period": [20, 80],
+  "rsi_overbought": [55, 80],
+  "rsi_oversold": [20, 45],
+  "min_conditions": [2, 4],
+  "profit_take_pct": [0.05, 0.20],
+  "max_holding_bars": [10, 40],
+  "trailing_stop_atr_mult": [1.5, 4.0]
+}

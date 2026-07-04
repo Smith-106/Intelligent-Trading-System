@@ -17,6 +17,12 @@ from rich.table import Table
 from quantflow import __version__
 from quantflow.common.config import AppConfig, load_config, resolve_config_path
 from quantflow.monitoring.logger import setup_logging
+from quantflow.strategy.catalog import (
+    get_strategy_factories as _catalog_strategy_factories,
+)
+from quantflow.strategy.catalog import (
+    get_strategy_specs as _catalog_strategy_specs,
+)
 
 setup_logging()
 
@@ -31,110 +37,11 @@ ResultDict: TypeAlias = dict[str, Any]
 
 
 def _get_strategy_factories() -> dict[str, StrategyFactory]:
-    from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
-    from quantflow.strategy.templates.funding_rate import FundingRateStrategy
-    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
-    from quantflow.strategy.templates.ml_ensemble import MLEnsembleStrategy
-    from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
-    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
-    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
-
-    def trend_following_factory(params: dict[str, Any] | None = None) -> StrategyBase:
-        return TrendFollowingStrategy(params)
-
-    def mean_reversion_factory(params: dict[str, Any] | None = None) -> StrategyBase:
-        return MeanReversionStrategy(params)
-
-    def elliott_wave_factory(params: dict[str, Any] | None = None) -> StrategyBase:
-        return ElliottWaveStrategy(params)
-
-    def volatility_breakout_factory(params: dict[str, Any] | None = None) -> StrategyBase:
-        return VolatilityBreakoutStrategy(params)
-
-    def funding_rate_factory(params: dict[str, Any] | None = None) -> StrategyBase:
-        return FundingRateStrategy(params)
-
-    def momentum_rotation_factory(params: dict[str, Any] | None = None) -> StrategyBase:
-        return MomentumRotationStrategy(params)
-
-    def ml_ensemble_factory(params: dict[str, Any] | None = None) -> StrategyBase:
-        return MLEnsembleStrategy(params)
-
-    return {
-        "trend_following": trend_following_factory,
-        "mean_reversion": mean_reversion_factory,
-        "elliott_wave": elliott_wave_factory,
-        "volatility_breakout": volatility_breakout_factory,
-        "funding_rate": funding_rate_factory,
-        "momentum_rotation": momentum_rotation_factory,
-        "ml_ensemble": ml_ensemble_factory,
-    }
+    return _catalog_strategy_factories()
 
 
 def _get_strategy_specs() -> dict[str, tuple[StrategyFactory, ParamSpace]]:
-    factories = _get_strategy_factories()
-    return {
-        "trend_following": (
-            factories["trend_following"],
-            {
-                "fast_ma_period": (3, 15),
-                "slow_ma_period": (30, 120),
-                "rsi_oversold": (20, 40),
-                "rsi_overbought": (60, 85),
-                "atr_multiplier": (1.2, 3.0),
-                "volume_threshold": (0.8, 2.0),
-            },
-        ),
-        "mean_reversion": (
-            factories["mean_reversion"],
-            {
-                "rsi_oversold": (20, 40),
-                "rsi_overbought": (60, 85),
-                "bb_std": (1.5, 3.0),
-                "exit_rsi_overbought": (50, 75),
-                "exit_rsi_oversold": (25, 50),
-            },
-        ),
-        "elliott_wave": (
-            factories["elliott_wave"],
-            {
-                "zigzag_threshold": (0.02, 0.08),
-                "fib_tolerance": (0.10, 0.25),
-                "atr_stop_mult": (1.0, 3.0),
-            },
-        ),
-        "volatility_breakout": (
-            factories["volatility_breakout"],
-            {
-                "atr_threshold": (1.2, 2.0),
-                "atr_shrink_exit": (0.5, 0.9),
-                "volume_threshold": (1.2, 2.0),
-            },
-        ),
-        "funding_rate": (
-            factories["funding_rate"],
-            {
-                "entry_threshold": (0.0005, 0.002),
-                "exit_threshold": (0.0001, 0.0005),
-                "oi_change_threshold": (0.02, 0.1),
-            },
-        ),
-        "momentum_rotation": (
-            factories["momentum_rotation"],
-            {
-                "lookback": (10, 40),
-                "top_n": (1, 5),
-                "stop_loss_pct": (0.01, 0.05),
-            },
-        ),
-        "ml_ensemble": (
-            factories["ml_ensemble"],
-            {
-                "entry_threshold": (0.5, 0.8),
-                "exit_threshold": (0.2, 0.5),
-            },
-        ),
-    }
+    return _catalog_strategy_specs()
 
 
 app = typer.Typer(
@@ -1122,6 +1029,18 @@ def benchmark(
 
     if failures:
         raise typer.Exit(1)
+
+
+@app.command()
+def station(
+    host: str = typer.Option("127.0.0.1", help="Station server bind host"),
+    port: int = typer.Option(8088, min=1, max=65535, help="Station server port"),
+) -> None:
+    """Launch QuantFlow Station business frontend."""
+    from quantflow.web.app import run_station
+
+    console.print(f"[bold blue]Starting QuantFlow Station at http://{host}:{port}[/]")
+    run_station(host=host, port=port)
 
 
 @app.command()

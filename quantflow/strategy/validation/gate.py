@@ -39,6 +39,7 @@ def validation_gate(
     optimize_trials: int = 50,
     optimize_method: str = "bayesian",
     optimize_objective: str = "sharpe",
+    win_rate_threshold: float | None = None,
 ) -> dict[str, Any]:
     """Run the full GO/NO-GO validation pipeline.
 
@@ -69,7 +70,10 @@ def validation_gate(
     results["checks"]["cpcv"] = cpcv_result
     if not cpcv_result["passed"]:
         results["decision"] = "NO-GO"
-        results["reason"] = f"CPCV PBO={cpcv_result['pbo']:.3f} >= 0.5"
+        results["reason"] = str(
+            cpcv_result.get("reason")
+            or f"CPCV PBO={cpcv_result['pbo']:.3f} >= 0.5"
+        )
         return results
 
     # Step 2: DSR
@@ -85,6 +89,26 @@ def validation_gate(
         results["decision"] = "NO-GO"
         results["reason"] = f"DSR={dsr_result['dsr']:.4f} < 0.95"
         return results
+
+    # Optional: win_rate threshold check
+    if win_rate_threshold is not None:
+        avg_wr = sum(
+            p.get("oos_win_rate", 0.5) for p in cpcv_result["path_results"]
+        ) / len(cpcv_result["path_results"])
+        if avg_wr < win_rate_threshold:
+            results["decision"] = "NO-GO"
+            results["reason"] = f"CPCV avg win_rate={avg_wr:.3f} < {win_rate_threshold}"
+            results["checks"]["win_rate"] = {
+                "avg_win_rate": avg_wr,
+                "threshold": win_rate_threshold,
+                "passed": False,
+            }
+            return results
+        results["checks"]["win_rate"] = {
+            "avg_win_rate": avg_wr,
+            "threshold": win_rate_threshold,
+            "passed": True,
+        }
 
     # Step 3: WFO
     logger.info("=== Step 3: Walk-Forward Validation ===")

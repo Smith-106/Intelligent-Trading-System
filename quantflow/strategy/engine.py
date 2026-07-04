@@ -14,9 +14,10 @@ from typing import Any
 
 from quantflow.common.config import AppConfig
 from quantflow.common.event_bus import EVENT_BAR, EVENT_RISK, EVENT_SIGNAL, Event, EventBus
-from quantflow.common.models import Bar, OrderRequest, OrderSide, Signal
+from quantflow.common.models import Bar, OrderRequest, OrderSide, OrderStatus, Signal
 from quantflow.execution.engine import ExecutionEngine
 from quantflow.execution.kill_switch import KillSwitch
+from quantflow.indicators.regime import MarketRegimeDetector
 from quantflow.monitoring.alerts import AlertLevel, AlertManager
 from quantflow.monitoring.metrics import (
     BAR_PROCESSING_LATENCY,
@@ -25,35 +26,57 @@ from quantflow.monitoring.metrics import (
     start_metrics_server,
     update_portfolio_metrics,
 )
+from quantflow.signal.generator import SignalGenerator
 from quantflow.signal.portfolio import PortfolioManager
 from quantflow.signal.position_sizer import PositionSizer
 from quantflow.signal.risk_engine import RiskEngine
 from quantflow.strategy.base import StrategyBase, StrategyContext
 
 logger = logging.getLogger(__name__)
+_ATTEMPTED_METRICS_PORTS: set[int] = set()
+
+
+def _ensure_metrics_server_started(port: int) -> None:
+    if port in _ATTEMPTED_METRICS_PORTS:
+        return
+    _ATTEMPTED_METRICS_PORTS.add(port)
+    start_metrics_server(port)
 
 
 class TradingSession:
     """Unified trading session for backtest, paper, or live mode."""
 
-    def __init__(self, config: AppConfig, strategies: Sequence[StrategyBase]) -> None:
+    def __init__(
+        self,
+        config: AppConfig,
+        strategies: Sequence[StrategyBase],
+        *,
+        strategy_risk_budgets: dict[str, float] | None = None,
+        strategy_win_rates: dict[str, float] | None = None,
+        strategy_hit_rates: dict[str, float] | None = None,
+    ) -> None:
         self._config = config
         self._strategies = list(strategies)
         self._event_bus = EventBus()
         self._execution = ExecutionEngine(
             event_bus=self._event_bus, timeout=config.execution.order_timeout
         )
-        self._risk_engine = RiskEngine(config.risk)
+        self._risk_engine = RiskEngine(config.risk, strategy_risk_budgets=strategy_risk_budgets)
         self._position_sizer = PositionSizer(
             method="kelly",
             kelly_fraction=0.5,
             max_position_pct=config.risk.position_limit_pct * 100,
         )
         self._portfolio = PortfolioManager(initial_capital=100000.0)
+        self._signal_gen = SignalGenerator()
+        self._regime_detector = MarketRegimeDetector()
+        self._strategy_win_rates = strategy_win_rates or {}
+        self._strategy_hit_rates = strategy_hit_rates or {}
         self._contexts: dict[str, StrategyContext] = {}
         self._kill_switch: KillSwitch | None = None
         self._running = False
         self._alert_mgr: AlertManager | None = None
+        self._last_error: str | None = None
 
     async def start(
         self, mode: str = "paper", gateway_config: dict[str, Any] | None = None
@@ -75,11 +98,22 @@ class TradingSession:
                 telegram_chat_id=ch.chat_id,
             )
 
-        # Start Prometheus metrics server
-        start_metrics_server(self._config.monitoring.prometheus_port)
+        # Start Prometheus metrics server once per process/port to avoid noisy retries.
+        _ensure_metrics_server_started(self._config.monitoring.prometheus_port)
 
         if self._strategies:
-            allocation = {s.name: 1.0 / len(self._strategies) for s in self._strategies}
+            if self._strategy_win_rates:
+                # Win-rate-weighted allocation (better strategies get more capital)
+                total_wr = sum(self._strategy_win_rates.get(s.name, 0.5) for s in self._strategies)
+                if total_wr > 0:
+                    allocation = {
+                        s.name: self._strategy_win_rates.get(s.name, 0.5) / total_wr
+                        for s in self._strategies
+                    }
+                else:
+                    allocation = {s.name: 1.0 / len(self._strategies) for s in self._strategies}
+            else:
+                allocation = {s.name: 1.0 / len(self._strategies) for s in self._strategies}
             self._portfolio.set_allocation(allocation)
 
         for strategy in self._strategies:
@@ -112,20 +146,14 @@ class TradingSession:
         )
 
         # Update position prices
-        self._execution.position_manager.update_market_price(bar.symbol, bar.close)
+        self._execution.update_market_price(bar.symbol, bar.close)
         self._portfolio.update_position(bar.symbol, 0, bar.close)
 
-        # Update Prometheus portfolio metrics
-        pf = self._portfolio.portfolio
-        total_value = pf.total_value
-        update_portfolio_metrics(
-            total_value=total_value,
-            cash=pf.cash,
-            drawdown=pf.current_drawdown,
-            n_positions=len(pf.positions),
-        )
+        # Refresh the portfolio gauges from the same state the session uses.
+        self._update_portfolio_observability()
 
         # Update drawdown tracking
+        pf = self._portfolio.portfolio
         dd_ok = self._portfolio.check_drawdown(self._config.risk.max_drawdown)
         if not dd_ok and self._config.risk.kill_switch_enabled and self._kill_switch:
             logger.critical("Drawdown breach — activating kill switch")
@@ -140,16 +168,36 @@ class TradingSession:
             self._record_bar_latency(bar.symbol, started_at)
             return
 
+        # Detect market regime for strategy gating
+        regime = self._regime_detector.update(bar.high, bar.low, bar.close)
+
+        # Collect signals from regime-eligible strategies, then consolidate per symbol
+        all_signals: list[Signal] = []
         for strategy in self._strategies:
+            # Gate strategies by required regime
+            if strategy.required_regime == "trending" and not regime.is_trending:
+                continue
+            if strategy.required_regime == "mean_reversion" and regime.is_trending:
+                continue
+
             ctx = self._contexts.get(strategy.name)
             if not ctx:
                 continue
-
             strategy.on_bar(ctx, bar)
-            signals = ctx.flush_signals()
+            all_signals.extend(ctx.flush_signals())
 
-            for signal in signals:
-                await self._process_signal(signal)
+        # Group by symbol and consolidate conflicting signals
+        by_symbol: dict[str, list[Signal]] = {}
+        for sig in all_signals:
+            by_symbol.setdefault(sig.symbol, []).append(sig)
+
+        for _symbol, sigs in by_symbol.items():
+            if len(sigs) > 1:
+                consolidated = self._signal_gen.consolidate_signals(sigs, self._strategy_hit_rates)
+                if consolidated:
+                    await self._process_signal(consolidated)
+            else:
+                await self._process_signal(sigs[0])
 
         self._record_bar_latency(bar.symbol, started_at)
 
@@ -200,9 +248,11 @@ class TradingSession:
             direction=str(signal.direction.value),
         ).inc()
 
-        # Position sizing (uses signal strength)
+        # Position sizing (uses signal strength + per-strategy win rate)
         allocation = self._portfolio.get_strategy_allocation(signal.strategy_id)
-        size = self._position_sizer.size(signal, portfolio) * allocation
+        size = self._position_sizer.size(
+            signal, portfolio, strategy_win_rates=self._strategy_win_rates
+        ) * allocation
 
         if size <= 0:
             self._record_signal_latency(signal.strategy_id, started_at)
@@ -214,7 +264,7 @@ class TradingSession:
         # Submit order
         side = OrderSide.BUY if signal.direction.value > 0 else OrderSide.SELL
 
-        await self._execution.submit_order(
+        order = await self._execution.submit_order(
             OrderRequest(
                 symbol=signal.symbol,
                 side=side,
@@ -223,7 +273,28 @@ class TradingSession:
                 strategy_id=signal.strategy_id,
             )
         )
+        if order.status == OrderStatus.FILLED:
+            filled_quantity = order.filled_quantity or quantity
+            fill_price = order.filled_price or order.price or signal.price
+            signed_quantity = filled_quantity if order.side == OrderSide.BUY else -filled_quantity
+            self._portfolio.update_position(
+                order.symbol,
+                signed_quantity,
+                fill_price,
+                fee=order.fee,
+                strategy_id=order.strategy_id,
+            )
+            self._update_portfolio_observability()
         self._record_signal_latency(signal.strategy_id, started_at)
+
+    def _update_portfolio_observability(self) -> None:
+        snapshot = self._portfolio.snapshot()
+        update_portfolio_metrics(
+            total_value=float(snapshot["total_value"]),
+            cash=float(snapshot["cash"]),
+            drawdown=float(snapshot["drawdown"]),
+            n_positions=int(snapshot["positions"]),
+        )
 
     @staticmethod
     def _record_bar_latency(symbol: str, started_at: float) -> None:
@@ -252,6 +323,34 @@ class TradingSession:
         This is the main loop for paper/live mode.
         """
         from quantflow.data.fetcher import DataFetcher
+        from quantflow.data.store import DataStore
+
+        if self._config.execution.mode == "paper":
+            store = DataStore(self._config.data.parquet_dir, ":memory:")
+            timeframe_filter: str | None = timeframe
+            pending_frame = store.query(symbol, timeframe=timeframe_filter)
+            if pending_frame.empty:
+                pending_frame = store.query(symbol)
+                if not pending_frame.empty:
+                    timeframe_filter = None
+                    logger.info(
+                        "Paper session requested %s/%s but only alternate local parquet data exists; "
+                        "replaying available bars.",
+                        symbol,
+                        timeframe,
+                    )
+            try:
+                if not pending_frame.empty:
+                    await self._run_local_data_loop(
+                        store=store,
+                        symbol=symbol,
+                        interval_seconds=interval_seconds,
+                        pending_frame=pending_frame,
+                        timeframe_filter=timeframe_filter,
+                    )
+                    return
+            finally:
+                store.close()
 
         fetcher = DataFetcher(self._config.data)
         last_timestamp: int | None = None
@@ -263,8 +362,10 @@ class TradingSession:
                     try:
                         await fetcher.connect()
                         connected = True
+                        self._last_error = None
                     except Exception as e:
-                        logger.error("Data feed connection error: %s", e)
+                        self._last_error = f"Data feed connection error: {e}"
+                        logger.error("%s", self._last_error)
                         await fetcher.disconnect()
                         self.check_health()
                         self._execution.check_timeouts()
@@ -279,6 +380,7 @@ class TradingSession:
                         start=None,
                         limit=10,
                     )
+                    self._last_error = None
 
                     if not df.empty and "timestamp" in df.columns:
                         for row in df.itertuples(index=False):
@@ -297,7 +399,8 @@ class TradingSession:
                                 last_timestamp = ts
 
                 except Exception as e:
-                    logger.error("Data fetch error: %s", e)
+                    self._last_error = f"Data feed error: {e}"
+                    logger.error("%s", self._last_error)
                     connected = False
                     await fetcher.disconnect()
 
@@ -313,6 +416,66 @@ class TradingSession:
             logger.info("Data loop cancelled")
         finally:
             await fetcher.disconnect()
+
+    async def _run_local_data_loop(
+        self,
+        *,
+        store: Any,
+        symbol: str,
+        interval_seconds: int,
+        pending_frame: Any,
+        timeframe_filter: str | None,
+    ) -> None:
+        """Replay locally persisted parquet bars for paper sessions."""
+        last_timestamp: int | None = None
+        self._last_error = None
+        logger.info(
+            "Using local parquet replay for paper session: %s (%s)",
+            symbol,
+            timeframe_filter or "any timeframe",
+        )
+
+        try:
+            while self._running:
+                try:
+                    df = pending_frame
+                    pending_frame = None
+                    if df is None:
+                        query_args: dict[str, Any] = {
+                            "symbol": symbol,
+                            "start": last_timestamp + 1 if last_timestamp is not None else None,
+                        }
+                        if timeframe_filter is not None:
+                            query_args["timeframe"] = timeframe_filter
+                        df = store.query(**query_args)
+
+                    if not df.empty and "timestamp" in df.columns:
+                        self._last_error = None
+                        for row in df.itertuples(index=False):
+                            ts = int(row.timestamp)
+                            if last_timestamp is None or ts > last_timestamp:
+                                bar = Bar(
+                                    symbol=symbol,
+                                    timestamp=ts,
+                                    open=float(row.open),
+                                    high=float(row.high),
+                                    low=float(row.low),
+                                    close=float(row.close),
+                                    volume=float(row.volume),
+                                )
+                                await self.on_bar(bar)
+                                last_timestamp = ts
+
+                except Exception as e:
+                    self._last_error = f"Local data replay error: {e}"
+                    logger.error("%s", self._last_error)
+
+                self.check_health()
+                self._execution.check_timeouts()
+                await asyncio.sleep(interval_seconds)
+
+        except asyncio.CancelledError:
+            logger.info("Data loop cancelled")
 
     def check_health(self) -> dict[str, Any]:
         """Check session health: drawdown, pending orders, positions."""
@@ -349,3 +512,7 @@ class TradingSession:
     @property
     def kill_switch(self) -> KillSwitch | None:
         return self._kill_switch
+
+    @property
+    def last_error(self) -> str | None:
+        return self._last_error

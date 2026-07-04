@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0",
+  "ant_id": "ANT-1-3",
+  "iteration": 1,
+  "assignment": {"start_node": "risk_engine_signal_filter", "max_path_length": 5},
+  "path": ["risk_engine_signal_filter", "signal_consolidation", "multi_strategy_combination", "mean_rev_entry_filter", "backtest_validation"],
+  "path_decisions": [
+    {"from": "risk_engine_signal_filter", "to": "signal_consolidation", "rationale": "RiskEngine filters signals AFTER consolidation — if consolidation cancels valid signals (unweighted vote at generator.py:63), risk engine never sees them. Fix consolidation first to feed better signals to risk", "guided_by": "evidence", "pheromone_weight": 0.077, "deviation_from_hint": false},
+    {"from": "signal_consolidation", "to": "multi_strategy_combination", "rationale": "PositionSizer hardcodes win_rate=0.5 (position_sizer.py:39) — Kelly criterion with wrong win_rate causes systematic over/under-betting across all strategies", "guided_by": "evidence", "pheromone_weight": 0.077, "deviation_from_hint": false},
+    {"from": "multi_strategy_combination", "to": "mean_rev_entry_filter", "rationale": "Mean reversion requires RSI+BB+volume all simultaneously (line 129-131) — same AND-logic problem as trend but with only 3 conditions. Relaxing to 2-of-3 increases signal frequency", "guided_by": "evidence", "pheromone_weight": 0.077, "deviation_from_hint": true},
+    {"from": "mean_rev_entry_filter", "to": "backtest_validation", "rationale": "RiskEngine VaR check (cvar_95 < -0.05 at risk_engine.py:131) is a blanket block — may prevent valid entries during high-vol regimes where mean-reversion opportunities are best", "guided_by": "evidence", "pheromone_weight": 0.077, "deviation_from_hint": true}
+  ],
+  "self_score": 0.72,
+  "self_confidence": 0.65,
+  "cost_tokens": 0,
+  "cost_seconds": 0,
+  "evidence": [
+    "quantflow/signal/risk_engine.py:118-135",
+    "quantflow/signal/risk_engine.py:36-52",
+    "quantflow/signal/generator.py:54-69",
+    "quantflow/signal/position_sizer.py:39-40",
+    "quantflow/strategy/templates/mean_reversion.py:129-131",
+    "quantflow/strategy/templates/mean_reversion.py:95-98",
+    "quantflow/strategy/validation/gate.py:41",
+    "quantflow/signal/position_sizer.py:54-61"
+  ],
+  "candidate_solution": {
+    "type": "object",
+    "summary": "4 changes: (1) risk-engine-aware signal priority, (2) actual win_rate Kelly sizing, (3) relax mean_rev AND-logic, (4) per-strategy risk budget",
+    "content": {
+      "change_1": {
+        "node": "risk_engine_signal_filter",
+        "title": "Add per-strategy risk budget instead of blanket portfolio-level checks",
+        "file": "quantflow/signal/risk_engine.py",
+        "lines": "36-52",
+        "current": "All strategies share the same daily_loss_limit, weekly_loss_limit, max_drawdown, and VaR checks. A single bad trade from one strategy can block all other strategies from entering.",
+        "proposed": "Add strategy_risk_limits dict to RiskConfig: {strategy_id: {daily_loss_limit, max_position_pct}}. In check(), first check per-strategy limits (is this strategy already at its daily loss?), then fall back to portfolio-level checks. This prevents one strategy's drawdown from blocking entries from uncorrelated strategies.",
+        "estimated_impact": "medium",
+        "rationale": "Current architecture: if trend_following has a bad day hitting daily_loss_limit, mean_reversion and volatility_breakout are also blocked from entering — even though they're uncorrelated. Per-strategy risk budgets allow uncorrelated strategies to continue trading, maintaining overall win_rate when one strategy is in a drawdown."
+      },
+      "change_2": {
+        "node": "signal_consolidation",
+        "title": "Add strategy confidence ranking before consolidation",
+        "file": "quantflow/signal/generator.py",
+        "lines": "54-69",
+        "current": "Simple net vote: LONG signals +1, SHORT -1. Conflicting signals cancel. No consideration of which strategy has better recent performance.",
+        "proposed": "Before consolidation, rank strategies by recent hit_rate (from signal_quality.py metrics). When signals conflict, prefer the strategy with higher recent hit_rate. Implementation: add strategy_performance dict to SignalGenerator, use it as weight in consolidate_signals(). If trend_following has hit_rate=0.65 and mean_reversion has hit_rate=0.45, trend's vote gets 65% weight vs 45%.",
+        "estimated_impact": "high",
+        "rationale": "When two strategies disagree on direction, the current system either cancels both (net=0→FLAT) or follows the majority. But strategies have different win rates — a HIGH win-rate strategy's signal should override a LOW win-rate strategy's signal. This directly increases win_rate by always following the better-performing strategy's conviction."
+      },
+      "change_3": {
+        "node": "mean_rev_entry_filter",
+        "title": "Relax mean_reversion AND-logic to min_conditions=2-of-3",
+        "file": "quantflow/strategy/templates/mean_reversion.py",
+        "lines": "129-131",
+        "current": "entries = vol_ok & ((rsi < oversold & close < bb_lower) | (rsi > overbought & close > bb_upper)) — volume AND RSI AND BB all required",
+        "proposed": "Add min_conditions param (default=3, set to 2 for optimization). Compute condition_count = vol_ok.astype(int) + rsi_extreme.astype(int) + bb_breach.astype(int). For long: entries = (condition_count >= min_conditions) & (direction == LONG). Same for short. This allows mean-reversion entries when 2 of 3 conditions hold, increasing signal frequency.",
+        "estimated_impact": "medium",
+        "rationale": "Mean reversion has only 3 conditions vs trend's 5, making the AND-logic even more restrictive proportionally. Allowing 2-of-3 (e.g., RSI oversold + close below BB lower without volume surge, or RSI oversold + volume surge without BB breach) captures setups that the current filter misses while maintaining directional conviction."
+      },
+      "change_4": {
+        "node": "multi_strategy_combination",
+        "title": "Add strategy-level correlation awareness to prevent correlated entries",
+        "file": "quantflow/signal/position_sizer.py",
+        "lines": "39-40",
+        "current": "PositionSizer treats each signal independently. If trend_following and volatility_breakout both signal LONG on the same symbol, they each get full Kelly sizing — total exposure exceeds risk limits.",
+        "proposed": "Before sizing a new signal, check if other strategies already have positions in the same direction on the same symbol. If so, reduce the new signal's notional by (1 - existing_exposure_pct / max_position_pct). This prevents correlated strategy entries from exceeding portfolio-level position limits.",
+        "estimated_impact": "medium",
+        "rationale": "Correlated strategy entries on the same symbol can exceed max_position_pct even when each individual entry is within limits. This creates outsized losses when the position goes wrong, reducing win_rate through catastrophic single-trade outcomes. Cross-strategy position awareness prevents this."
+      }
+    }
+  },
+  "blockers": [],
+  "notes": "The risk engine architecture is fundamentally portfolio-level with no per-strategy granularity. This means a drawdown in one strategy blocks all others — a significant win-rate limiter for multi-strategy systems. The signal consolidation's unweighted vote is the second major issue: it discards high-conviction signals when low-conviction signals oppose them. Both changes improve win_rate by keeping good signals flowing and preventing bad ones from blocking."
+}

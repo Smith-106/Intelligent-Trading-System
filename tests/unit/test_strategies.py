@@ -114,12 +114,13 @@ class TestTrendFollowingStrategy:
         assert ctx.flush_signals() == []
 
         strategy._latest_signal = lambda: (False, True)
+        strategy._in_position = True  # Need to be in position for exit to fire
         strategy.on_bar(ctx, Bar("BTC/USDT", 10001, 100.0, 101.0, 99.0, 99.5, 1000.0))
 
         signals = ctx.flush_signals()
         assert len(strategy._bars) == strategy._max_bars
         assert signals
-        assert signals[-1].direction == Direction.SHORT
+        assert signals[-1].direction == Direction.FLAT  # Exit uses FLAT, not SHORT
 
     def test_on_bar_emits_long_signal_and_bars_to_df_handles_empty_state(self):
         strategy = TrendFollowingStrategy(
@@ -312,6 +313,7 @@ class TestVolatilityBreakoutStrategy:
         assert ctx.flush_signals() == []
 
         strategy._latest_signal = lambda: (False, True)
+        strategy._in_position = True  # Need to be in position for exit to fire
         strategy.on_bar(ctx, Bar("BTC/USDT", 10001, 100.0, 101.0, 99.0, 99.5, 1000.0))
 
         signals = ctx.flush_signals()
@@ -460,6 +462,7 @@ class TestFundingRateStrategy:
             pd.Series(False, index=frame.index),
             pd.Series([False] * (len(frame) - 1) + [True], index=frame.index),
         )
+        strategy._in_position = True  # Need to be in position for exit to fire
 
         strategy.on_bar(ctx, Bar("BTC/USDT", 9999, 100.0, 101.0, 99.0, 100.5, 1000.0))
         signals = ctx.flush_signals()

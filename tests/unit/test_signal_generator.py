@@ -36,10 +36,15 @@ class TestSignalGenerator:
             Signal("BTC/USDT", Direction.LONG, 0.6, 50000, "s1"),
             Signal("BTC/USDT", Direction.LONG, 0.8, 50000, "s2"),
         ]
-        result = gen.consolidate_signals(sigs)
+        # With hit_rates=1.0, strength = weighted avg = (0.6+0.8)/2 = 0.7
+        result = gen.consolidate_signals(sigs, strategy_hit_rates={"s1": 1.0, "s2": 1.0})
         assert result is not None
         assert result.direction == Direction.LONG
         assert result.strength == pytest.approx(0.7)
+
+        # Without hit_rates, default 0.5 scaling: (0.6*0.5 + 0.8*0.5) / 2 = 0.35
+        result_default = gen.consolidate_signals(sigs)
+        assert result_default.strength == pytest.approx(0.35)
 
     def test_consolidate_conflicting(self):
         gen = SignalGenerator()
@@ -61,7 +66,8 @@ class TestSignalGenerator:
             Signal("BTC/USDT", Direction.SHORT, 0.8, 49000, "s2"),
         ]
 
-        result = gen.consolidate_signals(sigs)
+        # With hit_rates=1.0: strength = (0.4+0.8)/2 = 0.6
+        result = gen.consolidate_signals(sigs, strategy_hit_rates={"s1": 1.0, "s2": 1.0})
 
         assert result is not None
         assert result.direction == Direction.SHORT

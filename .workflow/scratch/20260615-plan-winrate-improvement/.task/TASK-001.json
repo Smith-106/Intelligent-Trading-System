@@ -1,0 +1,131 @@
+{
+  "id": "TASK-001",
+  "title": "Phase 1 Infrastructure: win_rate objective + profit_target_exit + param_space JSONs",
+  "description": "Build the shared foundation needed by all subsequent phases: (1) add win_rate as an optimization objective in optimizer._objective_value(), (2) add win_rate support to validation_gate() with CPCV/WFO win_rate pass criteria, (3) create profit_target_exit() shared function in _runtime.py, (4) create per-strategy param_space JSON files for optimizer search spaces including RSI threshold ranges.",
+  "type": "feature",
+  "priority": "high",
+  "effort": "medium",
+  "action": "Add `if objective == \"win_rate\": return float(result.win_rate)` at optimizer.py:169 before the final fallback. Change gate.py:41 default from `optimize_objective: str = \"sharpe\"` to `optimize_objective: str = \"sharpe\"` (keep default, add win_rate pass-through). Add win_rate check in gate.py after DSR check: `if optimize_objective == \"win_rate\": verify avg win_rate across CPCV paths >= 0.50`. Create function `profit_target_exit(close: pd.Series, entries: pd.Series, profit_take_pct: float, max_holding_bars: int) -> pd.Series` in _runtime.py. Create 3 JSON files: trend_following_params.json, mean_reversion_params.json, volatility_breakout_params.json in quantflow/config/strategies/.",
+  "scope": "quantflow/strategy/research/, quantflow/strategy/validation/, quantflow/strategy/templates/, quantflow/config/strategies/",
+  "focus_paths": [
+    "quantflow/strategy/research/optimizer.py",
+    "quantflow/strategy/validation/gate.py",
+    "quantflow/strategy/templates/_runtime.py",
+    "quantflow/config/strategies/"
+  ],
+  "read_first": [
+    "quantflow/strategy/research/optimizer.py",
+    "quantflow/strategy/research/backtest.py",
+    "quantflow/strategy/validation/gate.py",
+    "quantflow/strategy/templates/_runtime.py",
+    "quantflow/config/strategies/trend_following.yaml",
+    "quantflow/config/strategies/mean_reversion.yaml",
+    "quantflow/config/strategies/volatility_breakout.yaml"
+  ],
+  "depends_on": [],
+  "parallel_group": null,
+  "convergence": {
+    "criteria": [
+      "grep -c 'win_rate' quantflow/strategy/research/optimizer.py returns >= 2 (line with objective check + line with result.win_rate)",
+      "grep 'win_rate' quantflow/strategy/validation/gate.py returns match for win_rate pass-through or check logic",
+      "grep -c 'profit_target_exit' quantflow/strategy/templates/_runtime.py returns >= 1",
+      "test -f quantflow/config/strategies/trend_following_params.json && test -f quantflow/config/strategies/mean_reversion_params.json && test -f quantflow/config/strategies/volatility_breakout_params.json",
+      "python -c \"from quantflow.strategy.templates._runtime import profit_target_exit; print('OK')\" succeeds",
+      "python -c \"from quantflow.strategy.research.optimizer import StrategyOptimizer; print('OK')\" succeeds",
+      "ruff check quantflow/strategy/research/optimizer.py quantflow/strategy/validation/gate.py quantflow/strategy/templates/_runtime.py passes with 0 errors"
+    ],
+    "verification": "cd project_root && ruff check quantflow/strategy/research/optimizer.py quantflow/strategy/validation/gate.py quantflow/strategy/templates/_runtime.py && python -c \"import json; [json.load(open(f'quantflow/config/strategies/{n}_params.json')) for n in ['trend_following','mean_reversion','volatility_breakout']]\"",
+    "definition_of_done": "All 4 infrastructure pieces functional: optimizer supports win_rate objective, gate supports win_rate validation, profit_target_exit is importable from _runtime, and all 3 param_space JSON files exist with valid JSON"
+  },
+  "files": [
+    {
+      "path": "quantflow/strategy/research/optimizer.py",
+      "action": "modify",
+      "target": "_objective_value() method at line 160-169",
+      "change": "Add `if objective == \"win_rate\": return float(result.win_rate)` before the final `return float(result.sharpe_ratio)` fallback at line 169"
+    },
+    {
+      "path": "quantflow/strategy/validation/gate.py",
+      "action": "modify",
+      "target": "validation_gate() function, optimize_objective param at line 41",
+      "change": "Keep default as 'sharpe' but add win_rate pass-through to CPCV/WFO calls (already passed via optimize_objective param). Add optional win_rate_threshold param with default None; when set, verify avg CPCV path win_rate >= win_rate_threshold after Step 1"
+    },
+    {
+      "path": "quantflow/strategy/templates/_runtime.py",
+      "action": "modify",
+      "target": "Module-level functions",
+      "change": "Add profit_target_exit(close: pd.Series, entries: pd.Series, profit_take_pct: float, max_holding_bars: int) -> pd.Series function that computes boolean exit series: exit when price reaches entry_price * (1 + profit_take_pct) or holding period exceeds max_holding_bars"
+    },
+    {
+      "path": "quantflow/config/strategies/trend_following_params.json",
+      "action": "create",
+      "target": "Optimizer param_space for trend_following",
+      "change": "JSON with keys: fast_ma_period [5,30], slow_ma_period [20,80], rsi_overbought [55,80], rsi_oversold [20,45], min_conditions [2,4], profit_take_pct [0.05,0.20], max_holding_bars [10,40], trailing_stop_atr_mult [1.5,4.0]"
+    },
+    {
+      "path": "quantflow/config/strategies/mean_reversion_params.json",
+      "action": "create",
+      "target": "Optimizer param_space for mean_reversion",
+      "change": "JSON with keys: rsi_overbought [60,85], rsi_oversold [15,40], bb_std [1.5,3.0], min_conditions [1,2], profit_take_pct [0.01,0.05], max_holding_bars [5,15]"
+    },
+    {
+      "path": "quantflow/config/strategies/volatility_breakout_params.json",
+      "action": "create",
+      "target": "Optimizer param_space for volatility_breakout",
+      "change": "JSON with keys: atr_threshold [1.0,2.5], bb_std [1.5,3.0], keltner_multiplier [1.5,3.0], volume_threshold [1.0,2.5], min_conditions [3,5], profit_take_pct [0.02,0.10], max_holding_bars [8,25], trailing_stop_atr_mult [1.5,4.0]"
+    }
+  ],
+  "implementation": [
+    "In optimizer.py line 168-169, insert `if objective == \"win_rate\": return float(result.win_rate)` before the final `return float(result.sharpe_ratio)` line",
+    "In gate.py, add `win_rate_threshold: float | None = None` param to validation_gate() signature after line 41. After CPCV result check (line 69-76), add: `if win_rate_threshold is not None: avg_wr = sum(p.get('oos_win_rate', 0.5) for p in cpcv_result['path_results']) / len(cpcv_result['path_results']); if avg_wr < win_rate_threshold: results['decision'] = 'NO-GO'; results['reason'] = f'CPCV avg win_rate={avg_wr:.3f} < {win_rate_threshold}'; return results`",
+    "In _runtime.py, add `import pandas as pd` import (check if already imported — currently not, but function signature needs pd.Series). Add profit_target_exit function: iterate through entries Series, track entry_price when entries turns True, compute exit when close >= entry_price*(1+profit_take_pct) OR bars_since_entry >= max_holding_bars. Return boolean exit Series",
+    "Create trend_following_params.json: {\"fast_ma_period\": [5, 30], \"slow_ma_period\": [20, 80], \"rsi_overbought\": [55, 80], \"rsi_oversold\": [20, 45], \"min_conditions\": [2, 4], \"profit_take_pct\": [0.05, 0.20], \"max_holding_bars\": [10, 40], \"trailing_stop_atr_mult\": [1.5, 4.0]}",
+    "Create mean_reversion_params.json: {\"rsi_overbought\": [60, 85], \"rsi_oversold\": [15, 40], \"bb_std\": [1.5, 3.0], \"min_conditions\": [1, 2], \"profit_take_pct\": [0.01, 0.05], \"max_holding_bars\": [5, 15]}",
+    "Create volatility_breakout_params.json: {\"atr_threshold\": [1.0, 2.5], \"bb_std\": [1.5, 3.0], \"keltner_multiplier\": [1.5, 3.0], \"volume_threshold\": [1.0, 2.5], \"min_conditions\": [3, 5], \"profit_take_pct\": [0.02, 0.10], \"max_holding_bars\": [8, 25], \"trailing_stop_atr_mult\": [1.5, 4.0]}"
+  ],
+  "test": {
+    "commands": [
+      "python -c \"from quantflow.strategy.templates._runtime import profit_target_exit; import pandas as pd; s=pd.Series([100,102,105,108,107,106]); e=pd.Series([True,False,False,False,False,False]); x=profit_target_exit(s,e,0.05,4); print('exit:', x.tolist())\"",
+      "python -c \"from quantflow.strategy.research.optimizer import StrategyOptimizer; o=StrategyOptimizer(); print(o._objective_value(type('R',(),{'win_rate':0.6,'sharpe_ratio':1.5}), 'win_rate'))\"",
+      "ruff check quantflow/strategy/research/optimizer.py quantflow/strategy/validation/gate.py quantflow/strategy/templates/_runtime.py"
+    ],
+    "unit": [],
+    "integration": [],
+    "success_metrics": [
+      "profit_target_exit returns correct boolean Series for known inputs",
+      "optimizer._objective_value returns 0.6 when objective='win_rate' and result.win_rate=0.6",
+      "ruff passes with 0 errors"
+    ]
+  },
+  "reference": {
+    "pattern": "Follow existing _runtime.py function patterns (pure functions with pd.Series inputs/outputs, from __future__ annotations, type hints)",
+    "files": [
+      "quantflow/strategy/templates/_runtime.py",
+      "quantflow/strategy/research/optimizer.py",
+      "quantflow/strategy/validation/gate.py"
+    ],
+    "examples": null
+  },
+  "rationale": {
+    "chosen_approach": "Infrastructure first — all 3 subsequent phases depend on these building blocks. profit_target_exit must exist before templates can wire it. win_rate objective must exist before validation can use it. param_space JSONs must exist before optimizer can search expanded parameter ranges.",
+    "decision_factors": [
+      "BacktestResult already has win_rate field (backtest.py line 35), so optimizer just needs the dispatch branch",
+      "gate.py already passes optimize_objective through to CPCV/WFO, so win_rate objective flows automatically; just need the threshold check",
+      "profit_target_exit in _runtime.py follows the module's pattern of shared numeric helpers"
+    ],
+    "tradeoffs": null
+  },
+  "risks": [
+    "profit_target_exit implementation must handle edge cases: no entries, overlapping positions, NaN values"
+  ],
+  "meta": {
+    "status": "pending",
+    "estimated_time": "45m",
+    "risk": "low",
+    "autonomous": true,
+    "checkpoint": false,
+    "wave": 1,
+    "execution_group": null,
+    "executor": "agent"
+  }
+}

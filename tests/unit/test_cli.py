@@ -49,6 +49,11 @@ class TestCLIBasics:
         assert result.exit_code == 0
         assert "mode" in result.output.lower()
 
+    def test_station_help(self):
+        result = runner.invoke(app, ["station", "--help"])
+        assert result.exit_code == 0
+        assert "port" in result.output.lower()
+
     def test_benchmark_command_reports_core_performance_paths(self):
         result = runner.invoke(
             app,

@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "ant_id": "ANT-3-2",
+  "iteration": 3,
+  "assignment": {"start_node": "rsi_threshold_tuning", "max_path_length": 5},
+  "path": ["rsi_threshold_tuning", "trend_entry_filter", "exit_rule_early_exit", "signal_consolidation", "multi_strategy_combination"],
+  "path_decisions": [
+    {"from": "rsi_threshold_tuning", "to": "trend_entry_filter", "rationale": "Pheromone strongest (0.135). RSI 70/30 thresholds are too loose for crypto — tightening to 60/40 means entering before overbought zone where reversal risk is highest", "guided_by": "pheromone", "pheromone_weight": 0.135, "deviation_from_hint": false},
+    {"from": "trend_entry_filter", "to": "exit_rule_early_exit", "rationale": "Pheromone equal (0.135). Entry tightening + profit target exit compound: enter earlier in trend + lock profits = higher win_rate", "guided_by": "pheromone", "pheromone_weight": 0.135, "deviation_from_hint": false},
+    {"from": "exit_rule_early_exit", "to": "signal_consolidation", "rationale": "Weighted consolidation preserves the high-conviction entries/exit signals from RSI-tightened strategies", "guided_by": "evidence", "pheromone_weight": 0.083, "deviation_from_hint": true},
+    {"from": "signal_consolidation", "to": "multi_strategy_combination", "rationale": "Per-strategy Kelly sizing with actual win_rate ensures RSI-tightened strategies get appropriate position sizes", "guided_by": "evidence", "pheromone_weight": 0.083, "deviation_from_hint": true}
+  ],
+  "self_score": 0.86,
+  "self_confidence": 0.78,
+  "evidence": [
+    "quantflow/strategy/templates/trend_following.py:46-47",
+    "quantflow/strategy/templates/mean_reversion.py:30-31",
+    "quantflow/strategy/templates/trend_following.py:239",
+    "quantflow/strategy/templates/trend_following.py:109-115",
+    "quantflow/signal/generator.py:54-69",
+    "quantflow/signal/position_sizer.py:39-40",
+    "quantflow/strategy/validation/signal_quality.py:46-52",
+    "quantflow/strategy/templates/volatility_breakout.py:43-46"
+  ],
+  "candidate_solution": {
+    "type": "object",
+    "summary": "Focused RSI + entry/exit optimization: (1) tighten RSI, (2) add min_conditions, (3) profit targets, (4) weighted consolidation, (5) strategy-aware Kelly",
+    "content": {
+      "change_1": {
+        "node": "rsi_threshold_tuning",
+        "title": "Crypto-specific RSI threshold optimization with param_space ranges",
+        "file": "quantflow/strategy/templates/trend_following.py",
+        "lines": "46-47",
+        "current": "rsi_overbought=70, rsi_oversold=30 — equity defaults. In crypto, RSI reaches 70+ during early trend stages, not just at exhaustion.",
+        "proposed": "Add rsi_overbought and rsi_oversold to param_space with ranges [55, 80] and [20, 45] respectively. Suggested crypto defaults: rsi_overbought=65, rsi_oversold=35 for trend_following (enter before extremes). For mean_reversion: rsi_overbought=75, rsi_oversold=25 (wait for true extremes). Different strategy types need different RSI ranges — one size doesn't fit all.",
+        "estimated_impact": "high",
+        "rationale": "RSI thresholds are the most direct win-rate lever because they control entry timing. Entering trend-following positions at RSI 65 (instead of 70) means entering before the overbought zone where reversal probability spikes. Each 5-point tightening of the entry RSI zone eliminates the highest-risk entries (those most likely to reverse immediately) while keeping the directional bias. Expected win_rate improvement: +5-10 percentage points."
+      },
+      "change_2": {
+        "node": "exit_rule_early_exit",
+        "title": "Add RSI-based dynamic profit target: higher target when RSI supports trend continuation",
+        "file": "quantflow/strategy/templates/trend_following.py",
+        "lines": "109-115",
+        "current": "Fixed profit_take_pct (proposed). But the optimal profit target depends on trend strength — strong trends can run further.",
+        "proposed": "Add adaptive_profit_take: if RSI is between 50-65 (healthy trend, not overbought), use profit_take_pct * 1.5 (e.g., 15% instead of 10%). If RSI > 70, use profit_take_pct * 0.7 (e.g., 7% — take profit quickly before reversal). This RSI-adaptive exit combines the best of both worlds: ride strong trends, exit weak ones quickly.",
+        "estimated_impact": "high",
+        "rationale": "Fixed profit targets are suboptimal because trend strength varies. A 10% target exits too early in a strong trend (leaving 20%+ on the table) and too late in a weak trend (the price may not reach 10% before reversing). RSI-adaptive targets align the exit with the entry thesis: if we entered because RSI showed healthy trend, hold longer. If RSI shows exhaustion, exit faster. This directly increases win_rate by maximizing profit capture on strong entries."
+      },
+      "change_3": {
+        "node": "signal_consolidation",
+        "title": "Use per-strategy hit_rate from signal_quality.py as consolidation weight",
+        "file": "quantflow/signal/generator.py",
+        "lines": "54-69",
+        "current": "Unweighted vote. signal_quality.py computes hit_rate per strategy but it's not used in consolidation.",
+        "proposed": "Add strategy_hit_rates dict to SignalGenerator. Updated periodically from validation results. In consolidate_signals(): for each signal, weight = signal.strength * strategy_hit_rates.get(signal.strategy_id, 0.5). Net = sum(weight * direction.value). Direction = sign(net). This double-weights: strong signals AND high-performing strategies get more weight.",
+        "estimated_impact": "high",
+        "rationale": "Double-weighting (strength × hit_rate) means a 0.8-strength signal from a 0.65-hit_rate strategy (weight=0.52) overrules a 0.4-strength signal from a 0.45-hit-rate strategy (weight=0.18). This is the optimal consolidation formula for win_rate because it maximizes the probability that the consolidated signal matches the true next-bar direction."
+      }
+    }
+  },
+  "blockers": [],
+  "notes": "RSI is the most tunable parameter because it's directly interpretable and has clear crypto-specific calibration needs. The adaptive profit target based on RSI is a novel insight: combine entry RSI (controls when you enter) with exit RSI (controls when you exit) into a unified RSI-driven trade lifecycle. This gives a coherent strategy where entry and exit are both RSI-aware."
+}

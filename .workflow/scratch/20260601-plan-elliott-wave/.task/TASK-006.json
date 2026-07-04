@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-006",
+  "title": "ElliottWaveStrategy 策略实现",
+  "feature": "F-004",
+  "wave": 2,
+  "priority": "P1",
+  "status": "pending",
+  "files_to_create": ["quantflow/strategy/elliott_wave_strategy.py"],
+  "files_to_modify": [],
+  "description": "继承 StrategyBase，实现 5 种浪段交易规则。所有规则参数暴露为可配置。generate_signals 返回 entries/exits boolean Series。",
+  "acceptance_criteria": [
+    "ElliottWaveStrategy 继承 StrategyBase",
+    "实现 on_init(ctx), on_bar(ctx, bar), generate_signals(df)",
+    "5 种浪段规则完整编码: W2入场, W3追势, W4入场, W5卖出, B浪卖出",
+    "generate_signals 返回 (entries: Series, exits: Series)",
+    "信号附带 wave_context: 当前浪型、置信度、触发规则",
+    "所有规则参数可配置 (S-003)"
+  ],
+  "cross_refs": ["S-003 (规则参数暴露)", "S-004 (回测-实盘一致)"]
+}

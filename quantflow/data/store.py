@@ -75,11 +75,16 @@ class DataStore:
 
             existing = self._load_existing(month_path)
             if existing is not None:
+                existing_group = existing[DataStore.group_cols(existing)]
                 group_data = pd.concat(
-                    [existing[DataStore.group_cols(existing)], group[data_cols]], ignore_index=True
+                    [existing_group, group[data_cols]],
+                    ignore_index=True,
+                    sort=False,
                 )
-                group_data = group_data.drop_duplicates(subset=["timestamp"]).sort_values(
-                    "timestamp"
+                group_data = (
+                    group_data.drop_duplicates(subset=["timestamp"], keep="last")
+                    .sort_values("timestamp")
+                    .reset_index(drop=True)
                 )
             else:
                 year_dir.mkdir(parents=True, exist_ok=True)
@@ -122,7 +127,7 @@ class DataStore:
         try:
             result = self._db.execute(
                 f"""
-                SELECT {select_clause} FROM read_parquet({source}){where}
+                SELECT {select_clause} FROM read_parquet({source}, union_by_name=true){where}
                 ORDER BY timestamp
                 """,
                 params,
@@ -147,7 +152,7 @@ class DataStore:
         try:
             result = self._db.query(f"""
                 SELECT MIN(timestamp) as min_ts, MAX(timestamp) as max_ts
-                FROM read_parquet('{pattern}')
+                FROM read_parquet('{pattern}', union_by_name=true)
             """).fetchone()
             if result and result[0] is not None:
                 return (result[0], result[1])

@@ -78,6 +78,7 @@ class StrategyBase(ABC):
     def __init__(self, name: str = "", params: dict[str, Any] | None = None) -> None:
         self.name = name or self.__class__.__name__
         self._params = params or {}
+        self.required_regime: str = "any"  # "trending", "mean_reversion", "any"
 
     @property
     def params(self) -> dict[str, Any]:

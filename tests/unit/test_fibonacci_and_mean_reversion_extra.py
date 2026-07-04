@@ -203,9 +203,17 @@ class TestMeanReversionStrategyExtra:
     def test_on_bar_emits_long_short_and_flat_signals(self) -> None:
         strategy = MeanReversionStrategy({"bb_period": 2, "volume_period": 2, "rsi_period": 2})
 
-        def run_case(entry_direction: Direction | None, exits_last: bool) -> list[Signal]:
+        def run_case(
+            entry_direction: Direction | None,
+            exits_last: bool,
+            *,
+            in_position: bool = False,
+            entry_direction_state: Direction | None = None,
+        ) -> list[Signal]:
             ctx = StrategyContext()
             strategy._bars = [_bar(0, 100.0), _bar(1, 101.0)]
+            strategy._in_position = in_position
+            strategy._entry_direction = entry_direction_state
             with patch.object(
                 strategy,
                 "_latest_signal",
@@ -216,7 +224,8 @@ class TestMeanReversionStrategyExtra:
 
         long_signals = run_case(Direction.LONG, False)
         short_signals = run_case(Direction.SHORT, False)
-        flat_signals = run_case(None, True)
+        # For exit, simulate being in a LONG position
+        flat_signals = run_case(None, True, in_position=True, entry_direction_state=Direction.LONG)
 
         assert len(long_signals) == 1
         assert long_signals[0].direction == Direction.LONG

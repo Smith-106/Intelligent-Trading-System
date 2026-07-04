@@ -51,16 +51,24 @@ class SignalGenerator:
             strategy_id=strategy_id,
         )
 
-    def consolidate_signals(self, signals: list[Signal]) -> Signal | None:
+    def consolidate_signals(
+        self,
+        signals: list[Signal],
+        strategy_hit_rates: dict[str, float] | None = None,
+    ) -> Signal | None:
         """Consolidate multiple signals for the same symbol.
 
-        Aggregates direction by net vote and averages strength.
+        Aggregates direction by strength-weighted vote and averages strength.
+        Weight = signal.strength * strategy_hit_rate (default 0.5 for unknown).
         """
         if not signals:
             return None
 
-        # Net direction from vote
-        net = sum(s.direction.value for s in signals)
+        # Strength-weighted direction vote
+        hit_rates = strategy_hit_rates or {}
+        weights = [s.strength * hit_rates.get(s.strategy_id, 0.5) for s in signals]
+        net = sum(s.direction.value * w for s, w in zip(signals, weights, strict=True))
+
         if net > 0:
             direction = Direction.LONG
         elif net < 0:
@@ -68,7 +76,8 @@ class SignalGenerator:
         else:
             return None  # Conflicting signals cancel out
 
-        avg_strength = sum(s.strength for s in signals) / len(signals)
+        total_weight = sum(weights)
+        avg_strength = total_weight / len(signals) if total_weight > 0 else 0.0
 
         return Signal(
             symbol=signals[0].symbol,

@@ -1,0 +1,148 @@
+{
+  "id": "TASK-003",
+  "title": "Phase 3 Exit Improvements: profit_target_exit wiring + trailing stop + mean_reversion opposite band + RSI-adaptive targets",
+  "description": "Wire the profit_target_exit() function from TASK-001 into all 6 strategy templates' generate_signals(), add trailing stop ATR multiplier to trend_following and volatility_breakout, improve mean_reversion exit from bb_middle to opposite band × 0.98, and add RSI-adaptive profit targets for trend_following.",
+  "type": "feature",
+  "priority": "high",
+  "effort": "high",
+  "action": "In all 6 templates (trend_following, mean_reversion, volatility_breakout, elliott_wave, funding_rate, macd_crossover): import profit_target_exit from _runtime, add profit_take_pct and max_holding_bars params with per-strategy defaults, compute profit_exits = profit_target_exit(close, entries, profit_take_pct, max_holding_bars), combine with existing exits via exits = exits | profit_exits. In trend_following: add trailing_stop_atr_mult param (default 3.0), compute trailing stop exit when close < max(close_since_entry) - atr * trailing_stop_atr_mult. In volatility_breakout: same trailing stop logic. In mean_reversion: change exit from bb_middle crossing to opposite band × 0.98 — long exit when close > bb_upper * 0.98, short exit when close < bb_lower * 0.98. In trend_following: add RSI-adaptive profit targets where profit_take_pct adjusts based on RSI level at entry.",
+  "scope": "quantflow/strategy/templates/",
+  "focus_paths": [
+    "quantflow/strategy/templates/trend_following.py",
+    "quantflow/strategy/templates/mean_reversion.py",
+    "quantflow/strategy/templates/volatility_breakout.py",
+    "quantflow/strategy/templates/elliott_wave.py",
+    "quantflow/strategy/templates/funding_rate.py",
+    "quantflow/strategy/templates/macd_crossover.py",
+    "quantflow/strategy/templates/_runtime.py"
+  ],
+  "read_first": [
+    "quantflow/strategy/templates/_runtime.py",
+    "quantflow/strategy/templates/trend_following.py",
+    "quantflow/strategy/templates/mean_reversion.py",
+    "quantflow/strategy/templates/volatility_breakout.py",
+    "quantflow/strategy/templates/elliott_wave.py",
+    "quantflow/strategy/templates/funding_rate.py",
+    "quantflow/strategy/templates/macd_crossover.py"
+  ],
+  "depends_on": ["TASK-001"],
+  "parallel_group": null,
+  "convergence": {
+    "criteria": [
+      "grep -l 'profit_target_exit' quantflow/strategy/templates/trend_following.py quantflow/strategy/templates/mean_reversion.py quantflow/strategy/templates/volatility_breakout.py quantflow/strategy/templates/elliott_wave.py quantflow/strategy/templates/funding_rate.py quantflow/strategy/templates/macd_crossover.py returns 6 files",
+      "grep 'trailing_stop_atr_mult' quantflow/strategy/templates/trend_following.py returns >= 2 matches (__init__ + usage)",
+      "grep 'trailing_stop_atr_mult' quantflow/strategy/templates/volatility_breakout.py returns >= 2 matches",
+      "grep -c 'bb_upper.*0.98\\|bb_lower.*0.98' quantflow/strategy/templates/mean_reversion.py returns >= 1 match (opposite band exit)",
+      "python -c \"from quantflow.strategy.templates.trend_following import TrendFollowingStrategy; s=TrendFollowingStrategy(); print('profit_take_pct:', s._profit_take_pct, 'max_holding_bars:', s._max_holding_bars, 'trailing_stop_atr_mult:', s._trailing_stop_atr_mult)\" succeeds with default values",
+      "ruff check quantflow/strategy/templates/ passes with 0 errors"
+    ],
+    "verification": "cd project_root && for f in trend_following mean_reversion volatility_breakout elliott_wave funding_rate macd_crossover; do grep -l 'profit_target_exit' quantflow/strategy/templates/${f}.py; done && ruff check quantflow/strategy/templates/",
+    "definition_of_done": "All 6 templates import and call profit_target_exit(), trend_following and volatility_breakout have trailing stop, mean_reversion exits at opposite band × 0.98, trend_following has RSI-adaptive profit targets, ruff passes"
+  },
+  "files": [
+    {
+      "path": "quantflow/strategy/templates/trend_following.py",
+      "action": "modify",
+      "target": "__init__ param extraction, generate_signals() exit logic",
+      "change": "Add __init__ params: profit_take_pct (default 0.10), max_holding_bars (default 20), trailing_stop_atr_mult (default 3.0), rsi_adaptive_profit (default True). Import profit_target_exit from _runtime. In generate_signals after computing existing exits, call profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars). Compute trailing stop: track highest close since entry, exit when close < highest - atr * trailing_stop_atr_mult. For RSI-adaptive: when rsi > 70 at entry, reduce profit_take_pct by 20% (tighter target in overbought). Combine: exits = exits | profit_exits | trailing_exits"
+    },
+    {
+      "path": "quantflow/strategy/templates/mean_reversion.py",
+      "action": "modify",
+      "target": "generate_signals() exit logic (lines 100-103)",
+      "change": "Replace bb_middle exit with opposite band × 0.98: long exits when close > bb_upper * 0.98 (instead of close > bb_middle), short exits when close < bb_lower * 0.98. Add profit_take_pct (default 0.03) and max_holding_bars (default 10). Import and call profit_target_exit. Combine exits: exits = opposite_band_exits | profit_exits"
+    },
+    {
+      "path": "quantflow/strategy/templates/volatility_breakout.py",
+      "action": "modify",
+      "target": "__init__ param extraction, generate_signals() exit logic",
+      "change": "Add __init__ params: profit_take_pct (default 0.05), max_holding_bars (default 15), trailing_stop_atr_mult (default 2.5). Import profit_target_exit from _runtime. In generate_signals after existing exit logic, call profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars). Compute trailing stop exit. Combine: exits = exits | profit_exits | trailing_exits"
+    },
+    {
+      "path": "quantflow/strategy/templates/elliott_wave.py",
+      "action": "modify",
+      "target": "__init__ param extraction, generate_signals() exit logic",
+      "change": "Add __init__ params: profit_take_pct (default 0.08), max_holding_bars (default 25). Import profit_target_exit from _runtime. After existing exit logic, call profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars). Combine: exits = exits | profit_exits"
+    },
+    {
+      "path": "quantflow/strategy/templates/funding_rate.py",
+      "action": "modify",
+      "target": "__init__ param extraction, generate_signals() exit logic",
+      "change": "Add __init__ params: profit_take_pct (default 0.02), max_holding_bars (default 8). Import profit_target_exit from _runtime. After existing exit logic, call profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars). Combine: exits = exits | profit_exits"
+    },
+    {
+      "path": "quantflow/strategy/templates/macd_crossover.py",
+      "action": "modify",
+      "target": "__init__ param extraction, generate_signals() exit logic",
+      "change": "Add __init__ params: profit_take_pct (default 0.06), max_holding_bars (default 18). Import profit_target_exit from _runtime. After existing exit logic, call profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars). Combine: exits = exits | profit_exits"
+    }
+  ],
+  "implementation": [
+    "trend_following.py __init__: add `self._profit_take_pct: float = p.get('profit_take_pct', 0.10)`, `self._max_holding_bars: int = p.get('max_holding_bars', 20)`, `self._trailing_stop_atr_mult: float = p.get('trailing_stop_atr_mult', 3.0)`, `self._rsi_adaptive_profit: bool = p.get('rsi_adaptive_profit', True)`",
+    "trend_following.py imports: add `from quantflow.strategy.templates._runtime import profit_target_exit`",
+    "trend_following.py generate_signals: after existing exit computation, add `from quantflow.strategy.templates._runtime import profit_target_exit; profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars)`. Compute trailing stop: `atr = self._compute_atr(high, low, close, 14); highest_since_entry = close.where(entries, close.cummax()); trailing_exits = close < highest_since_entry - atr * self._trailing_stop_atr_mult`. Combine: `exits = exits | profit_exits | trailing_exits`",
+    "trend_following.py RSI-adaptive: when self._rsi_adaptive_profit is True, compute effective_profit_pct: if rsi at entry > 70, use profit_take_pct * 0.8; if rsi < 30, use profit_take_pct * 1.2; else use profit_take_pct. Pass to profit_target_exit",
+    "mean_reversion.py __init__: add `self._profit_take_pct: float = p.get('profit_take_pct', 0.03)`, `self._max_holding_bars: int = p.get('max_holding_bars', 10)`",
+    "mean_reversion.py imports: add `from quantflow.strategy.templates._runtime import profit_target_exit`",
+    "mean_reversion.py generate_signals: replace line 100-103 exit `close > bb_middle` with `close > bb_upper * 0.98` for long exits; replace `close < bb_middle` with `close < bb_lower * 0.98` for short exits. Add `profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars)`. Combine: `exits = opposite_band_exits | profit_exits`",
+    "volatility_breakout.py __init__: add `self._profit_take_pct: float = p.get('profit_take_pct', 0.05)`, `self._max_holding_bars: int = p.get('max_holding_bars', 15)`, `self._trailing_stop_atr_mult: float = p.get('trailing_stop_atr_mult', 2.5)`",
+    "volatility_breakout.py imports: add `from quantflow.strategy.templates._runtime import profit_target_exit`",
+    "volatility_breakout.py generate_signals: add profit_exits and trailing_exits similar to trend_following, combine with existing exits",
+    "elliott_wave.py: add profit_take_pct (0.08), max_holding_bars (25), import profit_target_exit, combine exits",
+    "funding_rate.py: add profit_take_pct (0.02), max_holding_bars (8), import profit_target_exit, combine exits",
+    "macd_crossover.py: add profit_take_pct (0.06), max_holding_bars (18), import profit_target_exit, combine exits"
+  ],
+  "test": {
+    "commands": [
+      "python -c \"from quantflow.strategy.templates.trend_following import TrendFollowingStrategy; s=TrendFollowingStrategy(); print('profit_take_pct:', s._profit_take_pct, 'max_holding_bars:', s._max_holding_bars, 'trailing:', s._trailing_stop_atr_mult)\"",
+      "python -c \"from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy; s=MeanReversionStrategy(); print('profit_take_pct:', s._profit_take_pct, 'max_holding_bars:', s._max_holding_bars)\"",
+      "python -c \"from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy; s=VolatilityBreakoutStrategy(); print('profit_take_pct:', s._profit_take_pct, 'max_holding_bars:', s._max_holding_bars, 'trailing:', s._trailing_stop_atr_mult)\"",
+      "grep -c 'profit_target_exit' quantflow/strategy/templates/trend_following.py quantflow/strategy/templates/mean_reversion.py quantflow/strategy/templates/volatility_breakout.py quantflow/strategy/templates/elliott_wave.py quantflow/strategy/templates/funding_rate.py quantflow/strategy/templates/macd_crossover.py",
+      "ruff check quantflow/strategy/templates/"
+    ],
+    "unit": [],
+    "integration": [],
+    "success_metrics": [
+      "All 6 templates import and use profit_target_exit",
+      "trend_following and volatility_breakout have trailing_stop_atr_mult param",
+      "mean_reversion exit references bb_upper/bb_lower instead of bb_middle",
+      "ruff passes with 0 errors on all templates"
+    ]
+  },
+  "reference": {
+    "pattern": "Follow existing __init__ param extraction: p.get('key', default) with type annotation. Follow existing generate_signals exit pattern: compute boolean Series, combine with | operator. Import from _runtime follows existing import style.",
+    "files": [
+      "quantflow/strategy/templates/_runtime.py",
+      "quantflow/strategy/templates/trend_following.py",
+      "quantflow/strategy/templates/mean_reversion.py",
+      "quantflow/strategy/templates/volatility_breakout.py"
+    ],
+    "examples": null
+  },
+  "rationale": {
+    "chosen_approach": "Profit targets are the most direct lever for improving win rate — currently 0 of 6 templates have any profit-taking mechanism. Trailing stops protect gains in trending moves. Mean reversion's bb_middle exit causes frequent whipsaws; opposite band × 0.98 gives more room for mean reversion to play out while still capturing the reversion move. RSI-adaptive targets reduce profit_take_pct in overbought conditions (tighter target, higher win rate) and increase in oversold (more room, larger moves).",
+    "decision_factors": [
+      "No profit target = no guaranteed wins, only trend-reversal exits that may never trigger",
+      "bb_middle exit in mean_reversion means exiting at the midpoint of the range, cutting profits short",
+      "Trailing stops let winners run while protecting against reversals — essential for trend/breakout strategies",
+      "RSI-adaptive profit targets adjust win rate / profit_factor tradeoff based on market condition at entry"
+    ],
+    "tradeoffs": "Tighter profit targets (lower pct) increase win rate but may reduce average profit per trade. The RSI-adaptive mechanism balances this by adapting to market conditions."
+  },
+  "risks": [
+    "profit_target_exit must handle entries that span multiple bars correctly (entry_price tracking)",
+    "Trailing stop implementation must correctly track highest close since entry, not all-time high",
+    "Mean reversion opposite band exit may delay exits in strong moves, increasing drawdown risk",
+    "6 templates all need modification — high surface area for bugs"
+  ],
+  "meta": {
+    "status": "pending",
+    "estimated_time": "60m",
+    "risk": "medium",
+    "autonomous": true,
+    "checkpoint": false,
+    "wave": 3,
+    "execution_group": null,
+    "executor": "agent"
+  }
+}

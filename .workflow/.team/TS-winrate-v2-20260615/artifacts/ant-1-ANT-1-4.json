@@ -1,0 +1,182 @@
+{
+  "schema_version": "1.0",
+  "ant_id": "ANT-1-4",
+  "iteration": 1,
+  "assignment": {
+    "start_node": "entry_signal_strength",
+    "max_path_length": 5
+  },
+  "path": [
+    "entry_signal_strength",
+    "profit_target_calibration",
+    "trailing_stop_tuning",
+    "min_conditions_optimal",
+    "backtest_edge_cases"
+  ],
+  "path_decisions": [
+    {
+      "from": "entry_signal_strength",
+      "to": "profit_target_calibration",
+      "rationale": "Hardcoded signal strength means no proportional sizing by conviction; profit_target_exit is the next critical exit mechanism to audit",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": false
+    },
+    {
+      "from": "profit_target_calibration",
+      "to": "trailing_stop_tuning",
+      "rationale": "profit_target_exit has long-only bug (close >= target); trailing stop is the complementary exit mechanism with similar directional bias issues",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": false
+    },
+    {
+      "from": "trailing_stop_tuning",
+      "to": "min_conditions_optimal",
+      "rationale": "Trailing stop tracks highest but never lowest for shorts; min_conditions affects which signals pass and how strict entry filtering is, directly impacting win rate",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": false
+    },
+    {
+      "from": "min_conditions_optimal",
+      "to": "backtest_edge_cases",
+      "rationale": "Min_conditions includes volume for exits (wrong), and no stop-loss wired into generate_signals; backtest engine is long-only which hides all short-side bugs",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": true
+    }
+  ],
+  "self_score": 0.82,
+  "self_confidence": 0.75,
+  "cost_tokens": 8500,
+  "cost_seconds": 120,
+  "evidence": [
+    "quantflow/strategy/templates/trend_following.py:111 -- strength=0.8 hardcoded for entry, :119 strength=0.5 hardcoded for exit",
+    "quantflow/strategy/templates/mean_reversion.py:69 -- strength=0.7 hardcoded, :77 strength=0.3 hardcoded",
+    "quantflow/strategy/templates/volatility_breakout.py:119 -- strength=0.8 hardcoded, :127 strength=0.5 hardcoded",
+    "quantflow/strategy/templates/funding_rate.py:81 -- strength=0.7 hardcoded",
+    "quantflow/strategy/templates/_runtime.py:167 -- profit_target_exit: target_price = entry_price * (1.0 + profit_take_pct) only supports long, no close <= entry_price * (1 - profit_take_pct) for short",
+    "quantflow/strategy/templates/trend_following.py:287 -- trailing: highest tracks max close, no lowest tracking for shorts",
+    "quantflow/strategy/templates/volatility_breakout.py:391 -- same trailing stop bug: highest only, no lowest for shorts",
+    "quantflow/strategy/templates/trend_following.py:169 -- exit conditions include vol_ok which makes exits harder to trigger (need volume to exit = wrong)",
+    "quantflow/strategy/research/backtest.py:63 -- BacktestEngine comment: 'simple long-only portfolio', line 112-118: only entry_values[prev_idx] not entry_values with direction",
+    "quantflow/config/strategies/trend_following.yaml:23 -- stop_loss_atr_multiplier: 2.0 defined but never read by TrendFollowingStrategy.generate_signals",
+    "quantflow/strategy/templates/trend_following.py:258-265 -- RSI-adaptive uses avg_entry_rsi.mean() not per-entry RSI, causing mis-scaled targets for mixed-entry scenarios",
+    "quantflow/strategy/templates/mean_reversion.py:146 -- profit_target_exit called on combined long+short entries but function only handles long profit targets"
+  ],
+  "candidate_solution": {
+    "type": "object",
+    "summary": "6 critical bottlenecks blocking 65%+ win rate: hardcoded signal strength, long-only profit_target_exit, asymmetric trailing stops, wrong exit conditions, missing stop-loss in backtest, and long-only backtest engine",
+    "content": {
+      "bottlenecks": [
+        {
+          "id": "B1",
+          "title": "Signal strength hardcoded -- no conviction-based sizing",
+          "severity": "high",
+          "description": "All 6 strategy templates use hardcoded strength values (0.3-0.8) in on_bar(). Signal strength should reflect how many conditions passed relative to total possible conditions. A trade passing 4/4 conditions should get strength=1.0, while 3/4 gets 0.75. This directly limits PositionSizer accuracy since Kelly sizing scales by strength.",
+          "fix": "In each strategy's on_bar(), compute strength = (conditions_met / total_conditions) for entries, and use a decayed strength for exits.",
+          "files": [
+            "quantflow/strategy/templates/trend_following.py:111",
+            "quantflow/strategy/templates/mean_reversion.py:69",
+            "quantflow/strategy/templates/volatility_breakout.py:119",
+            "quantflow/strategy/templates/funding_rate.py:81",
+            "quantflow/strategy/templates/momentum_rotation.py:76",
+            "quantflow/strategy/templates/ml_ensemble.py:128"
+          ]
+        },
+        {
+          "id": "B2",
+          "title": "profit_target_exit only handles long positions",
+          "severity": "critical",
+          "description": "_runtime.py:167 uses 'close >= entry_price * (1 + profit_take_pct)' which only triggers profit exits for longs. For short entries, the target should be 'close <= entry_price * (1 - profit_take_pct)'. Mean reversion and volatility_breakout both generate short entries but profit_target_exit will never fire for them, leaving shorts with only time-based exit (max_holding_bars).",
+          "fix": "Add direction tracking to profit_target_exit: when entry is short (detected by tracking a direction flag), use 'close <= entry_price * (1 - profit_take_pct)' as the target condition.",
+          "files": [
+            "quantflow/strategy/templates/_runtime.py:167",
+            "quantflow/strategy/templates/mean_reversion.py:146",
+            "quantflow/strategy/templates/volatility_breakout.py:382"
+          ]
+        },
+        {
+          "id": "B3",
+          "title": "Trailing stop only tracks highest -- no lowest for shorts",
+          "severity": "high",
+          "description": "Both trend_following.py:287 and volatility_breakout.py:391 track 'highest' close since entry and exit when 'close < highest - ATR*mult'. This only works for longs. For short entries, the system should track 'lowest' and exit when 'close > lowest + ATR*mult'. Currently short positions have no trailing protection at all.",
+          "fix": "Track both highest and lowest since entry; use highest for long trailing stops, lowest for short trailing stops. Need direction awareness similar to B2.",
+          "files": [
+            "quantflow/strategy/templates/trend_following.py:280-292",
+            "quantflow/strategy/templates/volatility_breakout.py:384-396"
+          ]
+        },
+        {
+          "id": "B4",
+          "title": "Exit conditions incorrectly require volume confirmation",
+          "severity": "medium",
+          "description": "trend_following.py:169 computes exit_ using the same condition set as entry, including vol_ok (volume above threshold). Requiring volume confirmation to EXIT a position is counterproductive -- it delays exit signals during low-volume periods (which is often exactly when you want to exit a failing trade). Exit conditions should be looser, not stricter.",
+          "fix": "Remove vol_ok from exit condition count, or use a separate min_conditions_exit with a lower threshold (e.g., 2 instead of 4).",
+          "files": [
+            "quantflow/strategy/templates/trend_following.py:169"
+          ]
+        },
+        {
+          "id": "B5",
+          "title": "Stop-loss defined in YAML but never wired into generate_signals",
+          "severity": "high",
+          "description": "All strategy YAML configs define stop_loss_pct and/or stop_loss_atr_multiplier (e.g., trend_following.yaml:22-23), but neither TrendFollowingStrategy nor VolatilityBreakoutStrategy nor MeanReversionStrategy read these values in generate_signals(). Only momentum_rotation.py uses stop_loss_pct. Without stop-loss exits in the vectorized backtest, losing trades run until max_holding_bars or an exit signal, producing larger losses than necessary.",
+          "fix": "Read stop_loss_pct / stop_loss_atr_multiplier from params and add stop-loss exit logic to generate_signals() for all strategies. Wire through _runtime.py as a stop_loss_exit() helper.",
+          "files": [
+            "quantflow/config/strategies/trend_following.yaml:22-23",
+            "quantflow/config/strategies/volatility_breakout.yaml:18",
+            "quantflow/config/strategies/mean_reversion.yaml:17",
+            "quantflow/strategy/templates/trend_following.py:53-57",
+            "quantflow/strategy/templates/volatility_breakout.py:48-51"
+          ]
+        },
+        {
+          "id": "B6",
+          "title": "BacktestEngine is long-only -- masks all short-side bugs",
+          "severity": "critical",
+          "description": "backtest.py:63 explicitly states 'simple long-only portfolio'. The entry/exit loop (lines 112-118) treats any True in entries as a long entry. This means: (1) mean_reversion short entries are simulated as longs (wrong direction = guaranteed loss); (2) All short-side profit_target and trailing stop bugs (B2, B3) are invisible in backtest results; (3) Actual win rate for mean_reversion and volatility_breakout is worse than backtest shows because short signals are mis-simulated.",
+          "fix": "Add direction-awareness to BacktestEngine: entry signals should carry direction (LONG/SHORT), and the equity loop should handle short entry_price = close * (1 - fee), exit_price = close * (1 + fee) with ret = (entry_price - exit_price) / entry_price.",
+          "files": [
+            "quantflow/strategy/research/backtest.py:63",
+            "quantflow/strategy/research/backtest.py:110-121"
+          ]
+        }
+      ],
+      "interaction_effects": [
+        {
+          "pair": "B2 + B6",
+          "description": "profit_target_exit being long-only (B2) combined with long-only backtest (B6) creates a false sense of correctness -- the backtest never tests short profit targets, so the bug appears to work fine in validation but fails in live trading."
+        },
+        {
+          "pair": "B1 + risk_budget_sizing",
+          "description": "Hardcoded signal strength (B1) means PositionSizer's per-strategy Kelly sizing operates on incorrect inputs. When strength is always 0.7-0.8 regardless of actual signal quality, Kelly-derived position sizes are uniformly too large for weak signals and too small for strong ones."
+        },
+        {
+          "pair": "B5 + profit_target_exit",
+          "description": "Missing stop-loss (B5) combined with profit_target_exit means trades only exit via: (1) profit target hit, (2) max_holding_bars timeout, or (3) signal-based exit. Without stop-loss, adverse moves accumulate full losses until the timeout, directly reducing win rate."
+        }
+      ],
+      "missing_mechanisms": [
+        {
+          "mechanism": "Regime detection / market state filter",
+          "impact": "high",
+          "description": "No strategy checks whether the current market regime (trending/ranging/volatile) matches its design. Trend_following trades in ranges = losses. Mean_reversion trades in trends = losses. A regime filter would skip entries when strategy/market mismatch, raising win rate by 5-10%."
+        },
+        {
+          "mechanism": "Multi-timeframe confirmation",
+          "impact": "medium",
+          "description": "All strategies operate on a single timeframe. A 4h mean_reversion entry would have much higher win rate if confirmed by daily-level oversold conditions. mtf_aligner.py exists in data/ layer but is not used by strategy templates."
+        },
+        {
+          "mechanism": "Adaptive min_conditions",
+          "impact": "medium",
+          "description": "min_conditions is static (4 for trend, 2 for mean_rev, 5 for vol_breakout). During high-volatility regimes, requiring 4+ conditions may produce zero entries; during low-volatility, 4 conditions may still produce weak entries. Dynamic min_conditions based on recent signal hit rate would improve selectivity."
+        }
+      ]
+    }
+  },
+  "blockers": [],
+  "notes": "The 6 bottlenecks form a causal chain: B6 (long-only backtest) masks B2+B3 (short-side exit bugs), which means these bugs have survived all validation rounds. B1 (hardcoded strength) silently undermines Kelly sizing. B5 (missing stop-loss) is the single largest win-rate drag since adverse trades run to timeout. B4 (volume on exits) is a lower-severity tuning issue. Estimated win-rate impact: B5=-5-8%, B2+B3=-3-5% (for strategies with short entries), B1=-2-3%, B6=makes backtest unreliable, B4=-1-2%."
+}

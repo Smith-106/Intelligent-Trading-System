@@ -1,0 +1,17 @@
+{
+  "task_id": "TASK-011",
+  "title": "CLI elliott-wave 命令",
+  "feature": "F-008",
+  "wave": 3,
+  "priority": "P3",
+  "status": "pending",
+  "files_to_create": [],
+  "files_to_modify": ["quantflow/cli/main.py"],
+  "description": "添加 quantflow elliott-wave 命令，集成到现有 Typer CLI。",
+  "acceptance_criteria": [
+    "quantflow elliott-wave --symbol BTC/USDT --mode backtest|paper|live 可执行",
+    "quantflow elliott-wave --analyze --symbol BTC/USDT 输出当前浪型分析",
+    "帮助信息正确显示所有选项",
+    "集成到现有 Typer CLI 无冲突"
+  ]
+}

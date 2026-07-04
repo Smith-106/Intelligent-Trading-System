@@ -23,6 +23,19 @@ def _sanitize_metric_array(values: list[float]) -> npt.NDArray[np.float64]:
     return cast(npt.NDArray[np.float64], sanitized.astype(np.float64, copy=False))
 
 
+def _pbo_failure_result(reason: str) -> dict[str, Any]:
+    return {
+        "pbo": 1.0,
+        "overfit_paths": 0,
+        "total_paths": 0,
+        "is_return_mean": 0.0,
+        "oos_return_mean": 0.0,
+        "rank_correlation": 0.0,
+        "passed": False,
+        "reason": reason,
+    }
+
+
 def probability_of_overfitting(
     close: pd.Series,
     entries: pd.Series,
@@ -42,7 +55,11 @@ def probability_of_overfitting(
     from quantflow.strategy.validation.cpcv import split_cpcv
 
     n_bars = len(close)
-    splits = split_cpcv(n_bars, n_groups, n_test_groups, embargo_pct)
+    try:
+        splits = split_cpcv(n_bars, n_groups, n_test_groups, embargo_pct)
+    except ValueError as exc:
+        logger.warning("PBO skipped: %s", exc)
+        return _pbo_failure_result(str(exc))
     engine = BacktestEngine()
 
     is_returns: list[float] = []

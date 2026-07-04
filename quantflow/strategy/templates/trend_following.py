@@ -15,6 +15,7 @@ from quantflow.strategy.templates._runtime import (
     ewm_series,
     highs,
     lows,
+    profit_target_exit,
     rolling_average_true_ranges,
     rolling_mean_at,
     rolling_mean_optional_at,
@@ -36,6 +37,7 @@ class TrendFollowingStrategy(StrategyBase):
 
     def __init__(self, params: dict[str, Any] | None = None) -> None:
         super().__init__(name="trend_following", params=params)
+        self.required_regime = "trending"
         p = self._params
         self._fast_period = p.get("fast_ma_period", 10)
         self._slow_period = p.get("slow_ma_period", 30)
@@ -49,6 +51,12 @@ class TrendFollowingStrategy(StrategyBase):
         self._atr_multiplier = p.get("atr_multiplier", 2.0)
         self._volume_period = p.get("volume_period", 20)
         self._volume_threshold = p.get("volume_threshold", 1.0)
+        self._min_conditions: int = p.get("min_conditions", 4)
+        self._profit_take_pct: float = p.get("take_profit_pct", p.get("profit_take_pct", 0.10))
+        self._max_holding_bars: int = p.get("max_holding_bars", 20)
+        self._trailing_stop_atr_mult: float = p.get("trailing_stop_atr_multiplier", p.get("trailing_stop_atr_mult", 3.0))
+        self._stop_loss_pct: float = p.get("stop_loss_pct", 0.0)
+        self._rsi_adaptive_profit: bool = p.get("rsi_adaptive_profit", True)
 
         self._bars: list[Bar] = []
         self._close_values: list[float] = []
@@ -61,6 +69,12 @@ class TrendFollowingStrategy(StrategyBase):
         self._macd_hist_value: float | None = None
         self._true_range_values: list[float] = []
         self._atr_values: list[float | None] = []
+        self._last_entry_conditions: int = 0
+        # Position tracking for on_bar exit mechanisms
+        self._in_position: bool = False
+        self._entry_price: float = 0.0
+        self._bars_since_entry: int = 0
+        self._highest_since_entry: float = 0.0
         self._max_bars = (
             max(
                 self._slow_period,
@@ -98,22 +112,33 @@ class TrendFollowingStrategy(StrategyBase):
             return
 
         entry, exit_ = self._latest_signal()
-        if entry:
+        if entry and not self._in_position:
+            conditions_met = self._last_entry_conditions
+            strength = min(0.4 + 0.15 * conditions_met, 0.9)
             ctx.emit_signal(
                 bar.symbol,
                 Direction.LONG,
-                strength=0.8,
+                strength=strength,
                 price=bar.close,
                 strategy_id=self.name,
             )
-        elif exit_:
+            self._in_position = True
+            self._entry_price = bar.close
+            self._bars_since_entry = 0
+            self._highest_since_entry = bar.high
+        elif exit_ and self._in_position:
+            # Exit: use FLAT to close position, not SHORT to open new one
             ctx.emit_signal(
                 bar.symbol,
-                Direction.SHORT,
+                Direction.FLAT,
                 strength=0.5,
                 price=bar.close,
                 strategy_id=self.name,
             )
+            self._in_position = False
+
+        # on_bar exit mechanisms: profit target + max holding + trailing stop
+        self._check_position_exits(ctx, bar)
 
     def _latest_signal(self) -> tuple[bool, bool]:
         """Compute the last signal without rebuilding a DataFrame."""
@@ -125,6 +150,7 @@ class TrendFollowingStrategy(StrategyBase):
         volume_ma = rolling_mean_at(volume_values, last_idx, self._volume_period)
         rsi = simple_rsi_last(close_values, self._rsi_period)
         if fast_ma is None or slow_ma is None or volume_ma is None or rsi is None:
+            self._last_entry_conditions = 0
             return False, False
 
         if self._runtime_state_is_current() and self._macd_hist_value is not None:
@@ -136,6 +162,7 @@ class TrendFollowingStrategy(StrategyBase):
             macd_line = [fast - slow for fast, slow in zip(ema_fast, ema_slow, strict=False)]
             macd_signal = ewm_series(macd_line, self._macd_signal)
             if not macd_signal:
+                self._last_entry_conditions = 0
                 return False, False
             macd_hist = macd_line[-1] - macd_signal[-1]
             atr_values = rolling_average_true_ranges(
@@ -148,6 +175,7 @@ class TrendFollowingStrategy(StrategyBase):
         atr = atr_values[-1]
         atr_cap_mean = rolling_mean_optional_at(atr_values, last_idx, self._slow_period)
         if atr is None or atr_cap_mean is None:
+            self._last_entry_conditions = 0
             return False, False
         atr_cap = atr_cap_mean * self._atr_multiplier
 
@@ -155,8 +183,11 @@ class TrendFollowingStrategy(StrategyBase):
         atr_ok = atr < atr_cap
         trend_up = fast_ma > slow_ma and macd_hist > 0
         trend_down = fast_ma < slow_ma and macd_hist < 0
-        entry = trend_up and rsi < self._rsi_overbought and vol_ok and atr_ok
-        exit_ = trend_down and rsi > self._rsi_oversold and vol_ok and atr_ok
+        entry_count = int(trend_up) + int(rsi < self._rsi_overbought) + int(vol_ok) + int(atr_ok)
+        entry = entry_count >= self._min_conditions
+        exit_count = int(trend_down) + int(rsi > self._rsi_oversold) + int(atr_ok)
+        exit_ = exit_count >= max(self._min_conditions - 1, 2)  # exit without vol_ok
+        self._last_entry_conditions = entry_count if entry else 0
         return entry, exit_
 
     def _append_runtime_state(self, bar: Bar) -> None:
@@ -236,10 +267,71 @@ class TrendFollowingStrategy(StrategyBase):
         rsi_ok_short = rsi > self._rsi_oversold
         atr_ok = atr < atr_cap
 
-        entries = trend_up & rsi_ok_long & vol_ok & atr_ok
-        exits = trend_down & rsi_ok_short & vol_ok & atr_ok
+        long_count = trend_up.astype(int) + rsi_ok_long.astype(int) + vol_ok.astype(int) + atr_ok.astype(int)
+        short_count = trend_down.astype(int) + rsi_ok_short.astype(int) + vol_ok.astype(int) + atr_ok.astype(int)
+        entries = long_count >= self._min_conditions
+        exits = short_count >= self._min_conditions
+
+        # Profit target exit (LONG direction only — trend_following entries are LONG)
+        effective_pct = self._profit_take_pct
+        if self._rsi_adaptive_profit:
+            # RSI-adaptive: tighter target when overbought at entry
+            rsi_at_entry = rsi[entries]
+            if len(rsi_at_entry) > 0:
+                avg_entry_rsi = float(rsi_at_entry.mean())
+                if avg_entry_rsi > 70:
+                    effective_pct = self._profit_take_pct * 0.8
+                elif avg_entry_rsi < 30:
+                    effective_pct = self._profit_take_pct * 1.2
+
+        profit_exits = profit_target_exit(close, entries, effective_pct, self._max_holding_bars, direction=1)
+
+        # Trailing stop exit — track highest HIGH for LONG positions
+        trailing_atr = atr
+        highest = high.copy()
+        in_pos = False
+        for i in range(len(close)):
+            if entries.iloc[i] and not in_pos:
+                in_pos = True
+            if in_pos:
+                highest.iloc[i] = max(float(high.iloc[i]), float(highest.iloc[i - 1]) if i > 0 else float(high.iloc[i]))
+                if exits.iloc[i] or profit_exits.iloc[i]:
+                    in_pos = False
+            if not in_pos:
+                highest.iloc[i] = float(high.iloc[i])
+        trailing_exits = close < highest - trailing_atr * self._trailing_stop_atr_mult
+
+        exits = exits | profit_exits | trailing_exits
 
         return entries.fillna(False), exits.fillna(False)
+
+    def _check_position_exits(self, ctx: StrategyContext, bar: Bar) -> None:
+        """Check profit target, trailing stop, and max holding exits in on_bar path."""
+        if not self._in_position:
+            return
+
+        self._bars_since_entry += 1
+        self._highest_since_entry = max(self._highest_since_entry, bar.high)
+
+        # Profit target exit (LONG: close >= entry * (1+pct))
+        target_price = self._entry_price * (1.0 + self._profit_take_pct)
+        if bar.close >= target_price:
+            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            self._in_position = False
+            return
+
+        # Max holding bars exit
+        if self._bars_since_entry >= self._max_holding_bars:
+            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            self._in_position = False
+            return
+
+        # Trailing stop exit (LONG: close < highest - ATR*mult)
+        if self._atr_values and self._atr_values[-1] is not None:
+            trailing_level = self._highest_since_entry - self._atr_values[-1] * self._trailing_stop_atr_mult
+            if bar.close < trailing_level:
+                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                self._in_position = False
 
     def _bars_to_df(self) -> pd.DataFrame:
         """Convert accumulated bars to a DataFrame."""

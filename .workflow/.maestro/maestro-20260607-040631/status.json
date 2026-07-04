@@ -1,0 +1,177 @@
+{
+  "session_id": "maestro-20260607-040631",
+  "source": "maestro",
+  "intent": "推进 QuantFlow v0.1.3 发布候选：建立发布准备里程碑与 maestro 发布会话，修复 sdist/wheel 打包内容治理，刷新 SHA256 与 release manifest，并把版本元数据推进到可做 tag/release 对齐的状态",
+  "task_type": "release",
+  "chain_name": "roadmap-driven",
+  "ralph_protocol_version": "1",
+  "active_step_index": null,
+  "phase": 1,
+  "phase_is_new": true,
+  "milestone": "M2",
+  "scope_verdict": null,
+  "analyze_macro_id": null,
+  "blueprint_id": null,
+  "auto_mode": true,
+  "cli_tool": "codex",
+  "context": {
+    "scratch_dir": null,
+    "plan_dir": null,
+    "analysis_dir": null,
+    "brainstorm_dir": null,
+    "blueprint_dir": null,
+    "issue_id": null
+  },
+  "steps": [
+    {
+      "index": 0,
+      "skill": "maestro-roadmap",
+      "args": "\"推进 QuantFlow v0.1.3 发布候选\"",
+      "stage": "roadmap",
+      "scope": null,
+      "decision": null,
+      "command_scope": "global",
+      "command_path": "C:\\Users\\niko\\.claude\\commands\\maestro-roadmap.md",
+      "milestone_id": "M2",
+      "source_artifact_ref": ".workflow/roadmap.md",
+      "status": "completed",
+      "goal_ref": null,
+      "completion_confirmed": true,
+      "completion_status": "DONE",
+      "completion_evidence": ".workflow/roadmap.md",
+      "completed_at": "2026-06-07T09:27:00+08:00",
+      "deferred_reads": [
+        "C:\\Users\\niko\\.maestro\\workflows\\roadmap.md"
+      ],
+      "load": null,
+      "type": "cli",
+      "concerns": null
+    },
+    {
+      "index": 1,
+      "skill": "maestro-plan",
+      "args": "1",
+      "stage": "plan",
+      "scope": null,
+      "decision": null,
+      "command_scope": "global",
+      "command_path": "C:\\Users\\niko\\.claude\\commands\\maestro-plan.md",
+      "milestone_id": "M2",
+      "source_artifact_ref": ".workflow/roadmap.md",
+      "status": "completed",
+      "goal_ref": null,
+      "completion_confirmed": true,
+      "completion_status": "DONE",
+      "completion_evidence": ".workflow/state.json",
+      "completed_at": "2026-06-07T09:27:00+08:00",
+      "deferred_reads": [
+        "C:\\Users\\niko\\.maestro\\templates\\plan.json"
+      ],
+      "load": null,
+      "type": "cli",
+      "concerns": null
+    },
+    {
+      "index": 2,
+      "skill": "maestro-execute",
+      "args": "1",
+      "stage": "execute",
+      "scope": null,
+      "decision": null,
+      "command_scope": "global",
+      "command_path": "C:\\Users\\niko\\.claude\\commands\\maestro-execute.md",
+      "milestone_id": "M2",
+      "source_artifact_ref": null,
+      "status": "completed",
+      "goal_ref": null,
+      "completion_confirmed": true,
+      "completion_status": "DONE",
+      "completion_evidence": "dist/quantflow-0.1.3.tar.gz, dist/quantflow-0.1.3-py3-none-any.whl, dist/SHA256SUMS.txt, dist/release-manifest.json",
+      "completed_at": "2026-06-07T09:27:00+08:00",
+      "deferred_reads": [
+        "C:\\Users\\niko\\.maestro\\templates\\task.json"
+      ],
+      "load": null,
+      "type": "cli",
+      "concerns": null
+    },
+    {
+      "index": 3,
+      "skill": "maestro-verify",
+      "args": "1",
+      "stage": "verify",
+      "scope": null,
+      "decision": null,
+      "command_scope": "global",
+      "command_path": "C:\\Users\\niko\\.claude\\commands\\maestro-verify.md",
+      "milestone_id": "M2",
+      "source_artifact_ref": null,
+      "status": "completed",
+      "goal_ref": null,
+      "completion_confirmed": true,
+      "completion_status": "DONE_WITH_CONCERNS",
+      "completion_evidence": "sdist/wheel content checked locally; remaining work is remote tag/release alignment and release evidence",
+      "completed_at": "2026-06-07T09:27:00+08:00",
+      "deferred_reads": [
+        "C:\\Users\\niko\\.maestro\\templates\\verification.json"
+      ],
+      "load": null,
+      "type": "skill",
+      "concerns": null
+    }
+  ],
+  "waves": [],
+  "current_step": 4,
+  "status": "completed",
+  "boundary_contract": {
+    "in_scope": [
+      "v0.1.3 版本元数据对齐",
+      "发布准备里程碑与 maestro 会话账本",
+      "sdist/wheel 打包内容治理",
+      "SHA256SUMS.txt 与 release-manifest.json 刷新"
+    ],
+    "out_of_scope": [
+      "GitHub release 资产上传",
+      "paper/live 环境实盘验证",
+      "桌面安装器与签名流程"
+    ]
+  },
+  "execution_criteria": [
+    "pyproject.toml 与 quantflow/__init__.py 版本一致",
+    "sdist 不再包含 .workflow、.codegraph、tests 等非发布内容",
+    "build_release.py 可生成 v0.1.3 对应主包、单文件 sha256、汇总校验与 manifest",
+    ".workflow 状态能明确表达发布准备里程碑与下一步会话"
+  ],
+  "task_decomposition": [
+    {
+      "id": "T1",
+      "title": "建立发布准备里程碑与 v0.1.3 文档目录",
+      "done_when": ".workflow/state.json、.workflow/roadmap.md 与 docs/release/v0.1.3 已就位",
+      "evidence": "状态文件和文档目录存在且版本一致",
+      "lifecycle": "plan->execute->verify",
+      "completion_confirmed": true,
+      "status": "done"
+    },
+    {
+      "id": "T2",
+      "title": "修复 sdist / wheel 打包治理",
+      "done_when": "sdist 内容不再混入 .workflow、.codegraph、tests 和缓存目录",
+      "evidence": "tar 包内容检查通过",
+      "lifecycle": "execute->verify",
+      "completion_confirmed": true,
+      "status": "done"
+    },
+    {
+      "id": "T3",
+      "title": "刷新 v0.1.3 哈希与 manifest",
+      "done_when": "dist 产物与 SHA256SUMS.txt、release-manifest.json 对齐",
+      "evidence": "文件哈希检查通过",
+      "lifecycle": "execute->verify",
+      "completion_confirmed": true,
+      "status": "done"
+    }
+  ],
+  "task_decomposition_all_done": true,
+  "created_at": "2026-06-07T04:06:31+08:00",
+  "updated_at": "2026-06-07T09:27:00+08:00"
+}

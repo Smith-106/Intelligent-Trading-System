@@ -120,9 +120,12 @@ class ExecutionEngine:
             ),
             OrderResult(
                 order_id=exchange_id,
-                status=OrderStatus.SUBMITTED,
+                status=order.status,
                 symbol=order.symbol,
                 side=order.side.value,
+                filled_quantity=order.filled_quantity,
+                average_price=order.filled_price,
+                fee=order.fee,
             ),
         )
 
@@ -140,7 +143,7 @@ class ExecutionEngine:
                         "order_id": exchange_id,
                         "symbol": order.symbol,
                         "side": order.side.value,
-                        "status": "submitted",
+                        "status": order.status.value,
                     },
                 )
             )
@@ -156,7 +159,9 @@ class ExecutionEngine:
             qty_signed = (
                 order.filled_quantity if order.side == OrderSide.BUY else -order.filled_quantity
             )
-            self._position_mgr.update_position(order.symbol, qty_signed, order.filled_price)
+            self._position_mgr.update_position(
+                order.symbol, qty_signed, order.filled_price, strategy_id=order.strategy_id
+            )
 
             ORDERS_FILLED.labels(
                 symbol=order.symbol,
@@ -180,6 +185,13 @@ class ExecutionEngine:
 
         self._record_order_latency(order.symbol, started_at)
         return order
+
+    def update_market_price(self, symbol: str, price: float) -> None:
+        """Update local mark price and propagate it to gateways that need a reference price."""
+        self._position_mgr.update_market_price(symbol, price)
+        gateway_update = getattr(self._gateway, "update_price", None)
+        if callable(gateway_update):
+            gateway_update(symbol, price)
 
     @staticmethod
     def _record_order_latency(symbol: str, started_at: float) -> None:

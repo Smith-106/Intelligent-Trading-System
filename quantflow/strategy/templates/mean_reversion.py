@@ -11,6 +11,7 @@ from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyBase, StrategyContext
 from quantflow.strategy.templates._runtime import (
     closes,
+    profit_target_exit,
     rolling_mean_at,
     rolling_std_at,
     simple_rsi_last,
@@ -25,6 +26,7 @@ class MeanReversionStrategy(StrategyBase):
 
     def __init__(self, params: dict[str, Any] | None = None) -> None:
         super().__init__(name="mean_reversion", params=params)
+        self.required_regime = "mean_reversion"
         p = self._params
         self._rsi_period = p.get("rsi_period", 14)
         self._rsi_oversold = p.get("rsi_oversold", 30)
@@ -32,14 +34,24 @@ class MeanReversionStrategy(StrategyBase):
         self._bb_period = p.get("bb_period", 20)
         self._bb_std = p.get("bb_std", 2.0)
         self._volume_period = p.get("volume_period", 20)
-        self._volume_threshold = p.get("volume_threshold", 0.8)
+        self._volume_threshold = p.get("volume_threshold", 1.2)
         self._exit_rsi_overbought = p.get("exit_rsi_overbought", 60)
         self._exit_rsi_oversold = p.get("exit_rsi_oversold", 40)
+        self._min_conditions: int = p.get("min_conditions", 2)
+        self._profit_take_pct: float = p.get("take_profit_pct", p.get("profit_take_pct", 0.03))
+        self._max_holding_bars: int = p.get("max_holding_bars", 20)
+        self._stop_loss_pct: float = p.get("stop_loss_pct", 0.0)
 
         self._bars: list[Bar] = []
         self._close_values: list[float] = []
         self._volume_values: list[float] = []
         self._max_bars = max(self._rsi_period, self._bb_period, self._volume_period) + 50
+        # Position tracking for on_bar exit mechanisms
+        self._in_position: bool = False
+        self._entry_direction: Direction | None = None
+        self._entry_price: float = 0.0
+        self._bars_since_entry: int = 0
+        self._last_entry_conditions: int = 0
 
     def on_init(self, ctx: StrategyContext) -> None:
         ctx.params = self._params
@@ -58,15 +70,21 @@ class MeanReversionStrategy(StrategyBase):
             return
 
         entry_direction, exit_ = self._latest_signal()
-        if entry_direction is not None:
+        if entry_direction is not None and not self._in_position:
+            conditions_met = self._last_entry_conditions
+            strength = min(0.4 + 0.25 * conditions_met, 0.9)
             ctx.emit_signal(
                 bar.symbol,
                 entry_direction,
-                strength=0.7,
+                strength=strength,
                 price=bar.close,
                 strategy_id=self.name,
             )
-        elif exit_:
+            self._in_position = True
+            self._entry_direction = entry_direction
+            self._entry_price = bar.close
+            self._bars_since_entry = 0
+        elif exit_ and self._in_position:
             ctx.emit_signal(
                 bar.symbol,
                 Direction.FLAT,
@@ -74,6 +92,10 @@ class MeanReversionStrategy(StrategyBase):
                 price=bar.close,
                 strategy_id=self.name,
             )
+            self._in_position = False
+
+        # on_bar exit mechanisms: profit target + max holding
+        self._check_position_exits(ctx, bar)
 
     def _latest_signal(self) -> tuple[Direction | None, bool]:
         """Compute the latest event-mode signal without rebuilding a DataFrame."""
@@ -92,14 +114,21 @@ class MeanReversionStrategy(StrategyBase):
         bb_lower = bb_middle - self._bb_std * bb_std
         vol_ok = volume_values[-1] > volume_ma * self._volume_threshold
 
-        if vol_ok and rsi < self._rsi_oversold and close < bb_lower:
+        long_count = int(vol_ok) + int(rsi < self._rsi_oversold) + int(close < bb_lower)
+        short_count = int(vol_ok) + int(rsi > self._rsi_overbought) + int(close > bb_upper)
+
+        if long_count >= self._min_conditions:
+            self._last_entry_conditions = long_count
             return Direction.LONG, False
-        if vol_ok and rsi > self._rsi_overbought and close > bb_upper:
+        if short_count >= self._min_conditions:
+            self._last_entry_conditions = short_count
             return Direction.SHORT, False
 
-        exit_ = (close > bb_middle and rsi > self._exit_rsi_overbought) or (
-            close < bb_middle and rsi < self._exit_rsi_oversold
+        # Exit: no vol_ok requirement — reversals occur on low volume
+        exit_ = (close > bb_upper * 0.98 and rsi > self._exit_rsi_overbought) or (
+            close < bb_lower * 0.98 and rsi < self._exit_rsi_oversold
         )
+        self._last_entry_conditions = 0
         return None, exit_
 
     def _runtime_values(self) -> tuple[list[float], list[float]]:
@@ -126,14 +155,22 @@ class MeanReversionStrategy(StrategyBase):
         vol_ma = volume.rolling(self._volume_period).mean()
         vol_ok = volume > vol_ma * self._volume_threshold
 
-        entries = vol_ok & (
-            ((rsi < self._rsi_oversold) & (close < bb_lower))
-            | ((rsi > self._rsi_overbought) & (close > bb_upper))
+        long_count = vol_ok.astype(int) + (rsi < self._rsi_oversold).astype(int) + (close < bb_lower).astype(int)
+        short_count = vol_ok.astype(int) + (rsi > self._rsi_overbought).astype(int) + (close > bb_upper).astype(int)
+        long_entries = long_count >= self._min_conditions
+        short_entries = short_count >= self._min_conditions
+        entries = long_entries | short_entries
+
+        # Exit on opposite band × 0.98 instead of bb_middle
+        exits = ((close > bb_upper * 0.98) & (rsi > self._exit_rsi_overbought)) | (
+            (close < bb_lower * 0.98) & (rsi < self._exit_rsi_oversold)
         )
 
-        exits = ((close > bb_middle) & (rsi > self._exit_rsi_overbought)) | (
-            (close < bb_middle) & (rsi < self._exit_rsi_oversold)
-        )
+        # Profit target exit — direction-aware
+        long_profit_exits = profit_target_exit(close, long_entries, self._profit_take_pct, self._max_holding_bars, direction=1)
+        short_profit_exits = profit_target_exit(close, short_entries, self._profit_take_pct, self._max_holding_bars, direction=-1)
+        profit_exits = long_profit_exits | short_profit_exits
+        exits = exits | profit_exits
 
         return entries.fillna(False), exits.fillna(False)
 
@@ -145,6 +182,32 @@ class MeanReversionStrategy(StrategyBase):
         avg_loss = loss.rolling(self._rsi_period).mean()
         rs = avg_gain / avg_loss.replace(0, 1e-10)
         return 100 - (100 / (1 + rs))
+
+    def _check_position_exits(self, ctx: StrategyContext, bar: Bar) -> None:
+        """Check profit target and max holding exits in on_bar path."""
+        if not self._in_position:
+            return
+
+        self._bars_since_entry += 1
+
+        # Profit target exit — direction-aware
+        if self._entry_direction == Direction.LONG:
+            target_price = self._entry_price * (1.0 + self._profit_take_pct)
+            if bar.close >= target_price:
+                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                self._in_position = False
+                return
+        elif self._entry_direction == Direction.SHORT:
+            target_price = self._entry_price * (1.0 - self._profit_take_pct)
+            if bar.close <= target_price:
+                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                self._in_position = False
+                return
+
+        # Max holding bars exit
+        if self._bars_since_entry >= self._max_holding_bars:
+            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            self._in_position = False
 
     def _bars_to_df(self) -> pd.DataFrame:
         if not self._bars:

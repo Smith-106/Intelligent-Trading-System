@@ -31,6 +31,30 @@ def _sanitize_metric_array(values: list[float]) -> npt.NDArray[np.float64]:
     return cast(npt.NDArray[np.float64], sanitized.astype(np.float64, copy=False))
 
 
+def _cpcv_failure_result(
+    reason: str,
+    *,
+    optimized: bool = False,
+    oos_recomputed: bool = False,
+) -> dict[str, Any]:
+    return {
+        "n_paths": 0,
+        "pbo": 1.0,
+        "oos_efficiency": 0.0,
+        "is_sharpe_mean": 0.0,
+        "is_sharpe_std": 0.0,
+        "oos_sharpe_mean": 0.0,
+        "oos_sharpe_std": 0.0,
+        "oos_sharpe_min": 0.0,
+        "path_results": [],
+        "optimized": optimized,
+        "oos_recomputed": oos_recomputed,
+        "signal_quality": aggregate_signal_quality([]),
+        "passed": False,
+        "reason": reason,
+    }
+
+
 def split_cpcv(
     n_bars: int,
     n_groups: int = 8,
@@ -42,7 +66,24 @@ def split_cpcv(
     Returns list of (train_indices, test_indices) for each combination
     of test groups. With n_groups=8, n_test_groups=2 → C(8,2)=28 paths.
     """
+    if n_bars < 2:
+        raise ValueError("CPCV requires at least 2 bars.")
+    if n_groups < 2:
+        raise ValueError("CPCV requires at least 2 groups.")
+    if n_test_groups < 1:
+        raise ValueError("CPCV requires at least 1 test group.")
+    if n_test_groups >= n_groups:
+        raise ValueError("CPCV test groups must be fewer than total groups.")
+    if n_bars < n_groups:
+        raise ValueError(
+            f"CPCV requires at least {n_groups} bars, got {n_bars}."
+        )
+
     group_size = n_bars // n_groups
+    if group_size <= 0:  # pragma: no cover — unreachable: n_bars >= n_groups guarantees group_size >= 1
+        raise ValueError(
+            f"CPCV group size collapsed to 0 for {n_bars} bars across {n_groups} groups."
+        )
     groups = [np.arange(i * group_size, min((i + 1) * group_size, n_bars)) for i in range(n_groups)]
     # Handle remainder
     if groups[-1][-1] < n_bars - 1:
@@ -97,7 +138,16 @@ def cpcv_backtest(
     from quantflow.strategy.research.optimizer import StrategyOptimizer
 
     n_bars = len(close)
-    splits = split_cpcv(n_bars, n_groups, n_test_groups, embargo_pct)
+    optimized = signal_fn is not None and param_space is not None
+    try:
+        splits = split_cpcv(n_bars, n_groups, n_test_groups, embargo_pct)
+    except ValueError as exc:
+        logger.warning("CPCV skipped: %s", exc)
+        return _cpcv_failure_result(
+            str(exc),
+            optimized=optimized,
+            oos_recomputed=signal_fn is not None,
+        )
 
     oos_sharpes: list[float] = []
     is_sharpes: list[float] = []
@@ -109,7 +159,6 @@ def cpcv_backtest(
         data.copy() if data is not None else pd.DataFrame({"close": close}, index=close.index)
     )
     uses_oos_signal_generation = signal_fn is not None
-    optimized = signal_fn is not None and param_space is not None
 
     for i, (train_idx, test_idx) in enumerate(splits):
         train_close = close.iloc[train_idx]

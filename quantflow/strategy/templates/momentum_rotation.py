@@ -9,6 +9,7 @@ import pandas as pd
 
 from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyBase, StrategyContext
+from quantflow.strategy.templates._runtime import profit_target_exit
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +37,17 @@ class MomentumRotationStrategy(StrategyBase):
         self._stop_loss_pct = p.get("stop_loss_pct", 0.03)
         self._volume_period = p.get("volume_period", 20)
         self._rebalance_interval = p.get("rebalance_interval", 4)
+        self._profit_take_pct: float = p.get("take_profit_pct", p.get("profit_take_pct", 0.04))
+        self._max_holding_bars: int = p.get("max_holding_bars", 12)
 
         self._bars: list[Bar] = []
         self._max_bars = self._lookback + 50
         self._bar_count = 0
         self._current_positions: dict[str, float] = {}
+        # Position tracking for on_bar exit mechanisms
+        self._in_position: bool = False
+        self._entry_price: float = 0.0
+        self._bars_since_entry: int = 0
 
     def on_init(self, ctx: StrategyContext) -> None:
         ctx.params = self._params
@@ -68,16 +75,23 @@ class MomentumRotationStrategy(StrategyBase):
         last_idx = len(entries) - 1
         symbol = bar.symbol
 
-        if entries.iloc[last_idx]:
+        if entries.iloc[last_idx] and not self._in_position:
             ctx.emit_signal(
                 symbol, Direction.LONG, strength=0.7, price=bar.close, strategy_id=self.name
             )
             self._current_positions[symbol] = bar.close
-        elif exits.iloc[last_idx]:
+            self._in_position = True
+            self._entry_price = bar.close
+            self._bars_since_entry = 0
+        elif exits.iloc[last_idx] and self._in_position:
             ctx.emit_signal(
                 symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
             )
             self._current_positions.pop(symbol, None)
+            self._in_position = False
+
+        # on_bar exit mechanisms
+        self._check_position_exits(ctx, bar)
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         if len(df) < self._lookback:
@@ -109,6 +123,10 @@ class MomentumRotationStrategy(StrategyBase):
         else:
             stop_hit = pd.Series(False, index=df.index)
         exits = momentum_negative | stop_hit
+
+        # Profit target exit
+        profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars)
+        exits = exits | profit_exits
 
         return entries.fillna(False), exits.fillna(False)
 
@@ -161,6 +179,33 @@ class MomentumRotationStrategy(StrategyBase):
             results[symbol] = (entries, exits)
 
         return results
+
+    def _check_position_exits(self, ctx: StrategyContext, bar: Bar) -> None:
+        """Check profit target, stop-loss, and max holding exits in on_bar path."""
+        if not self._in_position:
+            return
+
+        self._bars_since_entry += 1
+
+        # Stop-loss exit
+        if self._stop_loss_pct > 0 and self._entry_price > 0:
+            drawdown = (bar.close - self._entry_price) / self._entry_price
+            if drawdown < -self._stop_loss_pct:
+                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                self._in_position = False
+                return
+
+        # Profit target exit (LONG only — momentum_rotation entries are LONG)
+        target_price = self._entry_price * (1.0 + self._profit_take_pct)
+        if bar.close >= target_price:
+            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            self._in_position = False
+            return
+
+        # Max holding bars exit
+        if self._bars_since_entry >= self._max_holding_bars:
+            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            self._in_position = False
 
     def _bars_to_df(self) -> pd.DataFrame:
         if not self._bars:

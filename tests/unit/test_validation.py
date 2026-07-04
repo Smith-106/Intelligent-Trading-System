@@ -86,6 +86,21 @@ class TestCPCV:
             for idx, path in enumerate(result["path_results"])
         )
 
+    def test_split_cpcv_rejects_insufficient_bars(self):
+        with pytest.raises(ValueError, match="requires at least 4 bars"):
+            split_cpcv(3, n_groups=4, n_test_groups=1)
+
+    def test_cpcv_backtest_returns_structured_failure_for_insufficient_bars(self):
+        close = _make_price_series(3)
+        entries, exits = _make_signals(3)
+
+        result = cpcv_backtest(close, entries, exits, n_groups=4, n_test_groups=1)
+
+        assert result["passed"] is False
+        assert result["n_paths"] == 0
+        assert result["pbo"] == 1.0
+        assert result["reason"] == "CPCV requires at least 4 bars, got 3."
+
 
 class TestDSR:
     def test_dsr_high_sharpe_passes(self):
@@ -176,6 +191,17 @@ class TestPBO:
         assert result["rank_correlation"] == 0.0
         assert result["overfit_paths"] == 0
 
+    def test_pbo_returns_structured_failure_for_insufficient_bars(self):
+        close = _make_price_series(3)
+        entries, exits = _make_signals(3)
+
+        result = probability_of_overfitting(close, entries, exits, n_groups=4, n_test_groups=1)
+
+        assert result["passed"] is False
+        assert result["total_paths"] == 0
+        assert result["pbo"] == 1.0
+        assert result["reason"] == "CPCV requires at least 4 bars, got 3."
+
 
 class TestWFO:
     def test_wfo_rolling(self):
@@ -255,6 +281,16 @@ class TestValidationGate:
 
         assert result["decision"] == "NO-GO"
         assert result["reason"] == "CPCV PBO=0.800 >= 0.5"
+        assert result["checks"]["cpcv"]["passed"] is False
+
+    def test_gate_uses_structured_cpcv_failure_reason(self):
+        close = _make_price_series(3)
+        entries, exits = _make_signals(3)
+
+        result = validation_gate(close, entries, exits, cpcv_groups=4, cpcv_test_groups=1)
+
+        assert result["decision"] == "NO-GO"
+        assert result["reason"] == "CPCV requires at least 4 bars, got 3."
         assert result["checks"]["cpcv"]["passed"] is False
 
     def test_gate_stops_when_dsr_fails(self, monkeypatch, gate_inputs):

@@ -1,0 +1,1161 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QuantFlow Station</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css?v=20260610-platform-ui-r24-workbench-compact">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">QF</div>
+        <div>
+          <div class="brand-title">QuantFlow Station</div>
+          <div class="brand-subtitle">Crypto 交易平台</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-btn active" data-panel="overview">总览</button>
+        <button class="nav-btn" data-panel="data">数据中心</button>
+        <button class="nav-btn" data-panel="monitoring">监控运维</button>
+        <button class="nav-btn" data-panel="research">研究回测</button>
+        <button class="nav-btn" data-panel="validation">验证门禁</button>
+        <button class="nav-btn" data-panel="execution">执行工作台</button>
+        <button class="nav-btn" data-panel="session">交易会话</button>
+        <button class="nav-btn" data-panel="strategies">策略目录</button>
+      </nav>
+      <div class="sidebar-foot">
+        <div id="version-pill" class="pill">加载中</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1>业务工作台</h1>
+          <p id="header-context">统一查看系统状态、研究回测、验证门禁和运行中的交易会话。</p>
+        </div>
+        <div class="topbar-actions">
+          <span id="topbar-panel-pill" class="pill muted">总览</span>
+          <button id="refresh-all" class="button ghost">刷新</button>
+        </div>
+      </header>
+
+      <section id="platform-workbench" class="surface platform-workbench">
+        <div class="platform-workbench-head">
+          <div class="platform-workbench-copy">
+            <div class="dashboard-hero-label">统一业务工作台</div>
+            <h2 id="platform-workbench-title">统一交易平台</h2>
+            <div id="platform-workbench-text" class="surface-subtitle">把实时会话、执行草稿、验证门禁和跨页动作统一到一个业务运营层。</div>
+          </div>
+          <div class="platform-workbench-head-actions">
+            <span id="platform-workbench-health" class="pill muted">待检测</span>
+            <span id="platform-workbench-panel" class="pill muted">总览</span>
+          </div>
+        </div>
+        <div id="platform-workbench-signals" class="platform-signal-grid"></div>
+        <div class="grid two-col platform-workbench-mid">
+          <section class="platform-workbench-panel platform-workbench-context-panel">
+            <div class="surface-head">
+              <div>
+                <h3>当前业务上下文</h3>
+                <div class="surface-subtitle">始终把当前面板、会话状态、执行草稿和放行姿态放在同一个视野里。</div>
+              </div>
+            </div>
+            <div id="platform-workbench-status" class="status-list compact-status-list"></div>
+          </section>
+          <section class="platform-workbench-panel platform-workbench-actions-panel">
+            <div class="surface-head">
+              <div>
+                <h3>快速动作</h3>
+                <div class="surface-subtitle">直接跳到下一步业务动作，不必在多个页面之间来回寻找。</div>
+              </div>
+            </div>
+            <div id="platform-workbench-actions" class="history-actions platform-workbench-actions"></div>
+            <div id="platform-workbench-note" class="surface-subtitle">等待当前业务上下文就绪。</div>
+          </section>
+        </div>
+        <div id="platform-workbench-blockers-section">
+          <div class="surface-head">
+            <div>
+              <h3>全局阻塞项</h3>
+              <div class="surface-subtitle">把仍会挡住交易演练或发布闭环的风险信号集中显示出来。</div>
+            </div>
+          </div>
+          <div id="platform-workbench-blockers" class="platform-workbench-blockers"></div>
+        </div>
+      </section>
+
+      <section id="panel-overview" class="panel active">
+        <div class="grid metric-grid" id="overview-metrics"></div>
+        <section class="surface overview-hero-surface">
+          <div class="surface-head">
+            <div>
+              <h2>运营指挥台</h2>
+              <div id="overview-captured-at" class="surface-subtitle">等待全局业务快照。</div>
+            </div>
+            <div class="overview-head-actions">
+              <span id="overview-health-pill" class="pill muted">待加载</span>
+              <span id="overview-runtime-pill" class="pill muted">待机</span>
+            </div>
+          </div>
+          <section class="dashboard-hero overview-hero">
+            <div class="dashboard-hero-main">
+              <div class="dashboard-hero-label">业务指挥</div>
+              <div id="overview-hero-title" class="dashboard-hero-value">等待业务工作台就绪</div>
+              <div id="overview-hero-text" class="dashboard-hero-text">统一查看数据、研究、验证、执行和交易会话的当前状态。</div>
+            </div>
+            <div id="overview-hero-stats" class="dashboard-hero-side"></div>
+          </section>
+          <div class="grid metric-grid compact" id="overview-command-metrics"></div>
+          <div class="overview-action-bar">
+            <div class="overview-action-copy">
+              <h3>推荐下一步</h3>
+              <div id="overview-next-step" class="surface-subtitle">等待系统分析当前业务状态。</div>
+            </div>
+            <div id="overview-next-actions" class="history-actions overview-next-actions"></div>
+          </div>
+        </section>
+        <section class="surface inset-surface overview-pulse-surface">
+          <div class="surface-head">
+            <div>
+              <h3>业务脉冲</h3>
+              <div class="surface-subtitle">把放行状态、执行风险、资金占用和观测链路压成一眼可读的运营信号。</div>
+            </div>
+          </div>
+          <div id="overview-pulse-grid" class="overview-pulse-grid"></div>
+        </section>
+        <div class="grid two-col overview-mid">
+          <section class="surface inset-surface">
+            <div class="surface-head">
+              <div>
+                <h3>业务阶段</h3>
+                <div class="surface-subtitle">用一眼读懂的方式判断现在卡在哪个业务环节。</div>
+              </div>
+            </div>
+            <div id="overview-stage-grid" class="overview-stage-grid"></div>
+          </section>
+
+          <section class="surface inset-surface">
+            <div class="surface-head">
+              <div>
+                <h3>实时运营摘要</h3>
+                <div class="surface-subtitle">汇总运行中的仓位、事件流、验证门和监控风险。</div>
+              </div>
+            </div>
+            <div id="overview-runtime-status" class="status-list compact-status-list"></div>
+            <div id="overview-runtime-activity" class="session-activity-grid"></div>
+          </section>
+        </div>
+        <div class="grid two-col overview-mid">
+          <section class="surface inset-surface">
+            <div class="surface-head">
+              <div>
+                <h3>业务链路</h3>
+                <div class="surface-subtitle">把研究、验证、执行、会话这 4 条线串成一个可操作流程。</div>
+              </div>
+            </div>
+            <div id="overview-workflow-grid" class="overview-workflow-grid"></div>
+          </section>
+
+          <section class="surface inset-surface">
+            <div class="surface-head">
+              <div>
+                <h3>当前阻塞项</h3>
+                <div class="surface-subtitle">优先处理会挡住发布或真实运行的风险信号。</div>
+              </div>
+              <span id="overview-blocker-count" class="pill">0</span>
+            </div>
+            <div id="overview-blockers" class="history-list"></div>
+          </section>
+        </div>
+        <section class="surface inset-surface overview-inspector-surface">
+          <div class="surface-head">
+            <div>
+              <h3>总览审阅器</h3>
+              <div id="overview-inspector-subtitle" class="surface-subtitle">聚焦总览摘要、业务脉冲、阶段、链路或阻塞项，查看它的摘要、上下文与原始对象。</div>
+            </div>
+            <span id="overview-inspector-pill" class="pill muted">总览摘要</span>
+          </div>
+          <div class="overview-inspector-grid">
+            <div id="overview-inspector-summary" class="status-list compact-status-list"></div>
+            <div id="overview-inspector-context"></div>
+          </div>
+          <p id="overview-inspector-note" class="overview-inspector-note">在总览页内直接审阅关键业务信号，再决定要跳转到哪个工作台。</p>
+          <details class="raw-json">
+            <summary>原始对象</summary>
+            <pre id="overview-inspector-json" class="json-card"></pre>
+          </details>
+        </section>
+        <div class="grid two-col">
+          <section class="surface">
+            <div class="surface-head">
+              <h2>系统状态</h2>
+              <span id="docker-status" class="pill muted">Docker</span>
+            </div>
+            <div id="system-status" class="status-list"></div>
+          </section>
+          <section class="surface">
+            <div class="surface-head">
+              <h2>数据覆盖</h2>
+              <span id="data-count" class="pill">0 symbols</span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr><th>交易对</th><th>来源</th><th>文件数</th><th>日期区间</th></tr>
+                </thead>
+                <tbody id="data-symbols"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="panel-data" class="panel">
+        <div class="data-layout">
+          <section class="surface data-hero-surface">
+            <div class="surface-head">
+              <div>
+                <h2>数据中心</h2>
+                <div id="data-captured-at" class="surface-subtitle">等待数据盘点。</div>
+              </div>
+              <span id="data-mode-pill" class="pill muted">待加载</span>
+            </div>
+            <section class="data-hero">
+              <div class="dashboard-hero-main">
+                <div class="dashboard-hero-label">数据覆盖</div>
+                <div id="data-hero-title" class="dashboard-hero-value">等待数据盘点</div>
+                <div id="data-hero-text" class="dashboard-hero-text">汇总 parquet 覆盖、DuckDB 存储、交易对范围和研究前置数据完备度。</div>
+              </div>
+              <div id="data-highlights" class="data-highlight-list"></div>
+            </section>
+            <div class="grid metric-grid compact" id="data-metrics"></div>
+            <div class="data-workflow-bar">
+              <div class="data-workflow-copy">
+                <h3>数据工作流</h3>
+                <div id="data-workflow-note" class="surface-subtitle">等待数据工作流准备完成。</div>
+              </div>
+              <div id="data-workflow-actions" class="data-card-actions"></div>
+            </div>
+            <section class="data-download-surface">
+              <div class="surface-head">
+                <div>
+                  <h3>历史行情准备</h3>
+                  <div class="surface-subtitle">直接从 OKX 拉取 OHLCV 历史数据，并回写到本地 Parquet / DuckDB。</div>
+                </div>
+                <span id="data-download-status" class="pill muted">未启动</span>
+              </div>
+              <form id="data-download-form" class="form-grid data-download-form">
+                <label>
+                  <span>交易对</span>
+                  <input name="symbol" value="BTC/USDT">
+                </label>
+                <label>
+                  <span>周期</span>
+                  <select name="timeframe">
+                    <option value="1m">1m</option>
+                    <option value="5m">5m</option>
+                    <option value="15m">15m</option>
+                    <option value="1h">1h</option>
+                    <option value="4h" selected>4h</option>
+                    <option value="1d">1d</option>
+                  </select>
+                </label>
+                <label>
+                  <span>开始</span>
+                  <input name="start" type="date">
+                </label>
+                <label>
+                  <span>结束</span>
+                  <input name="end" type="date">
+                </label>
+                <div class="form-actions">
+                  <button type="submit" id="data-download-submit" class="button primary">拉取历史行情</button>
+                  <button type="button" id="data-seed-demo" class="button ghost">写入演示数据</button>
+                </div>
+              </form>
+              <div id="data-download-summary" class="status-list compact-status-list"></div>
+            </section>
+          </section>
+
+          <div class="grid two-col data-mid">
+            <section class="surface inset-surface">
+              <div class="surface-head">
+                <div>
+                  <h3>存储摘要</h3>
+                  <div class="surface-subtitle">Parquet 根目录、DuckDB 文件、配置入口与执行模式。</div>
+                </div>
+              </div>
+              <div id="data-storage-status" class="status-list compact-status-list"></div>
+            </section>
+
+            <section class="surface inset-surface">
+              <div class="surface-head">
+                <div>
+                  <h3>覆盖焦点</h3>
+                  <div class="surface-subtitle">优先查看最新交易对和分区文件覆盖最广的交易对。</div>
+                </div>
+              </div>
+              <div id="data-leader-grid" class="data-leader-grid"></div>
+            </section>
+          </div>
+
+          <section class="surface inset-surface">
+            <div class="surface-head">
+              <div>
+                <h3>交易对覆盖明细</h3>
+                <div class="surface-subtitle">按本地 parquet 数据库存量展示覆盖范围、文件数量和最近 bar 年龄。</div>
+              </div>
+              <span id="data-symbol-count" class="pill">0</span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>交易对</th>
+                    <th>来源</th>
+                    <th>文件数</th>
+                    <th>开始</th>
+                    <th>结束</th>
+                    <th>覆盖天数</th>
+                    <th>最近 Bar 距今</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="data-symbol-rows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="surface inset-surface data-inspector-surface">
+            <div class="surface-head">
+              <div>
+                <h3>数据审阅器</h3>
+                <div id="data-inspector-subtitle" class="surface-subtitle">聚焦数据摘要、覆盖焦点、交易对明细或最近一次数据准备结果，查看它的摘要、上下文与原始对象。</div>
+              </div>
+              <span id="data-inspector-pill" class="pill muted">数据摘要</span>
+            </div>
+            <div class="data-inspector-grid">
+              <div id="data-inspector-summary" class="status-list compact-status-list"></div>
+              <div id="data-inspector-context"></div>
+            </div>
+            <p id="data-inspector-note" class="data-inspector-note">先确认来源质量与覆盖边界，再把交易对推进到研究、验证或执行。</p>
+            <details class="raw-json">
+              <summary>原始对象</summary>
+              <pre id="data-inspector-json" class="json-card"></pre>
+            </details>
+          </section>
+        </div>
+      </section>
+
+      <section id="panel-monitoring" class="panel">
+        <div class="monitoring-layout">
+          <section class="surface monitoring-hero-surface">
+            <div class="surface-head">
+              <div>
+                <h2>监控运维</h2>
+                <div id="monitoring-captured-at" class="surface-subtitle">等待监控快照。</div>
+              </div>
+              <span id="monitoring-health-pill" class="pill muted">待加载</span>
+            </div>
+            <section class="monitoring-hero">
+              <div class="dashboard-hero-main">
+                <div class="dashboard-hero-label">平台健康</div>
+                <div id="monitoring-health-summary" class="dashboard-hero-value">等待监控快照</div>
+                <div id="monitoring-health-text" class="dashboard-hero-text">汇总监控端点、验证门禁、会话告警和数据模式。</div>
+              </div>
+              <div id="monitoring-health-signals" class="monitoring-signal-list"></div>
+            </section>
+            <div class="grid metric-grid compact" id="monitoring-metrics"></div>
+          </section>
+
+          <div class="grid two-col monitoring-mid">
+            <section class="surface inset-surface">
+              <div class="surface-head">
+                <div>
+                  <h3>服务状态</h3>
+                  <div class="surface-subtitle">Prometheus / Grafana 的可达状态与运维入口。</div>
+                </div>
+              </div>
+              <div id="monitoring-services" class="monitoring-service-grid"></div>
+            </section>
+
+            <section class="surface inset-surface">
+              <div class="surface-head">
+                <div>
+                  <h3>运行摘要</h3>
+                  <div class="surface-subtitle">汇总最新平台状态、执行姿态和近期事件分布。</div>
+                </div>
+              </div>
+              <div id="monitoring-runtime" class="status-list compact-status-list"></div>
+              <div id="monitoring-activity-grid" class="session-activity-grid"></div>
+            </section>
+          </div>
+
+          <div class="grid two-col monitoring-mid">
+            <section class="surface inset-surface">
+              <div class="surface-head">
+                <div>
+                  <h3>最新业务活动</h3>
+                  <div class="surface-subtitle">展示最近研究、验证结果和受管会话快照。</div>
+                </div>
+              </div>
+              <div id="monitoring-latest-grid" class="monitoring-latest-grid"></div>
+            </section>
+
+            <section class="surface inset-surface">
+              <div class="surface-head">
+                <div>
+                  <h3>告警与注意事项</h3>
+                  <div class="surface-subtitle">警告、验证阻塞与平台级运营提示。</div>
+                </div>
+                <span id="monitoring-alert-count" class="pill">0</span>
+              </div>
+              <div id="monitoring-alerts" class="history-list"></div>
+            </section>
+          </div>
+
+          <section class="surface inset-surface monitoring-inspector-surface">
+            <div class="surface-head">
+              <div>
+                <h3>监控审阅器</h3>
+                <div id="monitoring-inspector-subtitle" class="surface-subtitle">聚焦平台摘要、运行状态、服务节点、最近业务对象或告警，查看它的摘要、上下文与原始对象。</div>
+              </div>
+              <span id="monitoring-inspector-pill" class="pill muted">监控摘要</span>
+            </div>
+            <div class="monitoring-inspector-grid">
+              <div id="monitoring-inspector-summary" class="status-list compact-status-list"></div>
+              <div id="monitoring-inspector-context"></div>
+            </div>
+            <p id="monitoring-inspector-note" class="monitoring-inspector-note">先确认服务、告警和最新业务对象，再决定是否继续推进验证、执行或会话联调。</p>
+            <details class="raw-json">
+              <summary>原始对象</summary>
+              <pre id="monitoring-inspector-json" class="json-card"></pre>
+            </details>
+          </section>
+
+        </div>
+      </section>
+
+      <section id="panel-research" class="panel">
+        <div class="grid split-main">
+          <section class="surface">
+            <div class="surface-head">
+              <h2>研究回测</h2>
+              <span class="pill accent">回测</span>
+            </div>
+            <form id="research-form" class="form-grid">
+              <label>
+                <span>策略</span>
+                <select name="strategy" id="research-strategy"></select>
+              </label>
+              <label>
+                <span>交易对</span>
+                <input name="symbol" value="BTC/USDT">
+              </label>
+              <label>
+                <span>资金</span>
+                <input name="capital" type="number" step="1000" value="10000">
+              </label>
+              <label>
+                <span>手续费</span>
+                <input name="fee" type="number" step="0.0001" value="0.001">
+              </label>
+              <label>
+                <span>开始</span>
+                <input name="start" placeholder="2024-01-01">
+              </label>
+              <label>
+                <span>结束</span>
+                <input name="end" placeholder="2025-01-01">
+              </label>
+              <section class="param-section">
+                <div class="surface-head">
+                  <h3>策略参数</h3>
+                  <button type="button" id="research-reset-params" class="button ghost small">恢复默认</button>
+                </div>
+                <div id="research-params" class="param-grid"></div>
+              </section>
+              <div class="form-actions">
+                <button type="submit" class="button primary">运行研究</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="surface">
+            <div class="surface-head">
+              <h2>研究结果</h2>
+              <span id="research-status" class="pill muted">未运行</span>
+            </div>
+            <div id="research-empty" class="empty-state">等待回测结果。</div>
+            <div id="research-results" class="hidden detail-stack">
+              <section id="research-decision-board" class="research-decision-board"></section>
+              <section id="research-ops-board" class="research-ops-board"></section>
+              <div class="grid metric-grid compact" id="research-metrics"></div>
+              <div id="research-result-actions" class="history-actions result-actions">
+                <button type="button" id="research-open-validation" class="button ghost small">送入验证</button>
+                <button type="button" id="research-stage-execution" class="button primary small">送入执行草稿</button>
+              </div>
+
+              <section class="chart-workspace">
+                <div class="chart-toolbar">
+                  <div class="chart-summary">
+                    <div class="chart-summary-title">研究图表</div>
+                    <div id="research-chart-summary" class="chart-summary-text">等待图表数据。</div>
+                  </div>
+                  <div class="chart-toolbar-actions">
+                    <div id="research-range-controls" class="segmented">
+                      <button type="button" class="segment-btn active" data-range="48">48 根</button>
+                      <button type="button" class="segment-btn" data-range="96">96 根</button>
+                      <button type="button" class="segment-btn" data-range="180">180 根</button>
+                      <button type="button" class="segment-btn" data-range="360">360 根</button>
+                      <button type="button" class="segment-btn" data-range="all">全部</button>
+                    </div>
+                    <div id="research-secondary-controls" class="segmented">
+                      <button type="button" class="segment-btn active" data-secondary="equity">权益</button>
+                      <button type="button" class="segment-btn" data-secondary="drawdown">回撤</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="research-chart-stage" class="chart-stage">
+                  <canvas id="research-candles" class="chart-canvas" aria-label="研究 K 线图"></canvas>
+                  <canvas id="research-secondary" class="chart-canvas secondary" aria-label="研究副图"></canvas>
+                  <div id="research-chart-empty" class="chart-empty hidden">没有可绘制的图表数据。</div>
+                  <div id="research-chart-tooltip" class="chart-tooltip hidden"></div>
+                </div>
+
+                <div id="research-chart-legend" class="chart-legend"></div>
+                <div class="chart-note">支持时间窗口切换、鼠标滚轮缩放、拖拽平移。</div>
+              </section>
+
+              <div class="markdown-card">
+                <h3>报告</h3>
+                <pre id="research-report"></pre>
+              </div>
+            </div>
+
+            <section class="inline-section">
+              <div class="surface-head">
+                <h3>最近研究</h3>
+                <span id="research-history-count" class="pill">0</span>
+              </div>
+              <div id="research-history" class="history-list"></div>
+            </section>
+          </section>
+        </div>
+      </section>
+
+      <section id="panel-validation" class="panel">
+        <div class="grid split-main">
+          <section class="surface">
+            <div class="surface-head">
+              <h2>验证门禁</h2>
+              <span class="pill accent">CPCV / DSR / WFO</span>
+            </div>
+            <form id="validation-form" class="form-grid">
+              <label>
+                <span>策略</span>
+                <select name="strategy" id="validation-strategy"></select>
+              </label>
+              <label>
+                <span>交易对</span>
+                <input name="symbol" value="BTC/USDT">
+              </label>
+              <label>
+                <span>方法</span>
+                <select name="method">
+                  <option value="gate">gate</option>
+                  <option value="cpcv">cpcv</option>
+                  <option value="dsr">dsr</option>
+                  <option value="wfo">wfo</option>
+                  <option value="pbo">pbo</option>
+                </select>
+              </label>
+              <label>
+                <span>优化轮次</span>
+                <input name="optimize_trials" type="number" min="1" value="10">
+              </label>
+              <label>
+                <span>WFO 窗口</span>
+                <input name="wfo_windows" type="number" min="1" value="2">
+              </label>
+              <label>
+                <span>资金</span>
+                <input name="capital" type="number" step="1000" value="10000">
+              </label>
+              <section class="param-section">
+                <div class="surface-head">
+                  <h3>策略参数</h3>
+                  <button type="button" id="validation-reset-params" class="button ghost small">恢复默认</button>
+                </div>
+                <div id="validation-params" class="param-grid"></div>
+              </section>
+              <div class="form-actions">
+                <button type="submit" class="button primary">运行验证</button>
+              </div>
+            </form>
+          </section>
+          <section class="surface">
+            <div class="surface-head">
+              <h2>验证结果</h2>
+              <span id="validation-status" class="pill muted">未运行</span>
+            </div>
+            <div id="validation-empty" class="empty-state">等待验证结果。</div>
+            <div id="validation-results" class="hidden validation-stack">
+              <div class="validation-hero">
+                <div class="validation-hero-copy">
+                  <div class="label">结论</div>
+                  <div id="validation-decision" class="decision-text">待检测</div>
+                  <p id="validation-reason" class="validation-reason"></p>
+                </div>
+                <div class="validation-hero-actions">
+                  <span id="validation-method" class="pill accent">验证</span>
+                  <span id="validation-source" class="pill accent">实盘</span>
+                </div>
+              </div>
+              <div id="validation-summary-strip" class="validation-summary-strip"></div>
+              <section id="validation-evidence-board" class="validation-evidence-board"></section>
+              <div class="grid metric-grid compact" id="validation-metrics"></div>
+              <div id="validation-result-actions" class="history-actions result-actions">
+                <button type="button" id="validation-stage-execution" class="button primary small">送入执行草稿</button>
+              </div>
+              <div id="validation-highlights" class="validation-highlight-list"></div>
+              <div id="validation-detail-grid" class="validation-detail-grid"></div>
+              <section class="validation-breakdown-section">
+                <div class="surface-head">
+                  <div>
+                    <h3 id="validation-breakdown-title">验证拆解</h3>
+                    <div id="validation-breakdown-subtitle" class="surface-subtitle">按验证方法展开诊断与证据。</div>
+                  </div>
+                  <span id="validation-breakdown-pill" class="pill muted">待加载</span>
+                </div>
+                <div id="validation-breakdown"></div>
+              </section>
+              <details class="json-details">
+                <summary>原始结果</summary>
+                <pre id="validation-json" class="json-card"></pre>
+              </details>
+            </div>
+            <section class="inline-section">
+              <div class="surface-head">
+                <h3>最近验证</h3>
+                <span id="validation-history-count" class="pill">0</span>
+              </div>
+              <div id="validation-history" class="history-list"></div>
+            </section>
+          </section>
+        </div>
+      </section>
+
+      <section id="panel-execution" class="panel">
+        <div class="execution-layout">
+          <section class="surface execution-hero-surface">
+            <div class="surface-head">
+              <div>
+                <h2>执行工作台</h2>
+                <div id="execution-captured-at" class="surface-subtitle">等待执行层快照。</div>
+              </div>
+              <span id="execution-status-pill" class="pill muted">待加载</span>
+            </div>
+
+            <section class="execution-hero">
+              <div class="dashboard-hero-main">
+                <div class="dashboard-hero-label">执行状态</div>
+                <div id="execution-hero-title" class="dashboard-hero-value">等待执行层快照</div>
+                <div id="execution-hero-text" class="dashboard-hero-text">汇总当前执行模式、持仓、订单、风险状态和最近执行事件。</div>
+              </div>
+              <div id="execution-summary-list" class="status-list compact-status-list"></div>
+            </section>
+
+            <div class="grid metric-grid compact" id="execution-metrics"></div>
+          </section>
+
+          <section class="surface execution-control-surface">
+            <div class="surface-head">
+              <div>
+                <h3>执行终端控制</h3>
+                <div id="execution-control-summary" class="surface-subtitle">在这里直接启动、停机或熔断交易终端，深度遥测保留在交易会话页。</div>
+              </div>
+              <div class="execution-control-actions">
+                <button type="button" id="execution-open-session" class="button ghost">查看深度遥测</button>
+                <span id="execution-control-note" class="pill muted">待机</span>
+              </div>
+            </div>
+
+            <div class="execution-terminal-grid">
+              <form id="execution-launch-form" class="form-grid terminal-form">
+                <label>
+                  <span>模式</span>
+                  <select name="mode" id="execution-mode">
+                    <option value="paper">模拟盘</option>
+                    <option value="sandbox">沙盒</option>
+                    <option value="live">实盘</option>
+                  </select>
+                </label>
+                <label>
+                  <span>策略</span>
+                  <select name="strategies" id="execution-strategies" multiple size="5"></select>
+                </label>
+                <label>
+                  <span>交易对</span>
+                  <input name="symbol" id="execution-symbol" value="BTC/USDT">
+                </label>
+                <label>
+                  <span>周期</span>
+                  <input name="timeframe" id="execution-timeframe" value="1h">
+                </label>
+                <label>
+                  <span>轮询间隔（秒）</span>
+                  <input name="interval_seconds" id="execution-interval" type="number" min="0" value="30">
+                </label>
+                <label>
+                  <span>资金</span>
+                  <input name="capital" id="execution-capital" type="number" min="0" step="1000" value="100000">
+                </label>
+                <div class="form-actions stacked execution-form-actions">
+                  <button type="submit" id="execution-start" class="button primary">启动终端</button>
+                  <button type="button" id="execution-stop-session" class="button ghost">停止终端</button>
+                  <button type="button" id="execution-kill-session" class="button danger">熔断开关</button>
+                </div>
+              </form>
+
+              <article class="execution-runtime-card">
+                <div class="surface-head">
+                  <div>
+                    <h3>运行摘要</h3>
+                    <div class="surface-subtitle">当前终端配置、事件密度和最近一段资金姿态。</div>
+                  </div>
+                  <span id="execution-runtime-pill" class="pill muted">待机</span>
+                </div>
+
+                <div class="session-config-brief execution-config-brief">
+                  <div class="config-brief-item">
+                    <span class="config-brief-label">运行配置</span>
+                    <strong id="execution-config-brief">模拟盘 | BTC/USDT | 1h</strong>
+                  </div>
+                  <div class="config-brief-item">
+                    <span class="config-brief-label">策略</span>
+                    <strong id="execution-strategy-brief">0 个策略</strong>
+                  </div>
+                </div>
+
+                <div class="session-config-brief execution-config-brief">
+                  <div class="config-brief-item">
+                    <span class="config-brief-label">待启动草稿</span>
+                    <strong id="execution-draft-config">模拟盘 | BTC/USDT | 1h</strong>
+                  </div>
+                  <div class="config-brief-item">
+                    <span class="config-brief-label">草稿策略</span>
+                    <strong id="execution-draft-strategy">0 个策略</strong>
+                  </div>
+                </div>
+
+                <div id="execution-draft-note" class="surface-subtitle">当前表单与最近一次执行配置一致。</div>
+                <div id="execution-draft-pill-row" class="strategy-badge-row execution-draft-pill-row">
+                  <span id="execution-draft-readiness" class="pill muted">待审阅</span>
+                  <span id="execution-draft-origin" class="pill muted">来源：手动草稿</span>
+                  <span id="execution-draft-validation" class="pill muted">验证：未关联</span>
+                  <span id="execution-draft-data" class="pill muted">数据：待检测</span>
+                </div>
+
+                <div class="execution-review-grid">
+                  <section class="execution-review-card">
+                    <div class="surface-head">
+                      <div>
+                        <h4>启动前审阅</h4>
+                        <div class="surface-subtitle">在启动终端前，确认草稿来源、风险提示和当前数据条件。</div>
+                      </div>
+                      <div class="execution-review-actions">
+                        <button type="button" id="execution-open-draft-source" class="button ghost small">打开来源</button>
+                        <button type="button" id="execution-reset-runtime" class="button ghost small">恢复最近配置</button>
+                      </div>
+                    </div>
+                    <div id="execution-draft-source-list" class="status-list compact-status-list"></div>
+                    <div id="execution-draft-risk-list" class="status-list compact-status-list"></div>
+                  </section>
+
+                  <section class="execution-review-card">
+                    <div class="surface-head">
+                      <div>
+                        <h4>与最近运行差异</h4>
+                        <div class="surface-subtitle">比较当前草稿与最近一次执行配置，避免带着意外参数启动。</div>
+                      </div>
+                      <span id="execution-draft-diff-count" class="pill muted">0 处差异</span>
+                    </div>
+                    <div id="execution-draft-diff-list" class="status-list compact-status-list"></div>
+                  </section>
+                </div>
+
+                <div id="execution-control-list" class="status-list compact-status-list"></div>
+                <div class="grid metric-grid compact" id="execution-runtime-metrics"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="surface inset-surface execution-telemetry-surface">
+            <div class="surface-head">
+              <div>
+                <h3>执行终端资金轨迹</h3>
+                <div id="execution-chart-subtitle" class="surface-subtitle">等待执行层遥测。</div>
+              </div>
+              <div class="execution-telemetry-head-actions">
+                <div id="execution-telemetry-controls" class="segmented">
+                  <button type="button" class="segment-btn active" data-execution-chart="portfolio">组合</button>
+                  <button type="button" class="segment-btn" data-execution-chart="drawdown">回撤</button>
+                  <button type="button" class="segment-btn" data-execution-chart="activity">负载</button>
+                </div>
+                <span id="execution-telemetry-pill" class="pill muted">待加载</span>
+              </div>
+            </div>
+            <div id="execution-telemetry-stage" class="mini-chart-stage">
+              <canvas id="execution-telemetry-chart" class="chart-canvas telemetry-canvas" aria-label="执行终端资金轨迹"></canvas>
+              <div id="execution-telemetry-empty" class="chart-empty hidden">当前执行快照还没有可视化遥测序列。</div>
+              <div id="execution-telemetry-tooltip" class="chart-tooltip hidden"></div>
+            </div>
+            <div id="execution-telemetry-legend" class="chart-legend"></div>
+          </section>
+
+          <div class="grid two-col execution-mid">
+            <section class="surface inset-surface">
+              <div class="surface-head">
+                <div>
+                  <h3>风控与执行状态</h3>
+                  <div class="surface-subtitle">熔断开关、回撤保护和事件级别概况。</div>
+                </div>
+              </div>
+              <div id="execution-risk-list" class="status-list compact-status-list"></div>
+              <div id="execution-activity-grid" class="session-activity-grid"></div>
+            </section>
+
+            <section class="surface inset-surface">
+              <div class="surface-head">
+                <div>
+                  <h3>最近执行事件</h3>
+                  <div class="surface-subtitle">按订单、成交、风险和信号事件回看执行层动态。</div>
+                </div>
+                <div class="execution-events-head-actions">
+                  <div id="execution-event-filter-controls" class="segmented">
+                    <button type="button" class="segment-btn active" data-execution-filter="all">全部</button>
+                    <button type="button" class="segment-btn" data-execution-filter="signal">信号</button>
+                    <button type="button" class="segment-btn" data-execution-filter="order">订单</button>
+                    <button type="button" class="segment-btn" data-execution-filter="fill">成交</button>
+                    <button type="button" class="segment-btn" data-execution-filter="risk">风控</button>
+                  </div>
+                  <span id="execution-events-count" class="pill">0</span>
+                </div>
+              </div>
+              <div id="execution-events" class="timeline-list"></div>
+            </section>
+          </div>
+
+          <div class="grid two-col">
+            <section class="surface inset-surface">
+              <div class="surface-head">
+                <h3>持仓簿</h3>
+                <span id="execution-position-count" class="pill">0</span>
+              </div>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr><th>交易对</th><th>方向</th><th>数量</th><th>名义金额</th><th>开仓价</th><th>最新价</th><th>未实现盈亏</th><th>收益率</th></tr>
+                  </thead>
+                  <tbody id="execution-positions"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="surface inset-surface">
+              <div class="surface-head">
+                <h3>挂单簿</h3>
+                <span id="execution-order-count" class="pill">0</span>
+              </div>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr><th>ID</th><th>交易对</th><th>类型</th><th>方向</th><th>数量</th><th>价格</th><th>状态</th></tr>
+                  </thead>
+                  <tbody id="execution-orders"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <section class="surface inset-surface execution-inspector-surface">
+            <div class="surface-head">
+              <div>
+                <h3>执行检查器</h3>
+                <div id="execution-inspector-subtitle" class="surface-subtitle">选择事件、持仓或挂单后，在这里查看它的详细上下文与原始对象。</div>
+              </div>
+              <span id="execution-inspector-pill" class="pill muted">未选择</span>
+            </div>
+            <div class="execution-inspector-grid">
+              <div id="execution-inspector-summary" class="status-list compact-status-list"></div>
+              <div id="execution-inspector-context"></div>
+            </div>
+            <p id="execution-inspector-note" class="execution-inspector-note">当前还没有选中的执行对象。</p>
+            <details class="json-details">
+              <summary>原始对象</summary>
+              <pre id="execution-inspector-json" class="json-card"></pre>
+            </details>
+          </section>
+        </div>
+      </section>
+
+      <section id="panel-session" class="panel">
+        <div class="session-layout">
+          <section class="surface session-control-surface">
+            <div class="surface-head">
+              <h2>交易会话控制</h2>
+              <span id="session-running" class="pill muted">未启动</span>
+            </div>
+
+            <div class="session-config-brief">
+              <div class="config-brief-item">
+                <span class="config-brief-label">运行配置</span>
+                <strong id="session-config-brief">模拟盘 | BTC/USDT | 1h</strong>
+              </div>
+              <div class="config-brief-item">
+                <span class="config-brief-label">策略</span>
+                <strong id="session-strategy-brief">0 个策略</strong>
+              </div>
+            </div>
+
+            <form id="session-form" class="form-grid">
+              <label>
+                <span>模式</span>
+                <select name="mode">
+                  <option value="paper">模拟盘</option>
+                  <option value="sandbox">沙盒</option>
+                  <option value="live">实盘</option>
+                </select>
+              </label>
+              <label>
+                <span>策略</span>
+                <select name="strategies" id="session-strategies" multiple size="5"></select>
+              </label>
+              <label>
+                <span>交易对</span>
+                <input name="symbol" value="BTC/USDT">
+              </label>
+              <label>
+                <span>周期</span>
+                <input name="timeframe" value="1h">
+              </label>
+              <label>
+                <span>轮询间隔（秒）</span>
+                <input name="interval_seconds" type="number" min="0" value="30">
+              </label>
+              <label>
+                <span>资金</span>
+                <input name="capital" type="number" min="0" step="1000" value="100000">
+              </label>
+              <div class="form-actions stacked">
+                <button type="submit" id="session-start" class="button primary">启动会话</button>
+                <button type="button" id="stop-session" class="button ghost">停止会话</button>
+                <button type="button" id="kill-session" class="button danger">熔断开关</button>
+              </div>
+            </form>
+
+            <section class="inline-section compact-section">
+              <div class="surface-head">
+                <h3>操作状态</h3>
+                <span id="session-control-note" class="pill muted">待机</span>
+              </div>
+              <div id="session-control-summary" class="status-list compact-status-list"></div>
+            </section>
+          </section>
+
+          <section class="surface session-dashboard-surface">
+            <div class="surface-head">
+              <div>
+                <h2>交易驾驶舱</h2>
+                <div id="session-telemetry-summary" class="surface-subtitle">等待会话数据。</div>
+              </div>
+              <div class="session-head-actions">
+                <button type="button" id="session-return-live" class="button ghost small hidden">返回实时</button>
+                <span id="session-view-pill" class="pill muted">实时</span>
+                <span id="session-status-chip" class="pill muted">未启动</span>
+                <span id="session-updated" class="pill">待检测</span>
+              </div>
+            </div>
+
+            <section class="dashboard-hero">
+              <div class="dashboard-hero-main">
+                <div class="dashboard-hero-label">运行概览</div>
+                <div id="session-hero-primary" class="dashboard-hero-value">当前没有活跃会话</div>
+                <div id="session-hero-secondary" class="dashboard-hero-text">启动后这里会显示运行模式、周期和策略组合。</div>
+              </div>
+              <div class="dashboard-hero-side">
+                <div class="hero-stat">
+                  <span>运行时长</span>
+                  <strong id="session-uptime">0s</strong>
+                </div>
+                <div class="hero-stat">
+                  <span>净敞口</span>
+                  <strong id="session-exposure">0.00%</strong>
+                </div>
+                <div class="hero-stat">
+                  <span>事件数</span>
+                  <strong id="session-event-total">0</strong>
+                </div>
+              </div>
+            </section>
+
+            <div class="grid metric-grid compact" id="session-metrics"></div>
+
+            <div class="grid two-col session-dashboard-mid">
+              <section class="surface inset-surface">
+                <div class="surface-head">
+                  <div>
+                    <h3>资金轨迹</h3>
+                    <div id="session-chart-subtitle" class="surface-subtitle">等待实时遥测。</div>
+                  </div>
+                  <div id="session-telemetry-controls" class="segmented">
+                    <button type="button" class="segment-btn active" data-session-chart="portfolio">组合</button>
+                    <button type="button" class="segment-btn" data-session-chart="drawdown">回撤</button>
+                  </div>
+                </div>
+                <div id="session-telemetry-stage" class="mini-chart-stage">
+                  <canvas id="session-telemetry-chart" class="chart-canvas telemetry-canvas" aria-label="会话资金轨迹"></canvas>
+                  <div id="session-telemetry-empty" class="chart-empty hidden">会话运行后会积累实时 telemetry。</div>
+                  <div id="session-telemetry-tooltip" class="chart-tooltip hidden"></div>
+                </div>
+                <div id="session-telemetry-legend" class="chart-legend"></div>
+              </section>
+
+              <section class="surface inset-surface">
+                <div class="surface-head">
+                  <h3>风险与活动</h3>
+                  <span id="session-risk-chip" class="pill muted">稳定</span>
+                </div>
+                <div id="session-risk-list" class="status-list compact-status-list"></div>
+                <div id="session-activity-grid" class="session-activity-grid"></div>
+              </section>
+            </div>
+
+            <div class="grid two-col">
+              <div>
+                <h3>当前持仓</h3>
+                <div class="table-scroll">
+                  <table>
+                    <thead>
+                    <tr><th>交易对</th><th>方向</th><th>数量</th><th>名义金额</th><th>开仓价</th><th>最新价</th><th>未实现盈亏</th><th>收益率</th></tr>
+                    </thead>
+                    <tbody id="session-positions"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div>
+                <h3>挂单簿</h3>
+                <div class="table-scroll">
+                  <table>
+                    <thead>
+                    <tr><th>ID</th><th>交易对</th><th>类型</th><th>方向</th><th>数量</th><th>价格</th><th>状态</th></tr>
+                    </thead>
+                    <tbody id="session-orders"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <pre id="session-error" class="json-card hidden"></pre>
+
+            <div class="detail-stack">
+              <section class="inline-section">
+                <div class="surface-head">
+                  <h3>事件时间线</h3>
+                  <div class="session-events-head-actions">
+                    <div id="session-event-filter-controls" class="segmented">
+                      <button type="button" class="segment-btn active" data-session-filter="all">全部</button>
+                      <button type="button" class="segment-btn" data-session-filter="signal">信号</button>
+                      <button type="button" class="segment-btn" data-session-filter="order">订单</button>
+                      <button type="button" class="segment-btn" data-session-filter="fill">成交</button>
+                      <button type="button" class="segment-btn" data-session-filter="risk">风控</button>
+                      <button type="button" class="segment-btn" data-session-filter="lifecycle">生命周期</button>
+                    </div>
+                    <span id="session-events-count" class="pill">0</span>
+                  </div>
+                </div>
+                <div id="session-events" class="timeline-list"></div>
+              </section>
+              <section class="inline-section">
+                <div class="surface-head">
+                  <h3>会话历史</h3>
+                  <span id="session-history-count" class="pill">0</span>
+                </div>
+                <div id="session-history" class="history-list"></div>
+              </section>
+
+              <section class="inline-section session-audit-surface">
+                <div class="surface-head">
+                  <div>
+                    <h3>会话审计器</h3>
+                    <div id="session-audit-subtitle" class="surface-subtitle">聚焦当前会话、历史快照、事件、持仓或挂单，查看它的摘要、上下文与原始对象。</div>
+                  </div>
+                  <span id="session-audit-pill" class="pill muted">当前会话</span>
+                </div>
+                <div class="session-audit-grid">
+                  <div id="session-audit-summary" class="status-list compact-status-list"></div>
+                  <div id="session-audit-context"></div>
+                </div>
+                <p id="session-audit-note" class="session-audit-note">当前审阅的是会话级摘要。</p>
+                <details class="json-details">
+                  <summary>原始对象</summary>
+                  <pre id="session-audit-json" class="json-card"></pre>
+                </details>
+              </section>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="panel-strategies" class="panel">
+        <section class="surface">
+          <div class="surface-head">
+            <div>
+              <h2>策略目录</h2>
+              <p class="strategy-panel-copy">按策略配置、交易覆盖和风控规则组织策略工作台。</p>
+            </div>
+            <span id="strategy-count" class="pill">0</span>
+          </div>
+          <div id="strategy-stat-grid" class="metric-grid compact"></div>
+          <div id="strategy-filter-bar" class="strategy-filter-bar">
+            <label class="strategy-filter-field" for="strategy-search">
+              <span>搜索策略</span>
+              <input id="strategy-search" type="search" placeholder="搜索策略 ID、标题、描述或交易对">
+            </label>
+            <label class="strategy-filter-field" for="strategy-timeframe-filter">
+              <span>周期过滤</span>
+              <select id="strategy-timeframe-filter">
+                <option value="all">全部周期</option>
+              </select>
+            </label>
+            <label class="strategy-filter-field" for="strategy-symbol-filter">
+              <span>交易对过滤</span>
+              <select id="strategy-symbol-filter">
+                <option value="all">全部交易对</option>
+              </select>
+            </label>
+          </div>
+          <div id="strategy-grid" class="strategy-directory-layout">
+            <div class="strategy-list-shell">
+              <div class="surface-head">
+                <h3>策略列表</h3>
+                <span id="strategy-filtered-count" class="pill muted">显示 0</span>
+              </div>
+              <div id="strategy-list" class="strategy-list"></div>
+            </div>
+            <div id="strategy-detail" class="strategy-detail"></div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <script src="/static/app.js?v=20260610-platform-ui-r24-workbench-compact" defer></script>
+</body>
+</html>

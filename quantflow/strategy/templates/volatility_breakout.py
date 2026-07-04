@@ -16,6 +16,7 @@ from quantflow.strategy.templates._runtime import (
     ewm_series,
     highs,
     lows,
+    profit_target_exit,
     rolling_average_true_ranges,
     rolling_mean_at,
     rolling_mean_optional_at,
@@ -32,6 +33,7 @@ class VolatilityBreakoutStrategy(StrategyBase):
 
     def __init__(self, params: dict[str, Any] | None = None) -> None:
         super().__init__(name="volatility_breakout", params=params)
+        self.required_regime = "trending"
         p = self._params
         self._atr_period = p.get("atr_period", 14)
         self._atr_threshold = p.get("atr_threshold", 1.5)
@@ -44,6 +46,11 @@ class VolatilityBreakoutStrategy(StrategyBase):
         self._volume_threshold = p.get("volume_threshold", 1.5)
         self._atr_shrink_exit = p.get("atr_shrink_exit", 0.7)
         self._bb_middle_exit = p.get("bb_middle_exit", True)
+        self._min_conditions: int = p.get("min_conditions", 3)
+        self._profit_take_pct: float = p.get("take_profit_pct", p.get("profit_take_pct", 0.05))
+        self._max_holding_bars: int = p.get("max_holding_bars", 15)
+        self._trailing_stop_atr_mult: float = p.get("trailing_stop_atr_multiplier", p.get("trailing_stop_atr_mult", 2.5))
+        self._stop_loss_pct: float = p.get("stop_loss_pct", 0.0)
 
         self._bars: list[Bar] = []
         self._close_values: list[float] = []
@@ -61,6 +68,14 @@ class VolatilityBreakoutStrategy(StrategyBase):
         self._bb_lower_values: list[float | None] = []
         self._bb_width_values: list[float | None] = []
         self._bb_width_ma_values: list[float | None] = []
+        # Position tracking for on_bar exit mechanisms
+        self._in_position: bool = False
+        self._entry_direction: Direction | None = None
+        self._entry_price: float = 0.0
+        self._bars_since_entry: int = 0
+        self._highest_since_entry: float = 0.0
+        self._lowest_since_entry: float = float("inf")
+        self._last_entry_direction: Direction | None = None
         self._max_bars = (
             max(
                 self._atr_period,
@@ -107,15 +122,23 @@ class VolatilityBreakoutStrategy(StrategyBase):
             return
 
         entry, exit_ = self._latest_signal()
-        if entry:
+        if entry and not self._in_position:
+            # Use direction from _latest_signal instead of hardcoded LONG
+            direction = self._last_entry_direction or Direction.LONG
             ctx.emit_signal(
                 bar.symbol,
-                Direction.LONG,
+                direction,
                 strength=0.8,
                 price=bar.close,
                 strategy_id=self.name,
             )
-        elif exit_:
+            self._in_position = True
+            self._entry_direction = direction
+            self._entry_price = bar.close
+            self._bars_since_entry = 0
+            self._highest_since_entry = bar.high
+            self._lowest_since_entry = bar.low
+        elif exit_ and self._in_position:
             ctx.emit_signal(
                 bar.symbol,
                 Direction.FLAT,
@@ -123,6 +146,10 @@ class VolatilityBreakoutStrategy(StrategyBase):
                 price=bar.close,
                 strategy_id=self.name,
             )
+            self._in_position = False
+
+        # on_bar exit mechanisms: profit target + trailing stop + max holding
+        self._check_position_exits(ctx, bar)
 
     def _latest_signal(self) -> tuple[bool, bool]:
         """Compute the latest event-mode signal without rebuilding a DataFrame."""
@@ -197,13 +224,21 @@ class VolatilityBreakoutStrategy(StrategyBase):
         vol_surge = volume_values[-1] > volume_ma * self._volume_threshold
 
         close = close_values[-1]
-        entries_long = (
-            atr_spike and bb_expanding and close > bb_upper and vol_surge and previous_squeeze
+        long_count = (
+            int(atr_spike) + int(bb_expanding) + int(close > bb_upper)
+            + int(vol_surge) + int(previous_squeeze)
         )
-        entries_short = (
-            atr_spike and bb_expanding and close < bb_lower and vol_surge and previous_squeeze
+        short_count = (
+            int(atr_spike) + int(bb_expanding) + int(close < bb_lower)
+            + int(vol_surge) + int(previous_squeeze)
         )
-        entry = entries_long or entries_short
+        entry = long_count >= self._min_conditions or short_count >= self._min_conditions
+        if long_count >= self._min_conditions:
+            self._last_entry_direction = Direction.LONG
+        elif short_count >= self._min_conditions:
+            self._last_entry_direction = Direction.SHORT
+        else:
+            self._last_entry_direction = None
 
         atr_shrink = atr_value < atr_ma * self._atr_shrink_exit
         middle_return = False
@@ -360,9 +395,11 @@ class VolatilityBreakoutStrategy(StrategyBase):
         vol_ma = volume.rolling(self._volume_period).mean()
         vol_surge = volume > vol_ma * self._volume_threshold
 
-        entries_long = atr_spike & bb_expanding & (close > bb_upper) & vol_surge & previous_squeeze
-        entries_short = atr_spike & bb_expanding & (close < bb_lower) & vol_surge & previous_squeeze
-        entries = entries_long | entries_short
+        long_count = atr_spike.astype(int) + bb_expanding.astype(int) + (close > bb_upper).astype(int) + vol_surge.astype(int) + previous_squeeze.astype(int)
+        short_count = atr_spike.astype(int) + bb_expanding.astype(int) + (close < bb_lower).astype(int) + vol_surge.astype(int) + previous_squeeze.astype(int)
+        long_entries = long_count >= self._min_conditions
+        short_entries = short_count >= self._min_conditions
+        entries = long_entries | short_entries
 
         atr_shrink = atr_val < atr_ma * self._atr_shrink_exit
         if self._bb_middle_exit:
@@ -371,7 +408,84 @@ class VolatilityBreakoutStrategy(StrategyBase):
             middle_return = pd.Series(False, index=df.index)
         exits = atr_shrink | middle_return
 
+        # Profit target exit — direction-aware
+        long_profit_exits = profit_target_exit(close, long_entries, self._profit_take_pct, self._max_holding_bars, direction=1)
+        short_profit_exits = profit_target_exit(close, short_entries, self._profit_take_pct, self._max_holding_bars, direction=-1)
+        profit_exits = long_profit_exits | short_profit_exits
+
+        # Trailing stop exit — direction-aware, track HIGH for longs, LOW for shorts
+        highest = high.copy()
+        lowest = low.copy()
+        in_long = False
+        in_short = False
+        for i in range(len(close)):
+            if long_entries.iloc[i] and not in_long and not in_short:
+                in_long = True
+            elif short_entries.iloc[i] and not in_short and not in_long:
+                in_short = True
+            if in_long:
+                highest.iloc[i] = max(float(high.iloc[i]), float(highest.iloc[i - 1]) if i > 0 else float(high.iloc[i]))
+                if exits.iloc[i] or profit_exits.iloc[i]:
+                    in_long = False
+            if in_short:
+                lowest.iloc[i] = min(float(low.iloc[i]), float(lowest.iloc[i - 1]) if i > 0 else float(low.iloc[i]))
+                if exits.iloc[i] or profit_exits.iloc[i]:
+                    in_short = False
+            if not in_long:
+                highest.iloc[i] = float(high.iloc[i])
+            if not in_short:
+                lowest.iloc[i] = float(low.iloc[i])
+
+        long_trailing_exits = close < highest - atr_val * self._trailing_stop_atr_mult
+        short_trailing_exits = close > lowest + atr_val * self._trailing_stop_atr_mult
+        trailing_exits = long_trailing_exits | short_trailing_exits
+
+        exits = exits | profit_exits | trailing_exits
+
         return entries.astype(bool), exits.astype(bool)
+
+    def _check_position_exits(self, ctx: StrategyContext, bar: Bar) -> None:
+        """Check profit target, trailing stop, and max holding exits in on_bar path."""
+        if not self._in_position:
+            return
+
+        self._bars_since_entry += 1
+        self._highest_since_entry = max(self._highest_since_entry, bar.high)
+        self._lowest_since_entry = min(self._lowest_since_entry, bar.low)
+
+        # Profit target exit — direction-aware
+        if self._entry_direction == Direction.LONG:
+            target_price = self._entry_price * (1.0 + self._profit_take_pct)
+            if bar.close >= target_price:
+                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                self._in_position = False
+                return
+        elif self._entry_direction == Direction.SHORT:
+            target_price = self._entry_price * (1.0 - self._profit_take_pct)
+            if bar.close <= target_price:
+                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                self._in_position = False
+                return
+
+        # Max holding bars exit
+        if self._bars_since_entry >= self._max_holding_bars:
+            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            self._in_position = False
+            return
+
+        # Trailing stop exit — direction-aware
+        if self._atr_values and self._atr_values[-1] is not None:
+            atr_val = self._atr_values[-1]
+            if self._entry_direction == Direction.LONG:
+                trailing_level = self._highest_since_entry - atr_val * self._trailing_stop_atr_mult
+                if bar.close < trailing_level:
+                    ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                    self._in_position = False
+            elif self._entry_direction == Direction.SHORT:
+                trailing_level = self._lowest_since_entry + atr_val * self._trailing_stop_atr_mult
+                if bar.close > trailing_level:
+                    ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                    self._in_position = False
 
     def _bars_to_df(self) -> pd.DataFrame:
         if not self._bars:

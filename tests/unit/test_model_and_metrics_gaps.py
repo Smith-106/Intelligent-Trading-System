@@ -262,7 +262,7 @@ class TestPortfolioManagerGaps:
         pos = pm.get_position("ETH/USDT")
         assert pos is not None
         assert pos.quantity == -1.0
-        assert pm.cash == pytest.approx(100200.0)
+        assert pm.cash == pytest.approx(103200.0)
         assert pos.unrealized_pnl == pytest.approx(400.0)
         assert pm.get_strategy_allocation("mean_rev") == 0.4
         assert pm.get_strategy_allocation("missing") == 0.0

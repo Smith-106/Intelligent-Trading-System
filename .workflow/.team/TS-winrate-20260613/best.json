@@ -1,0 +1,57 @@
+{
+  "ant_id": "ANT-3-3",
+  "iteration": 3,
+  "path": [
+    "backtest_validation",
+    "exit_rule_early_exit",
+    "trend_entry_filter",
+    "vol_breakout_entry_filter",
+    "mean_rev_entry_filter"
+  ],
+  "score": 0.35200000000000004,
+  "self_score": 0.88,
+  "candidate_solution": {
+    "type": "object",
+    "summary": "Comprehensive win-rate improvement package: gate win_rate objective + universal profit targets + per-strategy entry/exit tuning",
+    "content": {
+      "implementation_package": {
+        "phase_1_infrastructure": [
+          "Add win_rate objective to optimizer._objective_value() — 1 line change in optimizer.py:160-169",
+          "Add win_rate objective to validation_gate — update gate.py:41 default and CPCV/WFO pass criteria",
+          "Create profit_target_exit() in _runtime.py — shared exit function used by all 6 templates",
+          "Create per-strategy param_space JSON files in config/strategies/"
+        ],
+        "phase_2_entry_relaxation": [
+          "Add min_conditions param to trend_following — change line 239 from AND to count>=min",
+          "Add min_conditions param to mean_reversion — change line 129-131 from AND to count>=min",
+          "Add min_conditions param to volatility_breakout — change line 199-205 from AND to count>=min",
+          "Add RSI threshold ranges to param_space for per-strategy optimization"
+        ],
+        "phase_3_exit_improvement": [
+          "Wire profit_target_exit() into all 6 templates' generate_signals()",
+          "Add trailing_stop_atr_mult to trend_following and volatility_breakout",
+          "Improve mean_reversion exit from bb_middle to opposite band",
+          "Add RSI-adaptive profit targets for trend_following"
+        ],
+        "phase_4_signal_pipeline": [
+          "Replace net-vote with strength-weighted consolidation in generator.py",
+          "Add per-strategy risk budgets to RiskEngine",
+          "Populate PositionSizer with per-strategy actual win_rate"
+        ],
+        "estimated_win_rate_improvement": "Current estimated ~40-50% → target 55-65% with all changes",
+        "key_risk": "Over-optimization to win_rate may reduce profit_factor. The system should track both win_rate AND profit_factor simultaneously."
+      }
+    }
+  },
+  "evidence": [
+    "quantflow/strategy/validation/gate.py:41",
+    "quantflow/strategy/templates/trend_following.py:109-115",
+    "quantflow/strategy/templates/trend_following.py:239",
+    "quantflow/strategy/templates/volatility_breakout.py:199-212",
+    "quantflow/strategy/templates/mean_reversion.py:100-103",
+    "quantflow/strategy/templates/mean_reversion.py:129-131",
+    "quantflow/strategy/research/backtest.py:35",
+    "quantflow/strategy/research/optimizer.py:160-169"
+  ],
+  "updated_at": 1781367176.0746584
+}

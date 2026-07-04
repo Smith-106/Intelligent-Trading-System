@@ -1,0 +1,22 @@
+{
+  "session_id": "TS-winrate-20260613",
+  "team_name": "swarm",
+  "task": "\u93bb\u612c\u5d0c\u6d5c\u3086\u69d7\u7eef\u8364\u7cba\u9428\u52ee\u5128\u941c\udc87",
+  "status": "completed",
+  "iteration": 0,
+  "created_at": "2026-06-13T23:30:00+08:00",
+  "config_path": "swarm-config.json",
+  "role_bindings": {
+    "coordinator": "C:\\Users\\niko\\.claude\\skills\\team-swarm\\roles\\coordinator\\role.md",
+    "ant": "C:\\Users\\niko\\.claude\\skills\\team-swarm\\roles\\ant\\role.md",
+    "scorer": "C:\\Users\\niko\\.claude\\skills\\team-swarm\\roles\\scorer\\role.md",
+    "analyst": "C:\\Users\\niko\\.claude\\skills\\team-swarm\\roles\\analyst\\role.md"
+  },
+  "converged_at": "2026-06-15T12:00:00+08:00",
+  "convergence_reason": "max_iterations",
+  "completed_iterations": [
+    1,
+    2,
+    3
+  ]
+}

@@ -80,6 +80,7 @@ class Position:
     entry_price: float
     current_price: float = 0.0
     unrealized_pnl: float = 0.0
+    strategy_id: str = ""
 
     @property
     def market_value(self) -> float:

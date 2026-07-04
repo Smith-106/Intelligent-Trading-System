@@ -20,6 +20,31 @@ class TestPortfolioManager:
         pm.update_position("BTC/USDT", -1.0, 51000)
         assert "BTC/USDT" not in pm.portfolio.positions
 
+    def test_update_position_applies_cash_and_fee(self):
+        pm = PortfolioManager(100000)
+        pm.update_position("BTC/USDT", 1.0, 50000, fee=50)
+
+        assert pm.cash == 49950
+        assert pm.total_value == 99950
+
+        pm.update_position("BTC/USDT", -0.4, 51000, fee=10)
+        position = pm.get_position("BTC/USDT")
+
+        assert position is not None
+        assert pm.cash == 70340
+        assert position.quantity == 0.6
+        assert position.entry_price == 50000
+        assert position.current_price == 51000
+
+    def test_total_value_respects_short_market_value(self):
+        pm = PortfolioManager(100000)
+        pm.update_position("BTC/USDT", -1.0, 50000)
+
+        assert pm.total_value == 100000
+
+        pm.mark_to_market({"BTC/USDT": 48000})
+        assert pm.total_value == 102000
+
     def test_drawdown_tracking(self):
         pm = PortfolioManager(100000)
         pm.update_position("BTC/USDT", 1.0, 50000)

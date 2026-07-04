@@ -10,7 +10,16 @@ import pytest
 
 from quantflow.common.config import AlertChannelConfig, AppConfig, MonitoringConfig
 from quantflow.common.event_bus import EVENT_RISK, Event
-from quantflow.common.models import Bar, Direction, OrderRequest, OrderSide, RiskDecision, Signal
+from quantflow.common.models import (
+    Bar,
+    Direction,
+    Order,
+    OrderRequest,
+    OrderSide,
+    OrderStatus,
+    RiskDecision,
+    Signal,
+)
 from quantflow.execution.gateway_base import GatewayBase
 from quantflow.strategy.base import StrategyBase, StrategyContext
 from quantflow.strategy.engine import TradingSession
@@ -128,6 +137,31 @@ class TestTradingSessionExtra:
         assert allocation_calls == [{"alpha": 0.5, "beta": 0.5}]
 
     @pytest.mark.asyncio
+    async def test_start_only_attempts_metrics_server_once_per_port(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        strategies = [_Strategy("alpha")]
+        first = TradingSession(AppConfig(), strategies)
+        second = TradingSession(AppConfig(), strategies)
+
+        async def fake_start(mode: str = "paper", gateway_config=None) -> None:
+            return None
+
+        monkeypatch.setattr(first.execution, "start", fake_start)
+        monkeypatch.setattr(second.execution, "start", fake_start)
+
+        calls: list[int] = []
+        monkeypatch.setattr(
+            "quantflow.strategy.engine.start_metrics_server", lambda port: calls.append(port)
+        )
+        monkeypatch.setattr("quantflow.strategy.engine._ATTEMPTED_METRICS_PORTS", set())
+
+        await first.start(mode="paper")
+        await second.start(mode="paper")
+
+        assert calls == [first._config.monitoring.prometheus_port]
+
+    @pytest.mark.asyncio
     async def test_on_bar_returns_early_when_not_running_or_kill_switch_active(self) -> None:
         signal = Signal(
             symbol="BTC/USDT",
@@ -226,14 +260,23 @@ class TestTradingSessionExtra:
 
         submitted: list[tuple[str, str, float]] = []
 
-        async def fake_submit_order(request: OrderRequest) -> object:
+        async def fake_submit_order(request: OrderRequest) -> Order:
             submitted.append((request.strategy_id, request.side.value, request.quantity))
-            return object()
+            return Order(
+                order_id="submitted",
+                symbol=request.symbol,
+                side=request.side,
+                order_type=request.order_type,
+                quantity=request.quantity,
+                price=request.price,
+                status=OrderStatus.SUBMITTED,
+                strategy_id=request.strategy_id,
+            )
 
         session.execution.submit_order = fake_submit_order
 
         size_iter = iter([0.0, 20.0, 15.0])
-        session._position_sizer.size = lambda signal, portfolio: next(size_iter)
+        session._position_sizer.size = lambda signal, portfolio, **kw: next(size_iter)
 
         await session._process_signal(
             Signal("BTC/USDT", Direction.LONG, strength=0.5, price=100.0, strategy_id="zero")
@@ -249,6 +292,52 @@ class TestTradingSessionExtra:
             ("long", "buy", 0.1),
             ("short", "sell", 0.3),
         ]
+
+    @pytest.mark.asyncio
+    async def test_process_signal_syncs_portfolio_and_metrics_on_fill(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        session = TradingSession(AppConfig(), [_Strategy()])
+        session._running = True
+        session.portfolio.set_allocation({"filled": 1.0})
+        session._risk_engine.check = lambda signal, portfolio: RiskDecision(passed=True)
+        session._position_sizer.size = lambda signal, portfolio, **kw: 25.0
+
+        metric_updates: list[dict[str, float | int]] = []
+        monkeypatch.setattr(
+            "quantflow.strategy.engine.update_portfolio_metrics",
+            lambda **kwargs: metric_updates.append(kwargs),
+        )
+
+        async def fake_submit_order(request: OrderRequest) -> Order:
+            return Order(
+                order_id="filled-1",
+                symbol=request.symbol,
+                side=request.side,
+                order_type=request.order_type,
+                quantity=request.quantity,
+                price=request.price,
+                status=OrderStatus.FILLED,
+                filled_quantity=request.quantity,
+                filled_price=110.0,
+                fee=2.5,
+                strategy_id=request.strategy_id,
+            )
+
+        session.execution.submit_order = fake_submit_order
+
+        await session._process_signal(
+            Signal("BTC/USDT", Direction.LONG, strength=0.5, price=100.0, strategy_id="filled")
+        )
+
+        position = session.portfolio.get_position("BTC/USDT")
+        assert position is not None
+        assert position.quantity == pytest.approx(0.25)
+        assert position.entry_price == pytest.approx(110.0)
+        assert session.portfolio.cash == pytest.approx(99970.0)
+        assert metric_updates[-1]["cash"] == pytest.approx(99970.0)
+        assert metric_updates[-1]["total_value"] == pytest.approx(99997.5)
+        assert metric_updates[-1]["n_positions"] == 1
 
     @pytest.mark.asyncio
     async def test_on_bar_records_bar_and_signal_latency_metrics(
@@ -277,7 +366,7 @@ class TestTradingSessionExtra:
         session._contexts = {"latency": StrategyContext()}
         session.portfolio.set_allocation({"latency": 1.0})
         session._risk_engine.check = lambda signal, portfolio: RiskDecision(passed=True)
-        session._position_sizer.size = lambda signal, portfolio: 0.0
+        session._position_sizer.size = lambda signal, portfolio, **kw: 0.0
 
         monkeypatch.setattr(
             session.execution.position_manager, "update_market_price", lambda symbol, price: None
@@ -330,6 +419,7 @@ class TestTradingSessionExtra:
     ) -> None:
         session = TradingSession(AppConfig(), [_Strategy()])
         session._running = True
+        session._config.execution.mode = "live"
         seen: list[int] = []
         timeout_checks: list[str] = []
         health_checks: list[str] = []
@@ -423,6 +513,7 @@ class TestTradingSessionExtra:
     ) -> None:
         session = TradingSession(AppConfig(), [_Strategy()])
         session._running = True
+        session._config.execution.mode = "live"
         stopped: list[str] = []
 
         class FakeFetcher:
@@ -464,6 +555,7 @@ class TestTradingSessionExtra:
     ) -> None:
         session = TradingSession(AppConfig(), [_Strategy()])
         session._running = True
+        session._config.execution.mode = "live"
         seen: list[int] = []
         health_checks: list[str] = []
         timeout_checks: list[str] = []
@@ -537,3 +629,103 @@ class TestTradingSessionExtra:
         assert seen == [10]
         assert health_checks == ["ok", "ok"]
         assert timeout_checks == ["tick", "tick"]
+
+    @pytest.mark.asyncio
+    async def test_run_data_loop_prefers_local_parquet_replay_for_paper_mode(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        session = TradingSession(AppConfig(), [_Strategy()])
+        session._running = True
+        session._config.execution.mode = "paper"
+        seen: list[int] = []
+        timeout_checks: list[str] = []
+        health_checks: list[str] = []
+
+        async def fake_on_bar(bar: Bar) -> None:
+            seen.append(bar.timestamp)
+            if bar.timestamp >= 2:
+                session._running = False
+
+        def fake_check_health() -> dict[str, bool]:
+            health_checks.append("ok")
+            return {"running": session._running}
+
+        def fake_check_timeouts() -> list[str]:
+            timeout_checks.append("tick")
+            return []
+
+        session.on_bar = fake_on_bar
+        session.check_health = fake_check_health
+        session.execution.check_timeouts = fake_check_timeouts
+
+        class FakeStore:
+            def __init__(self, parquet_dir: str, duckdb_path: str) -> None:
+                assert duckdb_path == ":memory:"
+                self.calls = 0
+                self.closed = False
+
+            def query(
+                self,
+                symbol: str,
+                start: int | None = None,
+                end: int | None = None,
+                timeframe: str | None = None,
+                columns=None,
+            ) -> pd.DataFrame:
+                self.calls += 1
+                if self.calls == 1:
+                    assert timeframe == "1h"
+                    return pd.DataFrame()
+                if self.calls == 2:
+                    return pd.DataFrame(
+                        [
+                            {
+                                "timestamp": 1,
+                                "open": 99.0,
+                                "high": 101.0,
+                                "low": 98.0,
+                                "close": 100.0,
+                                "volume": 10.0,
+                                "timeframe": "1d",
+                            },
+                            {
+                                "timestamp": 2,
+                                "open": 100.0,
+                                "high": 102.0,
+                                "low": 99.0,
+                                "close": 101.0,
+                                "volume": 11.0,
+                                "timeframe": "1d",
+                            },
+                        ]
+                    )
+                assert timeframe is None
+                assert start == 3
+                return pd.DataFrame()
+
+            def close(self) -> None:
+                self.closed = True
+
+        def fail_fetcher_factory(config: object) -> object:
+            raise AssertionError("paper local replay should not instantiate DataFetcher")
+
+        store_holder: dict[str, FakeStore] = {}
+
+        def fake_store_factory(parquet_dir: str, duckdb_path: str) -> FakeStore:
+            store_holder["store"] = FakeStore(parquet_dir, duckdb_path)
+            return store_holder["store"]
+
+        async def fake_sleep(seconds: int) -> None:
+            return None
+
+        monkeypatch.setattr("quantflow.data.store.DataStore", fake_store_factory)
+        monkeypatch.setattr("quantflow.data.fetcher.DataFetcher", fail_fetcher_factory)
+        monkeypatch.setattr("quantflow.strategy.engine.asyncio.sleep", fake_sleep)
+
+        await session.run_data_loop("BTC/USDT", timeframe="1h", interval_seconds=0)
+
+        assert seen == [1, 2]
+        assert health_checks == ["ok"]
+        assert timeout_checks == ["tick"]
+        assert session.last_error is None
+        assert store_holder["store"].closed is True

@@ -1,0 +1,22 @@
+{
+  "nodes": [
+    "trend_entry_filter",
+    "mean_rev_entry_filter",
+    "vol_breakout_entry_filter",
+    "rsi_threshold_tuning",
+    "macd_threshold_tuning",
+    "atr_threshold_tuning",
+    "volume_threshold_tuning",
+    "exit_rule_early_exit",
+    "exit_rule_trailing_stop",
+    "risk_engine_signal_filter",
+    "signal_consolidation",
+    "multi_strategy_combination",
+    "param_optimization_search",
+    "backtest_validation"
+  ],
+  "n_nodes": 14,
+  "max_path_length": 5,
+  "start_nodes": "any",
+  "edges": "complete"
+}

@@ -1,0 +1,135 @@
+{
+  "version": "3.1",
+  "project_name": "QuantFlow",
+  "status": "active",
+  "current_milestone": "M2",
+  "current_task_id": "M2-P3-release-evidence",
+  "milestones": [
+    {
+      "id": "M1",
+      "name": "四策略实现",
+      "type": "standard",
+      "status": "completed",
+      "phases": [
+        {
+          "id": 1,
+          "name": "策略实现与验证",
+          "slug": "strategy-implementation",
+          "status": "completed"
+        }
+      ],
+      "phase_slugs": {
+        "1": "strategy-implementation"
+      },
+      "roadmap_ref": ".workflow/roadmap.md",
+      "created_at": "2026-06-02T04:30:00Z",
+      "completed_at": "2026-06-02T23:55:00Z"
+    },
+    {
+      "id": "M2",
+      "name": "v0.1.3 发布候选准备",
+      "type": "release",
+      "status": "in_progress",
+      "phases": [
+        {
+          "id": 1,
+          "name": "版本与工作流对齐",
+          "slug": "release-alignment",
+          "status": "completed"
+        },
+        {
+          "id": 2,
+          "name": "打包治理与制品重建",
+          "slug": "package-governance",
+          "status": "completed"
+        },
+        {
+          "id": 3,
+          "name": "发布证据与远端对齐",
+          "slug": "release-evidence",
+          "status": "in_progress"
+        }
+      ],
+      "phase_slugs": {
+        "1": "release-alignment",
+        "2": "package-governance",
+        "3": "release-evidence"
+      },
+      "roadmap_ref": ".workflow/roadmap.md",
+      "created_at": "2026-06-07T09:27:00+08:00"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "PLAN-001",
+      "type": "plan",
+      "milestone": "M1",
+      "phase": 1,
+      "path": ".workflow/scratch/20260602-plan-P1-strategy-implementation",
+      "created_at": "2026-06-02T04:30:00Z"
+    },
+    {
+      "id": "ANL-001",
+      "type": "analyze",
+      "scope": "adhoc",
+      "status": "completed",
+      "milestone": null,
+      "phase": null,
+      "path": ".workflow/scratch/20260606-analyze-intelligent-trading-performance",
+      "context_package": ".workflow/scratch/20260606-analyze-intelligent-trading-performance/context-package.json",
+      "harvested": true,
+      "created_at": "2026-06-06T00:00:00+08:00",
+      "completed_at": "2026-06-06T00:00:00+08:00"
+    },
+    {
+      "id": "REL-001",
+      "type": "release-prep",
+      "status": "completed",
+      "milestone": "M2",
+      "phase": 2,
+      "path": "docs/release/v0.1.3",
+      "created_at": "2026-06-07T09:27:00+08:00",
+      "completed_at": "2026-06-07T09:27:00+08:00"
+    }
+  ],
+  "last_updated": "2026-06-07T09:27:00+08:00",
+  "accumulated_context": {
+    "key_decisions": [
+      "自建事件驱动引擎(TradingSession)",
+      "防过拟合体系CPCV+DSR+PBO+WFO",
+      "半Kelly+VaR/CVaR+回撤熔断风控",
+      "策略继承StrategyBase+YAML配置",
+      "新增 volatility_breakout/funding_rate/momentum_rotation/ml_ensemble 策略已完成 CLI/research/optimize/validate 接线",
+      "发布候选从 v0.1.2 提升到 v0.1.3，以对齐当前 HEAD 与后续 tag/release"
+    ],
+    "blockers": [
+      "当前 HEAD 与 v0.1.2 tag 不一致，不能继续复用 v0.1.2 作为发布基线",
+      "远端尚未创建 v0.1.3 tag 与 GitHub Release",
+      "远端发布证据、安全扫描与 installed-wheel 冒烟记录尚未补齐"
+    ],
+    "deferred": [
+      "GitHub tag/release 创建与远端资产核验",
+      "pip-audit 或等价依赖安全扫描归档",
+      "干净环境安装 wheel 后的 CLI 冒烟与发布记录",
+      "paper/live 运行证据补齐"
+    ]
+  },
+  "transition_history": [],
+  "milestone_history": [
+    {
+      "milestone_id": "M1",
+      "event": "completed",
+      "at": "2026-06-02T23:55:00Z"
+    },
+    {
+      "milestone_id": "M2",
+      "event": "started",
+      "at": "2026-06-07T09:27:00+08:00"
+    },
+    {
+      "milestone_id": "M2",
+      "event": "local-release-candidate-ready",
+      "at": "2026-06-07T09:27:00+08:00"
+    }
+  ]
+}

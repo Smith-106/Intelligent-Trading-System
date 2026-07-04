@@ -1,0 +1,167 @@
+{
+  "ant_id": "ANT-1-3",
+  "iteration": 1,
+  "start_node": "mean_rev_exit_validation",
+  "path": [
+    "mean_rev_exit_validation",
+    "backtest_edge_cases",
+    "profit_target_calibration",
+    "rsi_adaptive_effectiveness",
+    "win_rate_profit_factor_tradeoff"
+  ],
+  "path_decisions": [
+    {
+      "from": "mean_rev_exit_validation",
+      "to": "backtest_edge_cases",
+      "rationale": "Discovered critical SHORT-direction bug in profit_target_exit() -- function only checks close >= entry_price*(1+pct), which never triggers for SHORT positions where close must fall below entry. This is the #1 bottleneck reducing win rate for mean_reversion and funding_rate strategies.",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": false
+    },
+    {
+      "from": "backtest_edge_cases",
+      "to": "profit_target_calibration",
+      "rationale": "Found config/code default mismatches across all strategies -- YAML configs define different profit_take_pct values than code defaults, and backtests likely run against code defaults, producing misleading optimization results.",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": false
+    },
+    {
+      "from": "profit_target_calibration",
+      "to": "rsi_adaptive_effectiveness",
+      "rationale": "RSI-adaptive profit targets are only implemented in trend_following; mean_reversion, volatility_breakout, momentum_rotation, funding_rate, and elliott_wave all lack adaptive targets despite RSI being computed in mean_reversion. This is a direct win rate limiter for the mean-reversion family.",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": false
+    },
+    {
+      "from": "rsi_adaptive_effectiveness",
+      "to": "win_rate_profit_factor_tradeoff",
+      "rationale": "Multiple missing mechanisms compound: (1) no trailing stop in mean_reversion on_bar path, (2) no stop_loss at all in profit_target_exit, (3) event-driven path completely missing profit_target_exit and max_holding_bars, (4) signal_quality_metrics uses next-bar return as win rate proxy but actual strategy win rate depends on full trade lifecycle.",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": false
+    }
+  ],
+  "self_score": 0.85,
+  "self_confidence": 0.82,
+  "candidate_solution": {
+    "type": "object",
+    "summary": "5 critical bottlenecks limiting win rate to <65%, with code evidence and specific fixes",
+    "content": {
+      "bottlenecks": [
+        {
+          "id": "B1",
+          "severity": "critical",
+          "title": "profit_target_exit() broken for SHORT positions",
+          "file": "quantflow/strategy/templates/_runtime.py:167-169",
+          "evidence": "target_price = entry_price * (1.0 + profit_take_pct) and close >= target_price -- this logic ONLY checks if price went UP. For SHORT entries, profit occurs when price goes DOWN. The function needs direction awareness: for SHORT, target = entry_price * (1 - pct) and check close <= target.",
+          "impact": "All SHORT-side trades from mean_reversion, volatility_breakout, funding_rate, momentum_rotation strategies NEVER hit profit target, relying solely on time-based max_holding_bars exit or other exit signals. This directly reduces win rate by forcing profitable SHORT trades into arbitrary time-based exits.",
+          "fix": "Add direction parameter to profit_target_exit(); use entry_direction to select target_price = entry_price * (1 + pct) for LONG and entry_price * (1 - pct) for SHORT"
+        },
+        {
+          "id": "B2",
+          "severity": "high",
+          "title": "Event-driven on_bar path missing profit_target_exit and max_holding_bars for mean_reversion",
+          "file": "quantflow/strategy/templates/mean_reversion.py:51-80",
+          "evidence": "on_bar() calls _latest_signal() which returns (entry_direction, exit_bool). The exit_bool at line 107-109 only checks bb_upper/bb_lower x 0.98 + exit_rsi conditions. No profit_target_exit or max_holding_bars check exists. Only generate_signals() at line 146 applies profit_target_exit.",
+          "impact": "In live/paper trading (event-driven mode), mean_reversion positions can be held indefinitely if price never reaches the opposite band. This causes both: (a) winning trades that revert slowly lose their gains to eventual adverse moves, and (b) losing trades held too long amplify losses.",
+          "fix": "Add position tracking state to MeanReversionStrategy (entry_price, bars_since_entry) and check profit_target/max_holding in on_bar()"
+        },
+        {
+          "id": "B3",
+          "severity": "high",
+          "title": "Config YAML vs code default parameter mismatches",
+          "files": [
+            "quantflow/config/strategies/mean_reversion.yaml:18-19 vs mean_reversion.py:40-41",
+            "quantflow/config/strategies/trend_following.yaml:21 vs trend_following.py:54",
+            "quantflow/config/strategies/volatility_breakout.yaml:18 vs volatility_breakout.py:49"
+          ],
+          "evidence": "mean_reversion YAML: take_profit_pct=0.05, trailing_stop_pct=0.02 -- but code default profit_take_pct=0.03 and no trailing_stop_pct param. trend_following YAML: take_profit_pct=0.15 -- code default=0.10. volatility_breakout YAML: take_profit_pct=0.10, trailing_stop_atr_multiplier=2.0 -- code default profit_take_pct=0.05, trailing_stop_atr_mult=2.5. The YAML keys (take_profit_pct, stop_loss_pct) don't match code param names (profit_take_pct).",
+          "impact": "Backtests may use code defaults while traders think YAML is active. The key name mismatch (take_profit_pct vs profit_take_pct) means YAML config may never be read into strategy params, making all 'configured' values dead letters.",
+          "fix": "Unify YAML param keys with code param names; add config loading bridge in strategy __init__ that reads YAML values into _params"
+        },
+        {
+          "id": "B4",
+          "severity": "medium",
+          "title": "RSI-adaptive profit targets missing from mean_reversion, volatility_breakout, and other strategies",
+          "file": "quantflow/strategy/templates/trend_following.py:257-267",
+          "evidence": "Only trend_following.py implements RSI-adaptive profit targets (lines 257-267): when RSI>70 at entry, tighten target to 80%; when RSI<30, loosen to 120%. mean_reversion.py computes RSI at line 127 but never uses it for adaptive exit sizing. volatility_breakout has no RSI-adaptive logic either.",
+          "impact": "For mean_reversion specifically, entries near RSI 30 (oversold) suggest stronger reversion potential -> should use wider profit targets. Entries near RSI 50 (weak signal) should use tighter targets. Without adaptation, the fixed 3% target either cuts winners short or lets mean-reverted trades reverse.",
+          "fix": "Add rsi_adaptive_profit boolean param to mean_reversion.py, implementing same logic as trend_following: oversold entries get 1.2x target, overbought entries get 0.8x target"
+        },
+        {
+          "id": "B5",
+          "severity": "medium",
+          "title": "No stop_loss mechanism in profit_target_exit -- only profit_target + max_holding",
+          "file": "quantflow/strategy/templates/_runtime.py:131-173",
+          "evidence": "profit_target_exit() has only two exit conditions: (1) close >= target_price (profit), (2) bars_since_entry >= max_holding_bars (time). There is no stop_loss_pct parameter or downside exit. The triple_barrier_labels() in barriers.py does implement all three barriers but is only used for validation labeling, not live exit logic.",
+          "impact": "Without stop_loss, adverse trades held until max_holding_bars accumulate full loss. For mean_reversion with max_holding_bars=10 on 4h bars, that is 40 hours of drawdown with no protection. This disproportionately hurts win rate because a single large loss wipes out many small wins.",
+          "fix": "Add stop_loss_pct parameter to profit_target_exit() and check close <= entry_price * (1 - stop_loss_pct) for LONG / close >= entry_price * (1 + stop_loss_pct) for SHORT"
+        }
+      ],
+      "interaction_effects": [
+        {
+          "pair": "profit_target_exit + trailing_stop (trend_following)",
+          "issue": "In trend_following.py:292-294, trailing_exits is computed AFTER profit_exits. But the in_pos tracking loop at lines 282-291 resets in_pos=False on EITHER exits OR profit_exits. This means trailing_exits can trigger on the same bar as profit_target_exit, creating a double-exit that is benign for backtesting but could cause issues in live trading (two FLAT signals emitted).",
+          "severity": "low"
+        },
+        {
+          "pair": "min_conditions + volume_threshold interaction (mean_reversion)",
+          "issue": "mean_reversion.py:97-105 uses vol_ok as one of 3 conditions counted toward min_conditions=2. But the volume_threshold code default is 0.8 while YAML sets it to 1.2. At 0.8, volume confirmation is nearly always satisfied (80% of volume MA), making it a near-free condition. At 1.2, it filters meaningfully. This means code-default backtests over-count vol_ok as a confirming condition, inflating entry count with weak signals.",
+          "severity": "medium"
+        }
+      ],
+      "missing_mechanisms": [
+        "No stop_loss in profit_target_exit (B5)",
+        "No RSI-adaptive targets in mean_reversion (B4)",
+        "No trailing stop in mean_reversion at all (YAML defines trailing_stop_pct:0.02 but code doesn't use it)",
+        "No partial profit taking (common in top quant systems: close 50% at 1R, let rest run)",
+        "No dynamic ATR-based position sizing in profit_target (use ATR to set target distance)"
+      ],
+      "estimated_win_rate_impact": {
+        "B1": "SHORT bug: -5 to -8% win rate (all SHORT trades lose profit target exit)",
+        "B2": "Event-driven gap: -3 to -5% in live mode (positions held too long)",
+        "B3": "Config mismatch: -2 to -4% (suboptimal params used vs intended)",
+        "B4": "No RSI-adaptive: -2 to -3% (fixed targets cut winners or let losers run)",
+        "B5": "No stop_loss: -3 to -5% (large losses disproportionate impact on win rate)"
+      }
+    }
+  },
+  "evidence_anchors": [
+    {
+      "node": "mean_rev_exit_validation",
+      "ref": "quantflow/strategy/templates/_runtime.py:167",
+      "quote": "target_price = entry_price * (1.0 + profit_take_pct)",
+      "note": "Only works for LONG direction; SHORT positions never reach this target"
+    },
+    {
+      "node": "mean_rev_exit_validation",
+      "ref": "quantflow/strategy/templates/mean_reversion.py:107-109",
+      "quote": "exit_ = (close > bb_upper * 0.98 and rsi > self._exit_rsi_overbought) or (close < bb_lower * 0.98 and rsi < self._exit_rsi_oversold)",
+      "note": "Event-driven exit logic has no profit_target or max_holding check"
+    },
+    {
+      "node": "backtest_edge_cases",
+      "ref": "quantflow/strategy/templates/mean_reversion.py:146",
+      "quote": "profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars)",
+      "note": "generate_signals uses profit_target_exit but on_bar does not -- backtest/live inconsistency"
+    },
+    {
+      "node": "profit_target_calibration",
+      "ref": "quantflow/config/strategies/mean_reversion.yaml:18-19",
+      "quote": "take_profit_pct: 0.05\\ntrailing_stop_pct: 0.02",
+      "note": "YAML uses take_profit_pct (0.05) but code uses profit_take_pct (0.03); trailing_stop_pct defined but never read"
+    },
+    {
+      "node": "rsi_adaptive_effectiveness",
+      "ref": "quantflow/strategy/templates/trend_following.py:258-266",
+      "quote": "if self._rsi_adaptive_profit:\\n    rsi_at_entry = rsi[entries]\\n    if avg_entry_rsi > 70:\\n        effective_pct = self._profit_take_pct * 0.8",
+      "note": "RSI-adaptive targets implemented only in trend_following, missing from all other strategies"
+    }
+  ],
+  "notes": "The SHORT-direction bug in profit_target_exit (B1) is likely the single largest win rate bottleneck. Combined with the event-driven path gap (B2), mean_reversion SHORT trades in live mode have almost no profitable exit mechanism beyond the bb_lower*0.98 RSI exit, which only triggers when price returns near the band -- effectively a mean-reversion wait rather than a profit capture. The config/code mismatch (B3) means all backtesting to date may have used suboptimal defaults.",
+  "files_produced": [],
+  "artifacts_written": "C:\\Users\\niko\\Desktop\\智能交易系统\\.workflow\\.team\\TS-winrate-v2-20260615\\artifacts\\ant-1-ANT-1-3.json",
+  "verification_method": "schema_validated + node_validity_checked"
+}

@@ -18,8 +18,13 @@ class RiskEngine:
     Checks are run in order; the first failure short-circuits.
     """
 
-    def __init__(self, config: RiskConfig) -> None:
+    def __init__(
+        self,
+        config: RiskConfig,
+        strategy_risk_budgets: dict[str, float] | None = None,
+    ) -> None:
         self._config = config
+        self._strategy_risk_budgets = strategy_risk_budgets or {}
         self._weekly_pnl_pct: float = 0.0
         self._returns_history: list[float] = []
 
@@ -38,6 +43,7 @@ class RiskEngine:
         checks = [
             self._check_position_limit,
             self._check_portfolio_limit,
+            self._check_strategy_budget,
             self._check_daily_loss,
             self._check_weekly_loss,
             self._check_drawdown,
@@ -83,6 +89,37 @@ class RiskEngine:
                         "limit": self._config.max_positions,
                     },
                 )
+        return RiskDecision(passed=True)
+
+    def _check_strategy_budget(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
+        """Check per-strategy risk budget allocation."""
+        if not self._strategy_risk_budgets or signal.strategy_id not in self._strategy_risk_budgets:
+            return RiskDecision(passed=True)
+
+        budget_pct = self._strategy_risk_budgets[signal.strategy_id]
+        total_value = portfolio.total_value
+        if total_value <= 0:
+            return RiskDecision(passed=True)
+
+        # Sum position values from same strategy (filter by strategy_id)
+        strategy_exposure = 0.0
+        for pos in portfolio.positions.values():
+            if pos.strategy_id == signal.strategy_id:
+                pos_value = abs(pos.quantity) * pos.current_price if pos.current_price > 0 else 0
+                strategy_exposure += pos_value
+
+        budget_limit = total_value * budget_pct
+        if strategy_exposure >= budget_limit:
+            return RiskDecision(
+                passed=False,
+                reason="strategy_budget",
+                details={
+                    "strategy_id": signal.strategy_id,
+                    "exposure": strategy_exposure,
+                    "budget": budget_limit,
+                    "budget_pct": budget_pct,
+                },
+            )
         return RiskDecision(passed=True)
 
     def _check_daily_loss(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:

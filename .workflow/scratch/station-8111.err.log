@@ -1,0 +1,40 @@
+Query failed for BTC/USDT: Binder Error: Referenced column "data_source" not found in FROM clause!
+Candidate bindings: "timeframe"
+
+LINE 2:                 SELECT timestamp, data_source FROM read_parquet(['data/parquet/BTC_USDT/2026...
+                                          ^
+Query failed for BTC/USDT: Binder Error: Referenced column "data_source" not found in FROM clause!
+Candidate bindings: "timeframe"
+
+LINE 2:                 SELECT timestamp, data_source FROM read_parquet(['data/parquet/BTC_USDT/2026...
+                                          ^
+Query failed for BTC/USDT: Binder Error: Referenced column "data_source" not found in FROM clause!
+Candidate bindings: "timeframe"
+
+LINE 2:                 SELECT timestamp, data_source FROM read_parquet(['data/parquet/BTC_USDT/2026...
+                                          ^
+Query failed for BTC/USDT: Binder Error: Referenced column "data_source" not found in FROM clause!
+Candidate bindings: "timeframe"
+
+LINE 2:                 SELECT timestamp, data_source FROM read_parquet(['data/parquet/BTC_USDT/2026...
+                                          ^
+Query failed for BTC/USDT: Binder Error: Referenced column "data_source" not found in FROM clause!
+Candidate bindings: "timeframe"
+
+LINE 2:                 SELECT timestamp, data_source FROM read_parquet(['data/parquet/BTC_USDT/2026...
+                                          ^
+Query failed for BTC/USDT: Binder Error: Referenced column "data_source" not found in FROM clause!
+Candidate bindings: "timeframe"
+
+LINE 2:                 SELECT timestamp, data_source FROM read_parquet(['data/parquet/BTC_USDT/2026...
+                                          ^
+Query failed for BTC/USDT: Binder Error: Referenced column "data_source" not found in FROM clause!
+Candidate bindings: "timeframe"
+
+LINE 2:                 SELECT timestamp, data_source FROM read_parquet(['data/parquet/BTC_USDT/2026...
+                                          ^
+Query failed for BTC/USDT: Binder Error: Referenced column "data_source" not found in FROM clause!
+Candidate bindings: "timeframe"
+
+LINE 2:                 SELECT timestamp, data_source FROM read_parquet(['data/parquet/BTC_USDT/2026...
+                                          ^

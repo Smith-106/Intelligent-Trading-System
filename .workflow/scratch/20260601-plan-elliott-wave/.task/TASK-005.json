@@ -1,0 +1,20 @@
+{
+  "task_id": "TASK-005",
+  "title": "波浪通道线 + 背离检测器",
+  "feature": "F-003",
+  "wave": 2,
+  "priority": "P1",
+  "status": "pending",
+  "files_to_create": ["quantflow/indicators/wave_channel.py", "quantflow/indicators/divergence.py"],
+  "files_to_modify": ["quantflow/indicators/engine.py"],
+  "description": "波浪通道线判定浪5终点，背离检测验证浪5末端和浪2/4底部。DivergenceDetector 接口改为接收 WaveCount（C-003）。",
+  "acceptance_criteria": [
+    "WaveChannel 继承 FactorBase，连接W1/W3高点画上轨，平行画下轨",
+    "WaveChannel 输出 w5_target 供策略使用 (S-004)",
+    "DivergenceDetector.detect(wave_count: WaveCount) 接口 (C-003)",
+    "MACD顶背离检测（W5 vs W3浪级比较）",
+    "成交量背离检测",
+    "在 FactorRegistry 注册 wave_channel 和 divergence 因子"
+  ],
+  "cross_refs": ["C-003 (接口改为WaveCount)", "S-004 (WaveChannel辅助浪5判定)"]
+}

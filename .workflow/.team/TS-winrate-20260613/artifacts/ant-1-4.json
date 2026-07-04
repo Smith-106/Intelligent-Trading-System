@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0",
+  "ant_id": "ANT-1-4",
+  "iteration": 1,
+  "assignment": {
+    "start_node": "param_optimization_search",
+    "max_path_length": 5
+  },
+  "path": [
+    "param_optimization_search",
+    "trend_entry_filter",
+    "rsi_threshold_tuning",
+    "exit_rule_early_exit",
+    "backtest_validation"
+  ],
+  "path_decisions": [
+    {
+      "from": "param_optimization_search",
+      "to": "trend_entry_filter",
+      "rationale": "Optimizer lacks win_rate objective (line 160-169 only supports sharpe/sortino/calmar/return); entry filters are the highest-leverage win-rate knob since they control which trades are taken",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": false
+    },
+    {
+      "from": "trend_entry_filter",
+      "to": "rsi_threshold_tuning",
+      "rationale": "Trend entry requires ALL 5 conditions simultaneously (AND logic at line 239); RSI overbought=70/oversold=30 defaults are too loose for crypto win-rate optimization; tightening is the simplest param change",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": false
+    },
+    {
+      "from": "rsi_threshold_tuning",
+      "to": "exit_rule_early_exit",
+      "rationale": "Current exit only triggers on trend-reversal signals (line 109-115); triple-barrier method exists (barriers.py) but is NOT wired into strategy templates; early profit-taking exits would directly boost win rate",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": true
+    },
+    {
+      "from": "exit_rule_early_exit",
+      "to": "backtest_validation",
+      "rationale": "All proposed changes must pass validation gate; gate.py defaults to sharpe objective (line 41) which conflicts with win_rate optimization — need to add win_rate objective to validation pipeline",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.077,
+      "deviation_from_hint": true
+    }
+  ],
+  "self_score": 0.82,
+  "self_confidence": 0.75,
+  "cost_tokens": 0,
+  "cost_seconds": 0,
+  "evidence": [
+    "quantflow/strategy/research/optimizer.py:160-169",
+    "quantflow/strategy/templates/trend_following.py:239",
+    "quantflow/strategy/templates/trend_following.py:46-51",
+    "quantflow/strategy/templates/trend_following.py:109-115",
+    "quantflow/strategy/templates/mean_reversion.py:95-98",
+    "quantflow/strategy/templates/volatility_breakout.py:199-205",
+    "quantflow/strategy/validation/gate.py:41",
+    "quantflow/strategy/research/backtest.py:150",
+    "quantflow/strategy/validation/barriers.py:18-23",
+    "quantflow/signal/position_sizer.py:39-40",
+    "quantflow/strategy/validation/signal_quality.py:46-52",
+    "quantflow/config/strategies/trend_following.yaml:8-9"
+  ],
+  "candidate_solution": {
+    "type": "object",
+    "summary": "5 concrete code changes to improve win rate: (1) add win_rate objective to optimizer, (2) soften trend entry AND-logic, (3) tighten RSI thresholds, (4) wire triple-barrier early exits, (5) add win_rate objective to validation gate",
+    "content": {
+      "change_1": {
+        "node": "param_optimization_search",
+        "title": "Add 'win_rate' objective to StrategyOptimizer._objective_value()",
+        "file": "quantflow/strategy/research/optimizer.py",
+        "lines": "160-169",
+        "current": "Only supports sharpe/sortino/calmar/return — win_rate is computed in BacktestResult (backtest.py:35) but never exposed as optimization target",
+        "proposed": "Add 'objective == \"win_rate\": return float(result.win_rate)' branch. This allows running optimization with objective='win_rate' to directly maximize the hit rate instead of risk-adjusted return.",
+        "estimated_impact": "high",
+        "rationale": "Currently all optimization (including CPCV and WFO) targets Sharpe. A strategy can have high Sharpe with ~40% win rate if wins are much larger than losses. Targeting win_rate directly enables finding parameter sets that produce more consistent small wins."
+      },
+      "change_2": {
+        "node": "trend_entry_filter",
+        "title": "Relax trend entry AND-logic to 'at least N-of-M' condition scoring",
+        "file": "quantflow/strategy/templates/trend_following.py",
+        "lines": "239",
+        "current": "entries = trend_up & rsi_ok_long & vol_ok & atr_ok — ALL 5 conditions must be true simultaneously, producing very few signals",
+        "proposed": "Add a 'min_conditions' parameter (default=4) so entry triggers when at least N of the 5 conditions hold. For win_rate optimization, requiring 4-of-5 instead of 5-of-5 allows more trades while still filtering low-quality setups. The min_conditions param becomes part of the Optuna search space.",
+        "estimated_impact": "high",
+        "rationale": "AND-logic across 5 independent filters is extremely restrictive. In crypto markets, all 5 rarely align. Requiring 4-of-5 doubles or triples signal frequency while each individual filter still contributes quality screening. More trades with slightly relaxed filters typically improves win_rate because the marginal signals still have directional bias."
+      },
+      "change_3": {
+        "node": "rsi_threshold_tuning",
+        "title": "Tighten RSI overbought/oversold thresholds for higher-quality entries",
+        "file": "quantflow/strategy/templates/trend_following.py",
+        "lines": "46-47",
+        "current": "rsi_overbought=70, rsi_oversold=30 — standard thresholds that allow late-trend entries",
+        "proposed": "Set RSI overbought=60 (long entry filter: RSI < 60 instead of < 70) and rsi_oversold=40 (short entry filter: RSI > 40 instead of > 30). These tighter bands ensure entries happen earlier in the trend move before exhaustion. Include rsi_overbought and rsi_oversold in the param_space for Optuna search with ranges [55,75] and [25,45] respectively.",
+        "estimated_impact": "medium",
+        "rationale": "RSI 70/30 is standard for equities but crypto has stronger momentum persistence. Entering when RSI is between 40-60 (mid-range) during a confirmed trend means entering before the overbought zone, capturing more of the move. This reduces the number of trades entered at trend exhaustion points where reversal probability is high."
+      },
+      "change_4": {
+        "node": "exit_rule_early_exit",
+        "title": "Wire triple-barrier method into strategy templates for early profit-taking",
+        "file": "quantflow/strategy/templates/trend_following.py",
+        "lines": "109-115",
+        "current": "Exit only on trend-reversal signal (trend_down + RSI + vol + ATR all flip). No profit target, no time-based exit. This means holding winning trades until trend reversal, which may give back profits.",
+        "proposed": "Add profit_take_pct and max_holding_bars params to strategy templates. In generate_signals(), after computing boolean exits from trend logic, also mark bars as exit if: (a) unrealized profit >= profit_take_pct, or (b) holding period exceeds max_holding_bars. This uses the existing triple_barrier_labels pattern from barriers.py. Suggested defaults: profit_take_pct=0.10, max_holding_bars=20 for trend_following on daily timeframe.",
+        "estimated_impact": "high",
+        "rationale": "The current exit logic waits for a full trend reversal signal, which means: (1) winning trades give back open profits before the reversal is detected, (2) some 'wins' become 'losses' because price reverses while waiting for exit signal. Triple-barrier exits lock in profits early, directly increasing win_rate. This is the single highest-impact change because it converts marginal winners into guaranteed winners."
+      },
+      "change_5": {
+        "node": "backtest_validation",
+        "title": "Add 'win_rate' as available objective in validation_gate and WFO/CPCV",
+        "file": "quantflow/strategy/validation/gate.py",
+        "lines": "41",
+        "current": "optimize_objective defaults to 'sharpe' — validation pipeline cannot optimize for win_rate even if the optimizer supports it",
+        "proposed": "After adding win_rate to optimizer.py, update gate.py default to support 'win_rate' as objective. Also update the GO/NO-GO decision logic: when objective='win_rate', use win_rate >= 0.55 as the pass criterion (matching elliott_wave.yaml target_win_rate). For CPCV, require mean OOS win_rate > 0.50 instead of PBO < 0.5.",
+        "estimated_impact": "medium",
+        "rationale": "Without this change, even if the optimizer can target win_rate, the validation gate will still optimize on Sharpe during CPCV/WFO re-optimization, undoing the win_rate gains. The validation pipeline must be consistent with the optimization objective."
+      }
+    }
+  },
+  "blockers": [],
+  "notes": "Key insight: The system computes win_rate (backtest.py:150) but never uses it as an optimization target. The entire optimization + validation pipeline is Sharpe-focused. This means the system is architecturally biased toward risk-adjusted return over hit rate. For win_rate improvement, the pipeline must be re-targeted. Additionally, the mean_reversion and volatility_breakout templates have the same AND-logic problem (mean_reversion.py:95 requires RSI+BB+volume simultaneously; volatility_breakout.py:199 requires 5 simultaneous conditions). The changes proposed for trend_following should be pattern-applied to all templates."
+}

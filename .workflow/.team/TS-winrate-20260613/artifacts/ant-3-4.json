@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "ant_id": "ANT-3-4",
+  "iteration": 3,
+  "assignment": {"start_node": "rsi_threshold_tuning", "max_path_length": 5},
+  "path": ["rsi_threshold_tuning", "exit_rule_early_exit", "trend_entry_filter", "signal_consolidation", "risk_engine_signal_filter"],
+  "path_decisions": [
+    {"from": "rsi_threshold_tuning", "to": "exit_rule_early_exit", "rationale": "Pheromone equal-highest (0.135). RSI-adaptive exits are novel: combine RSI entry timing with RSI-aware profit taking for coherent trade lifecycle", "guided_by": "pheromone", "pheromone_weight": 0.135, "deviation_from_hint": false},
+    {"from": "exit_rule_early_exit", "to": "trend_entry_filter", "rationale": "After exit fix, entry is the second lever. RSI tightening + N-of-M entry is the combination that gives both quality AND quantity of signals", "guided_by": "pheromone", "pheromone_weight": 0.083, "deviation_from_hint": true},
+    {"from": "trend_entry_filter", "to": "signal_consolidation", "rationale": "With better entries and exits, the consolidation must not discard these improved signals — weighted consolidation preserves them", "guided_by": "evidence", "pheromone_weight": 0.083, "deviation_from_hint": true},
+    {"from": "signal_consolidation", "to": "risk_engine_signal_filter", "rationale": "Risk engine must not block the consolidated high-conviction signals. Per-strategy risk budgets prevent one-strategy drawdown from blocking others", "guided_by": "evidence", "pheromone_weight": 0.083, "deviation_from_hint": true}
+  ],
+  "self_score": 0.84,
+  "self_confidence": 0.75,
+  "evidence": [
+    "quantflow/strategy/templates/trend_following.py:46-47",
+    "quantflow/strategy/templates/trend_following.py:109-115",
+    "quantflow/strategy/templates/trend_following.py:239",
+    "quantflow/signal/generator.py:54-69",
+    "quantflow/signal/risk_engine.py:36-52",
+    "quantflow/strategy/validation/signal_quality.py:46-52",
+    "quantflow/strategy/templates/mean_reversion.py:30-31",
+    "quantflow/strategy/research/backtest.py:35"
+  ],
+  "candidate_solution": {
+    "type": "object",
+    "summary": "Complete RSI-centered win-rate optimization: (1) crypto RSI defaults, (2) RSI-adaptive profit target, (3) RSI as consolidation weight, (4) per-strategy risk budget",
+    "content": {
+      "change_1": {
+        "node": "rsi_threshold_tuning",
+        "title": "Unified RSI-centric strategy framework: entry, exit, and sizing all RSI-aware",
+        "file": "quantflow/strategy/templates/trend_following.py",
+        "lines": "46-47, 109-115, 239",
+        "current": "RSI used only as entry filter (rsi < 70 for long). Not used for exit timing or position sizing.",
+        "proposed": "RSI Lifecycle Framework: (1) Entry: rsi_overbought/oversold as entry filter (proposed 60/40 for trend, 75/25 for MR). (2) Exit: RSI-adaptive profit target — if current RSI is 50-65 (healthy), use 1.5x profit_take_pct; if RSI > 70 (exhaustion), use 0.7x. (3) Sizing: signal.strength scaled by (1 - |RSI-50|/50) — stronger position at moderate RSI, smaller at extremes. This creates a coherent RSI-driven trade lifecycle where every decision is RSI-aware.",
+        "estimated_impact": "high",
+        "rationale": "The most impactful single framework change. Currently RSI is only used as a gate (above/below threshold). Making RSI a continuous signal rather than a binary filter allows the entire trade lifecycle to respond to trend momentum quality. Moderate RSI = strong conviction (enter larger, hold longer). Extreme RSI = weak conviction (enter smaller, exit faster). This maximizes win_rate by concentrating capital on the highest-probability setups."
+      },
+      "change_2": {
+        "node": "risk_engine_signal_filter",
+        "title": "RSI-aware risk filtering: skip VaR check when RSI confirms trend direction",
+        "file": "quantflow/signal/risk_engine.py",
+        "lines": "118-135",
+        "current": "VaR check (cvar_95 < -0.05) blocks signals during high-volatility periods regardless of trend direction. In strong trends, VaR is high but win_rate is also high.",
+        "proposed": "Add RSI context to RiskEngine.check(): accept a 'rsi_value' field in Signal. When signal.direction == LONG and rsi_value is between 40-65 (healthy uptrend), relax VaR threshold to -0.08. When rsi_value > 75 (overbought), tighten to -0.03. This prevents the VaR check from blocking high-quality trend entries during elevated volatility (which is normal in crypto trends).",
+        "estimated_impact": "medium",
+        "rationale": "The VaR check was designed for portfolio risk management in normal markets. In crypto trends, elevated VaR is normal and expected. Blocking entries during high VaR periods means blocking entries during the best trends. RSI-awareness lets the risk engine distinguish between 'high VaR in a confirmed trend' (should enter) and 'high VaR in a choppy market' (should block)."
+      }
+    }
+  },
+  "blockers": [],
+  "notes": "The RSI Lifecycle Framework is the synthesis insight: instead of treating RSI as a single binary gate, use it as a continuous signal quality indicator throughout the trade lifecycle. Entry, exit, sizing, and risk filtering all become RSI-aware. This is the most coherent and highest-impact approach because it unifies multiple separate changes under one principled framework."
+}

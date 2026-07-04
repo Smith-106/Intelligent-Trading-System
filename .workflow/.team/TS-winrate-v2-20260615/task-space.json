@@ -1,0 +1,22 @@
+{
+  "nodes": [
+    "backtest_edge_cases",
+    "profit_target_calibration",
+    "trailing_stop_tuning",
+    "min_conditions_optimal",
+    "mean_rev_exit_validation",
+    "rsi_adaptive_effectiveness",
+    "signal_weight_calibration",
+    "risk_budget_sizing",
+    "win_rate_profit_factor_tradeoff",
+    "position_sizer_kelly_validation",
+    "multi_timeframe_filter",
+    "regime_detection",
+    "stop_loss_atr_calibration",
+    "entry_signal_strength"
+  ],
+  "n_nodes": 14,
+  "max_path_length": 5,
+  "start_nodes": "any",
+  "edges": "complete"
+}

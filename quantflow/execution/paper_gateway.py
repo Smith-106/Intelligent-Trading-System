@@ -109,9 +109,12 @@ class PaperGateway(GatewayBase):
                 entry_price=pos.entry_price,
                 current_price=price,
                 unrealized_pnl=(price - pos.entry_price) * pos.quantity,
+                strategy_id=pos.strategy_id,
             )
 
-    def _update_position(self, symbol: str, quantity: float, price: float) -> None:
+    def _update_position(
+        self, symbol: str, quantity: float, price: float, *, strategy_id: str = ""
+    ) -> None:
         existing = self._positions.get(symbol)
         if existing is None:
             if abs(quantity) < 1e-10:
@@ -122,6 +125,7 @@ class PaperGateway(GatewayBase):
                 entry_price=price,
                 current_price=price,
                 unrealized_pnl=0.0,
+                strategy_id=strategy_id,
             )
             return
 
@@ -143,6 +147,7 @@ class PaperGateway(GatewayBase):
             entry_price=avg_price,
             current_price=price,
             unrealized_pnl=(price - avg_price) * new_qty,
+            strategy_id=existing.strategy_id or strategy_id,
         )
 
     def _equity(self) -> float:

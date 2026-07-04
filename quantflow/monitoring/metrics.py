@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import logging
+import math
+from threading import Lock
+from typing import Any
 
-from prometheus_client import Counter, Gauge, Histogram, start_http_server
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram, start_http_server
 
 logger = logging.getLogger(__name__)
+_METRICS_SERVER_LOCK = Lock()
+_METRICS_SERVER_STATE: dict[int, dict[str, Any]] = {}
 
 # Counters
 ORDERS_TOTAL = Counter(
@@ -79,11 +84,112 @@ SIGNAL_PROCESSING_LATENCY = Histogram(
 
 def start_metrics_server(port: int = 9090) -> None:
     """Start Prometheus metrics HTTP server."""
+    with _METRICS_SERVER_LOCK:
+        state = _METRICS_SERVER_STATE.setdefault(
+            int(port),
+            {
+                "port": int(port),
+                "attempted": False,
+                "started": False,
+                "last_error": None,
+            },
+        )
+        state["attempted"] = True
     try:
         start_http_server(port)
+        with _METRICS_SERVER_LOCK:
+            state["started"] = True
+            state["last_error"] = None
         logger.info("Prometheus metrics server started on port %d", port)
     except Exception as e:
+        with _METRICS_SERVER_LOCK:
+            state["started"] = False
+            state["last_error"] = str(e)
         logger.warning("Failed to start metrics server: %s", e)
+
+
+def metrics_server_status(port: int | None = None) -> dict[str, Any]:
+    """Return the last known metrics-server startup status for a port."""
+    if port is None:
+        return {
+            "port": None,
+            "attempted": False,
+            "started": False,
+            "last_error": None,
+        }
+    with _METRICS_SERVER_LOCK:
+        state = _METRICS_SERVER_STATE.get(int(port))
+        if state is None:
+            return {
+                "port": int(port),
+                "attempted": False,
+                "started": False,
+                "last_error": None,
+            }
+        return dict(state)
+
+
+def metrics_registry_snapshot() -> dict[str, Any]:
+    """Return a compact snapshot of the in-process Prometheus registry."""
+    values = {
+        "portfolio_value": None,
+        "portfolio_cash": None,
+        "portfolio_drawdown": None,
+        "positions_count": None,
+        "orders_total": 0.0,
+        "orders_filled_total": 0.0,
+        "signals_generated_total": 0.0,
+        "risk_events_total": 0.0,
+        "order_latency_count": 0.0,
+        "order_latency_sum": 0.0,
+        "bar_latency_count": 0.0,
+        "bar_latency_sum": 0.0,
+        "signal_latency_count": 0.0,
+        "signal_latency_sum": 0.0,
+    }
+    scalar_map = {
+        "quantflow_portfolio_value": "portfolio_value",
+        "quantflow_portfolio_cash": "portfolio_cash",
+        "quantflow_portfolio_drawdown": "portfolio_drawdown",
+        "quantflow_positions_count": "positions_count",
+    }
+    counter_map = {
+        "quantflow_orders_total": "orders_total",
+        "quantflow_orders_filled_total": "orders_filled_total",
+        "quantflow_signals_generated_total": "signals_generated_total",
+        "quantflow_risk_events_total": "risk_events_total",
+        "quantflow_order_latency_seconds_count": "order_latency_count",
+        "quantflow_order_latency_seconds_sum": "order_latency_sum",
+        "quantflow_bar_processing_latency_seconds_count": "bar_latency_count",
+        "quantflow_bar_processing_latency_seconds_sum": "bar_latency_sum",
+        "quantflow_signal_processing_latency_seconds_count": "signal_latency_count",
+        "quantflow_signal_processing_latency_seconds_sum": "signal_latency_sum",
+    }
+
+    for family in REGISTRY.collect():
+        for sample in family.samples:
+            value = float(sample.value)
+            if not math.isfinite(value):
+                continue
+            scalar_key = scalar_map.get(sample.name)
+            if scalar_key:
+                values[scalar_key] = value
+                continue
+            counter_key = counter_map.get(sample.name)
+            if counter_key:
+                values[counter_key] += value
+
+    return {
+        "available": True,
+        "values": {
+            key: int(value)
+            if isinstance(value, float) and value.is_integer() and key.endswith("_count")
+            else int(value)
+            if isinstance(value, float) and value.is_integer() and key.endswith("_total")
+            else value
+            for key, value in values.items()
+        },
+    }
 
 
 def update_portfolio_metrics(

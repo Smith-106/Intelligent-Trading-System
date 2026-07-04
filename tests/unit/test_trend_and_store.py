@@ -109,15 +109,24 @@ class TestDataStoreHelpers:
             first = _make_ohlcv_frame().iloc[:2].copy()
             second = _make_ohlcv_frame().iloc[1:4].copy()
             second.loc[:, "close"] = [201.0, 202.0, 203.0]
+            second.loc[:, "data_source"] = ["okx", "okx", "okx"]
 
             store.save(first, "BTC/USDT")
             store.save(second, "BTC/USDT")
             merged = store.query("BTC/USDT")
+            projected = store.query("BTC/USDT", columns=["timestamp", "close", "data_source"])
 
             assert list(merged["timestamp"]) == sorted(
                 set(first["timestamp"]) | set(second["timestamp"])
             )
             assert len(merged) == 4
+            assert "data_source" in merged.columns
+            assert projected["close"].tolist() == [100.5, 201.0, 202.0, 203.0]
+            # Pandas/parquet converts None to NaN in string columns
+            projected_data = projected["data_source"].tolist()
+            # First element may be None or NaN depending on parquet backend
+            assert projected_data[1:] == ["okx", "okx", "okx"]
+            assert pd.isna(projected_data[0]) or projected_data[0] is None
             store.close()
 
     def test_query_filters_and_get_date_range(self):

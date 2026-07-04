@@ -1,0 +1,109 @@
+{
+  "id": "TASK-006",
+  "title": "集成测试+CLI注册验证+验证管道端到端",
+  "priority": "P1",
+  "wave": 4,
+  "status": "pending",
+  "depends_on": ["TASK-001", "TASK-003", "TASK-004", "TASK-005"],
+  "estimated_time": "1.5-2h",
+  "description": "集成测试：验证4个新策略在完整管道中的端到端工作（strategy→validation_gate→CLI）。确保所有strategy_map注册正确，验证管道可运行，CLI命令可调用",
+  "read_first": [
+    "quantflow/strategy/base.py",
+    "quantflow/strategy/validation/gate.py",
+    "quantflow/strategy/templates/__init__.py",
+    "quantflow/cli/main.py",
+    "tests/unit/test_strategies.py",
+    "tests/unit/test_validation.py"
+  ],
+  "convergence": {
+    "criteria": [
+      "grep -r 'volatility_breakout\\|funding_rate\\|momentum_rotation\\|ml_ensemble' quantflow/cli/main.py — 4个新策略全部在CLI注册",
+      "grep -r 'VolatilityBreakoutStrategy\\|FundingRateStrategy\\|MomentumRotationStrategy\\|MLEnsembleStrategy' quantflow/strategy/templates/__init__.py — 4个新策略全部导出",
+      "grep -r 'test_all_strategies_generate_signals' tests/unit/test_strategies.py — 找到参数化集成测试",
+      "pytest tests/unit/test_strategies.py — 全部测试通过",
+      "pytest tests/unit/test_validation.py — 验证管道测试通过"
+    ]
+  },
+  "action": {
+    "type": "modify",
+    "target": "tests/unit/test_strategies.py",
+    "class_name": "TestAllStrategiesIntegration",
+    "key_methods": {
+      "test_all_strategies_generate_signals": "参数化测试，遍历所有7个策略(3旧+4新)的generate_signals",
+      "test_all_strategies_required_indicators": "参数化测试，所有策略get_required_indicators返回非空",
+      "test_new_strategies_validation_gate": "验证新策略可通过validation_gate（无异常）"
+    }
+  },
+  "implementation": [
+    {
+      "step": 1,
+      "action": "添加集成测试到 tests/unit/test_strategies.py",
+      "details": {
+        "class": "TestAllStrategiesIntegration",
+        "test_methods": [
+          "test_all_strategies_generate_signals — 参数化: [TrendFollowing, MeanReversion, ElliottWave, VolatilityBreakout, FundingRate, MomentumRotation, MLEnsemble]，每个创建实例→generate_signals(_make_ohlcv(200))→断言len(entries)==200, dtype==bool",
+          "test_all_strategies_required_indicators — 参数化遍历所有策略，断言get_required_indicators返回list",
+          "test_all_strategies_on_bar — 参数化遍历所有策略，创建StrategyContext→on_init→喂60个Bar→无异常",
+          "test_strategy_names_unique — 断言所有策略.name属性唯一（无重复策略名）"
+        ]
+      }
+    },
+    {
+      "step": 2,
+      "action": "添加验证管道端到端测试到 tests/unit/test_validation.py（如文件存在）或 tests/unit/test_strategies.py",
+      "details": {
+        "class": "TestNewStrategiesValidation",
+        "test_methods": [
+          "test_volatility_breakout_validation_gate — 创建VolatilityBreakoutStrategy，用真实样数据运行validation_gate，断言返回dict含'decision'键（不要求GO，只要求无异常运行）",
+          "test_funding_rate_validation_gate — 同上",
+          "test_momentum_rotation_validation_gate — 同上",
+          "test_ml_ensemble_validation_gate — 同上（ML策略需先train）"
+        ]
+      }
+    },
+    {
+      "step": 3,
+      "action": "验证CLI strategy_map一致性",
+      "details": {
+        "check": "quantflow/cli/main.py中4处strategy_map（research/optimize/validate/run）必须包含完全相同的策略列表：trend_following, mean_reversion, elliott_wave, volatility_breakout, funding_rate, momentum_rotation, ml_ensemble",
+        "test_method": "test_cli_strategy_map_consistency — 比较main.py中4处strategy_map的keys集合相等"
+      }
+    },
+    {
+      "step": 4,
+      "action": "验证__init__.py导出一致性",
+      "details": {
+        "check": "quantflow/strategy/templates/__init__.py的__all__包含所有7个策略类",
+        "expected_all": "[\"MeanReversionStrategy\", \"TrendFollowingStrategy\", \"VolatilityBreakoutStrategy\", \"FundingRateStrategy\", \"MomentumRotationStrategy\", \"MLEnsembleStrategy\"]",
+        "test_method": "test_templates_exports — from quantflow.strategy.templates import * 断言所有类可导入"
+      }
+    },
+    {
+      "step": 5,
+      "action": "验证YAML配置完整性",
+      "details": {
+        "check": "quantflow/config/strategies/目录下每个策略都有对应YAML文件",
+        "expected_files": ["trend_following.yaml", "mean_reversion.yaml", "elliott_wave.yaml", "volatility_breakout.yaml", "funding_rate.yaml", "momentum_rotation.yaml", "ml_ensemble.yaml"],
+        "test_method": "test_strategy_config_files_exist — Path检查所有YAML文件存在"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": "tests/unit/test_strategies.py",
+      "operation": "modify",
+      "description": "添加TestAllStrategiesIntegration集成测试类"
+    },
+    {
+      "path": "tests/unit/test_validation.py",
+      "operation": "modify",
+      "description": "添加TestNewStrategiesValidation验证管道测试（如文件存在）"
+    }
+  ],
+  "risks": [
+    "ElliottWave策略依赖elliott_wave指标模块，集成测试需确保该模块可用",
+    "MLEnsemble策略需sklearn依赖，如未安装可能skip测试",
+    "validation_gate测试可能因随机数据而耗时较长"
+  ],
+  "validation": "pytest tests/unit/ -v — 全部单元测试通过"
+}

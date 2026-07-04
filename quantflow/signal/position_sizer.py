@@ -38,6 +38,7 @@ class PositionSizer:
         portfolio: Portfolio,
         win_rate: float = 0.5,
         win_loss_ratio: float = 2.0,
+        strategy_win_rates: dict[str, float] | None = None,
     ) -> float:
         """Return order notional value (quote currency).
 
@@ -48,11 +49,14 @@ class PositionSizer:
         if total_value <= 0:
             return 0.0
 
+        # Use per-strategy win_rate when available
+        actual_win_rate = (strategy_win_rates or {}).get(signal.strategy_id, win_rate)
+
         if self._method == "fixed":
             base = total_value * self._fixed_pct
         else:
             # Raw Kelly: f* = (p*b - q) / b
-            p = max(0.01, min(win_rate, 0.99))
+            p = max(0.01, min(actual_win_rate, 0.99))
             q = 1.0 - p
             b = max(win_loss_ratio, 0.01)
             raw_kelly = (p * b - q) / b

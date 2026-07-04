@@ -1,0 +1,145 @@
+{
+  "ant_id": "ANT-2-4",
+  "iteration": 2,
+  "start_node": "entry_signal_strength",
+  "path": [
+    "entry_signal_strength",
+    "signal_weight_calibration",
+    "profit_target_calibration",
+    "min_conditions_optimal",
+    "risk_budget_sizing"
+  ],
+  "path_decisions": [
+    {
+      "from": "entry_signal_strength",
+      "to": "signal_weight_calibration",
+      "rationale": "Signal strength is hardcoded per strategy, never calibrated to actual condition count or quality; consolidation uses default hit_rates=0.5 — entry signal strength is effectively disconnected from real calibration",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.075,
+      "deviation_from_hint": true
+    },
+    {
+      "from": "signal_weight_calibration",
+      "to": "profit_target_calibration",
+      "rationale": "Calibration gap cascades: uncalibrated signals feed into profit_target_exit which is long-only and uses averaged RSI adaptation instead of per-entry RSI",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.075,
+      "deviation_from_hint": true
+    },
+    {
+      "from": "profit_target_calibration",
+      "to": "min_conditions_optimal",
+      "rationale": "Profit target defaults are likely wrong because min_conditions gating is miscalibrated — mean_rev volume_threshold=0.8 trivially satisfied, vol_breakout min_conditions=5 nearly impossible",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.075,
+      "deviation_from_hint": true
+    },
+    {
+      "from": "min_conditions_optimal",
+      "to": "risk_budget_sizing",
+      "rationale": "Miscalibrated entries feed into risk/position sizing which has its own bugs: strategy_budget sums ALL positions not per-strategy, strategy_win_rates never populated",
+      "guided_by": "evidence",
+      "pheromone_weight": 0.075,
+      "deviation_from_hint": true
+    }
+  ],
+  "self_score": 0.72,
+  "self_confidence": 0.78,
+  "candidate_solution": {
+    "type": "object",
+    "summary": "6 bottlenecks found: hardcoded signal strength, dead consolidation, long-only profit_target_exit, trivial min_conditions in mean_rev, strategy_budget bug sums all positions, strategy_win_rates never wired",
+    "content": {
+      "bottlenecks": [
+        {
+          "id": "BN-2-4-1",
+          "severity": "high",
+          "node": "entry_signal_strength",
+          "title": "Signal strength hardcoded, never varies with condition count",
+          "evidence": [
+            "trend_following.py:112 strength=0.8 (always)",
+            "mean_reversion.py:71 strength=0.7 (always)",
+            "volatility_breakout.py:122 strength=0.8 (always)",
+            "momentum_rotation.py:77 strength=0.7 (always)",
+            "funding_rate.py:81 strength=0.7 (always)"
+          ],
+          "fix": "Compute strength = conditions_met / total_conditions for each strategy, normalized to [0,1]"
+        },
+        {
+          "id": "BN-2-4-2",
+          "severity": "high",
+          "node": "signal_weight_calibration",
+          "title": "consolidate_signals() and strategy_hit_rates never wired into TradingSession",
+          "evidence": [
+            "engine.py:150-156 flush_signals() goes directly to _process_signal()",
+            "engine.py:54 PositionSizer created without strategy_win_rates",
+            "engine.py:54 RiskEngine created without strategy_risk_budgets",
+            "generator.py:69 default hit_rates=0.5 for unknown strategies"
+          ],
+          "fix": "Wire consolidate_signals() into signal pipeline; feed backtest-derived strategy_win_rates into PositionSizer and RiskEngine"
+        },
+        {
+          "id": "BN-2-4-3",
+          "severity": "critical",
+          "node": "profit_target_calibration",
+          "title": "profit_target_exit() long-only bug confirmed; RSI-adaptive uses global avg not per-entry",
+          "evidence": [
+            "_runtime.py:167 target = entry_price * (1 + profit_take_pct); check close >= target — LONG only",
+            "trend_following.py:260-265 rsi_at_entry = rsi[entries]; avg_entry_rsi = float(rsi_at_entry.mean()) — averages ALL entries, not current trade",
+            "mean_reversion.py:107-109 on_bar() exit has no profit_target or max_holding check",
+            "volatility_breakout.py:391 highest tracks only highest, never lowest for shorts"
+          ],
+          "fix": "Add direction parameter to profit_target_exit(); use per-trade RSI instead of global average; add profit_target to mean_reversion on_bar()"
+        },
+        {
+          "id": "BN-2-4-4",
+          "severity": "high",
+          "node": "min_conditions_optimal",
+          "title": "Mean_rev volume_threshold=0.8 trivially satisfied; vol_breakout min_conditions=5 too restrictive",
+          "evidence": [
+            "mean_reversion.py:37 self._volume_threshold = p.get('volume_threshold', 0.8) — 0.8 means vol > 80% of MA, nearly always true",
+            "mean_reversion.py:99 long_count = int(vol_ok) + int(rsi<oversold) + int(close<bb_lower) — vol_ok ~always True, effective min_conditions = 1 of 2",
+            "volatility_breakout.py:48 self._min_conditions = p.get('min_conditions', 5) — ALL 5 conditions required",
+            "YAML sets volume_threshold=1.2 for mean_reversion but code default=0.8 wins"
+          ],
+          "fix": "Fix YAML-key-to-code-key mapping; raise code default volume_threshold to match YAML; tune min_conditions to 3-4 for vol_breakout"
+        },
+        {
+          "id": "BN-2-4-5",
+          "severity": "high",
+          "node": "risk_budget_sizing",
+          "title": "_check_strategy_budget sums ALL positions, not same-strategy positions",
+          "evidence": [
+            "risk_engine.py:106-108 strategy_exposure = 0.0; for pos in portfolio.positions.values(): pos_value = abs(pos.quantity) * pos.current_price; strategy_exposure += pos_value — sums ALL positions regardless of strategy_id"
+          ],
+          "fix": "Filter positions by strategy_id match; Position model needs strategy_id field"
+        },
+        {
+          "id": "BN-2-4-6",
+          "severity": "medium",
+          "node": "signal_weight_calibration",
+          "title": "YAML config keys don't match code param names — dead config values",
+          "evidence": [
+            "trend_following.yaml:22 take_profit_pct: 0.15 vs trend_following.py:54 profit_take_pct: 0.10",
+            "trend_following.yaml:25 trailing_stop_atr_multiplier: 1.5 vs trend_following.py:56 trailing_stop_atr_mult: 3.0",
+            "mean_reversion.yaml:17 take_profit_pct: 0.05 vs mean_reversion.py:40 profit_take_pct: 0.03",
+            "mean_reversion.yaml:19 trailing_stop_pct: 0.02 — not read by any code",
+            "volatility_breakout.yaml:20 take_profit_pct: 0.10 vs volatility_breakout.py:49 profit_take_pct: 0.05"
+          ],
+          "fix": "Align YAML key names with code param names; add config-loading bridge in strategy __init__"
+        }
+      ]
+    }
+  },
+  "evidence_anchors": [
+    "trend_following.py:112 — strength=0.8 hardcoded",
+    "mean_reversion.py:71 — strength=0.7 hardcoded",
+    "_runtime.py:167 — profit_target_exit long-only check close >= entry*(1+pct)",
+    "trend_following.py:260-265 — rsi[entries].mean() global avg not per-trade",
+    "mean_reversion.py:37 — volume_threshold=0.8 default vs YAML 1.2",
+    "risk_engine.py:106-108 — sums all positions not per-strategy",
+    "engine.py:54 — RiskEngine/PositionSizer never receive per-strategy data",
+    "engine.py:150-156 — signals skip consolidate_signals()",
+    "mean_reversion.yaml:17 vs mean_reversion.py:40 — key name mismatch"
+  ],
+  "notes": "Iteration 1 found the long-only profit_target bug and trailing stop issues. This iteration traced the full chain from signal generation through calibration, profit targets, entry gating, to risk/position sizing — finding that the signal pipeline is fundamentally disconnected: hardcoded strengths, unwired consolidation, dead config values, and budget check bugs mean the post-implementation system still has systematic gaps preventing 65%+ win rate."
+}

@@ -57,7 +57,7 @@ class BacktestResult:
 class BacktestEngine:
     """Vectorized backtest engine using pure pandas/numpy.
 
-    Simulates a simple long-only portfolio from boolean entry/exit signals.
+    Supports both LONG and SHORT positions via the ``direction`` parameter.
     Positions are whole-bar: enter at next-bar open after signal, exit at
     next-bar open after exit signal. Fees are applied on each entry/exit.
     """
@@ -71,8 +71,23 @@ class BacktestEngine:
         fee: float = 0.001,
         strategy_id: str = "strategy",
         symbol: str = "BTC/USDT",
+        direction: pd.Series | int = 1,
     ) -> BacktestResult:
-        """Run vectorized backtest with entry/exit signals."""
+        """Run vectorized backtest with entry/exit signals.
+
+        Parameters
+        ----------
+        close : pd.Series
+            Close prices.
+        entries : pd.Series
+            Boolean entry signals.
+        exits : pd.Series
+            Boolean exit signals.
+        direction : pd.Series | int
+            Trade direction: 1 for LONG, -1 for SHORT. Can be a Series
+            aligned to ``close`` for per-bar direction, or an int for
+            uniform direction. Default is 1 (LONG, backward compatible).
+        """
         entries = entries.reindex(close.index).fillna(False).astype(bool)
         exits = exits.reindex(close.index).fillna(False).astype(bool)
 
@@ -99,35 +114,56 @@ class BacktestEngine:
                 drawdown_curve=empty_curve,
             )
 
+        # Resolve direction: int → uniform array, or align existing Series
+        if isinstance(direction, int):
+            dir_values = np.full(n, direction, dtype=float)
+        else:
+            dir_series = direction.reindex(close.index).fillna(1).astype(float)
+            dir_values = dir_series.to_numpy(dtype=float, copy=False)
+
         close_values = close.to_numpy(dtype=float, copy=False)
         entry_values = entries.to_numpy(dtype=bool, copy=False)
         exit_values = exits.to_numpy(dtype=bool, copy=False)
         equity = np.full(n, initial_capital, dtype=float)
         in_position = False
         entry_price = 0.0
-        trades: list[tuple[float, float]] = []  # (entry_price, exit_price)
+        entry_dir = 1.0  # 1=LONG, -1=SHORT
+        trades: list[tuple[float, float, float]] = []  # (entry_price, exit_price, direction)
 
         for i in range(1, n):
             prev_idx = i - 1
             if not in_position and entry_values[prev_idx]:
                 in_position = True
-                entry_price = close_values[i] * (1 + fee)
+                entry_dir = dir_values[prev_idx]
+                if entry_dir > 0:  # LONG
+                    entry_price = close_values[i] * (1 + fee)
+                else:  # SHORT
+                    entry_price = close_values[i] * (1 - fee)
                 equity[i] = equity[prev_idx]
             elif in_position and exit_values[prev_idx]:
-                exit_price = close_values[i] * (1 - fee)
-                trades.append((entry_price, exit_price))
-                ret = (exit_price - entry_price) / entry_price
+                if entry_dir > 0:  # LONG exit
+                    exit_price = close_values[i] * (1 - fee)
+                    ret = (exit_price - entry_price) / entry_price
+                else:  # SHORT exit
+                    exit_price = close_values[i] * (1 + fee)
+                    ret = (entry_price - exit_price) / entry_price
+                trades.append((entry_price, exit_price, entry_dir))
                 equity[i] = equity[prev_idx] * (1 + ret)
                 in_position = False
                 entry_price = 0.0
+                entry_dir = 1.0
             else:
                 equity[i] = equity[prev_idx]
 
         # Close any open position at last bar
         if in_position and n > 0:
-            exit_price = close_values[-1] * (1 - fee)
-            trades.append((entry_price, exit_price))
-            ret = (exit_price - entry_price) / entry_price
+            if entry_dir > 0:  # LONG exit
+                exit_price = close_values[-1] * (1 - fee)
+                ret = (exit_price - entry_price) / entry_price
+            else:  # SHORT exit
+                exit_price = close_values[-1] * (1 + fee)
+                ret = (entry_price - exit_price) / entry_price
+            trades.append((entry_price, exit_price, entry_dir))
             equity[-1] = equity[-1] * (1 + ret)
 
         equity_series = pd.Series(equity, index=close.index)
@@ -138,13 +174,14 @@ class BacktestEngine:
         dd = (equity_series - peak) / peak
         max_dd = float(dd.min())
 
-        # Trade stats
+        # Trade stats — direction-aware P&L
         num_trades = len(trades)
-        trade_pnls = (
-            [(exit_price - entry_price) / entry_price for entry_price, exit_price in trades]
-            if num_trades > 0
-            else []
-        )
+        trade_pnls = []
+        for ep, xp, d in trades:
+            if d > 0:  # LONG
+                trade_pnls.append((xp - ep) / ep)
+            else:  # SHORT
+                trade_pnls.append((ep - xp) / ep)
         wins = [p for p in trade_pnls if p > 0]
         losses = [p for p in trade_pnls if p < 0]
         win_rate = len(wins) / num_trades if num_trades > 0 else 0.0

@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0",
+  "ant_id": "ANT-2-1",
+  "iteration": 2,
+  "assignment": {"start_node": "atr_threshold_tuning", "max_path_length": 5},
+  "path": ["atr_threshold_tuning", "trend_entry_filter", "exit_rule_early_exit", "vol_breakout_entry_filter", "backtest_validation"],
+  "path_decisions": [
+    {"from": "atr_threshold_tuning", "to": "trend_entry_filter", "rationale": "ATR multiplier=2.0 blocks entries during elevated-volatility regimes where strongest trends occur. Pheromone confirms trend_entry_filter is high-value node from iter1", "guided_by": "pheromone", "pheromone_weight": 0.098, "deviation_from_hint": false},
+    {"from": "trend_entry_filter", "to": "exit_rule_early_exit", "rationale": "Iter1 found exit logic is the #1 win-rate lever — no profit target or trailing stop anywhere. Confirming and deepening this finding", "guided_by": "pheromone", "pheromone_weight": 0.073, "deviation_from_hint": true},
+    {"from": "exit_rule_early_exit", "to": "vol_breakout_entry_filter", "rationale": "Volatility breakout requires 5 simultaneous conditions (line 199-205) same AND-logic problem as trend. Plus it has NO exit on reversal — only atr_shrink or bb_middle_return, no profit target", "guided_by": "evidence", "pheromone_weight": 0.073, "deviation_from_hint": true},
+    {"from": "vol_breakout_entry_filter", "to": "backtest_validation", "rationale": "Volatility breakout exit logic at line 206-212 only uses atr_shrink_exit (0.7x) and bb_middle_exit (0.5% from middle) — both are soft exits that don't lock in profits. Need profit_take_pct here too", "guided_by": "evidence", "pheromone_weight": 0.073, "deviation_from_hint": true}
+  ],
+  "self_score": 0.80,
+  "self_confidence": 0.75,
+  "evidence": [
+    "quantflow/strategy/templates/trend_following.py:48-49",
+    "quantflow/strategy/templates/trend_following.py:239",
+    "quantflow/strategy/templates/volatility_breakout.py:199-212",
+    "quantflow/strategy/templates/volatility_breakout.py:43-46",
+    "quantflow/strategy/validation/barriers.py:18-23",
+    "quantflow/strategy/validation/gate.py:41",
+    "quantflow/strategy/templates/mean_reversion.py:100-103",
+    "quantflow/strategy/research/optimizer.py:160-169"
+  ],
+  "candidate_solution": {
+    "type": "object",
+    "summary": "Cross-strategy exit analysis confirms: ALL 6 templates lack profit-taking and trailing-stop exits. 3 changes: (1) universal profit_take_pct param, (2) volatility_breakout exit improvements, (3) ATR multiplier param_space",
+    "content": {
+      "change_1": {
+        "node": "atr_threshold_tuning",
+        "title": "Add ATR multiplier and ATR period to param_space for all strategy templates",
+        "file": "quantflow/strategy/templates/trend_following.py",
+        "lines": "48-49",
+        "current": "atr_multiplier=2.0 is hardcoded default. Not included in any param_space for optimization. Cannot be tuned by Optuna.",
+        "proposed": "Add atr_multiplier and atr_period to each strategy's param_space dict in the optimize command (cli/main.py). Range for atr_multiplier: [1.0, 3.0]. Range for atr_period: [7, 28]. Also add to YAML config files. This enables the optimizer to find the ATR settings that maximize win_rate instead of using hardcoded equity-market defaults.",
+        "estimated_impact": "medium",
+        "rationale": "ATR parameters control how many bars pass the volatility filter. If ATR multiplier is too high, all bars pass (no filter). If too low, no bars pass (no trades). The optimal value for win_rate depends on the market regime and time frame. Only systematic optimization can find the right value."
+      },
+      "change_2": {
+        "node": "vol_breakout_entry_filter",
+        "title": "Add min_conditions parameter to volatility_breakout AND-logic",
+        "file": "quantflow/strategy/templates/volatility_breakout.py",
+        "lines": "199-205",
+        "current": "entries_long = atr_spike & bb_expanding & (close > bb_upper) & vol_surge & previous_squeeze — ALL 5 conditions required. Extremely few signals.",
+        "proposed": "Add min_conditions param (default=5). Count matching conditions: sum of [atr_spike, bb_expanding, close>bb_upper, vol_surge, previous_squeeze]. Entry when count >= min_conditions. For win_rate optimization, set min_conditions=4. The previous_squeeze condition is the least reliable in crypto (frequent false squeeze signals) so 4-of-5 excluding squeeze is a good default.",
+        "estimated_impact": "high",
+        "rationale": "Volatility breakout has the most restrictive entry filter (5-way AND) of all strategies. In crypto, BB-KC squeeze is less reliable than in equities because of 24/7 trading and funding rate mechanics. Requiring all 5 produces almost no trades. 4-of-5 triples signal frequency with minimal quality loss."
+      },
+      "change_3": {
+        "node": "exit_rule_early_exit",
+        "title": "Add universal profit_take_pct and trailing_stop_atr to ALL strategy templates",
+        "file": "quantflow/strategy/templates/volatility_breakout.py",
+        "lines": "206-212",
+        "current": "Volatility breakout exits only on: atr_shrink (ATR < 0.7*ATR_ma) or bb_middle_return (within 0.5% of BB middle). No profit target. No trailing stop. No max holding period.",
+        "proposed": "Add 3 universal exit params to StrategyBase or a shared mixin: profit_take_pct (default=0.08), trailing_stop_atr_mult (default=2.5), max_holding_bars (default=20). In each template's generate_signals(): OR the existing exit logic with profit_take / trailing_stop / time_barrier exits. For volatility_breakout specifically, profit_take_pct=0.05 is better because breakouts are quick moves. For mean_reversion, profit_take_pct=0.03 (smaller targets).",
+        "estimated_impact": "high",
+        "rationale": "Iter1 identified this as the #1 win-rate lever. Deepening: across ALL 6 templates (trend_following, mean_reversion, volatility_breakout, funding_rate, momentum_rotation, ml_ensemble), NONE has a profit target or trailing stop. Funding rate exits on neutral zone (line 123). Momentum_rotation exits on rank drop (line 104-111). ML ensemble exits on low confidence (line 163-165). All use reversal-based exits that give back profits. Universal profit_take_pct would improve win_rate across the entire system."
+      }
+    }
+  },
+  "blockers": [],
+  "notes": "Systematic finding: the 6 strategy templates share a common exit architecture flaw — they only exit on signal reversal, never on profit target or time barrier. This is an architectural gap, not a per-strategy bug. The triple_barrier_labels function in barriers.py and compute_meta_labels in ml_ensemble.py both implement the logic but neither is wired into any template. The fix should be a shared mixin or base-class method rather than 6 separate implementations."
+}

@@ -9,6 +9,7 @@ import pandas as pd
 
 from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyBase, StrategyContext
+from quantflow.strategy.templates._runtime import profit_target_exit
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class FundingRateStrategy(StrategyBase):
 
     def __init__(self, params: dict[str, Any] | None = None) -> None:
         super().__init__(name="funding_rate", params=params)
+        self.required_regime = "mean_reversion"
         p = self._params
         self._entry_threshold = p.get("entry_threshold", 0.001)
         self._exit_threshold = p.get("exit_threshold", 0.0003)
@@ -38,12 +40,20 @@ class FundingRateStrategy(StrategyBase):
         self._oi_change_threshold = p.get("oi_change_threshold", 0.05)
         self._rate_ema_period = p.get("rate_ema_period", 8)
         self._cooldown_bars = p.get("cooldown_bars", 6)
+        self._profit_take_pct: float = p.get("take_profit_pct", p.get("profit_take_pct", 0.02))
+        self._max_holding_bars: int = p.get("max_holding_bars", 8)
+        self._stop_loss_pct: float = p.get("stop_loss_pct", 0.0)
 
         self._bars: list[Bar] = []
         self._funding_rates: list[float] = []
         self._open_interests: list[float] = []
         self._cooldown_counter = 0
         self._max_bars = 200
+        # Position tracking for on_bar exit mechanisms
+        self._in_position: bool = False
+        self._entry_direction: Direction | None = None
+        self._entry_price: float = 0.0
+        self._bars_since_entry: int = 0
 
     def on_init(self, ctx: StrategyContext) -> None:
         ctx.params = self._params
@@ -72,15 +82,23 @@ class FundingRateStrategy(StrategyBase):
         last_idx = len(entries) - 1
         symbol = bar.symbol
 
-        if entries.iloc[last_idx]:
+        if entries.iloc[last_idx] and not self._in_position:
             rate = self._funding_rates[-1] if self._funding_rates else 0.0
             direction = Direction.LONG if rate < -self._entry_threshold else Direction.SHORT
             ctx.emit_signal(symbol, direction, strength=0.7, price=bar.close, strategy_id=self.name)
             self._cooldown_counter = self._cooldown_bars
-        elif exits.iloc[last_idx]:
+            self._in_position = True
+            self._entry_direction = direction
+            self._entry_price = bar.close
+            self._bars_since_entry = 0
+        elif exits.iloc[last_idx] and self._in_position:
             ctx.emit_signal(
                 symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
             )
+            self._in_position = False
+
+        # on_bar exit mechanisms
+        self._check_position_exits(ctx, bar)
 
     def update_funding_rate(self, rate: float) -> None:
         """Feed a new funding rate observation (called externally by data layer)."""
@@ -125,7 +143,38 @@ class FundingRateStrategy(StrategyBase):
         oi_reversal = (long_signal & oi_falling) | (short_signal & oi_falling)
         exits = neutral_zone | oi_reversal
 
+        # Profit target exit
+        close = df["close"]
+        profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars)
+        exits = exits | profit_exits
+
         return entries.fillna(False), exits.fillna(False)
+
+    def _check_position_exits(self, ctx: StrategyContext, bar: Bar) -> None:
+        """Check profit target and max holding exits in on_bar path."""
+        if not self._in_position:
+            return
+
+        self._bars_since_entry += 1
+
+        # Profit target exit — direction-aware
+        if self._entry_direction == Direction.LONG:
+            target_price = self._entry_price * (1.0 + self._profit_take_pct)
+            if bar.close >= target_price:
+                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                self._in_position = False
+                return
+        elif self._entry_direction == Direction.SHORT:
+            target_price = self._entry_price * (1.0 - self._profit_take_pct)
+            if bar.close <= target_price:
+                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                self._in_position = False
+                return
+
+        # Max holding bars exit
+        if self._bars_since_entry >= self._max_holding_bars:
+            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            self._in_position = False
 
     def _build_signal_df(self) -> pd.DataFrame:
         if not self._bars:
