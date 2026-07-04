@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import numpy as np
 import pandas as pd
 import pytest
 
 from quantflow.common.config import AppConfig
 from quantflow.common.models import Bar
-from quantflow.strategy.engine import TradingSession, _ensure_metrics_server_started
+from quantflow.strategy.engine import TradingSession
 
 
 class TestEnsureMetricsServerStarted:
@@ -44,8 +42,10 @@ class TestTradingSessionStartWinRate:
         class DummyStrategy(StrategyBase):
             def on_init(self, ctx):
                 pass
+
             def on_bar(self, ctx, bar):
                 pass
+
             def generate_signals(self, df):
                 return pd.Series(dtype=bool), pd.Series(dtype=bool)
 
@@ -53,12 +53,15 @@ class TestTradingSessionStartWinRate:
         s1 = DummyStrategy(name="s1")
         s2 = DummyStrategy(name="s2")
         session = TradingSession(
-            config, [s1, s2],
+            config,
+            [s1, s2],
             strategy_win_rates={"s1": 0.8, "s2": 0.4},
         )
 
-        with patch.object(session._execution, "start", new_callable=AsyncMock), \
-             patch("quantflow.strategy.engine._ensure_metrics_server_started"):
+        with (
+            patch.object(session._execution, "start", new_callable=AsyncMock),
+            patch("quantflow.strategy.engine._ensure_metrics_server_started"),
+        ):
             await session.start(mode="paper")
 
         # Verify allocation was set
@@ -77,8 +80,10 @@ class TestTradingSessionStartWinRate:
         class DummyStrategy(StrategyBase):
             def on_init(self, ctx):
                 pass
+
             def on_bar(self, ctx, bar):
                 pass
+
             def generate_signals(self, df):
                 return pd.Series(dtype=bool), pd.Series(dtype=bool)
 
@@ -86,12 +91,15 @@ class TestTradingSessionStartWinRate:
         s1 = DummyStrategy(name="s1")
         s2 = DummyStrategy(name="s2")
         session = TradingSession(
-            config, [s1, s2],
+            config,
+            [s1, s2],
             strategy_win_rates={"s1": 0.0, "s2": 0.0},
         )
 
-        with patch.object(session._execution, "start", new_callable=AsyncMock), \
-             patch("quantflow.strategy.engine._ensure_metrics_server_started"):
+        with (
+            patch.object(session._execution, "start", new_callable=AsyncMock),
+            patch("quantflow.strategy.engine._ensure_metrics_server_started"),
+        ):
             await session.start(mode="paper")
 
         alloc = session._portfolio.allocation
@@ -104,27 +112,43 @@ class TestTradingSessionOnBarRegimeGating:
     @pytest.mark.asyncio
     async def test_on_bar_trending_gates_mean_reversion(self):
         """Lines 178-181: regime gating in on_bar()."""
-        from quantflow.strategy.base import StrategyBase, StrategyContext
+        from quantflow.strategy.base import StrategyBase
 
         signals_emitted = []
 
         class TrendStrategy(StrategyBase):
             required_regime = "trending"
+
             def on_init(self, ctx):
                 pass
+
             def on_bar(self, ctx, bar):
                 from quantflow.common.models import Direction
-                ctx.emit_signal("BTC/USDT", Direction.LONG, strength=0.5, price=bar.close, strategy_id=self.name)
+
+                ctx.emit_signal(
+                    "BTC/USDT", Direction.LONG, strength=0.5, price=bar.close, strategy_id=self.name
+                )
+
             def generate_signals(self, df):
                 return pd.Series(dtype=bool), pd.Series(dtype=bool)
 
         class MRStrategy(StrategyBase):
             required_regime = "mean_reversion"
+
             def on_init(self, ctx):
                 pass
+
             def on_bar(self, ctx, bar):
                 from quantflow.common.models import Direction
-                ctx.emit_signal("BTC/USDT", Direction.SHORT, strength=0.3, price=bar.close, strategy_id=self.name)
+
+                ctx.emit_signal(
+                    "BTC/USDT",
+                    Direction.SHORT,
+                    strength=0.3,
+                    price=bar.close,
+                    strategy_id=self.name,
+                )
+
             def generate_signals(self, df):
                 return pd.Series(dtype=bool), pd.Series(dtype=bool)
 
@@ -135,14 +159,16 @@ class TestTradingSessionOnBarRegimeGating:
         m.required_regime = "mean_reversion"
         session = TradingSession(config, [t, m])
 
-        with patch.object(session._execution, "start", new_callable=AsyncMock), \
-             patch("quantflow.strategy.engine._ensure_metrics_server_started"), \
-             patch.object(session._regime_detector, "update") as mock_regime, \
-             patch.object(session._execution, "update_market_price"), \
-             patch.object(session._signal_gen, "consolidate_signals", return_value=None), \
-             patch.object(session._execution, "submit_order", new_callable=AsyncMock), \
-             patch.object(session, "_update_portfolio_observability"), \
-             patch.object(session, "_record_bar_latency"):
+        with (
+            patch.object(session._execution, "start", new_callable=AsyncMock),
+            patch("quantflow.strategy.engine._ensure_metrics_server_started"),
+            patch.object(session._regime_detector, "update") as mock_regime,
+            patch.object(session._execution, "update_market_price"),
+            patch.object(session._signal_gen, "consolidate_signals", return_value=None),
+            patch.object(session._execution, "submit_order", new_callable=AsyncMock),
+            patch.object(session, "_update_portfolio_observability"),
+            patch.object(session, "_record_bar_latency"),
+        ):
             mock_regime.return_value = MagicMock(is_trending=True)
             await session.start(mode="paper")
             bar = Bar("BTC/USDT", 1700000000, 100.0, 101.0, 99.0, 100.5, 1000.0)
@@ -155,6 +181,81 @@ class TestTradingSessionOnBarRegimeGating:
         session._running = False
 
 
+class TestTradingSessionPositionSizingClamp:
+    """Regression guard for the max_position_pct units fix (commit eebbc25).
+
+    Before the fix, TradingSession passed ``position_limit_pct * 100`` (=2000%)
+    to PositionSizer, making the max-position clamp a no-op and silently
+    ignoring the risk config. This test locks in the wired clamp so the *100
+    bug cannot silently return: even a high-win-rate strategy whose raw Kelly
+    size would exceed ``position_limit_pct`` must be capped.
+    """
+
+    @pytest.mark.asyncio
+    async def test_high_win_rate_order_clamped_to_position_limit(self):
+        from quantflow.strategy.base import StrategyBase
+
+        class AggressiveStrategy(StrategyBase):
+            required_regime = ""
+
+            def on_init(self, ctx):
+                pass
+
+            def on_bar(self, ctx, bar):
+                from quantflow.common.models import Direction
+
+                ctx.emit_signal(
+                    "BTC/USDT",
+                    Direction.LONG,
+                    strength=1.0,
+                    price=bar.close,
+                    strategy_id=self.name,
+                )
+
+            def generate_signals(self, df):
+                return pd.Series(dtype=bool), pd.Series(dtype=bool)
+
+        config = AppConfig()
+        # position_limit_pct defaults to 0.20 (20%). Use a high per-strategy
+        # win rate so raw Kelly sizing (0.5 * kelly * raw_kelly * strength)
+        # would exceed 20% without the clamp.
+        session = TradingSession(
+            config,
+            [AggressiveStrategy(name="agg_s")],
+            strategy_win_rates={"agg_s": 0.70},
+        )
+
+        submitted = []
+        with (
+            patch.object(session._execution, "start", new_callable=AsyncMock),
+            patch("quantflow.strategy.engine._ensure_metrics_server_started"),
+            patch.object(session._regime_detector, "update") as mock_regime,
+            patch.object(session._execution, "update_market_price"),
+            patch.object(session._execution, "submit_order", new_callable=AsyncMock) as mock_submit,
+            patch.object(session, "_update_portfolio_observability"),
+            patch.object(session, "_record_bar_latency"),
+            patch.object(session, "_record_signal_latency"),
+        ):
+            mock_regime.return_value = MagicMock(is_trending=True)
+            await session.start(mode="paper")
+            bar = Bar("BTC/USDT", 1700000000, 100.0, 101.0, 99.0, 100.0, 1000.0)
+            await session.on_bar(bar)
+            submitted = list(mock_submit.call_args_list)
+
+        # An order should have been submitted (raw Kelly at wr=0.7 > 0 so size>0).
+        assert len(submitted) == 1
+        order_request = submitted[0].args[0]
+        # order notional = quantity * price; price was 100.0
+        notional = abs(order_request.quantity) * 100.0
+        # total_value ~ initial_capital 100000 (no positions yet).
+        # Clamp must keep notional <= position_limit_pct (0.20) * total_value,
+        # i.e. <= 20000. Without the clamp it would be ~27445 (27.45%).
+        assert notional <= 100000 * config.risk.position_limit_pct + 1.0
+        # And it should be a non-trivial order (the clamp engaged, not zeroed).
+        assert notional > 0
+        session._running = False
+
+
 class TestTradingSessionRunDataLoop:
     @pytest.mark.asyncio
     async def test_run_data_loop_paper_with_local_data(self):
@@ -164,14 +265,16 @@ class TestTradingSessionRunDataLoop:
 
         mock_store = MagicMock()
         dates = pd.date_range("2024-01-01", periods=5, freq="h")
-        mock_store.query.return_value = pd.DataFrame({
-            "timestamp": [int(ts.timestamp() * 1000) for ts in dates],
-            "open": [100.0] * 5,
-            "high": [101.0] * 5,
-            "low": [99.0] * 5,
-            "close": [100.5] * 5,
-            "volume": [1000.0] * 5,
-        })
+        mock_store.query.return_value = pd.DataFrame(
+            {
+                "timestamp": [int(ts.timestamp() * 1000) for ts in dates],
+                "open": [100.0] * 5,
+                "high": [101.0] * 5,
+                "low": [99.0] * 5,
+                "close": [100.5] * 5,
+                "volume": [1000.0] * 5,
+            }
+        )
         mock_store.close = MagicMock()
 
         call_count = 0
@@ -182,13 +285,15 @@ class TestTradingSessionRunDataLoop:
             if call_count >= 2:
                 session._running = False
 
-        with patch("quantflow.data.store.DataStore", return_value=mock_store), \
-             patch.object(session, "on_bar", side_effect=mock_on_bar), \
-             patch.object(session, "check_health"), \
-             patch.object(session._execution, "check_timeouts"), \
-             patch.object(session._execution, "start", new_callable=AsyncMock), \
-             patch("quantflow.strategy.engine._ensure_metrics_server_started"), \
-             patch("asyncio.sleep", new_callable=AsyncMock):
+        with (
+            patch("quantflow.data.store.DataStore", return_value=mock_store),
+            patch.object(session, "on_bar", side_effect=mock_on_bar),
+            patch.object(session, "check_health"),
+            patch.object(session._execution, "check_timeouts"),
+            patch.object(session._execution, "start", new_callable=AsyncMock),
+            patch("quantflow.strategy.engine._ensure_metrics_server_started"),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
             await session.start(mode="paper")
             session._running = True
             await session.run_data_loop("BTC/USDT", "1h", 1)
@@ -204,14 +309,16 @@ class TestTradingSessionRunDataLoop:
         mock_store = MagicMock()
         # First query succeeds (returns data for paper loop entry)
         dates = pd.date_range("2024-01-01", periods=3, freq="h")
-        first_frame = pd.DataFrame({
-            "timestamp": [int(ts.timestamp() * 1000) for ts in dates],
-            "open": [100.0] * 3,
-            "high": [101.0] * 3,
-            "low": [99.0] * 3,
-            "close": [100.5] * 3,
-            "volume": [1000.0] * 3,
-        })
+        first_frame = pd.DataFrame(
+            {
+                "timestamp": [int(ts.timestamp() * 1000) for ts in dates],
+                "open": [100.0] * 3,
+                "high": [101.0] * 3,
+                "low": [99.0] * 3,
+                "close": [100.5] * 3,
+                "volume": [1000.0] * 3,
+            }
+        )
         # Second query (inside loop) raises exception
         mock_store.query.side_effect = [first_frame, Exception("data error")]
         mock_store.close = MagicMock()
@@ -219,20 +326,24 @@ class TestTradingSessionRunDataLoop:
         async def mock_on_bar(bar):
             pass
 
-        with patch("quantflow.data.store.DataStore", return_value=mock_store), \
-             patch.object(session, "on_bar", side_effect=mock_on_bar), \
-             patch.object(session, "check_health"), \
-             patch.object(session._execution, "check_timeouts"), \
-             patch.object(session._execution, "start", new_callable=AsyncMock), \
-             patch("quantflow.strategy.engine._ensure_metrics_server_started"), \
-             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with (
+            patch("quantflow.data.store.DataStore", return_value=mock_store),
+            patch.object(session, "on_bar", side_effect=mock_on_bar),
+            patch.object(session, "check_health"),
+            patch.object(session._execution, "check_timeouts"),
+            patch.object(session._execution, "start", new_callable=AsyncMock),
+            patch("quantflow.strategy.engine._ensure_metrics_server_started"),
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
             # Stop after 2 iterations
             sleep_count = 0
+
             async def stop_after_sleep(*args, **kwargs):
                 nonlocal sleep_count
                 sleep_count += 1
                 if sleep_count >= 2:
                     session._running = False
+
             mock_sleep.side_effect = stop_after_sleep
 
             await session.start(mode="paper")
@@ -254,23 +365,35 @@ class TestTradingSessionRunDataLoop:
         mock_fetcher.connect = AsyncMock(side_effect=Exception("Connection failed"))
         mock_fetcher.disconnect = AsyncMock()
 
-        with patch("quantflow.data.fetcher.DataFetcher", return_value=mock_fetcher), \
-             patch("quantflow.data.store.DataStore") as mock_store_cls, \
-             patch.object(session, "check_health"), \
-             patch.object(session._execution, "check_timeouts"), \
-             patch.object(session._execution, "start", new_callable=AsyncMock), \
-             patch("quantflow.strategy.engine._ensure_metrics_server_started"), \
-             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with (
+            patch("quantflow.data.fetcher.DataFetcher", return_value=mock_fetcher),
+            patch("quantflow.data.store.DataStore") as mock_store_cls,
+            patch.object(session, "check_health"),
+            patch.object(session._execution, "check_timeouts"),
+            patch.object(session._execution, "start", new_callable=AsyncMock),
+            patch("quantflow.strategy.engine._ensure_metrics_server_started"),
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
             # Stop after 2 sleep iterations
             sleep_count = 0
+
             async def stop_after_sleep(*args, **kwargs):
                 nonlocal sleep_count
                 sleep_count += 1
                 if sleep_count >= 2:
                     session._running = False
+
             mock_sleep.side_effect = stop_after_sleep
 
-            await session.start(mode="live", gateway_config={"api_key": "test", "secret": "test", "passphrase": "test", "sandbox": False})
+            await session.start(
+                mode="live",
+                gateway_config={
+                    "api_key": "test",
+                    "secret": "test",
+                    "passphrase": "test",
+                    "sandbox": False,
+                },
+            )
             session._running = True
             await session.run_data_loop("BTC/USDT", "1h", 1)
 
@@ -300,6 +423,7 @@ class TestTradingSessionOnRiskEvent:
         session._kill_switch = mock_kill
 
         from quantflow.common.event_bus import Event
+
         event = Event(type="risk", data={"severity": "emergency"})
         session._on_risk_event(event)
         # Emergency detected but kill switch not yet activated (logged only)
@@ -313,5 +437,6 @@ class TestTradingSessionOnRiskEvent:
         session._kill_switch = mock_kill
 
         from quantflow.common.event_bus import Event
+
         event = Event(type="risk", data={"severity": "warn"})
         session._on_risk_event(event)
