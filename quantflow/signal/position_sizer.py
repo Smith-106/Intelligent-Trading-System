@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from quantflow.common.models import Portfolio, Signal
+from quantflow.common.models import Portfolio, Signal, strategy_id_constituents
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +49,14 @@ class PositionSizer:
         if total_value <= 0:
             return 0.0
 
-        # Use per-strategy win_rate when available
-        actual_win_rate = (strategy_win_rates or {}).get(signal.strategy_id, win_rate)
+        # Use per-strategy win_rate when available. A consolidated signal
+        # carries a compound strategy_id; average the win rates of its
+        # constituents so sizing reflects the blended edge rather than the
+        # default (which would over-size when one constituent is strong).
+        rates = strategy_win_rates or {}
+        constituents = strategy_id_constituents(signal.strategy_id) or [signal.strategy_id]
+        matched = [rates[c] for c in constituents if c in rates]
+        actual_win_rate = sum(matched) / len(matched) if matched else win_rate
 
         if self._method == "fixed":
             base = total_value * self._fixed_pct

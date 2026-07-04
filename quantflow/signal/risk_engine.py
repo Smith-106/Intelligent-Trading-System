@@ -7,7 +7,7 @@ import logging
 import numpy as np
 
 from quantflow.common.config import RiskConfig
-from quantflow.common.models import Portfolio, RiskDecision, Signal
+from quantflow.common.models import Portfolio, RiskDecision, Signal, strategy_id_constituents
 
 logger = logging.getLogger(__name__)
 
@@ -92,34 +92,54 @@ class RiskEngine:
         return RiskDecision(passed=True)
 
     def _check_strategy_budget(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
-        """Check per-strategy risk budget allocation."""
-        if not self._strategy_risk_budgets or signal.strategy_id not in self._strategy_risk_budgets:
+        """Check per-strategy risk budget allocation.
+
+        A consolidated signal carries a compound ``strategy_id`` (e.g.
+        ``"momentum_rotation,trend_following"``). Expand it and enforce each
+        constituent's budget; otherwise the joined key never matches a
+        single-strategy budget and the check is silently bypassed.
+        """
+        if not self._strategy_risk_budgets:
             return RiskDecision(passed=True)
 
-        budget_pct = self._strategy_risk_budgets[signal.strategy_id]
+        constituents = strategy_id_constituents(signal.strategy_id)
+        # Fall back to the raw id when it isn't compound (covers single-strategy
+        # signals and any non-joinable custom ids).
+        budget_keys = constituents or [signal.strategy_id]
+        budgeted = [k for k in budget_keys if k in self._strategy_risk_budgets]
+        if not budgeted:
+            return RiskDecision(passed=True)
+
         total_value = portfolio.total_value
         if total_value <= 0:
             return RiskDecision(passed=True)
 
-        # Sum position values from same strategy (filter by strategy_id)
-        strategy_exposure = 0.0
-        for pos in portfolio.positions.values():
-            if pos.strategy_id == signal.strategy_id:
-                pos_value = abs(pos.quantity) * pos.current_price if pos.current_price > 0 else 0
-                strategy_exposure += pos_value
+        # Block if exposure attributed to any constituent strategy exceeds that
+        # strategy's budget. A position is attributed to a constituent when its
+        # strategy_id matches or is itself a compound key containing it.
+        for key in budgeted:
+            budget_pct = self._strategy_risk_budgets[key]
+            strategy_exposure = 0.0
+            for pos in portfolio.positions.values():
+                pos_constituents = strategy_id_constituents(pos.strategy_id) or [pos.strategy_id]
+                if key in pos_constituents:
+                    pos_value = (
+                        abs(pos.quantity) * pos.current_price if pos.current_price > 0 else 0
+                    )
+                    strategy_exposure += pos_value
 
-        budget_limit = total_value * budget_pct
-        if strategy_exposure >= budget_limit:
-            return RiskDecision(
-                passed=False,
-                reason="strategy_budget",
-                details={
-                    "strategy_id": signal.strategy_id,
-                    "exposure": strategy_exposure,
-                    "budget": budget_limit,
-                    "budget_pct": budget_pct,
-                },
-            )
+            budget_limit = total_value * budget_pct
+            if strategy_exposure >= budget_limit:
+                return RiskDecision(
+                    passed=False,
+                    reason="strategy_budget",
+                    details={
+                        "strategy_id": key,
+                        "exposure": strategy_exposure,
+                        "budget": budget_limit,
+                        "budget_pct": budget_pct,
+                    },
+                )
         return RiskDecision(passed=True)
 
     def _check_daily_loss(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
@@ -164,8 +184,8 @@ class RiskEngine:
             returns[returns <= var_95].mean() if len(returns[returns <= var_95]) > 0 else var_95
         )
 
-        # If CVaR exceeds 5% loss, block the signal
-        if cvar_95 < -0.05:
+        # If CVaR exceeds the configured loss threshold, block the signal.
+        if cvar_95 < self._config.cvar_limit:
             return RiskDecision(
                 passed=False, reason="var_breach", details={"var_95": var_95, "cvar_95": cvar_95}
             )

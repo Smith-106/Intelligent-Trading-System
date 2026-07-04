@@ -126,3 +126,41 @@ class TestStrategyBudgetFilter:
         assert "exposure" in result.details
         assert "budget" in result.details
         assert "budget_pct" in result.details
+
+    def test_compound_strategy_id_enforces_constituent_budget(self):
+        """A consolidated signal's compound strategy_id must still match its
+        constituents' budgets. Previously the joined key never matched a
+        single-strategy budget, silently bypassing per-strategy limits."""
+        budgets = {"s1": 0.2}
+        engine = RiskEngine(RiskConfig(position_limit_pct=1.0), strategy_risk_budgets=budgets)
+        pos = Position("BTC/USDT", 1.0, 50000.0, 50000.0, strategy_id="s1")
+        portfolio = Portfolio(cash=100000.0, positions={"BTC/USDT": pos})
+        # Compound key "s1,s2" — s1 is over budget → must block (not bypass).
+        result = engine.check(self._signal("s1,s2"), portfolio)
+        assert result.passed is False
+        assert result.reason == "strategy_budget"
+        assert result.details["strategy_id"] == "s1"
+        assert result.details["exposure"] == 50000.0
+
+    def test_compound_strategy_id_position_attributed_to_constituent(self):
+        """A position whose strategy_id is itself compound is counted toward
+        each of its constituents' exposure."""
+        budgets = {"s1": 0.2}
+        engine = RiskEngine(RiskConfig(position_limit_pct=1.0), strategy_risk_budgets=budgets)
+        # Position carried under a compound key that includes s1.
+        pos = Position("BTC/USDT", 1.0, 50000.0, 50000.0, strategy_id="s1,s2")
+        portfolio = Portfolio(cash=100000.0, positions={"BTC/USDT": pos})
+        result = engine.check(self._signal("s1,s2"), portfolio)
+        assert result.passed is False
+        assert result.reason == "strategy_budget"
+        assert result.details["exposure"] == 50000.0
+
+    def test_compound_strategy_id_no_constituent_budget_passes(self):
+        """If none of the constituents have a configured budget, pass through
+        (consistent with single-strategy behavior for unbudgeted strategies)."""
+        budgets = {"s9": 0.3}
+        engine = RiskEngine(RiskConfig(position_limit_pct=1.0), strategy_risk_budgets=budgets)
+        pos = Position("BTC/USDT", 1.0, 50000.0, 50000.0, strategy_id="s1")
+        portfolio = Portfolio(cash=100000.0, positions={"BTC/USDT": pos})
+        result = engine.check(self._signal("s1,s2"), portfolio)
+        assert result.passed

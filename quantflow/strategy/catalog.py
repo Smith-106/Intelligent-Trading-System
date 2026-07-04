@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from copy import deepcopy
 from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
@@ -194,11 +195,26 @@ def get_strategy_specs() -> dict[str, tuple[StrategyFactory, ParamSpace]]:
 
 
 @cache
-def load_strategy_config(strategy_id: str) -> dict[str, Any]:
-    """Load the YAML configuration for a strategy."""
+def _load_strategy_config_raw(strategy_id: str) -> dict[str, Any]:
+    """Load and cache the YAML configuration for a strategy (internal).
+
+    The cached object is shared across all callers; never return it directly.
+    Use ``load_strategy_config`` for a per-call deep copy.
+    """
     config_path = get_strategy_definition(strategy_id).config_path
     with open(config_path, encoding="utf-8") as handle:
         return yaml.safe_load(handle) or {}
+
+
+def load_strategy_config(strategy_id: str) -> dict[str, Any]:
+    """Load the YAML configuration for a strategy.
+
+    Returns a fresh deep copy on every call so callers can mutate the result
+    without poisoning the shared ``@cache`` entry (the previous version cached
+    and returned the same dict, aliasing nested params/exit/risk into every
+    consumer).
+    """
+    return deepcopy(_load_strategy_config_raw(strategy_id))
 
 
 def summarize_strategy(strategy_id: str) -> dict[str, Any]:
@@ -212,7 +228,9 @@ def summarize_strategy(strategy_id: str) -> dict[str, Any]:
     timeframe = raw.get("timeframe") or strategy_block.get("timeframe")
     default_symbol = raw.get("symbol") or strategy_block.get("symbol")
     symbols = raw.get("symbols") or ([default_symbol] if default_symbol else [])
-    description = raw.get("description") or strategy_block.get("description") or definition.description
+    description = (
+        raw.get("description") or strategy_block.get("description") or definition.description
+    )
     return {
         "strategy_id": strategy_id,
         "title": definition.title,

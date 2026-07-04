@@ -73,6 +73,20 @@ class Signal:
     timestamp: int = 0
 
 
+def strategy_id_constituents(strategy_id: str) -> list[str]:
+    """Split a (possibly compound) ``strategy_id`` into its constituents.
+
+    A consolidated signal carries a comma-joined ``strategy_id`` such as
+    ``"momentum_rotation,trend_following"``. Downstream risk budget / win-rate
+    lookups key on a single strategy id, so they must expand the compound key
+    rather than miss the lookup entirely (which would bypass per-strategy risk
+    budgets for consolidated signals).
+    """
+    if not strategy_id:
+        return []
+    return [part for part in (s.strip() for s in strategy_id.split(",")) if part]
+
+
 @dataclass
 class Position:
     symbol: str

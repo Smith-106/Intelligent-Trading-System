@@ -74,3 +74,24 @@ class TestSignalGenerator:
         assert result.price == 49000
         assert result.strength == pytest.approx(0.6)
         assert set(result.strategy_id.split(",")) == {"s1", "s2"}
+
+    def test_consolidate_strategy_id_is_deterministic_sorted(self):
+        """Consolidated strategy_id must be sorted so the same inputs always
+        produce the same compound key (a plain set() join was non-deterministic
+        and broke downstream budget/win-rate lookups across bars)."""
+        gen = SignalGenerator()
+        sigs_a = [
+            Signal("BTC/USDT", Direction.LONG, 0.6, 50000, "zeta"),
+            Signal("BTC/USDT", Direction.LONG, 0.8, 50000, "alpha"),
+            Signal("BTC/USDT", Direction.LONG, 0.7, 50000, "mid"),
+        ]
+        sigs_b = list(reversed(sigs_a))
+        a = gen.consolidate_signals(
+            sigs_a, strategy_hit_rates={"zeta": 1.0, "alpha": 1.0, "mid": 1.0}
+        )
+        b = gen.consolidate_signals(
+            sigs_b, strategy_hit_rates={"zeta": 1.0, "alpha": 1.0, "mid": 1.0}
+        )
+        assert a is not None and b is not None
+        assert a.strategy_id == "alpha,mid,zeta"
+        assert a.strategy_id == b.strategy_id  # input order independent

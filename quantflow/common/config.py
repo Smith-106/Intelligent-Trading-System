@@ -54,6 +54,14 @@ class RiskConfig(BaseModel):
     weekly_loss_limit: float = -0.05
     max_drawdown: float = -0.10
     kill_switch_enabled: bool = True
+    # CVaR (Expected Shortfall) threshold at 95% confidence. If the historical
+    # CVaR of recent returns is worse (more negative) than this, new signals
+    # are blocked. Negative because it represents a loss fraction.
+    cvar_limit: float = -0.05
+    # Fraction of the full-Kelly bet to use (0.5 = half-Kelly). Loaded from
+    # risk.kelly_fraction in default.yaml; previously hardcoded in TradingSession
+    # so the YAML value was silently dropped.
+    kelly_fraction: float = 0.5
 
 
 class ExecutionConfig(BaseModel):
@@ -145,9 +153,7 @@ def resolve_config_path_safe(config_path: str | Path | None) -> Path:
         resolved = package_relative.resolve(strict=False)
         resolved.relative_to(_PACKAGE_ROOT)
     except ValueError as exc:
-        raise ValueError(
-            f"Config path escapes the package config tree: {config_path!r}"
-        ) from exc
+        raise ValueError(f"Config path escapes the package config tree: {config_path!r}") from exc
     return resolved
 
 

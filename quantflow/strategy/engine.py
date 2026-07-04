@@ -64,8 +64,11 @@ class TradingSession:
         self._risk_engine = RiskEngine(config.risk, strategy_risk_budgets=strategy_risk_budgets)
         self._position_sizer = PositionSizer(
             method="kelly",
-            kelly_fraction=0.5,
-            max_position_pct=config.risk.position_limit_pct * 100,
+            kelly_fraction=config.risk.kelly_fraction,
+            # position_limit_pct is a fraction (e.g. 0.20 = 20%); pass it
+            # directly. Multiplying by 100 yielded 20.0 = 2000%, making the
+            # max-position clamp a no-op and silently ignoring the risk config.
+            max_position_pct=config.risk.position_limit_pct,
         )
         self._portfolio = PortfolioManager(initial_capital=100000.0)
         self._signal_gen = SignalGenerator()
@@ -260,9 +263,12 @@ class TradingSession:
 
         # Position sizing (uses signal strength + per-strategy win rate)
         allocation = self._portfolio.get_strategy_allocation(signal.strategy_id)
-        size = self._position_sizer.size(
-            signal, portfolio, strategy_win_rates=self._strategy_win_rates
-        ) * allocation
+        size = (
+            self._position_sizer.size(
+                signal, portfolio, strategy_win_rates=self._strategy_win_rates
+            )
+            * allocation
+        )
 
         if size <= 0:
             self._record_signal_latency(signal.strategy_id, started_at)

@@ -84,5 +84,10 @@ class SignalGenerator:
             direction=direction,
             strength=avg_strength,
             price=signals[0].price,
-            strategy_id=",".join(set(s.strategy_id for s in signals)),
+            # Deterministic, sorted compound key. A plain ``set(...)`` join
+            # produced a non-deterministic ordering, so the same inputs could
+            # yield different strategy_id strings across bars — and the
+            # comma-joined key never matched a single-strategy risk budget,
+            # silently bypassing per-strategy limits (see risk_engine).
+            strategy_id=",".join(sorted({s.strategy_id for s in signals})),
         )
