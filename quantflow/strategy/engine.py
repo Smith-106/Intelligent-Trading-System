@@ -613,11 +613,11 @@ class TradingSession:
             "kill_switch": self._kill_switch.check() if self._kill_switch is not None else None,
         }
 
-    def activate_kill_switch(self, reason: str) -> Any:
+    async def activate_kill_switch(self, reason: str) -> dict[str, Any]:
         """Activate the kill switch (raises if none configured)."""
         if self._kill_switch is None:
             raise RuntimeError("No active session kill switch is available.")
-        return self._kill_switch.activate(reason)
+        return await self._kill_switch.activate(reason)
 
     def adjust_capital(self, capital: float) -> None:
         """Set the portfolio capital atomically (initial capital + peak)."""

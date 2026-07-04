@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 from collections import Counter
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -481,7 +482,9 @@ class StationSessionManager:
         for event in events:
             store.append_session_event(event)
 
-    def _build_event_handler(self, runtime: SessionRuntime, event_type: str):
+    def _build_event_handler(
+        self, runtime: SessionRuntime, event_type: str
+    ) -> Callable[[Event], None]:
         def handler(event: Event) -> None:
             payload = _jsonable(event.data or {})
             title, level, message = self._describe_event(event_type, payload)
