@@ -1,0 +1,20 @@
+{
+  "call_chains": [
+    "Web POST /api/session/start -> app._session_start -> StationSessionManager.start -> TradingSession(config,strategies) -> session.start -> run_data_loop -> on_bar -> strategy.on_bar -> ctx.flush_signals -> _process_signal -> RiskEngine.check -> PositionSizer.size -> ExecutionEngine.submit_order -> Gateway.send_order",
+    "Web POST /api/session/kill-switch -> StationSessionManager.trigger_kill_switch -> session.kill_switch.activate (L5 invoked from web)",
+    "Web GET /api/monitoring -> service.monitoring_snapshot -> metrics_registry_snapshot (REGISTRY.collect) + _port_reachable (blocking socket)"
+  ],
+  "recent_changes": "51 files, +21620/-224 vs 4bc72cd. New web/ layer + strategy/catalog.py + _runtime.py. Theme: web UI + catalog + strategy template exit-logic refactor.",
+  "error_gaps": [
+    "app.py limit query int() uncaught ValueError -> 500",
+    "history.py _list json.loads uncaught JSONDecodeError -> 500",
+    "app.py _kill_switch payload.get on non-dict -> AttributeError -> 500",
+    "service.py execution_snapshot NaN not sanitized -> json serialize 500"
+  ],
+  "similar_patterns": [
+    "FLAT-as-SELL bug pattern in engine.py:265 affects ALL strategy templates that emit Direction.FLAT exits",
+    "Position-book divergence: portfolio.py (correct flip) vs paper_gateway.py + position_manager.py (both keep old entry_price on flip)",
+    "Hardcoded capital defaults diverge across paper_gateway(1M)/PortfolioManager(100k)/web SessionStartRequest(100k)/ResearchRequest(10k)",
+    "Blocking I/O in async event loop: _port_reachable socket + history.append file write + metrics REGISTRY.collect"
+  ]
+}
