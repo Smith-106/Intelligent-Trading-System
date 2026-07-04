@@ -9,6 +9,10 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+# Cap each JSONL category file so it does not grow unbounded across a
+# long-running station session (events are appended per SIGNAL/ORDER/FILL/RISK).
+_MAX_JSONL_BYTES = 8 * 1024 * 1024
+
 
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat()
@@ -125,8 +129,38 @@ class StationHistoryStore:
     def _append(self, category: str, record: dict[str, Any]) -> None:
         path = self.base_dir / f"{category}.jsonl"
         path.parent.mkdir(parents=True, exist_ok=True)
+        line = json.dumps(record, ensure_ascii=False) + "\n"
         with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+            handle.write(line)
+        # Cap on-disk growth: if the file exceeds the limit, truncate to the
+        # most recent _MAX_JSONL_BYTES worth of complete lines so the file
+        # does not grow unbounded over a long-running station session.
+        try:
+            if path.stat().st_size > _MAX_JSONL_BYTES:
+                self._rotate(path)
+        except OSError:
+            pass
+
+    @staticmethod
+    def _rotate(path: Path) -> None:
+        """Truncate a JSONL file to its most recent complete tail."""
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            return
+        lines = text.splitlines()
+        # Keep as many recent complete lines as fit under the cap.
+        kept: list[str] = []
+        size = 0
+        for line in reversed(lines):
+            if not line:
+                continue
+            if size + len(line) + 1 > _MAX_JSONL_BYTES and kept:
+                break
+            kept.append(line)
+            size += len(line) + 1
+        kept.reverse()
+        path.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
 
     def _list(
         self,
@@ -143,11 +177,16 @@ class StationHistoryStore:
 
         results: list[dict[str, Any]] = []
         seen: set[str] = set()
-        lines = path.read_text(encoding="utf-8").splitlines()
+        # Read only the tail of the file to bound memory on long sessions.
+        lines = self._read_tail_lines(path, max_lines=max(limit * 8, 256))
         for line in reversed(lines):
             if not line.strip():
                 continue
-            item = json.loads(line)
+            try:
+                item = json.loads(line)
+            except json.JSONDecodeError:
+                # Skip corrupt/partial lines rather than failing the request.
+                continue
             if filter_key and item.get(filter_key) != filter_value:
                 continue
             if dedupe_key:
@@ -159,3 +198,37 @@ class StationHistoryStore:
             if len(results) >= limit:
                 break
         return results
+
+    @staticmethod
+    def _read_tail_lines(path: Path, *, max_lines: int) -> list[str]:
+        """Return up to ``max_lines`` trailing lines of ``path``.
+
+        Reads the file tail in chunks so a multi-hundred-MB JSONL file does
+        not have to be loaded fully into memory on every poll.
+        """
+        try:
+            size = path.stat().st_size
+        except OSError:
+            return []
+        chunk_size = 64 * 1024
+        lines: list[str] = []
+        pos = size
+        with path.open("rb") as handle:
+            while pos > 0 and len(lines) < max_lines:
+                read_size = min(chunk_size, pos)
+                pos -= read_size
+                handle.seek(pos)
+                data = handle.read(read_size).decode("utf-8", errors="replace")
+                parts = data.split("\n")
+                if lines:
+                    # The leading partial of this chunk joins the trailing partial of the previous.
+                    parts[0] = parts[0] + lines[0]
+                    lines = parts[1:] + lines[1:]
+                else:
+                    lines = parts
+                if pos == 0:
+                    break
+        # Drop a possible leading empty string from the split.
+        if lines and lines[0] == "":
+            lines = lines[1:]
+        return lines[-max_lines:]

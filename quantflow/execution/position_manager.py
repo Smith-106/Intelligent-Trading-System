@@ -67,8 +67,12 @@ class PositionManager:
             total_cost = existing.entry_price * abs(existing.quantity) + price * abs(quantity_delta)
             total_qty = abs(new_qty)
             avg_price = total_cost / total_qty
+        elif existing.quantity * new_qty < 0:
+            # Position flipped direction — the new leg starts at the fill price.
+            # Keeping the old entry_price would invert P&L on the new short/long.
+            avg_price = price
         else:
-            # Reducing position or flipping — keep entry price
+            # Reducing position in same direction — keep entry price
             avg_price = existing.entry_price
 
         self._positions[symbol] = Position(
@@ -76,6 +80,7 @@ class PositionManager:
             quantity=new_qty,
             entry_price=avg_price,
             current_price=price,
+            unrealized_pnl=(price - avg_price) * new_qty,
             strategy_id=existing.strategy_id or strategy_id,
         )
 

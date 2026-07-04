@@ -47,9 +47,19 @@ class TestSessionManagerStartCapitalAdjustment:
 
         mock_session = MagicMock()
         mock_session.portfolio.cash = 90000.0
-        mock_session.portfolio.update_cash = MagicMock()
-        mock_session.portfolio._initial_capital = 90000.0
-        mock_session.portfolio._peak_equity = 90000.0
+        mock_session.last_error = None
+        mock_session.adjust_capital = MagicMock()
+        mock_session.snapshot_state = MagicMock(return_value={
+            "health": {"running": False, "open_positions": 0, "pending_orders": 0},
+            "cash": 100000.0,
+            "portfolio": {
+                "equity": 100000, "cash": 100000, "total_value": 100000,
+                "market_value": 0, "drawdown": 0, "positions": 0,
+            },
+            "positions": [],
+            "open_orders": [],
+            "kill_switch": {"active": False, "reason": None},
+        })
         mock_session.start = AsyncMock()
         # run_data_loop must return a coroutine (async def)
         async def _run_data_loop(**kwargs):
@@ -96,10 +106,9 @@ class TestSessionManagerStartCapitalAdjustment:
                 config_path="quantflow/config/default.yaml",
             ))
 
-            mock_session.portfolio.update_cash.assert_called_once()
-            # Lines 140-143: hasattr checks should pass and set values
-            assert mock_session.portfolio._initial_capital == 100000.0
-            assert mock_session.portfolio._peak_equity == 100000.0
+            # Capital adjustment now flows through the session facade
+            # (adjust_capital) instead of mutating portfolio private attrs.
+            mock_session.adjust_capital.assert_called_once_with(100000.0)
             manager._runtime = None
 
 

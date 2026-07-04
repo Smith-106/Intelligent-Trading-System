@@ -22,6 +22,56 @@ STATIC_PACKAGE = "quantflow.web.static"
 STATION_SERVICE_KEY = web.AppKey("station_service", StationService)
 SESSION_MANAGER_KEY = web.AppKey("session_manager", StationSessionManager)
 
+# Local-only station: mutation endpoints must come from the same origin to
+# prevent browser-driven CSRF (a random web page posting to
+# /api/session/kill-switch on localhost). Read-only GETs are exempt.
+_MUTATION_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def _parse_limit(request: web.Request, default: int = 12, maximum: int = 500) -> int:
+    """Parse the ``limit`` query param defensively, clamped to [0, maximum]."""
+    raw = request.query.get("limit", str(default))
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise web.HTTPBadRequest(
+            text='{"error":"invalid limit"}',
+            content_type="application/json",
+        ) from exc
+    if value < 0:
+        return 0
+    return min(value, maximum)
+
+
+@web.middleware
+async def _same_origin_guard(request: web.Request, handler):
+    """Reject cross-origin mutations to local trading-control endpoints.
+
+    aiohttp does not check Origin/Referer by default, so a page in the
+    operator's browser could issue a cross-site POST to start a live session
+    or flip the kill switch. Requiring a same-origin header (or a matching
+    local Host) for mutating methods blocks browser-driven CSRF without a
+    token, while still allowing same-origin fetches from the Station UI and
+    non-browser clients (which simply omit the header).
+    """
+    if request.method in _MUTATION_METHODS:
+        origin = request.headers.get("Origin")
+        if origin:
+            host = request.headers.get("Host", "")
+            # Origin is scheme://host[:port]; compare the host portion.
+            try:
+                from urllib.parse import urlparse
+
+                origin_host = urlparse(origin).netloc
+            except Exception:
+                origin_host = ""
+            if origin_host and host and origin_host != host:
+                return web.json_response(
+                    {"error": "cross-origin mutations are not permitted"},
+                    status=403,
+                )
+    return await handler(request)
+
 
 def _static_dir() -> Path:
     return Path(resources.files(STATIC_PACKAGE))
@@ -88,7 +138,7 @@ async def _research(request: web.Request) -> web.Response:
 
 async def _research_history(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    limit = int(request.query.get("limit", "12"))
+    limit = _parse_limit(request, default=12)
     return web.json_response({"items": service.research_history(limit=limit)})
 
 
@@ -104,7 +154,7 @@ async def _validate(request: web.Request) -> web.Response:
 
 async def _validation_history(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    limit = int(request.query.get("limit", "12"))
+    limit = _parse_limit(request, default=12)
     return web.json_response({"items": service.validation_history(limit=limit)})
 
 
@@ -161,14 +211,14 @@ async def _session_snapshot(request: web.Request) -> web.Response:
 
 async def _session_events(request: web.Request) -> web.Response:
     manager = request.app[SESSION_MANAGER_KEY]
-    limit = int(request.query.get("limit", "40"))
+    limit = _parse_limit(request, default=40)
     session_id = request.query.get("session_id")
     return web.json_response(await manager.events(limit=limit, session_id=session_id))
 
 
 async def _session_history(request: web.Request) -> web.Response:
     manager = request.app[SESSION_MANAGER_KEY]
-    limit = int(request.query.get("limit", "12"))
+    limit = _parse_limit(request, default=12)
     return web.json_response(await manager.session_history(limit=limit))
 
 
@@ -190,7 +240,11 @@ async def _session_stop(request: web.Request) -> web.Response:
 async def _kill_switch(request: web.Request) -> web.Response:
     manager = request.app[SESSION_MANAGER_KEY]
     payload = await request.json()
+    if not isinstance(payload, dict):
+        return web.json_response({"error": "payload must be a JSON object"}, status=400)
     reason = str(payload.get("reason", "station_manual_override"))
+    # Bound the reason to avoid unbounded JSONL/telemetry growth.
+    reason = reason[:256]
     try:
         result = await manager.trigger_kill_switch(reason)
     except RuntimeError as exc:
@@ -209,7 +263,7 @@ def create_app(
     session_manager: StationSessionManager | None = None,
 ) -> web.Application:
     """Create the QuantFlow Station application."""
-    app = web.Application()
+    app = web.Application(middlewares=[_same_origin_guard])
     history_store = (
         getattr(service, "history_store", None)
         or getattr(session_manager, "_history_store", None)

@@ -140,6 +140,10 @@ class _FakePortfolio:
     def update_cash(self, delta: float) -> None:
         self.cash += delta
 
+    def set_capital_baseline(self, capital: float) -> None:
+        self._initial_capital = capital
+        self._peak_equity = max(capital, self._peak_equity)
+
     def snapshot(self) -> dict[str, float | int]:
         return {
             "cash": self.cash,
@@ -158,6 +162,11 @@ class _FakePosition:
         self.entry_price = 48000.0
         self.current_price = 48500.0
         self.unrealized_pnl = 25.0
+        self.strategy_id = "trend_following"
+
+    @property
+    def market_value(self) -> float:
+        return self.quantity * self.current_price
 
 
 class _FakePositionManager:
@@ -244,6 +253,50 @@ class _FakeTradingSession:
             "pending_orders": 1,
             "open_positions": 1,
         }
+
+    def adjust_capital(self, capital: float) -> None:
+        self.portfolio.set_capital_baseline(capital)
+
+    def snapshot_state(self) -> dict[str, object]:
+        market_value = self.execution.position_manager.total_market_value
+        portfolio = self.portfolio.snapshot()
+        portfolio["market_value"] = market_value
+        portfolio["equity"] = self.portfolio.cash + market_value
+        portfolio["total_value"] = self.portfolio.cash + market_value
+        return {
+            "health": self.check_health(),
+            "cash": self.portfolio.cash,
+            "portfolio": portfolio,
+            "positions": [
+                {
+                    "symbol": p.symbol,
+                    "quantity": p.quantity,
+                    "entry_price": p.entry_price,
+                    "current_price": p.current_price,
+                    "market_value": p.market_value,
+                    "unrealized_pnl": p.unrealized_pnl,
+                    "strategy_id": getattr(p, "strategy_id", ""),
+                }
+                for p in self.execution.position_manager.get_all_positions()
+            ],
+            "open_orders": [
+                {
+                    "order_id": o.order_id,
+                    "symbol": o.symbol,
+                    "side": o.side.value,
+                    "order_type": o.order_type,
+                    "status": o.status.value,
+                    "quantity": o.quantity,
+                    "price": o.price,
+                    "strategy_id": getattr(o, "strategy_id", ""),
+                }
+                for o in self.execution.order_manager.get_open_orders()
+            ],
+            "kill_switch": self._kill_switch.check(),
+        }
+
+    async def activate_kill_switch(self, reason: str):
+        return await self._kill_switch.activate(reason)
 
     @property
     def kill_switch(self) -> _FakeKillSwitch:

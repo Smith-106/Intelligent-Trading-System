@@ -174,6 +174,17 @@ class PortfolioManager:
         self._cash += amount
         self._refresh_drawdown()
 
+    def set_capital_baseline(self, capital: float) -> None:
+        """Reset the initial-capital and peak-equity baseline atomically.
+
+        Used when a session is started with an operator-supplied capital so
+        that drawdown is measured against the correct base. Replaces direct
+        mutation of private attributes from presentation layers.
+        """
+        self._initial_capital = capital
+        self._peak_equity = max(capital, self.total_value)
+        self._current_drawdown = 0.0
+
     def set_allocation(self, allocation: dict[str, float]) -> None:
         """Set target allocation weights per strategy."""
         self._allocation = allocation

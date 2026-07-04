@@ -560,3 +560,62 @@ class TradingSession:
     @property
     def last_error(self) -> str | None:
         return self._last_error
+
+    # --- Presentation-layer facade ---
+    # These methods let the web/UI layer read live state and trigger controls
+    # WITHOUT reaching into execution (L5) or portfolio (L4) internals, keeping
+    # the session as the single integration boundary.
+
+    def snapshot_state(self) -> dict[str, Any]:
+        """Return a structured live-state snapshot for presentation layers."""
+        health = self.check_health()
+        portfolio = self._portfolio.snapshot()
+        portfolio["market_value"] = self._execution.position_manager.total_market_value
+        portfolio["equity"] = self._portfolio.cash + portfolio["market_value"]
+        portfolio["total_value"] = portfolio["equity"]
+        positions = [
+            {
+                "symbol": p.symbol,
+                "quantity": p.quantity,
+                "entry_price": p.entry_price,
+                "current_price": p.current_price,
+                "market_value": p.market_value,
+                "unrealized_pnl": p.unrealized_pnl,
+                "strategy_id": p.strategy_id,
+            }
+            for p in self._execution.position_manager.get_all_positions()
+        ]
+        open_orders = [
+            {
+                "order_id": o.order_id,
+                "symbol": o.symbol,
+                "side": o.side.value,
+                "order_type": o.order_type,
+                "status": o.status.value,
+                "quantity": o.quantity,
+                "price": o.price,
+                "strategy_id": o.strategy_id,
+            }
+            for o in self._execution.order_manager.get_open_orders()
+        ]
+        return {
+            "health": health,
+            "cash": self._portfolio.cash,
+            "portfolio": portfolio,
+            "positions": positions,
+            "open_orders": open_orders,
+            "kill_switch": self._kill_switch.check() if self._kill_switch is not None else None,
+        }
+
+    def activate_kill_switch(self, reason: str) -> Any:
+        """Activate the kill switch (raises if none configured)."""
+        if self._kill_switch is None:
+            raise RuntimeError("No active session kill switch is available.")
+        return self._kill_switch.activate(reason)
+
+    def adjust_capital(self, capital: float) -> None:
+        """Set the portfolio capital atomically (initial capital + peak)."""
+        cash_delta = capital - self._portfolio.cash
+        if abs(cash_delta) > 1e-10:
+            self._portfolio.update_cash(cash_delta)
+        self._portfolio.set_capital_baseline(capital)

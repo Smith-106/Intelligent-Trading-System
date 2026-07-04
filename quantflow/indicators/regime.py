@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import math
+from collections import deque
 from dataclasses import dataclass
 
 import pandas as pd
@@ -55,44 +57,60 @@ class MarketRegimeDetector:
         self._atr_lookback = atr_lookback
 
         # Incremental state for on_bar path
-        self._highs: list[float] = []
-        self._lows: list[float] = []
-        self._closes: list[float] = []
         self._max_bars = max(adx_period * 3, atr_lookback, bb_period) + 50
+        self._highs: deque[float] = deque(maxlen=self._max_bars)
+        self._lows: deque[float] = deque(maxlen=self._max_bars)
+        self._closes: deque[float] = deque(maxlen=self._max_bars)
 
         # Cached regime
         self._last_regime: MarketRegime = MarketRegime()
+        # Throttle the O(n) recompute so the per-bar hot path is amortized
+        # rather than O(n^2) over a session. The regime is a slow-moving
+        # classification; recomputing every bar is wasteful.
+        self._recompute_every = max(1, adx_period // 2)
+        self._bars_since_recompute = 0
 
     def update(self, high: float, low: float, close: float) -> MarketRegime:
         """Incremental regime update for on_bar path.
 
-        Appends bar data and recomputes regime from the accumulated series.
+        Appends bar data and recomputes regime from the accumulated series
+        on a throttled cadence (every ``_recompute_every`` bars) to keep the
+        per-bar cost bounded instead of O(n^2) over the session.
         """
         self._highs.append(high)
         self._lows.append(low)
         self._closes.append(close)
 
-        if len(self._highs) > self._max_bars:
-            self._highs = self._highs[-self._max_bars :]
-            self._lows = self._lows[-self._max_bars :]
-            self._closes = self._closes[-self._max_bars :]
-
         if len(self._closes) < self._adx_period * 2:
             return self._last_regime
+
+        self._bars_since_recompute += 1
+        if self._bars_since_recompute < self._recompute_every:
+            return self._last_regime
+        self._bars_since_recompute = 0
 
         h = pd.Series(self._highs)
         lows = pd.Series(self._lows)
         c = pd.Series(self._closes)
 
         adx_val = float(adx_vectorized(h, lows, c, period=self._adx_period).iloc[-1])
+        # Guard NaN during warmup: NaN comparisons return False, which would
+        # silently classify valid-but-partial warmup bars as mean_reversion.
+        if math.isnan(adx_val):
+            return self._last_regime
 
         # BB width as percentage of middle band
         bb_middle = c.rolling(self._bb_period).mean()
         bb_std_val = c.rolling(self._bb_period).std()
         bb_width = self._bb_std * 2 * bb_std_val
-        bb_width_pct = float(
-            (bb_width / bb_middle.replace(0, 1e-10)).iloc[-1] * 100
-        ) if len(bb_middle) > 0 and not bb_middle.iloc[-1:] .isna().all() else 0.0
+        if len(bb_middle) > 0 and not pd.isna(bb_middle.iloc[-1]):
+            bb_width_pct = float(
+                (bb_width / bb_middle.replace(0, 1e-10)).iloc[-1] * 100
+            )
+            if math.isnan(bb_width_pct):
+                bb_width_pct = 0.0
+        else:
+            bb_width_pct = 0.0
 
         # ATR percentile
         tr = pd.concat(

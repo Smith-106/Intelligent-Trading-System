@@ -13,10 +13,9 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from quantflow.common.config import load_config
+from quantflow.common.config import load_config, resolve_config_path_safe
 from quantflow.common.event_bus import Event, EventBus
 from quantflow.common.models import EVENT_FILL, EVENT_ORDER, EVENT_RISK, EVENT_SIGNAL
-from quantflow.execution.kill_switch import KillSwitch
 from quantflow.monitoring.metrics import update_portfolio_metrics
 from quantflow.strategy.catalog import get_strategy_factories
 from quantflow.strategy.engine import TradingSession
@@ -26,6 +25,7 @@ DEFAULT_CONFIG_PATH = "quantflow/config/default.yaml"
 MAX_TELEMETRY_POINTS = 240
 MIN_TELEMETRY_INTERVAL_SECONDS = 4
 EVENT_SUMMARY_LIMIT = 80
+EVENT_FLUSH_INTERVAL_SECONDS = 1.0
 
 
 def _gateway_config_from_env(mode: str, sandbox: bool) -> dict[str, str | bool]:
@@ -69,6 +69,11 @@ class SessionRuntime:
     started_at: str
     last_error: str | None = None
     event_handlers: list[tuple[str, Any]] = field(default_factory=list)
+    # Buffered event persistence: handlers push dicts here and a background
+    # flush task drains them to disk, so the per-bar hot loop does not block
+    # on a synchronous file write for every SIGNAL/ORDER/FILL/RISK event.
+    pending_events: list[dict[str, Any]] = field(default_factory=list)
+    flush_task: asyncio.Task[None] | None = None
     telemetry_points: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -123,7 +128,9 @@ class StationSessionManager:
             if self._runtime and not self._runtime.loop_task.done():
                 raise RuntimeError("A trading session is already running.")
 
-            config = load_config(request.config_path or self._config_path)
+            config = load_config(
+                resolve_config_path_safe(request.config_path or self._config_path)
+            )
             config.execution.mode = request.mode
             strategy_factories = get_strategy_factories()
             strategies = []
@@ -134,13 +141,7 @@ class StationSessionManager:
                 strategies.append(factory(None))
 
             session = TradingSession(config, strategies)
-            cash_delta = request.capital - session.portfolio.cash
-            if abs(cash_delta) > 1e-10:
-                session.portfolio.update_cash(cash_delta)
-                if hasattr(session.portfolio, "_initial_capital"):
-                    session.portfolio._initial_capital = request.capital
-                if hasattr(session.portfolio, "_peak_equity"):
-                    session.portfolio._peak_equity = request.capital
+            session.adjust_capital(request.capital)
             gateway_config = _gateway_config_from_env(
                 request.mode,
                 sandbox=(request.mode == "sandbox"),
@@ -176,7 +177,7 @@ class StationSessionManager:
             )
             loop_task.add_done_callback(lambda task: self._capture_task_outcome(task, runtime))
             self._runtime = runtime
-            snapshot = await self.snapshot()
+            snapshot = self._build_snapshot(runtime)
             self._history_store.append_session_snapshot(snapshot)
             return snapshot
 
@@ -217,15 +218,23 @@ class StationSessionManager:
             snapshot = self._build_snapshot(runtime, running_override=False)
             self._history_store.append_session_snapshot(snapshot)
             self._detach_event_observers(runtime)
+            # Cancel the background flush task and let it finish draining.
+            flush_task = runtime.flush_task
+            if flush_task is not None and not flush_task.done():
+                flush_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await flush_task
+            runtime.flush_task = None
             self._runtime = None
             return snapshot
 
     async def trigger_kill_switch(self, reason: str) -> dict[str, Any]:
         async with self._lock:
-            if self._runtime is None or self._runtime.session.kill_switch is None:
+            if self._runtime is None:
                 raise RuntimeError("No active session kill switch is available.")
-            kill_switch: KillSwitch = self._runtime.session.kill_switch
-            result = await kill_switch.activate(reason)
+            # Route through the session facade rather than touching the L5
+            # KillSwitch object directly from the presentation layer.
+            result = await self._runtime.session.activate_kill_switch(reason)
             self._record_lifecycle_event(
                 self._runtime,
                 event_type="kill_switch",
@@ -237,9 +246,14 @@ class StationSessionManager:
             return result
 
     async def events(self, limit: int = 40, session_id: str | None = None) -> dict[str, Any]:
-        active_session_id = session_id
-        if active_session_id is None and self._runtime is not None:
-            active_session_id = self._runtime.session_id
+        async with self._lock:
+            # Flush any buffered events first so callers that publish then
+            # immediately query see up-to-date results.
+            if self._runtime is not None:
+                self._flush_pending_events(self._runtime)
+            active_session_id = session_id
+            if active_session_id is None and self._runtime is not None:
+                active_session_id = self._runtime.session_id
         return {
             "items": self._history_store.list_session_events(
                 limit=limit,
@@ -248,9 +262,10 @@ class StationSessionManager:
         }
 
     async def session_history(self, limit: int = 12) -> dict[str, Any]:
-        live_session_id = None
-        if self._runtime is not None and not self._runtime.loop_task.done():
-            live_session_id = self._runtime.session_id
+        async with self._lock:
+            live_session_id = None
+            if self._runtime is not None and not self._runtime.loop_task.done():
+                live_session_id = self._runtime.session_id
         items = [
             self._present_session_snapshot(item, live_session_id=live_session_id)
             for item in self._history_store.list_session_snapshots(limit=limit)
@@ -258,11 +273,15 @@ class StationSessionManager:
         return {"items": items}
 
     async def snapshot(self) -> dict[str, Any]:
-        runtime = self._runtime
-        if runtime is None:
-            return self._empty_snapshot()
-
-        return self._build_snapshot(runtime)
+        # Acquire the lock so concurrent stop()/teardown cannot mutate
+        # self._runtime or session internals while we read them. Without this,
+        # polling handlers race with stop() and can observe half-torn-down
+        # state (wrong positions/equity) or raise mid-snapshot.
+        async with self._lock:
+            runtime = self._runtime
+            if runtime is None:
+                return self._empty_snapshot()
+            return self._build_snapshot(runtime)
 
     def _build_snapshot(
         self,
@@ -275,13 +294,15 @@ class StationSessionManager:
         if running is None:
             running = not runtime.loop_task.done()
 
-        health = runtime.session.check_health()
-        cash = runtime.session.portfolio.cash
-        market_value = runtime.session.execution.position_manager.total_market_value
-        portfolio = runtime.session.portfolio.snapshot()
-        portfolio["market_value"] = market_value
-        portfolio["equity"] = cash + market_value
-        portfolio["total_value"] = cash + market_value
+        # Drain buffered events so the snapshot's recent_events/event_summary
+        # reflect everything published up to this moment.
+        self._flush_pending_events(runtime)
+
+        # Pull live state through the session facade instead of reaching into
+        # L5 execution.position_manager / order_manager directly.
+        state = runtime.session.snapshot_state()
+        health = state["health"]
+        portfolio = state["portfolio"]
         update_portfolio_metrics(
             total_value=float(portfolio["total_value"]),
             cash=float(portfolio["cash"]),
@@ -290,39 +311,43 @@ class StationSessionManager:
         )
         positions = [
             {
-                "symbol": position.symbol,
-                "quantity": position.quantity,
-                "side": "long" if position.quantity > 0 else "short" if position.quantity < 0 else "flat",
-                "entry_price": position.entry_price,
-                "current_price": position.current_price,
-                "market_value": position.quantity * position.current_price,
-                "unrealized_pnl": position.unrealized_pnl,
+                "symbol": position["symbol"],
+                "quantity": position["quantity"],
+                "side": "long" if position["quantity"] > 0 else "short" if position["quantity"] < 0 else "flat",
+                "entry_price": position["entry_price"],
+                "current_price": position["current_price"],
+                "market_value": position["market_value"],
+                "unrealized_pnl": position["unrealized_pnl"],
                 "pnl_pct": (
-                    position.unrealized_pnl / abs(position.entry_price * position.quantity)
-                    if position.entry_price and position.quantity
+                    position["unrealized_pnl"]
+                    / abs(position["entry_price"] * position["quantity"])
+                    if position["entry_price"] and position["quantity"]
                     else 0.0
                 ),
             }
-            for position in runtime.session.execution.position_manager.get_all_positions()
+            for position in state["positions"]
         ]
         open_orders = [
             {
-                "order_id": order.order_id,
-                "symbol": order.symbol,
-                "side": order.side.value,
-                "order_type": order.order_type,
-                "status": order.status.value,
-                "quantity": order.quantity,
-                "price": order.price,
-                "notional": order.quantity * order.price if order.price is not None else None,
-                "strategy_id": order.strategy_id,
+                "order_id": order["order_id"],
+                "symbol": order["symbol"],
+                "side": order["side"],
+                "order_type": order["order_type"],
+                "status": order["status"],
+                "quantity": order["quantity"],
+                "price": order["price"],
+                "notional": order["quantity"] * order["price"] if order["price"] is not None else None,
+                "strategy_id": order["strategy_id"],
             }
-            for order in runtime.session.execution.order_manager.get_open_orders()
+            for order in state["open_orders"]
         ]
         recent_events = self._history_store.list_session_events(
             limit=40,
             session_id=runtime.session_id,
         )
+        kill_switch_state = state["kill_switch"]
+        if kill_switch_state is None:
+            kill_switch_state = {"active": False, "reason": None}
         snapshot = {
             "session_id": runtime.session_id,
             "running": running and health.get("running", False),
@@ -333,9 +358,7 @@ class StationSessionManager:
             "portfolio": portfolio,
             "positions": positions,
             "open_orders": open_orders,
-            "kill_switch": runtime.session.kill_switch.check()
-            if runtime.session.kill_switch is not None
-            else {"active": False, "reason": None},
+            "kill_switch": kill_switch_state,
             "last_error": runtime.last_error or getattr(runtime.session, "last_error", None),
             "recent_events": recent_events[:12],
         }
@@ -392,6 +415,9 @@ class StationSessionManager:
             handler = self._build_event_handler(runtime, event_type)
             event_bus.subscribe(event_type, handler)
             runtime.event_handlers.append((event_type, handler))
+        runtime.flush_task = asyncio.create_task(
+            self._flush_events(runtime), name="quantflow-station-event-flush"
+        )
 
     def _detach_event_observers(self, runtime: SessionRuntime) -> None:
         event_bus = getattr(runtime.session, "_event_bus", None)
@@ -400,12 +426,39 @@ class StationSessionManager:
         for event_type, handler in runtime.event_handlers:
             event_bus.unsubscribe(event_type, handler)
         runtime.event_handlers.clear()
+        # Drain any buffered events before tearing down. The flush_task itself
+        # is cancelled by stop() (which is async) to avoid await-in-sync.
+        self._flush_pending_events(runtime)
+
+    async def _flush_events(self, runtime: SessionRuntime) -> None:
+        """Background drain of buffered session events to disk.
+
+        Keeps the per-bar hot loop off the disk: handlers only append to an
+        in-memory list; this task flushes periodically.
+        """
+        try:
+            while True:
+                self._flush_pending_events(runtime)
+                await asyncio.sleep(EVENT_FLUSH_INTERVAL_SECONDS)
+        except asyncio.CancelledError:
+            self._flush_pending_events(runtime)
+            raise
+
+    def _flush_pending_events(self, runtime: SessionRuntime) -> None:
+        if not runtime.pending_events:
+            return
+        events = runtime.pending_events
+        runtime.pending_events = []
+        store = self._history_store
+        for event in events:
+            store.append_session_event(event)
 
     def _build_event_handler(self, runtime: SessionRuntime, event_type: str):
         def handler(event: Event) -> None:
             payload = _jsonable(event.data or {})
             title, level, message = self._describe_event(event_type, payload)
-            self._history_store.append_session_event(
+            # Buffer instead of writing synchronously on the bar loop.
+            runtime.pending_events.append(
                 {
                     "session_id": runtime.session_id,
                     "event_type": event_type,

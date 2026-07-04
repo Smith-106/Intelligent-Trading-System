@@ -35,6 +35,11 @@ class TestDemoFreqForTimeframe:
 
 
 class TestDockerAvailable:
+    def setup_method(self):
+        from quantflow.web.service import _reset_probe_cache
+
+        _reset_probe_cache()
+
     def test_docker_available_true(self):
         from quantflow.web.service import _docker_available
         with patch("quantflow.web.service.subprocess.run") as mock_run:
@@ -54,6 +59,11 @@ class TestDockerAvailable:
 
 
 class TestPortReachable:
+    def setup_method(self):
+        from quantflow.web.service import _reset_probe_cache
+
+        _reset_probe_cache()
+
     def test_port_reachable_true(self):
         from quantflow.web.service import _port_reachable
         with patch("quantflow.web.service.socket.create_connection") as mock_conn:

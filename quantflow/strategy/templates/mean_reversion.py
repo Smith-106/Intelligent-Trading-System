@@ -124,10 +124,17 @@ class MeanReversionStrategy(StrategyBase):
             self._last_entry_conditions = short_count
             return Direction.SHORT, False
 
-        # Exit: no vol_ok requirement — reversals occur on low volume
-        exit_ = (close > bb_upper * 0.98 and rsi > self._exit_rsi_overbought) or (
-            close < bb_lower * 0.98 and rsi < self._exit_rsi_oversold
-        )
+        # Exit: no vol_ok requirement — reversals occur on low volume.
+        # Direction-aware: a LONG (entered at the lower band) exits when price
+        # reverts up toward the opposite band; a SHORT (entered at the upper
+        # band) exits when price reverts down toward the lower band. Exiting a
+        # short only when price falls BELOW the lower band (the old logic)
+        # would require continuation, not mean reversion, and made short exits
+        # near-impossible. This signal-series exit is OR-combined across both
+        # directions; the per-position exits below refine it on_bar.
+        long_exit = (close > bb_upper * 0.98) and (rsi > self._exit_rsi_overbought)
+        short_exit = (close < bb_lower * 1.02) and (rsi < self._exit_rsi_oversold)
+        exit_ = long_exit or short_exit
         self._last_entry_conditions = 0
         return None, exit_
 
@@ -161,10 +168,14 @@ class MeanReversionStrategy(StrategyBase):
         short_entries = short_count >= self._min_conditions
         entries = long_entries | short_entries
 
-        # Exit on opposite band × 0.98 instead of bb_middle
-        exits = ((close > bb_upper * 0.98) & (rsi > self._exit_rsi_overbought)) | (
-            (close < bb_lower * 0.98) & (rsi < self._exit_rsi_oversold)
-        )
+        # Direction-aware exits: longs (entered at lower band) exit on upward
+        # reversion toward the upper band; shorts (entered at upper band) exit
+        # on downward reversion toward the lower band. The old logic exited a
+        # short only when price fell BELOW the lower band (continuation), which
+        # made short exits near-impossible.
+        long_exit = (close > bb_upper * 0.98) & (rsi > self._exit_rsi_overbought)
+        short_exit = (close < bb_lower * 1.02) & (rsi < self._exit_rsi_oversold)
+        exits = long_exit | short_exit
 
         # Profit target exit — direction-aware
         long_profit_exits = profit_target_exit(close, long_entries, self._profit_take_pct, self._max_holding_bars, direction=1)

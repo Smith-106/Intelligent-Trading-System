@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import math
 import socket
 import subprocess
+import time
 from bisect import bisect_left
 from collections import Counter
 from dataclasses import dataclass, field
@@ -17,7 +19,7 @@ import pandas as pd
 from pydantic import BaseModel
 
 from quantflow import __version__
-from quantflow.common.config import load_config, resolve_config_path
+from quantflow.common.config import load_config, resolve_config_path, resolve_config_path_safe
 from quantflow.data.store import DataStore
 from quantflow.monitoring.metrics import metrics_registry_snapshot, metrics_server_status
 from quantflow.strategy.catalog import (
@@ -31,6 +33,7 @@ from quantflow.web.history import StationHistoryStore
 DEFAULT_CONFIG_PATH = "quantflow/config/default.yaml"
 MAX_CHART_POINTS = 720
 DEFAULT_VISIBLE_BARS = 180
+_MAX_WORKBENCH_STATE_BYTES = 64 * 1024
 
 
 class ResearchRequest(BaseModel):
@@ -87,20 +90,56 @@ def _demo_freq_for_timeframe(timeframe: str) -> str:
     return mapping.get(timeframe, "4h")
 
 
+_PROBE_TTL_SECONDS = 3.0
+_port_reachable_cache: dict[tuple[str, int], tuple[float, bool]] = {}
+_docker_available_cache: tuple[float, bool] | None = None
+
+
+def _monotonic() -> float:
+    return time.monotonic()
+
+
+def _reset_probe_cache() -> None:
+    """Clear cached probe results (primarily for tests)."""
+    global _docker_available_cache
+    _port_reachable_cache.clear()
+    _docker_available_cache = None
+
+
 def _docker_available() -> bool:
+    global _docker_available_cache
+    now = _monotonic()
+    if _docker_available_cache is not None and now - _docker_available_cache[0] < _PROBE_TTL_SECONDS:
+        return _docker_available_cache[1]
     try:
         result = subprocess.run(["docker", "--version"], capture_output=True, text=True, timeout=5)
-        return result.returncode == 0
+        available = result.returncode == 0
     except Exception:
-        return False
+        available = False
+    _docker_available_cache = (now, available)
+    return available
 
 
 def _port_reachable(host: str, port: int, *, timeout: float = 0.35) -> bool:
+    """Probe reachability with a short TTL cache.
+
+    The probe uses a blocking ``socket.create_connection``; caching the result
+    for a few seconds means a polling web UI does not stall the event loop on
+    every request. (A fully non-blocking variant would use asyncio; tracked
+    as a follow-up.)
+    """
+    key = (host, int(port))
+    now = _monotonic()
+    cached = _port_reachable_cache.get(key)
+    if cached is not None and now - cached[0] < _PROBE_TTL_SECONDS:
+        return cached[1]
     try:
         with socket.create_connection((host, int(port)), timeout=timeout):
-            return True
+            available = True
     except OSError:
-        return False
+        available = False
+    _port_reachable_cache[key] = (now, available)
+    return available
 
 
 def _timestamp_to_iso(value: Any) -> str | None:
@@ -372,7 +411,10 @@ def _result_payload(result: BacktestResult) -> dict[str, Any]:
 
 
 def _load_store(config_path: str) -> tuple[Any, DataStore]:
-    config = load_config(config_path)
+    # config_path originates from a web request body — confine it to the
+    # packaged config tree to prevent path-traversal reads/writes.
+    safe_path = resolve_config_path_safe(config_path)
+    config = load_config(safe_path)
     return config, _open_station_store(config)
 
 
@@ -1051,7 +1093,7 @@ class StationService:
         if request.start and request.end and request.start > request.end:
             raise ValueError("start must be earlier than or equal to end")
 
-        config = load_config(request.config_path)
+        config = load_config(resolve_config_path_safe(request.config_path))
         fetcher = DataFetcher(config.data)
         store = _open_station_store(config)
 
@@ -1103,7 +1145,7 @@ class StationService:
         if normalized_source not in {"okx", "demo"}:
             raise ValueError("data_source must be one of: okx, market, demo")
 
-        config = load_config(request.config_path)
+        config = load_config(resolve_config_path_safe(request.config_path))
         symbol_name = request.symbol.replace("/", "_")
         symbol_dir = Path(config.data.parquet_dir) / symbol_name
         parquet_files = sorted(symbol_dir.glob("*/*.parquet"))
@@ -1147,7 +1189,7 @@ class StationService:
         if request.start and request.end and request.start > request.end:
             raise ValueError("start must be earlier than or equal to end")
 
-        config = load_config(request.config_path)
+        config = load_config(resolve_config_path_safe(request.config_path))
         store = _open_station_store(config)
         try:
             demo_frame = _build_demo_frame(
@@ -1203,6 +1245,15 @@ class StationService:
     def save_workbench_state(self, payload: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(payload, dict):
             raise ValueError("Workbench state payload must be a JSON object.")
+        # Bound payload size to prevent unbounded on-disk growth / abuse.
+        try:
+            encoded = json.dumps(payload, ensure_ascii=False)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Workbench state payload is not JSON-serializable.") from exc
+        if len(encoded) > _MAX_WORKBENCH_STATE_BYTES:
+            raise ValueError(
+                f"Workbench state payload exceeds {_MAX_WORKBENCH_STATE_BYTES} bytes."
+            )
         return self.history_store.save_workbench_state(payload)
 
     def monitoring_snapshot(
@@ -1674,18 +1725,22 @@ class StationService:
 
         position_count = len(positions)
         order_count = len(open_orders)
-        gross_notional = round(
-            sum(float(item.get("market_value", 0.0) or 0.0) for item in positions),
-            2,
-        )
-        pending_notional = round(
-            sum(float(item.get("notional", 0.0) or 0.0) for item in open_orders),
-            2,
-        )
-        unrealized_pnl = round(
-            sum(float(item.get("unrealized_pnl", 0.0) or 0.0) for item in positions),
-            2,
-        )
+
+        def _finite_sum(items, key):
+            total = 0.0
+            for item in items:
+                value = _safe_number(item.get(key, 0.0))
+                if value is None:
+                    continue
+                try:
+                    total += float(value)
+                except (TypeError, ValueError):
+                    continue
+            return total if math.isfinite(total) else 0.0
+
+        gross_notional = round(_finite_sum(positions, "market_value"), 2)
+        pending_notional = round(_finite_sum(open_orders, "notional"), 2)
+        unrealized_pnl = round(_finite_sum(positions, "unrealized_pnl"), 2)
 
         event_types = Counter(
             str(item.get("event_type", "unknown")).lower() for item in session_events

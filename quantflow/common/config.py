@@ -117,6 +117,40 @@ def resolve_config_path(config_path: str | Path | None = None) -> Path:
     return path
 
 
+def resolve_config_path_safe(config_path: str | Path | None) -> Path:
+    """Confine an untrusted ``config_path`` to the packaged config tree.
+
+    Used by web request handlers that forward request-supplied ``config_path``
+    values. Rejects absolute paths and ``..`` traversal that would escape the
+    package root, preventing arbitrary YAML reads/writes via path traversal.
+    CLI/internal callers should use :func:`resolve_config_path` instead.
+    """
+    if config_path is None:
+        return _PACKAGE_DEFAULT_CONFIG
+
+    path = Path(config_path)
+    if path.is_absolute():
+        raise ValueError(f"Absolute config paths are not allowed: {config_path!r}")
+    if any(part == ".." for part in path.parts):
+        raise ValueError(
+            f"Parent-traversal segments are not allowed in config path: {config_path!r}"
+        )
+
+    normalized = path.as_posix()
+    if normalized in _DEFAULT_CONFIG_ALIASES:
+        return _PACKAGE_DEFAULT_CONFIG
+
+    package_relative = _PACKAGE_ROOT / path
+    try:
+        resolved = package_relative.resolve(strict=False)
+        resolved.relative_to(_PACKAGE_ROOT)
+    except ValueError as exc:
+        raise ValueError(
+            f"Config path escapes the package config tree: {config_path!r}"
+        ) from exc
+    return resolved
+
+
 def load_config(config_path: str | Path, cli_overrides: dict[str, Any] | None = None) -> AppConfig:
     """Load config with priority: CLI args > env vars > YAML defaults.
 

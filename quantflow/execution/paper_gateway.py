@@ -73,7 +73,12 @@ class PaperGateway(GatewayBase):
             self._cash += notional - fee
 
         # Update position
-        self._update_position(symbol, quantity if side == "buy" else -quantity, fill_price)
+        self._update_position(
+            symbol,
+            quantity if side == "buy" else -quantity,
+            fill_price,
+            strategy_id=order.strategy_id,
+        )
         self._prices[symbol] = fill_price
 
         logger.info(
@@ -138,6 +143,10 @@ class PaperGateway(GatewayBase):
         if (quantity > 0 and existing.quantity > 0) or (quantity < 0 and existing.quantity < 0):
             total_cost = existing.entry_price * abs(existing.quantity) + price * abs(quantity)
             avg_price = total_cost / abs(new_qty)
+        elif existing.quantity * new_qty < 0:
+            # Position flipped direction — new leg starts at the fill price so
+            # P&L is not inverted on the new short/long.
+            avg_price = price
         else:
             avg_price = existing.entry_price
 

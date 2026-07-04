@@ -63,9 +63,12 @@ class FundingRateStrategy(StrategyBase):
         if len(self._bars) > self._max_bars:
             self._bars = self._bars[-self._max_bars :]
 
-        if self._cooldown_counter > 0:
+        # Cooldown gates NEW entries only — never exits. Blocking exits during
+        # the cooldown window would prevent stop/profit exits for up to
+        # _cooldown_bars bars, leaving adverse positions un-closeable.
+        in_cooldown = self._cooldown_counter > 0
+        if in_cooldown:
             self._cooldown_counter -= 1
-            return
 
         min_bars = max(self._rate_ema_period * 2, self._oi_lookback + 1)
         if len(self._bars) < min_bars or len(self._funding_rates) < min_bars:
@@ -82,6 +85,16 @@ class FundingRateStrategy(StrategyBase):
         last_idx = len(entries) - 1
         symbol = bar.symbol
 
+        if exits.iloc[last_idx] and self._in_position:
+            ctx.emit_signal(
+                symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
+            self._in_position = False
+            return
+
+        if in_cooldown:
+            return
+
         if entries.iloc[last_idx] and not self._in_position:
             rate = self._funding_rates[-1] if self._funding_rates else 0.0
             direction = Direction.LONG if rate < -self._entry_threshold else Direction.SHORT
@@ -91,11 +104,6 @@ class FundingRateStrategy(StrategyBase):
             self._entry_direction = direction
             self._entry_price = bar.close
             self._bars_since_entry = 0
-        elif exits.iloc[last_idx] and self._in_position:
-            ctx.emit_signal(
-                symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
-            )
-            self._in_position = False
 
         # on_bar exit mechanisms
         self._check_position_exits(ctx, bar)
