@@ -37,6 +37,53 @@ class TestAppConfig:
         assert cfg.data.sandbox is True
         assert cfg.risk.max_drawdown == -0.15
 
+    def test_risk_config_wires_kelly_and_var_confidence(self):
+        """kelly_fraction and var_confidence are in default.yaml; they MUST be
+        on RiskConfig or the YAML values are silently dropped (the bug that hid
+        kelly_fraction for the entire v0.1.3 release)."""
+        cfg = AppConfig()
+        assert hasattr(cfg.risk, "kelly_fraction")
+        assert hasattr(cfg.risk, "var_confidence")
+        assert hasattr(cfg.risk, "cvar_limit")
+        assert cfg.risk.kelly_fraction == 0.5
+        assert cfg.risk.var_confidence == 0.95
+
+
+class TestConfigSchemaDrift:
+    """Guard against YAML<->pydantic schema drift.
+
+    Every scalar key in default.yaml must resolve to a field on the matching
+    AppConfig sub-model. A key present in YAML but absent from the model is
+    silently dropped at load time — this is how kelly_fraction/var_confidence
+    were ignored for a full release. This test fails the moment such drift is
+    reintroduced.
+    """
+
+    def test_default_yaml_has_no_dropped_keys(self):
+        from quantflow.common.config import _PACKAGE_DEFAULT_CONFIG
+
+        with _PACKAGE_DEFAULT_CONFIG.open(encoding="utf-8") as handle:
+            yml = yaml.safe_load(handle)
+
+        cfg = AppConfig()
+        drift: list[str] = []
+
+        def walk(prefix: str, section, model) -> None:
+            for key, value in (section or {}).items():
+                if isinstance(value, dict):
+                    sub = getattr(model, key, None)
+                    if sub is None:
+                        drift.append(f"{prefix}{key}: section missing from {type(model).__name__}")
+                    else:
+                        walk(prefix + key + ".", value, sub)
+                elif not hasattr(model, key):
+                    drift.append(
+                        f"{prefix}{key}={value!r}: field missing from {type(model).__name__}"
+                    )
+
+        walk("", yml, cfg)
+        assert drift == [], f"YAML keys silently dropped by AppConfig: {drift}"
+
 
 class TestConfigIO:
     def test_save_and_load(self):

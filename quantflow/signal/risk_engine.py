@@ -179,7 +179,8 @@ class RiskEngine:
             return RiskDecision(passed=True)
 
         returns = np.array(self._returns_history)
-        var_95 = np.percentile(returns, 5)
+        var_pct = (1 - self._config.var_confidence) * 100
+        var_95 = np.percentile(returns, var_pct)
         cvar_95 = (
             returns[returns <= var_95].mean() if len(returns[returns <= var_95]) > 0 else var_95
         )
@@ -191,18 +192,20 @@ class RiskEngine:
             )
         return RiskDecision(passed=True)
 
-    def calculate_var(self, confidence: float = 0.95) -> float:
-        """Calculate historical VaR."""
+    def calculate_var(self, confidence: float | None = None) -> float:
+        """Calculate historical VaR at the configured (or override) confidence."""
         if len(self._returns_history) < 30:
             return 0.0
+        c = self._config.var_confidence if confidence is None else confidence
         returns = np.array(self._returns_history)
-        return float(np.percentile(returns, (1 - confidence) * 100))
+        return float(np.percentile(returns, (1 - c) * 100))
 
-    def calculate_cvar(self, confidence: float = 0.95) -> float:
-        """Calculate CVaR (Expected Shortfall)."""
+    def calculate_cvar(self, confidence: float | None = None) -> float:
+        """Calculate CVaR (Expected Shortfall) at the configured (or override) confidence."""
         if len(self._returns_history) < 30:
             return 0.0
+        c = self._config.var_confidence if confidence is None else confidence
         returns = np.array(self._returns_history)
-        var = np.percentile(returns, (1 - confidence) * 100)
+        var = np.percentile(returns, (1 - c) * 100)
         tail = returns[returns <= var]
         return float(tail.mean()) if len(tail) > 0 else float(var)

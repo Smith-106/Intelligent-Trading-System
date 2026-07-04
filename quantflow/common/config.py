@@ -62,6 +62,10 @@ class RiskConfig(BaseModel):
     # risk.kelly_fraction in default.yaml; previously hardcoded in TradingSession
     # so the YAML value was silently dropped.
     kelly_fraction: float = 0.5
+    # Confidence level for VaR/CVaR (historical). Loaded from risk.var_confidence
+    # in default.yaml; previously hardcoded as 0.95 in risk_engine, so the YAML
+    # value was silently dropped.
+    var_confidence: float = 0.95
 
 
 class ExecutionConfig(BaseModel):
