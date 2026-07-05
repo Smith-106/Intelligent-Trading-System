@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from quantflow import __version__
 from quantflow.common.config import load_config, resolve_config_path, resolve_config_path_safe
+from quantflow.common.validators import validate_symbol
 from quantflow.data.store import DataStore
 from quantflow.monitoring.metrics import metrics_registry_snapshot, metrics_server_status
 from quantflow.strategy.catalog import (
@@ -1160,7 +1161,12 @@ class StationService:
             raise ValueError("data_source must be one of: okx, market, demo")
 
         config = load_config(resolve_config_path_safe(request.config_path))
-        symbol_name = request.symbol.replace("/", "_")
+        # SECURITY: validate symbol before turning it into a filesystem path
+        # (REV-008 sibling, G4 pattern). The downstream store.query() /
+        # store.get_date_range() calls validate too, but this direct Path
+        # construction (line below) runs FIRST and would otherwise traverse
+        # the parquet dir on a crafted request.symbol.
+        symbol_name = validate_symbol(request.symbol)
         symbol_dir = Path(config.data.parquet_dir) / symbol_name
         parquet_files = sorted(symbol_dir.glob("*/*.parquet"))
         if not parquet_files:

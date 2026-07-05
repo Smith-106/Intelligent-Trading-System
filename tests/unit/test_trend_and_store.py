@@ -85,6 +85,35 @@ class TestDataStoreHelpers:
         with pytest.raises(ValueError, match="Invalid symbol format"):
             _validate_symbol("BTC;DROP TABLE")
 
+    @pytest.mark.parametrize(
+        "symbol,why",
+        [
+            ("BTC'USDT", "single quote — breaks out of DuckDB glob literal (SQLi)"),
+            ('BTC"USDT', "double quote — SQL identifier breakout"),
+            ("BTC\\USDT", "backslash — Windows path separator (traversal)"),
+            ("../etc/passwd", "dot-slash — path traversal"),
+            ("..\\etc", "dot-backslash — Windows path traversal"),
+            ("BTC*USDT", "asterisk — glob metachar (read unintended files)"),
+            ("BTC[USDT", "bracket — glob character class"),
+            ("BTC USDT", "space — breaks glob literal parsing"),
+            ("BTC|USDT", "pipe — shell metachar"),
+            ("BTC`USDT", "backtick — shell metachar"),
+            ("BTC$USDT", "dollar — shell/SQL interpolation"),
+            ("BTC.USDT", "dot — could masquerade as file extension / relative path"),
+            ("A" * 21, "over 20 chars — bound the input length"),
+            ("", "empty — no symbol"),
+        ],
+    )
+    def test_validate_symbol_rejects_security_relevant_chars(self, symbol, why):
+        """SYMBOL_PATTERN must reject every character that could break out of
+        a DuckDB glob literal, traverse the parquet dir, or inject SQL/shell
+        metachars. This is the explicit security closure for the SEC-001 /
+        REV-005 / REV-008 fix — the validators are exercised indirectly via
+        save/query, but a focused rejection test makes the contract explicit
+        (an adversarial reviewer flagged this gap as non-blocking)."""
+        with pytest.raises(ValueError, match="Invalid symbol format"):
+            _validate_symbol(symbol)
+
     def test_validate_columns_deduplicates_and_rejects_invalid_values(self):
         assert _validate_columns(["timestamp", "close", "close"]) == ["timestamp", "close"]
 
