@@ -72,11 +72,41 @@ The 35 remaining mypy `arg-type` errors are pre-existing (verified via `git stas
 
 ## 7. Generalization
 
-_Pending S_GENERALIZE._
+**Pattern P1 — "Auto-commit-without-lint drift"** (structural + semantic, high confidence):
+
+| Field | Value |
+|-------|-------|
+| Signature | Phase auto-commit (`git add` + `git commit`) **without** a preceding `ruff check --fix && ruff format` (or project equivalent) |
+| Description | Any odyssey/maestro workflow that auto-commits code without first running the project-mandated lint/format pipeline silently breaks the CI quality gate. The committed code reads fine to humans but fails `ruff check`/`format --check` in CI. |
+| Risk | High — CI gate goes red on `main` for every such commit; one deepfix session accumulated 200+ errors across 30 files before anyone noticed. |
+| Fix template | Add a pre-commit gate to `A_COMMIT`: before `git add`, run `ruff check --fix . && ruff format .`; abort the commit on lint failure. Defense-in-depth: add `.pre-commit-config.yaml` with ruff so the hook fires even outside the workflow. |
+| Scope | All `odyssey-*` and maestro workflows with phase auto-commit (they all inherit `odyssey-base.md`'s `A_COMMIT`). |
+
+**Pattern P2 — "E712 unsafe autofix on pandas/numpy bools"** (semantic, high confidence):
+
+| Field | Value |
+|-------|-------|
+| Signature | `result.iloc[i] == True` (or `== False`) in tests over pandas/numpy scalars |
+| Description | ruff E712 flags `== True`; its unsafe autofix rewrites to `is True`, which is **wrong** for numpy/pandas bools (`is True` is `False` for `np.bool_(True)`). |
+| Risk | Medium — blind autofix changes test semantics (assertion silently weakens). |
+| Fix template | For E712 on pandas/numpy scalar comparisons, use `bool(x)`, not `is x`. Review every E712 hit in data-adjacent tests before accepting autofix. |
+
+**4-agent scan results:**
+- Syntax grep: 5 unformatted `.py` in `.workflow/scratch/` (3 committed probes, 2 local — local ones cleaned).
+- Semantic: `odyssey-base.md` `A_COMMIT` does `git add`+`commit` with **no** ruff step — every odyssey command inherits the gap.
+- Structural: all `odyssey-*` workflows inherit `odyssey-base.md` commit discipline.
+- Historical: `git log -S` confirms the deepfix session committed test files unformatted.
+
+Cross-layer: structural + historical + semantic all converge → high confidence. `generalization_stats`: 2 patterns, 3 hits, 1 cross-layer confirmed.
 
 ## 8. Discoveries
 
-_Pending S_DISCOVER._
+| File | Line | Class | Action | Note |
+|------|------|-------|--------|------|
+| `tests/unit/test_remaining_coverage.py` | 2378 | bug | **fixed** | Sibling: `test_run_station_calls_run_app` missing `QUANTFLOW_STATION_TOKEN` env patch for the SEC-002 non-loopback guard (`84c355c`). Security commit updated the duplicate in `test_web_app_handlers.py` but missed this copy. Fixed inline (FIX phase). |
+| `.gitignore` | — | risk | **issue** | `.gitignore` does **not** exclude `.workflow/scratch/`. Three probe scripts (`validation_contract_probe.py`, `validation_detail_probe.py`, `validation_gate_probe.py`) are tracked git clutter. Not CI-breaking (ruff CI scope is `quantflow tests scripts` only) but committed scratch should be gitignored. Routed as issue — cross-cutting `.gitignore` decision, not auto-applied. |
+| `~/.maestro/workflows/odyssey-base.md` | 7 | risk | **issue** | Root cause at the workflow-definition level: `A_COMMIT` does `git add`+`commit` without `ruff check --fix && ruff format`. Every odyssey command inherits this gap. Routed as issue/decision — modifying the shared global workflow definition is cross-cutting and outside the project repo. |
+| `tests/unit/test_remaining_coverage.py` | 1420 | bug | **fixed** | F811 duplicate `TestAiFactorsNoSplits` shadowed `test_compute_factor_splits_empty` — pytest never collected it. Renamed second class; gained 1 collected test (1331→1332). |
 
 ## 9. Learnings
 
