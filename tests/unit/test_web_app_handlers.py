@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
-from aiohttp import web
 from aiohttp.test_utils import AioHTTPTestCase, TestClient, TestServer
 
-from quantflow.web.app import create_app, STATION_SERVICE_KEY, SESSION_MANAGER_KEY
+from quantflow.web.app import SESSION_MANAGER_KEY, STATION_SERVICE_KEY, create_app
+from quantflow.web.history import StationHistoryStore
 from quantflow.web.service import StationService
 from quantflow.web.session_manager import StationSessionManager
-from quantflow.web.history import StationHistoryStore
 
 
 class TestAppHandlers(AioHTTPTestCase):
@@ -112,39 +108,51 @@ class TestAppHandlers(AioHTTPTestCase):
         assert resp.status == 400
 
     async def test_seed_demo_handler(self):
-        resp = await self.client.post("/api/data/seed-demo", json={
-            "symbol": "BTC/USDT",
-            "timeframe": "4h",
-            "start": "2025-01-01",
-            "end": "2025-06-01",
-            "config_path": "quantflow/config/default.yaml",
-        })
+        resp = await self.client.post(
+            "/api/data/seed-demo",
+            json={
+                "symbol": "BTC/USDT",
+                "timeframe": "4h",
+                "start": "2025-01-01",
+                "end": "2025-06-01",
+                "config_path": "quantflow/config/default.yaml",
+            },
+        )
         assert resp.status == 200
         data = await resp.json()
         assert data["data_source"] == "demo"
 
     async def test_tag_source_handler_invalid(self):
-        resp = await self.client.post("/api/data/tag-source", json={
-            "symbol": "BTC/USDT",
-            "data_source": "invalid_source",
-        })
+        resp = await self.client.post(
+            "/api/data/tag-source",
+            json={
+                "symbol": "BTC/USDT",
+                "data_source": "invalid_source",
+            },
+        )
         assert resp.status == 400
 
     async def test_research_handler(self):
-        resp = await self.client.post("/api/research", json={
-            "strategy": "trend_following",
-            "symbol": "BTC/USDT",
-        })
+        resp = await self.client.post(
+            "/api/research",
+            json={
+                "strategy": "trend_following",
+                "symbol": "BTC/USDT",
+            },
+        )
         assert resp.status == 200
         data = await resp.json()
         assert "result" in data
 
     async def test_validate_handler(self):
-        resp = await self.client.post("/api/validate", json={
-            "strategy": "trend_following",
-            "symbol": "BTC/USDT",
-            "method": "gate",
-        })
+        resp = await self.client.post(
+            "/api/validate",
+            json={
+                "strategy": "trend_following",
+                "symbol": "BTC/USDT",
+                "method": "gate",
+            },
+        )
         assert resp.status == 200
         data = await resp.json()
         assert "method" in data
@@ -167,3 +175,163 @@ class TestAppCreate:
         app = create_app()
         # on_cleanup should have our handler registered
         assert len(app.on_cleanup) > 0
+
+
+class TestStationAuthAndCSRF:
+    """SEC-002 (no auth) + SEC-004 (Origin-bypass) fix verification."""
+
+    async def _post(self, client, path, *, headers=None, json_body=None):
+        return await client.post(path, json=json_body, headers=headers or {})
+
+    async def test_mutation_allowed_without_token_on_loopback(self):
+        """No token set + loopback TestClient → mutation allowed (back-compat)."""
+        history_store = StationHistoryStore()
+        app = create_app(
+            service=StationService(history_store=history_store),
+            session_manager=StationSessionManager(history_store=history_store),
+        )
+        async with TestClient(TestServer(app)) as client:
+            # Same-origin (TestClient sends matching Host/Origin by default).
+            resp = await self._post(client, "/api/session/stop")
+            assert resp.status == 200
+
+    async def test_mutation_blocked_when_token_set_and_missing(self, monkeypatch):
+        """SEC-002: with QUANTFLOW_STATION_TOKEN set, missing Authorization → 401."""
+        monkeypatch.setenv("QUANTFLOW_STATION_TOKEN", "secret-token-value-123")
+        history_store = StationHistoryStore()
+        app = create_app(
+            service=StationService(history_store=history_store),
+            session_manager=StationSessionManager(history_store=history_store),
+        )
+        async with TestClient(TestServer(app)) as client:
+            resp = await self._post(client, "/api/session/stop")
+            assert resp.status == 401
+
+    async def test_mutation_blocked_with_wrong_token(self, monkeypatch):
+        """SEC-002: wrong token → 401."""
+        monkeypatch.setenv("QUANTFLOW_STATION_TOKEN", "secret-token-value-123")
+        history_store = StationHistoryStore()
+        app = create_app(
+            service=StationService(history_store=history_store),
+            session_manager=StationSessionManager(history_store=history_store),
+        )
+        async with TestClient(TestServer(app)) as client:
+            resp = await self._post(
+                client,
+                "/api/session/stop",
+                headers={"Authorization": "Bearer wrong-token"},
+            )
+            assert resp.status == 401
+
+    async def test_mutation_allowed_with_correct_token(self, monkeypatch):
+        """SEC-002: correct Bearer token → mutation passes auth (then CSRF check)."""
+        monkeypatch.setenv("QUANTFLOW_STATION_TOKEN", "secret-token-value-123")
+        history_store = StationHistoryStore()
+        app = create_app(
+            service=StationService(history_store=history_store),
+            session_manager=StationSessionManager(history_store=history_store),
+        )
+        async with TestClient(TestServer(app)) as client:
+            resp = await self._post(
+                client,
+                "/api/session/stop",
+                headers={"Authorization": "Bearer secret-token-value-123"},
+            )
+            assert resp.status == 200
+
+    async def test_cross_origin_mutation_blocked_without_custom_header(self):
+        """SEC-004: cross-origin POST (Origin != Host, no custom header) → 403.
+        A browser-driven CSRF sends a mismatched Origin; the Station rejects it."""
+        history_store = StationHistoryStore()
+        app = create_app(
+            service=StationService(history_store=history_store),
+            session_manager=StationSessionManager(history_store=history_store),
+        )
+        async with TestClient(TestServer(app)) as client:
+            # Origin is a foreign host; Host is the real server address.
+            resp = await self._post(
+                client,
+                "/api/session/stop",
+                headers={"Origin": "https://evil.example.com"},
+            )
+            assert resp.status == 403
+
+    async def test_cross_origin_mutation_allowed_with_custom_header(self):
+        """SEC-004: a custom X-Requested-With header is accepted as a same-origin
+        signal (cross-origin browser fetches cannot set custom headers without a
+        preflight the Station never grants), so the mutation is allowed."""
+        history_store = StationHistoryStore()
+        app = create_app(
+            service=StationService(history_store=history_store),
+            session_manager=StationSessionManager(history_store=history_store),
+        )
+        async with TestClient(TestServer(app)) as client:
+            resp = await self._post(
+                client,
+                "/api/session/stop",
+                headers={
+                    "Origin": "https://evil.example.com",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+            )
+            assert resp.status == 200
+
+    async def test_origin_absent_allowed_non_browser(self):
+        """SEC-004: absent Origin (non-browser client like the TestClient) is
+        allowed — such clients already have local access in the single-operator
+        threat model; network exposure is governed by the token control."""
+        history_store = StationHistoryStore()
+        app = create_app(
+            service=StationService(history_store=history_store),
+            session_manager=StationSessionManager(history_store=history_store),
+        )
+        async with TestClient(TestServer(app)) as client:
+            resp = await self._post(client, "/api/session/stop")
+            assert resp.status == 200
+
+    async def test_get_endpoints_not_blocked_by_auth(self, monkeypatch):
+        """Read-only GETs must remain open even when a token is set."""
+        monkeypatch.setenv("QUANTFLOW_STATION_TOKEN", "secret-token-value-123")
+        history_store = StationHistoryStore()
+        app = create_app(
+            service=StationService(history_store=history_store),
+            session_manager=StationSessionManager(history_store=history_store),
+        )
+        async with TestClient(TestServer(app)) as client:
+            resp = await client.get("/api/overview")
+            assert resp.status == 200
+
+
+class TestRunStationNonLoopbackGuard:
+    """SEC-002: run_station must refuse non-loopback bind without a token."""
+
+    def test_refuses_non_loopback_without_token(self, monkeypatch):
+        monkeypatch.delenv("QUANTFLOW_STATION_TOKEN", raising=False)
+        from quantflow.web.app import run_station
+
+        with pytest.raises(RuntimeError, match="non-loopback"):
+            run_station(host="0.0.0.0", port=8088)
+
+    def test_allows_non_loopback_with_token(self, monkeypatch):
+        monkeypatch.setenv("QUANTFLOW_STATION_TOKEN", "secret-token-value-123")
+        from quantflow.web.app import _is_loopback_host, _station_token
+
+        # Not actually starting the server — just confirming the guard passes.
+        assert not _is_loopback_host("0.0.0.0")
+        assert _station_token() == "secret-token-value-123"
+
+    @pytest.mark.parametrize(
+        "host,expected",
+        [
+            ("127.0.0.1", True),
+            ("localhost", True),
+            ("0.0.0.0", False),
+            ("::1", True),
+            ("192.168.1.5", False),
+            ("", False),
+        ],
+    )
+    def test_is_loopback_host(self, host, expected):
+        from quantflow.web.app import _is_loopback_host
+
+        assert _is_loopback_host(host) is expected

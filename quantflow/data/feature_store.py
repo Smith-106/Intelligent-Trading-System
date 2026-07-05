@@ -87,23 +87,34 @@ class FeatureStore:
         end: int | None = None,
     ) -> pd.DataFrame:
         """Load historical features for backtesting."""
-        symbol_name = symbol.replace("/", "_")
+        # SECURITY: validate symbol (prevents path traversal in _read_feature_source
+        # and SQL injection via the read_parquet source) and parameterize start/end
+        # rather than f-string interpolating them into the WHERE clause.
+        from quantflow.data.store import _validate_symbol
+
+        symbol_name = _validate_symbol(symbol)
         source = self._read_feature_source(symbol_name, start, end)
         if source is None:
             return pd.DataFrame()
 
-        conditions = []
+        conditions: list[str] = []
+        params: list[int] = []
         if start is not None:
-            conditions.append(f"timestamp >= {start}")
+            conditions.append("timestamp >= ?")
+            params.append(int(start))
         if end is not None:
-            conditions.append(f"timestamp <= {end}")
+            conditions.append("timestamp <= ?")
+            params.append(int(end))
         where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
 
         try:
-            return self._db.query(f"""
+            return self._db.query(
+                f"""
                 SELECT * FROM read_parquet({source}){where}
                 ORDER BY timestamp
-            """).df()
+                """,
+                params=params,
+            ).df()
         except Exception:
             return pd.DataFrame()
 

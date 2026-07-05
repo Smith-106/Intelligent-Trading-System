@@ -147,7 +147,11 @@ class DataStore:
 
     def get_date_range(self, symbol: str) -> tuple[int, int] | None:
         """Get the date range of stored data for a symbol."""
-        symbol_name = symbol.replace("/", "_")
+        # SECURITY: validate symbol before interpolating into the DuckDB
+        # read_parquet glob string. Without this, a crafted symbol containing
+        # a single quote could break out of the glob literal and inject
+        # arbitrary SQL (e.g. read_csv_auto('/etc/passwd')). Mirrors query().
+        symbol_name = _validate_symbol(symbol)
         pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/*/*.parquet"
         try:
             result = self._db.query(f"""

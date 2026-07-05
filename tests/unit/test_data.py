@@ -92,3 +92,22 @@ class TestDataStore:
             result = store.query("NONEXISTENT/USDT")
             assert len(result) == 0
             store.close()
+
+    def test_get_date_range_rejects_injection_symbol(self):
+        """SEC-001: get_date_range must validate the symbol before interpolating
+        it into the DuckDB read_parquet glob string. A crafted symbol with a
+        single quote would otherwise break out and inject arbitrary SQL."""
+        with tempfile.TemporaryDirectory() as tmp:
+            store = DataStore(str(Path(tmp) / "pq"), str(Path(tmp) / "db.duckdb"))
+            with pytest.raises(ValueError, match="Invalid symbol"):
+                store.get_date_range("BTC' OR '1'='1")
+            # Path-traversal characters are also rejected by the symbol regex.
+            with pytest.raises(ValueError, match="Invalid symbol"):
+                store.get_date_range("../../etc/passwd")
+            store.close()
+
+    def test_get_date_range_returns_none_for_unknown_symbol(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = DataStore(str(Path(tmp) / "pq"), str(Path(tmp) / "db.duckdb"))
+            assert store.get_date_range("NONEXISTENT/USDT") is None
+            store.close()

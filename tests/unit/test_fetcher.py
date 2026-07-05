@@ -244,17 +244,31 @@ def test_get_last_timestamp_success_and_failures(
         def fetchone(self):
             return self._row
 
-    monkeypatch.setattr("duckdb.query", lambda sql: _QueryResult((1_234_567_890,)))
+    # duckdb.query is called with the timeframe as a params= keyword arg
+    # (parameterized to prevent SQL injection via the timeframe literal).
+    monkeypatch.setattr("duckdb.query", lambda sql, params=None: _QueryResult((1_234_567_890,)))
     assert fetcher.get_last_timestamp("BTC/USDT", "1d", Path("data")) == 1_234_567_890
 
-    monkeypatch.setattr("duckdb.query", lambda sql: _QueryResult((None,)))
+    monkeypatch.setattr("duckdb.query", lambda sql, params=None: _QueryResult((None,)))
     assert fetcher.get_last_timestamp("BTC/USDT", "1d", Path("data")) is None
 
-    def raise_query(sql: str):
+    def raise_query(sql: str, params=None):
         raise RuntimeError("bad parquet")
 
     monkeypatch.setattr("duckdb.query", raise_query)
     assert fetcher.get_last_timestamp("BTC/USDT", "1d", Path("data")) is None
+
+
+def test_get_last_timestamp_rejects_injection_inputs(data_config: DataConfig) -> None:
+    """SEC-001/SEC-014: get_last_timestamp must validate symbol + timeframe
+    before SQL interpolation, rejecting crafted injection payloads."""
+    fetcher = DataFetcher(data_config)
+    # Symbol with a single quote (would break out of the glob literal).
+    with pytest.raises(ValueError, match="Invalid symbol"):
+        fetcher.get_last_timestamp("BTC' OR '1'='1", "1d", Path("data"))
+    # Timeframe not in the allowlist.
+    with pytest.raises(ValueError, match="Invalid timeframe"):
+        fetcher.get_last_timestamp("BTC/USDT", "1d' OR '1'='1", Path("data"))
 
 
 @pytest.mark.asyncio

@@ -13,6 +13,10 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Least-privilege: this job only needs to read code and post check runs.
+    # An explicit permissions block guarantees this regardless of repo/org defaults.
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -40,6 +44,10 @@ jobs:
 
       - name: Mypy
         run: python -m mypy quantflow tests
+
+      - name: Dependency vulnerability audit (pip-audit)
+        # Fails CI on known CVEs in pinned dependencies (SEC-003).
+        run: python -m pip_audit --requirement requirements-lock.txt --strict
 
       - name: CLI smoke test
         run: python -m quantflow.cli.main status
