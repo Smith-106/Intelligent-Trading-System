@@ -1,0 +1,22 @@
+# Pre-commit hooks for QuantFlow.
+#
+# Enforces the project's ruff gate (CLAUDE.md: 'ruff check --fix . && ruff format .')
+# at the git-commit layer — the real enforcement behind the odyssey commands'
+# lint-before-commit reminder (overlay amend-ruff-precommit-gate).
+#
+# Install once per clone:  pip install pre-commit && pre-commit install
+# Then every commit (including odyssey/maestro phase auto-commits) is gated.
+#
+# The ruff rev is pinned to the project's installed ruff version so local and
+# CI results match. Bump both pyproject.toml and this rev together.
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Match the project ruff version (see pyproject.toml [tool.ruff]).
+    rev: v0.15.15
+    hooks:
+      # Linter — apply safe autofixes, fail on remaining errors.
+      - id: ruff-check
+        args: [--fix]
+      # Formatter — reflow to line-length 100 (see [tool.ruff]).
+      - id: ruff-format

@@ -52,3 +52,11 @@ htmlcov/
 docker/redis_data/
 docker/grafana_data/
 .venv/
+
+# Maestro / Odyssey workflow runtime state.
+# Scratch probe scripts and live session state are local-only — they should
+# not be tracked. (Historical committed sessions under .workflow/.maestro/
+# are left tracked for resume-from-git; only forward-going clutter is ignored.)
+.workflow/scratch/
+.workflow/.team/
+.workflow/.maestro/*/status.json
