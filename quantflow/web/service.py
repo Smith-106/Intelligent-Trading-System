@@ -109,7 +109,10 @@ def _reset_probe_cache() -> None:
 def _docker_available() -> bool:
     global _docker_available_cache
     now = _monotonic()
-    if _docker_available_cache is not None and now - _docker_available_cache[0] < _PROBE_TTL_SECONDS:
+    if (
+        _docker_available_cache is not None
+        and now - _docker_available_cache[0] < _PROBE_TTL_SECONDS
+    ):
         return _docker_available_cache[1]
     try:
         result = subprocess.run(["docker", "--version"], capture_output=True, text=True, timeout=5)
@@ -196,9 +199,7 @@ def _build_demo_frame(
             index = pd.date_range(start_ts, periods=bars, freq=freq, tz="UTC")
         elif len(candidate_index) > bars:
             positions = np.linspace(0, len(candidate_index) - 1, num=bars, dtype=int)
-            index = candidate_index[
-                sorted(set([*positions.tolist(), len(candidate_index) - 1]))
-            ]
+            index = candidate_index[sorted(set([*positions.tolist(), len(candidate_index) - 1]))]
         else:
             # Keep the requested end anchor, but backfill enough history so
             # demo-backed research / validation / session replay have a real window.
@@ -339,8 +340,12 @@ def _chart_payload(
 ) -> dict[str, Any]:
     close_series = pd.to_numeric(frame["close"], errors="coerce").ffill().bfill()
     open_series = _numeric_series(frame, "open", close_series)
-    high_series = _numeric_series(frame, "high", pd.concat([open_series, close_series], axis=1).max(axis=1))
-    low_series = _numeric_series(frame, "low", pd.concat([open_series, close_series], axis=1).min(axis=1))
+    high_series = _numeric_series(
+        frame, "high", pd.concat([open_series, close_series], axis=1).max(axis=1)
+    )
+    low_series = _numeric_series(
+        frame, "low", pd.concat([open_series, close_series], axis=1).min(axis=1)
+    )
     volume_series = _numeric_series(frame, "volume", pd.Series(0.0, index=frame.index))
     positions = _chart_positions(len(frame))
 
@@ -388,24 +393,24 @@ def _chart_payload(
 def _result_payload(result: BacktestResult) -> dict[str, Any]:
     return _to_jsonable(
         {
-        "strategy_id": result.strategy_id,
-        "symbol": result.symbol,
-        "start_date": result.start_date,
-        "end_date": result.end_date,
-        "initial_capital": result.initial_capital,
-        "final_capital": result.final_capital,
-        "total_return": result.total_return,
-        "annual_return": result.annual_return,
-        "sharpe_ratio": result.sharpe_ratio,
-        "sortino_ratio": result.sortino_ratio,
-        "calmar_ratio": result.calmar_ratio,
-        "max_drawdown": result.max_drawdown,
-        "win_rate": result.win_rate,
-        "profit_factor": result.profit_factor,
-        "num_trades": result.num_trades,
-        "report_markdown": generate_report(result, format="markdown"),
-        "equity_curve": _series_payload(result.equity_curve),
-        "drawdown_curve": _series_payload(result.drawdown_curve),
+            "strategy_id": result.strategy_id,
+            "symbol": result.symbol,
+            "start_date": result.start_date,
+            "end_date": result.end_date,
+            "initial_capital": result.initial_capital,
+            "final_capital": result.final_capital,
+            "total_return": result.total_return,
+            "annual_return": result.annual_return,
+            "sharpe_ratio": result.sharpe_ratio,
+            "sortino_ratio": result.sortino_ratio,
+            "calmar_ratio": result.calmar_ratio,
+            "max_drawdown": result.max_drawdown,
+            "win_rate": result.win_rate,
+            "profit_factor": result.profit_factor,
+            "num_trades": result.num_trades,
+            "report_markdown": generate_report(result, format="markdown"),
+            "equity_curve": _series_payload(result.equity_curve),
+            "drawdown_curve": _series_payload(result.drawdown_curve),
         }
     )
 
@@ -656,7 +661,9 @@ def _validation_summary(payload: dict[str, Any]) -> dict[str, Any]:
                     _validation_metric("Entries", signals.get("entries"), format_hint="integer"),
                     _validation_metric("Exits", signals.get("exits"), format_hint="integer"),
                     _validation_metric("Paths", cpcv.get("n_paths"), format_hint="integer"),
-                    _validation_metric("OOS Efficiency", cpcv.get("oos_efficiency"), format_hint="percent"),
+                    _validation_metric(
+                        "OOS Efficiency", cpcv.get("oos_efficiency"), format_hint="percent"
+                    ),
                 ],
                 "highlights": [
                     reason,
@@ -692,7 +699,9 @@ def _validation_summary(payload: dict[str, Any]) -> dict[str, Any]:
                     _validation_metric("Observed Sharpe", result.get("observed_sharpe")),
                     _validation_metric("Expected Max Sharpe", result.get("expected_max_sharpe")),
                     _validation_metric("Trials", result.get("n_trials"), format_hint="integer"),
-                    _validation_metric("Backtest Return", backtest.get("total_return"), format_hint="percent"),
+                    _validation_metric(
+                        "Backtest Return", backtest.get("total_return"), format_hint="percent"
+                    ),
                 ],
                 "highlights": [
                     reason,
@@ -768,9 +777,13 @@ def _validation_summary(payload: dict[str, Any]) -> dict[str, Any]:
                 "primary_metric_format": "number",
                 "secondary_metrics": [
                     _validation_metric("PBO", result.get("pbo")),
-                    _validation_metric("OOS Efficiency", result.get("oos_efficiency"), format_hint="percent"),
+                    _validation_metric(
+                        "OOS Efficiency", result.get("oos_efficiency"), format_hint="percent"
+                    ),
                     _validation_metric("Paths", result.get("n_paths"), format_hint="integer"),
-                    _validation_metric("Precision", signal_quality.get("precision"), format_hint="percent"),
+                    _validation_metric(
+                        "Precision", signal_quality.get("precision"), format_hint="percent"
+                    ),
                 ],
                 "highlights": [
                     reason,
@@ -815,9 +828,13 @@ def _validation_summary(payload: dict[str, Any]) -> dict[str, Any]:
                 "primary_metric_value": rolling.get("oos_sharpe_mean"),
                 "primary_metric_format": "number",
                 "secondary_metrics": [
-                    _validation_metric("Rolling Efficiency", rolling.get("oos_efficiency"), format_hint="percent"),
+                    _validation_metric(
+                        "Rolling Efficiency", rolling.get("oos_efficiency"), format_hint="percent"
+                    ),
                     _validation_metric("Anchored OOS Sharpe", anchored.get("oos_sharpe_mean")),
-                    _validation_metric("Anchored Efficiency", anchored.get("oos_efficiency"), format_hint="percent"),
+                    _validation_metric(
+                        "Anchored Efficiency", anchored.get("oos_efficiency"), format_hint="percent"
+                    ),
                     _validation_metric("Windows", rolling.get("n_windows"), format_hint="integer"),
                 ],
                 "highlights": [
@@ -957,9 +974,7 @@ class StationService:
             ]
             if active_breakdown_sources:
                 symbol_data_source = (
-                    active_breakdown_sources[0]
-                    if len(active_breakdown_sources) == 1
-                    else "hybrid"
+                    active_breakdown_sources[0] if len(active_breakdown_sources) == 1 else "hybrid"
                 )
             if symbol_data_source not in {"okx", "demo", "unknown", "hybrid"}:
                 symbol_data_source = "unknown"
@@ -990,7 +1005,8 @@ class StationService:
             symbols.append(symbol_entry)
 
             if latest_symbol is None or (
-                range_end is not None and (
+                range_end is not None
+                and (
                     latest_symbol.get("_range_end") is None
                     or int(range_end) > int(latest_symbol["_range_end"])
                 )
@@ -1003,9 +1019,7 @@ class StationService:
         mode = str(data.get("mode") or _resolve_data_mode(dict(source_counts), len(symbols)))
         raw_source_context = data.get("source_context")
         source_context = (
-            raw_source_context
-            if isinstance(raw_source_context, dict)
-            else _data_mode_context(mode)
+            raw_source_context if isinstance(raw_source_context, dict) else _data_mode_context(mode)
         )
         summary_source_counts = {key: int(value) for key, value in source_counts.items()}
         highlights: list[str] = []
@@ -1233,7 +1247,11 @@ class StationService:
             payload = item.get("payload")
             summary = item.get("summary")
             if isinstance(payload, dict):
-                if not isinstance(summary, dict) or not summary.get("method_label") or not summary.get("outcome_label"):
+                if (
+                    not isinstance(summary, dict)
+                    or not summary.get("method_label")
+                    or not summary.get("outcome_label")
+                ):
                     item = dict(item)
                     item["summary"] = _validation_summary(payload)
             normalized.append(item)
@@ -1251,9 +1269,7 @@ class StationService:
         except (TypeError, ValueError) as exc:
             raise ValueError("Workbench state payload is not JSON-serializable.") from exc
         if len(encoded) > _MAX_WORKBENCH_STATE_BYTES:
-            raise ValueError(
-                f"Workbench state payload exceeds {_MAX_WORKBENCH_STATE_BYTES} bytes."
-            )
+            raise ValueError(f"Workbench state payload exceeds {_MAX_WORKBENCH_STATE_BYTES} bytes.")
         return self.history_store.save_workbench_state(payload)
 
     def monitoring_snapshot(
@@ -1369,9 +1385,7 @@ class StationService:
                     status_kind = "external_unavailable"
                     status_label = "In Process"
                     tone = "warning"
-                    status_hint = (
-                        "Exporter started in this process, but the HTTP endpoint is still unreachable."
-                    )
+                    status_hint = "Exporter started in this process, but the HTTP endpoint is still unreachable."
                 elif attempted and last_error:
                     status_kind = "attempt_failed"
                     status_label = "Attempt Failed"
@@ -1381,9 +1395,7 @@ class StationService:
                     status_kind = "registry_only"
                     status_label = "Registry Only"
                     tone = "warning"
-                    status_hint = (
-                        "In-process metrics are available, but no reachable scrape endpoint is exposed."
-                    )
+                    status_hint = "In-process metrics are available, but no reachable scrape endpoint is exposed."
                 else:
                     status_kind = "idle"
                     status_label = "Idle"
@@ -1415,9 +1427,7 @@ class StationService:
         validation_go = 0
         for item in validation_items:
             summary = item.get("summary", {})
-            decision = str(
-                summary.get("outcome_label") or summary.get("decision") or ""
-            ).strip()
+            decision = str(summary.get("outcome_label") or summary.get("decision") or "").strip()
             normalized_decision = decision.lower()
             if decision:
                 validation_outcomes[decision] += 1
@@ -1426,9 +1436,7 @@ class StationService:
             elif "go" in normalized_decision or normalized_decision in {"pass", "passed"}:
                 validation_go += 1
 
-        event_levels = Counter(
-            str(item.get("level", "info")).lower() for item in session_events
-        )
+        event_levels = Counter(str(item.get("level", "info")).lower() for item in session_events)
         event_types = Counter(
             str(item.get("event_type", "unknown")).lower() for item in session_events
         )
@@ -1462,9 +1470,7 @@ class StationService:
         if validation_no_go:
             if health_tone != "danger":
                 health_tone = "warning"
-            health_signals.append(
-                f"{validation_no_go} recent validation runs ended in NO-GO."
-            )
+            health_signals.append(f"{validation_no_go} recent validation runs ended in NO-GO.")
 
         if prometheus_service:
             prometheus_kind = str(prometheus_service.get("status_kind", "idle"))
@@ -1500,9 +1506,7 @@ class StationService:
         if services and reachable_total == 0:
             if health_tone == "accent":
                 health_tone = "warning"
-            health_signals.append(
-                "Monitoring endpoints are not reachable from this workstation."
-            )
+            health_signals.append("Monitoring endpoints are not reachable from this workstation.")
 
         if not overview.get("docker_available", False):
             if health_tone == "accent":
@@ -1537,18 +1541,14 @@ class StationService:
                     "title": str(event.get("title") or "Session alert"),
                     "message": str(event.get("message") or "Session event requires attention."),
                     "created_at": event.get("created_at"),
-                    "tone": "danger"
-                    if level in {"error", "critical"}
-                    else "warning",
+                    "tone": "danger" if level in {"error", "critical"} else "warning",
                 }
             )
 
         if latest_validation:
             validation_summary = latest_validation.get("summary", {})
             validation_decision = str(
-                validation_summary.get("outcome_label")
-                or validation_summary.get("decision")
-                or ""
+                validation_summary.get("outcome_label") or validation_summary.get("decision") or ""
             ).lower()
             if "no-go" in validation_decision or validation_decision in {"fail", "failed"}:
                 alerts.append(
@@ -1654,31 +1654,21 @@ class StationService:
                 "source_counts": overview.get("data", {}).get("source_counts", {}),
                 "source_context": data_context,
                 "execution_mode": overview.get("execution", {}).get("mode", "paper"),
-                "kill_switch_enabled": overview.get("risk", {}).get(
-                    "kill_switch_enabled", False
-                ),
+                "kill_switch_enabled": overview.get("risk", {}).get("kill_switch_enabled", False),
             },
             "runtime": {
                 "active_session": active_session,
                 "session_id": latest_session.get("session_id") if latest_session else None,
-                "open_positions": latest_session.get("health", {}).get(
-                    "open_positions", 0
-                )
+                "open_positions": latest_session.get("health", {}).get("open_positions", 0)
                 if latest_session
                 else 0,
-                "pending_orders": latest_session.get("health", {}).get(
-                    "pending_orders", 0
-                )
+                "pending_orders": latest_session.get("health", {}).get("pending_orders", 0)
                 if latest_session
                 else 0,
-                "status_label": latest_session.get("dashboard", {}).get(
-                    "status_label", "Stopped"
-                )
+                "status_label": latest_session.get("dashboard", {}).get("status_label", "Stopped")
                 if latest_session
                 else "Stopped",
-                "status_tone": latest_session.get("dashboard", {}).get(
-                    "status_tone", "muted"
-                )
+                "status_tone": latest_session.get("dashboard", {}).get("status_tone", "muted")
                 if latest_session
                 else "muted",
             },
@@ -1745,9 +1735,7 @@ class StationService:
         event_types = Counter(
             str(item.get("event_type", "unknown")).lower() for item in session_events
         )
-        event_levels = Counter(
-            str(item.get("level", "info")).lower() for item in session_events
-        )
+        event_levels = Counter(str(item.get("level", "info")).lower() for item in session_events)
         execution_events = [
             item
             for item in session_events
@@ -1757,17 +1745,13 @@ class StationService:
 
         status_label = dashboard.get("status_label", "Stopped")
         status_tone = dashboard.get("status_tone", "muted")
-        execution_mode = request.get(
-            "mode", overview.get("execution", {}).get("mode", "paper")
-        )
+        execution_mode = request.get("mode", overview.get("execution", {}).get("mode", "paper"))
         symbol = request.get("symbol", dashboard.get("symbol", "N/A"))
         timeframe = request.get("timeframe", dashboard.get("timeframe", "N/A"))
         strategies = request.get("strategies", []) or []
         strategy_text = ", ".join(strategies)
         telemetry_labels = (
-            telemetry.get("labels", [])
-            if isinstance(telemetry.get("labels", []), list)
-            else []
+            telemetry.get("labels", []) if isinstance(telemetry.get("labels", []), list) else []
         )
 
         def _last_value(items: Any, fallback: Any) -> Any:
@@ -1928,21 +1912,15 @@ class StationService:
             validation_summary = {}
         validation_label = (
             str(
-                validation_summary.get("outcome_label")
-                or validation_summary.get("decision")
-                or ""
+                validation_summary.get("outcome_label") or validation_summary.get("decision") or ""
             ).strip()
             or None
         )
         validation_tone = str(validation_summary.get("outcome_tone") or "muted")
-        validation_reason = (
-            str(validation_summary.get("reason") or "").strip() or None
-        )
+        validation_reason = str(validation_summary.get("reason") or "").strip() or None
         validation_method = (
             str(
-                validation_summary.get("method_label")
-                or validation_summary.get("method")
-                or ""
+                validation_summary.get("method_label") or validation_summary.get("method") or ""
             ).strip()
             or None
         )
@@ -1957,9 +1935,7 @@ class StationService:
         execution_context = {
             "source_type": "runtime" if latest_session.get("session_id") else "manual",
             "source_panel": "execution",
-            "source_label": (
-                "最近运行配置" if latest_session.get("session_id") else "手动草稿"
-            ),
+            "source_label": ("最近运行配置" if latest_session.get("session_id") else "手动草稿"),
             "data_source": symbol_data_source,
             "data_mode": data_mode,
             "data_context_title": str(source_context.get("title") or ""),
@@ -1976,9 +1952,7 @@ class StationService:
                 else None
             ),
             "research_record_id": (
-                matched_research.get("record_id")
-                if isinstance(matched_research, dict)
-                else None
+                matched_research.get("record_id") if isinstance(matched_research, dict) else None
             ),
         }
 
@@ -2024,9 +1998,7 @@ class StationService:
                 "status_note": control_note,
                 "status_tone": control_tone,
                 "uptime_label": dashboard.get("uptime_label", "0s"),
-                "recent_event_count": dashboard.get(
-                    "recent_event_count", len(session_events)
-                ),
+                "recent_event_count": dashboard.get("recent_event_count", len(session_events)),
                 "open_positions": health.get("open_positions", position_count),
                 "pending_orders": health.get("pending_orders", order_count),
                 "gross_exposure_value": gross_exposure_value,
@@ -2063,8 +2035,7 @@ class StationService:
                 "kill_switch_reason": kill_switch.get("reason"),
                 "drawdown_ok": health.get("drawdown_ok", True),
                 "warning_events": event_levels.get("warning", 0),
-                "error_events": event_levels.get("error", 0)
-                + event_levels.get("critical", 0),
+                "error_events": event_levels.get("error", 0) + event_levels.get("critical", 0),
             },
             "positions": positions,
             "orders": open_orders,
@@ -2080,7 +2051,9 @@ class StationService:
         definition = get_strategy_definition(request.strategy)
         config, store = _load_store(request.config_path)
         try:
-            frame, data_source = _query_symbol_frame(store, request.symbol, request.start, request.end)
+            frame, data_source = _query_symbol_frame(
+                store, request.symbol, request.start, request.end
+            )
         finally:
             store.close()
 
@@ -2098,20 +2071,20 @@ class StationService:
 
         payload = _to_jsonable(
             {
-            "request": request.model_dump(),
-            "data_source": data_source,
-            "config_summary": {
-                "exchange": config.data.exchange,
-                "parquet_dir": config.data.parquet_dir,
-                "duckdb_path": config.data.duckdb_path,
-            },
-            "result": _result_payload(result),
-            "chart": _chart_payload(frame, entries, exits, result),
-            "signals": {
-                "entries": int(entries.fillna(False).sum()),
-                "exits": int(exits.fillna(False).sum()),
-                "bars": len(frame),
-            },
+                "request": request.model_dump(),
+                "data_source": data_source,
+                "config_summary": {
+                    "exchange": config.data.exchange,
+                    "parquet_dir": config.data.parquet_dir,
+                    "duckdb_path": config.data.duckdb_path,
+                },
+                "result": _result_payload(result),
+                "chart": _chart_payload(frame, entries, exits, result),
+                "signals": {
+                    "entries": int(entries.fillna(False).sum()),
+                    "exits": int(exits.fillna(False).sum()),
+                    "bars": len(frame),
+                },
             }
         )
         history_record = self.history_store.append_research_run(payload)

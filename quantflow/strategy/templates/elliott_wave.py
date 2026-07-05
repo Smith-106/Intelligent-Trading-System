@@ -25,7 +25,9 @@ class ElliottWaveStrategy(StrategyBase):
         self.fib_tolerance = self.params.get("fib_tolerance", 0.15)
         self.use_divergence = self.params.get("use_divergence", True)
         self.atr_stop_mult = self.params.get("atr_stop_mult", 1.5)
-        self._profit_take_pct: float = self.params.get("take_profit_pct", self.params.get("profit_take_pct", 0.08))
+        self._profit_take_pct: float = self.params.get(
+            "take_profit_pct", self.params.get("profit_take_pct", 0.08)
+        )
         self._max_holding_bars: int = self.params.get("max_holding_bars", 25)
         self._stop_loss_pct: float = self.params.get("stop_loss_pct", 0.0)
         self._bars: list[Bar] = []
@@ -64,7 +66,9 @@ class ElliottWaveStrategy(StrategyBase):
 
         # Profit target exit
         close = df["close"]
-        profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars)
+        profit_exits = profit_target_exit(
+            close, entries, self._profit_take_pct, self._max_holding_bars
+        )
         exits = exits | profit_exits
 
         return entries.astype(bool), exits.astype(bool)
@@ -102,7 +106,9 @@ class ElliottWaveStrategy(StrategyBase):
             self._entry_price = bar.close
             self._bars_since_entry = 0
         elif exits.iloc[last_idx] and self._in_position:
-            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            ctx.emit_signal(
+                bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
             self._in_position = False
 
         # on_bar exit mechanisms
@@ -138,13 +144,17 @@ class ElliottWaveStrategy(StrategyBase):
         # Profit target exit (LONG only — elliott_wave entries are LONG)
         target_price = self._entry_price * (1.0 + self._profit_take_pct)
         if bar.close >= target_price:
-            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            ctx.emit_signal(
+                bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
             self._in_position = False
             return
 
         # Max holding bars exit
         if self._bars_since_entry >= self._max_holding_bars:
-            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            ctx.emit_signal(
+                bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
             self._in_position = False
 
     def _bars_to_df(self) -> pd.DataFrame:

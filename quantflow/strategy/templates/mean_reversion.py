@@ -162,8 +162,16 @@ class MeanReversionStrategy(StrategyBase):
         vol_ma = volume.rolling(self._volume_period).mean()
         vol_ok = volume > vol_ma * self._volume_threshold
 
-        long_count = vol_ok.astype(int) + (rsi < self._rsi_oversold).astype(int) + (close < bb_lower).astype(int)
-        short_count = vol_ok.astype(int) + (rsi > self._rsi_overbought).astype(int) + (close > bb_upper).astype(int)
+        long_count = (
+            vol_ok.astype(int)
+            + (rsi < self._rsi_oversold).astype(int)
+            + (close < bb_lower).astype(int)
+        )
+        short_count = (
+            vol_ok.astype(int)
+            + (rsi > self._rsi_overbought).astype(int)
+            + (close > bb_upper).astype(int)
+        )
         long_entries = long_count >= self._min_conditions
         short_entries = short_count >= self._min_conditions
         entries = long_entries | short_entries
@@ -178,8 +186,12 @@ class MeanReversionStrategy(StrategyBase):
         exits = long_exit | short_exit
 
         # Profit target exit — direction-aware
-        long_profit_exits = profit_target_exit(close, long_entries, self._profit_take_pct, self._max_holding_bars, direction=1)
-        short_profit_exits = profit_target_exit(close, short_entries, self._profit_take_pct, self._max_holding_bars, direction=-1)
+        long_profit_exits = profit_target_exit(
+            close, long_entries, self._profit_take_pct, self._max_holding_bars, direction=1
+        )
+        short_profit_exits = profit_target_exit(
+            close, short_entries, self._profit_take_pct, self._max_holding_bars, direction=-1
+        )
         profit_exits = long_profit_exits | short_profit_exits
         exits = exits | profit_exits
 
@@ -205,19 +217,25 @@ class MeanReversionStrategy(StrategyBase):
         if self._entry_direction == Direction.LONG:
             target_price = self._entry_price * (1.0 + self._profit_take_pct)
             if bar.close >= target_price:
-                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                ctx.emit_signal(
+                    bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+                )
                 self._in_position = False
                 return
         elif self._entry_direction == Direction.SHORT:
             target_price = self._entry_price * (1.0 - self._profit_take_pct)
             if bar.close <= target_price:
-                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                ctx.emit_signal(
+                    bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+                )
                 self._in_position = False
                 return
 
         # Max holding bars exit
         if self._bars_since_entry >= self._max_holding_bars:
-            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            ctx.emit_signal(
+                bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
             self._in_position = False
 
     def _bars_to_df(self) -> pd.DataFrame:

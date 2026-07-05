@@ -71,8 +71,7 @@ def validation_gate(
     if not cpcv_result["passed"]:
         results["decision"] = "NO-GO"
         results["reason"] = str(
-            cpcv_result.get("reason")
-            or f"CPCV PBO={cpcv_result['pbo']:.3f} >= 0.5"
+            cpcv_result.get("reason") or f"CPCV PBO={cpcv_result['pbo']:.3f} >= 0.5"
         )
         return results
 
@@ -92,9 +91,9 @@ def validation_gate(
 
     # Optional: win_rate threshold check
     if win_rate_threshold is not None:
-        avg_wr = sum(
-            p.get("oos_win_rate", 0.5) for p in cpcv_result["path_results"]
-        ) / len(cpcv_result["path_results"])
+        avg_wr = sum(p.get("oos_win_rate", 0.5) for p in cpcv_result["path_results"]) / len(
+            cpcv_result["path_results"]
+        )
         if avg_wr < win_rate_threshold:
             results["decision"] = "NO-GO"
             results["reason"] = f"CPCV avg win_rate={avg_wr:.3f} < {win_rate_threshold}"

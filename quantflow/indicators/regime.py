@@ -104,9 +104,7 @@ class MarketRegimeDetector:
         bb_std_val = c.rolling(self._bb_period).std()
         bb_width = self._bb_std * 2 * bb_std_val
         if len(bb_middle) > 0 and not pd.isna(bb_middle.iloc[-1]):
-            bb_width_pct = float(
-                (bb_width / bb_middle.replace(0, 1e-10)).iloc[-1] * 100
-            )
+            bb_width_pct = float((bb_width / bb_middle.replace(0, 1e-10)).iloc[-1] * 100)
             if math.isnan(bb_width_pct):
                 bb_width_pct = 0.0
         else:
@@ -124,9 +122,7 @@ class MarketRegimeDetector:
         atr = tr.rolling(self._adx_period).mean()
         lookback = atr.tail(min(len(atr), self._atr_lookback))
         if len(lookback.dropna()) > 5:
-            atr_percentile = float(
-                (lookback.rank(pct=True)).iloc[-1]
-            )
+            atr_percentile = float((lookback.rank(pct=True)).iloc[-1])
         else:
             atr_percentile = 0.5
 
@@ -162,9 +158,11 @@ class MarketRegimeDetector:
         bb_middle = close.rolling(self._bb_period).mean()
         bb_std_val = close.rolling(self._bb_period).std()
         bb_width = self._bb_std * 2 * bb_std_val
-        bb_width_pct = float(
-            (bb_width / bb_middle.replace(0, 1e-10)).iloc[-1] * 100
-        ) if not bb_middle.iloc[-1:] .isna().all() else 0.0
+        bb_width_pct = (
+            float((bb_width / bb_middle.replace(0, 1e-10)).iloc[-1] * 100)
+            if not bb_middle.iloc[-1:].isna().all()
+            else 0.0
+        )
 
         # ATR percentile
         hi, lo, c = df["high"], df["low"], df["close"]

@@ -75,12 +75,12 @@ def split_cpcv(
     if n_test_groups >= n_groups:
         raise ValueError("CPCV test groups must be fewer than total groups.")
     if n_bars < n_groups:
-        raise ValueError(
-            f"CPCV requires at least {n_groups} bars, got {n_bars}."
-        )
+        raise ValueError(f"CPCV requires at least {n_groups} bars, got {n_bars}.")
 
     group_size = n_bars // n_groups
-    if group_size <= 0:  # pragma: no cover — unreachable: n_bars >= n_groups guarantees group_size >= 1
+    if (
+        group_size <= 0
+    ):  # pragma: no cover — unreachable: n_bars >= n_groups guarantees group_size >= 1
         raise ValueError(
             f"CPCV group size collapsed to 0 for {n_bars} bars across {n_groups} groups."
         )

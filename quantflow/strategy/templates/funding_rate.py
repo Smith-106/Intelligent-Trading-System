@@ -153,7 +153,9 @@ class FundingRateStrategy(StrategyBase):
 
         # Profit target exit
         close = df["close"]
-        profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars)
+        profit_exits = profit_target_exit(
+            close, entries, self._profit_take_pct, self._max_holding_bars
+        )
         exits = exits | profit_exits
 
         return entries.fillna(False), exits.fillna(False)
@@ -169,19 +171,25 @@ class FundingRateStrategy(StrategyBase):
         if self._entry_direction == Direction.LONG:
             target_price = self._entry_price * (1.0 + self._profit_take_pct)
             if bar.close >= target_price:
-                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                ctx.emit_signal(
+                    bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+                )
                 self._in_position = False
                 return
         elif self._entry_direction == Direction.SHORT:
             target_price = self._entry_price * (1.0 - self._profit_take_pct)
             if bar.close <= target_price:
-                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                ctx.emit_signal(
+                    bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+                )
                 self._in_position = False
                 return
 
         # Max holding bars exit
         if self._bars_since_entry >= self._max_holding_bars:
-            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            ctx.emit_signal(
+                bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
             self._in_position = False
 
     def _build_signal_df(self) -> pd.DataFrame:

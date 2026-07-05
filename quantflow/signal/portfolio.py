@@ -120,10 +120,7 @@ class PortfolioManager:
             return
 
         if existing.quantity * quantity_delta > 0:
-            total_cost = (
-                existing.entry_price * abs(existing.quantity)
-                + price * abs(quantity_delta)
-            )
+            total_cost = existing.entry_price * abs(existing.quantity) + price * abs(quantity_delta)
             avg_price = total_cost / abs(new_qty)
         else:
             avg_price = price if existing.quantity * new_qty < 0 else existing.entry_price

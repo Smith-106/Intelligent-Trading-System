@@ -55,7 +55,9 @@ class TrendFollowingStrategy(StrategyBase):
         self._min_conditions: int = p.get("min_conditions", 4)
         self._profit_take_pct: float = p.get("take_profit_pct", p.get("profit_take_pct", 0.10))
         self._max_holding_bars: int = p.get("max_holding_bars", 20)
-        self._trailing_stop_atr_mult: float = p.get("trailing_stop_atr_multiplier", p.get("trailing_stop_atr_mult", 3.0))
+        self._trailing_stop_atr_mult: float = p.get(
+            "trailing_stop_atr_multiplier", p.get("trailing_stop_atr_mult", 3.0)
+        )
         self._stop_loss_pct: float = p.get("stop_loss_pct", 0.0)
         self._rsi_adaptive_profit: bool = p.get("rsi_adaptive_profit", True)
 
@@ -268,8 +270,15 @@ class TrendFollowingStrategy(StrategyBase):
         rsi_ok_short = rsi > self._rsi_oversold
         atr_ok = atr < atr_cap
 
-        long_count = trend_up.astype(int) + rsi_ok_long.astype(int) + vol_ok.astype(int) + atr_ok.astype(int)
-        short_count = trend_down.astype(int) + rsi_ok_short.astype(int) + vol_ok.astype(int) + atr_ok.astype(int)
+        long_count = (
+            trend_up.astype(int) + rsi_ok_long.astype(int) + vol_ok.astype(int) + atr_ok.astype(int)
+        )
+        short_count = (
+            trend_down.astype(int)
+            + rsi_ok_short.astype(int)
+            + vol_ok.astype(int)
+            + atr_ok.astype(int)
+        )
         entries = long_count >= self._min_conditions
         exits = short_count >= self._min_conditions
 
@@ -284,9 +293,7 @@ class TrendFollowingStrategy(StrategyBase):
             rsi_at_entry = rsi_at_entry.ffill()
             tight = self._profit_take_pct * 0.8
             wide = self._profit_take_pct * 1.2
-            effective_pct_series = effective_pct * pd.Series(
-                1.0, index=close.index
-            )
+            effective_pct_series = effective_pct * pd.Series(1.0, index=close.index)
             overbought = rsi_at_entry > 70
             oversold = rsi_at_entry < 30
             effective_pct_series = effective_pct_series.where(~overbought, tight)
@@ -307,7 +314,10 @@ class TrendFollowingStrategy(StrategyBase):
             if entries.iloc[i] and not in_pos:
                 in_pos = True
             if in_pos:
-                highest.iloc[i] = max(float(high.iloc[i]), float(highest.iloc[i - 1]) if i > 0 else float(high.iloc[i]))
+                highest.iloc[i] = max(
+                    float(high.iloc[i]),
+                    float(highest.iloc[i - 1]) if i > 0 else float(high.iloc[i]),
+                )
                 if exits.iloc[i] or profit_exits.iloc[i]:
                     in_pos = False
             if not in_pos:
@@ -329,21 +339,29 @@ class TrendFollowingStrategy(StrategyBase):
         # Profit target exit (LONG: close >= entry * (1+pct))
         target_price = self._entry_price * (1.0 + self._profit_take_pct)
         if bar.close >= target_price:
-            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            ctx.emit_signal(
+                bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
             self._in_position = False
             return
 
         # Max holding bars exit
         if self._bars_since_entry >= self._max_holding_bars:
-            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            ctx.emit_signal(
+                bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
             self._in_position = False
             return
 
         # Trailing stop exit (LONG: close < highest - ATR*mult)
         if self._atr_values and self._atr_values[-1] is not None:
-            trailing_level = self._highest_since_entry - self._atr_values[-1] * self._trailing_stop_atr_mult
+            trailing_level = (
+                self._highest_since_entry - self._atr_values[-1] * self._trailing_stop_atr_mult
+            )
             if bar.close < trailing_level:
-                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                ctx.emit_signal(
+                    bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+                )
                 self._in_position = False
 
     def _bars_to_df(self) -> pd.DataFrame:

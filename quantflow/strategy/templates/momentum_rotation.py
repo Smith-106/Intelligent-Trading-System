@@ -125,7 +125,9 @@ class MomentumRotationStrategy(StrategyBase):
         exits = momentum_negative | stop_hit
 
         # Profit target exit
-        profit_exits = profit_target_exit(close, entries, self._profit_take_pct, self._max_holding_bars)
+        profit_exits = profit_target_exit(
+            close, entries, self._profit_take_pct, self._max_holding_bars
+        )
         exits = exits | profit_exits
 
         return entries.fillna(False), exits.fillna(False)
@@ -204,20 +206,26 @@ class MomentumRotationStrategy(StrategyBase):
         if self._stop_loss_pct > 0 and self._entry_price > 0:
             drawdown = (bar.close - self._entry_price) / self._entry_price
             if drawdown < -self._stop_loss_pct:
-                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                ctx.emit_signal(
+                    bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+                )
                 self._in_position = False
                 return
 
         # Profit target exit (LONG only — momentum_rotation entries are LONG)
         target_price = self._entry_price * (1.0 + self._profit_take_pct)
         if bar.close >= target_price:
-            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            ctx.emit_signal(
+                bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
             self._in_position = False
             return
 
         # Max holding bars exit
         if self._bars_since_entry >= self._max_holding_bars:
-            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            ctx.emit_signal(
+                bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
             self._in_position = False
 
     def _bars_to_df(self) -> pd.DataFrame:

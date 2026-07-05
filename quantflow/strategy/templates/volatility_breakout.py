@@ -49,7 +49,9 @@ class VolatilityBreakoutStrategy(StrategyBase):
         self._min_conditions: int = p.get("min_conditions", 3)
         self._profit_take_pct: float = p.get("take_profit_pct", p.get("profit_take_pct", 0.05))
         self._max_holding_bars: int = p.get("max_holding_bars", 15)
-        self._trailing_stop_atr_mult: float = p.get("trailing_stop_atr_multiplier", p.get("trailing_stop_atr_mult", 2.5))
+        self._trailing_stop_atr_mult: float = p.get(
+            "trailing_stop_atr_multiplier", p.get("trailing_stop_atr_mult", 2.5)
+        )
         self._stop_loss_pct: float = p.get("stop_loss_pct", 0.0)
 
         self._bars: list[Bar] = []
@@ -225,12 +227,18 @@ class VolatilityBreakoutStrategy(StrategyBase):
 
         close = close_values[-1]
         long_count = (
-            int(atr_spike) + int(bb_expanding) + int(close > bb_upper)
-            + int(vol_surge) + int(previous_squeeze)
+            int(atr_spike)
+            + int(bb_expanding)
+            + int(close > bb_upper)
+            + int(vol_surge)
+            + int(previous_squeeze)
         )
         short_count = (
-            int(atr_spike) + int(bb_expanding) + int(close < bb_lower)
-            + int(vol_surge) + int(previous_squeeze)
+            int(atr_spike)
+            + int(bb_expanding)
+            + int(close < bb_lower)
+            + int(vol_surge)
+            + int(previous_squeeze)
         )
         entry = long_count >= self._min_conditions or short_count >= self._min_conditions
         if long_count >= self._min_conditions:
@@ -395,8 +403,20 @@ class VolatilityBreakoutStrategy(StrategyBase):
         vol_ma = volume.rolling(self._volume_period).mean()
         vol_surge = volume > vol_ma * self._volume_threshold
 
-        long_count = atr_spike.astype(int) + bb_expanding.astype(int) + (close > bb_upper).astype(int) + vol_surge.astype(int) + previous_squeeze.astype(int)
-        short_count = atr_spike.astype(int) + bb_expanding.astype(int) + (close < bb_lower).astype(int) + vol_surge.astype(int) + previous_squeeze.astype(int)
+        long_count = (
+            atr_spike.astype(int)
+            + bb_expanding.astype(int)
+            + (close > bb_upper).astype(int)
+            + vol_surge.astype(int)
+            + previous_squeeze.astype(int)
+        )
+        short_count = (
+            atr_spike.astype(int)
+            + bb_expanding.astype(int)
+            + (close < bb_lower).astype(int)
+            + vol_surge.astype(int)
+            + previous_squeeze.astype(int)
+        )
         long_entries = long_count >= self._min_conditions
         short_entries = short_count >= self._min_conditions
         entries = long_entries | short_entries
@@ -409,8 +429,12 @@ class VolatilityBreakoutStrategy(StrategyBase):
         exits = atr_shrink | middle_return
 
         # Profit target exit — direction-aware
-        long_profit_exits = profit_target_exit(close, long_entries, self._profit_take_pct, self._max_holding_bars, direction=1)
-        short_profit_exits = profit_target_exit(close, short_entries, self._profit_take_pct, self._max_holding_bars, direction=-1)
+        long_profit_exits = profit_target_exit(
+            close, long_entries, self._profit_take_pct, self._max_holding_bars, direction=1
+        )
+        short_profit_exits = profit_target_exit(
+            close, short_entries, self._profit_take_pct, self._max_holding_bars, direction=-1
+        )
         profit_exits = long_profit_exits | short_profit_exits
 
         # Trailing stop exit — direction-aware, track HIGH for longs, LOW for shorts
@@ -424,11 +448,16 @@ class VolatilityBreakoutStrategy(StrategyBase):
             elif short_entries.iloc[i] and not in_short and not in_long:
                 in_short = True
             if in_long:
-                highest.iloc[i] = max(float(high.iloc[i]), float(highest.iloc[i - 1]) if i > 0 else float(high.iloc[i]))
+                highest.iloc[i] = max(
+                    float(high.iloc[i]),
+                    float(highest.iloc[i - 1]) if i > 0 else float(high.iloc[i]),
+                )
                 if exits.iloc[i] or profit_exits.iloc[i]:
                     in_long = False
             if in_short:
-                lowest.iloc[i] = min(float(low.iloc[i]), float(lowest.iloc[i - 1]) if i > 0 else float(low.iloc[i]))
+                lowest.iloc[i] = min(
+                    float(low.iloc[i]), float(lowest.iloc[i - 1]) if i > 0 else float(low.iloc[i])
+                )
                 if exits.iloc[i] or profit_exits.iloc[i]:
                     in_short = False
             if not in_long:
@@ -457,19 +486,25 @@ class VolatilityBreakoutStrategy(StrategyBase):
         if self._entry_direction == Direction.LONG:
             target_price = self._entry_price * (1.0 + self._profit_take_pct)
             if bar.close >= target_price:
-                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                ctx.emit_signal(
+                    bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+                )
                 self._in_position = False
                 return
         elif self._entry_direction == Direction.SHORT:
             target_price = self._entry_price * (1.0 - self._profit_take_pct)
             if bar.close <= target_price:
-                ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                ctx.emit_signal(
+                    bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+                )
                 self._in_position = False
                 return
 
         # Max holding bars exit
         if self._bars_since_entry >= self._max_holding_bars:
-            ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+            ctx.emit_signal(
+                bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name
+            )
             self._in_position = False
             return
 
@@ -479,12 +514,24 @@ class VolatilityBreakoutStrategy(StrategyBase):
             if self._entry_direction == Direction.LONG:
                 trailing_level = self._highest_since_entry - atr_val * self._trailing_stop_atr_mult
                 if bar.close < trailing_level:
-                    ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                    ctx.emit_signal(
+                        bar.symbol,
+                        Direction.FLAT,
+                        strength=0.5,
+                        price=bar.close,
+                        strategy_id=self.name,
+                    )
                     self._in_position = False
             elif self._entry_direction == Direction.SHORT:
                 trailing_level = self._lowest_since_entry + atr_val * self._trailing_stop_atr_mult
                 if bar.close > trailing_level:
-                    ctx.emit_signal(bar.symbol, Direction.FLAT, strength=0.5, price=bar.close, strategy_id=self.name)
+                    ctx.emit_signal(
+                        bar.symbol,
+                        Direction.FLAT,
+                        strength=0.5,
+                        price=bar.close,
+                        strategy_id=self.name,
+                    )
                     self._in_position = False
 
     def _bars_to_df(self) -> pd.DataFrame:
