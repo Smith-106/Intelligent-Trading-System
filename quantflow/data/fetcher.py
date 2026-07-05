@@ -12,10 +12,12 @@ from pathlib import Path
 from typing import Any, cast
 
 import ccxt.async_support as ccxt
+import duckdb
 import pandas as pd
 
 from quantflow.common.config import DataConfig
 from quantflow.common.exceptions import DataError, GatewayConnectionError
+from quantflow.common.validators import validate_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -114,20 +116,27 @@ class DataFetcher:
         return cast(dict[str, Any], await self._exchange.fetch_ticker(symbol))
 
     def get_last_timestamp(self, symbol: str, timeframe: str, parquet_dir: Path) -> int | None:
-        """Get the last stored timestamp for incremental updates."""
-        # SECURITY: validate symbol + timeframe before SQL interpolation.
-        # The f-string previously embedded raw symbol/timeframe into a DuckDB
-        # read_parquet query, allowing SQL injection if either was attacker-
-        # controlled. Even though this is currently uncalled (dead code), fix
-        # it so a future caller is safe by construction.
-        from quantflow.data.store import _validate_symbol
+        """Get the last stored timestamp for incremental updates.
 
-        symbol_name = _validate_symbol(symbol)
+        SECURITY: validate symbol + timeframe before SQL interpolation. The
+        f-string previously embedded raw symbol/timeframe into a DuckDB
+        read_parquet query, allowing SQL injection if either was attacker-
+        controlled. Even though this is currently uncalled (dead code), fix
+        it so a future caller is safe by construction.
+
+        NOTE (REV-007): this re-implements DataStore's read path against
+        DataStore's on-disk layout. A future refactor should delegate to
+        ``DataStore.get_date_range`` (the layer-correct owner of parquet
+        reads) rather than hand-rolling a DuckDB query here.
+        """
+        symbol_name = validate_symbol(symbol)
         if timeframe not in TIMEFRAMES:
             raise ValueError(f"Invalid timeframe: {timeframe!r}. Allowed: {TIMEFRAMES}")
-        import duckdb
 
-        pattern = f"{parquet_dir}/{symbol_name}/*/*/*.parquet"
+        # .as_posix() keeps the glob forward-slash on Windows (mirrors
+        # store.py:155 / feature_store.py); escape single quotes so a
+        # parquet_dir containing a quote cannot break the glob literal.
+        pattern = f"{parquet_dir.as_posix()}/{symbol_name}/*/*/*.parquet".replace("'", "''")
         try:
             result = duckdb.query(
                 f"""
@@ -137,8 +146,9 @@ class DataFetcher:
                 """,
                 params=[timeframe],
             ).fetchone()
-            return result[0] if result and result[0] else None
-        except Exception:
+            return result[0] if result and result[0] is not None else None
+        except Exception as e:
+            logger.warning("get_last_timestamp failed for %s %s: %s", symbol, timeframe, e)
             return None
 
     async def disconnect(self) -> None:

@@ -44,14 +44,19 @@ class TestDataStoreQueryException:
         assert "readme.txt" not in symbols
 
     def test_read_parquet_source_no_paths_no_start_end(self, tmp_path):
-        """Lines 183-185: no paths and no start/end → glob pattern source."""
+        """Empty symbol dir + no start/end filter → None (clean "no data").
+
+        REV-014: when no start/end filter is set, the source is a glob literal
+        handed to DuckDB — but only if the dir actually has parquet files. An
+        empty dir returns None so the caller gets a clean "no data" result
+        rather than a zero-matching glob (which DuckDB errors on).
+        """
         store = DataStore(str(tmp_path))
         symbol_dir = tmp_path / "TEST_USDT"
         symbol_dir.mkdir()
-        # No parquet files → _candidate_paths returns [] → glob fallback
+        # No parquet files → None (not a zero-matching glob).
         source = store._read_parquet_source("TEST_USDT")
-        assert source is not None
-        assert "**/*.parquet" in source
+        assert source is None
 
     def test_read_parquet_source_no_paths_with_start_end(self, tmp_path):
         """No paths with start/end filters → returns None."""
@@ -62,7 +67,12 @@ class TestDataStoreQueryException:
         assert source is None
 
     def test_read_parquet_source_with_paths(self, tmp_path):
-        """Paths found → escaped list source."""
+        """Paths found + no filter → glob literal source (REV-014).
+
+        With no start/end filter, the source is a single glob literal handed
+        to DuckDB so it can push the scan into the reader — not a materialized
+        path array. The glob still resolves to the same files at query time.
+        """
         store = DataStore(str(tmp_path))
         symbol_dir = tmp_path / "TEST_USDT"
         year_dir = symbol_dir / "2024"
@@ -71,7 +81,7 @@ class TestDataStoreQueryException:
         df.to_parquet(year_dir / "01.parquet")
         source = store._read_parquet_source("TEST_USDT")
         assert source is not None
-        assert "01.parquet" in source
+        assert "**/*.parquet" in source
 
     def test_read_parquet_source_nonexistent_dir(self, tmp_path):
         """Nonexistent symbol directory → returns None."""

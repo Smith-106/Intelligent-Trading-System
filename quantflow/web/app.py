@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
-import hmac
-import os
-from collections.abc import Awaitable, Callable
 from importlib import resources
-from ipaddress import ip_address
 from pathlib import Path
-from urllib.parse import urlparse
 
 from aiohttp import web
 
 from quantflow.common.exceptions import DataError, GatewayConnectionError
 from quantflow.web.history import StationHistoryStore
+from quantflow.web.security import (
+    STATION_TOKEN_ENV,
+    _is_loopback_host,
+    _station_token,
+)
+from quantflow.web.security import (
+    same_origin_guard as _same_origin_guard,
+)
 from quantflow.web.service import (
     DataDownloadRequest,
     DataSourceTagRequest,
@@ -27,43 +30,10 @@ STATIC_PACKAGE = "quantflow.web.static"
 STATION_SERVICE_KEY = web.AppKey("station_service", StationService)
 SESSION_MANAGER_KEY = web.AppKey("station_session_manager", StationSessionManager)
 
-# Local-only station: mutation endpoints must come from the same origin to
-# prevent browser-driven CSRF (a random web page posting to
-# /api/session/kill-switch on localhost). Read-only GETs are exempt.
-_MUTATION_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
-
-# Shared-secret token guarding mutation endpoints. Read once from the env at
-# module import; if unset, the station runs token-less (only safe on loopback).
-STATION_TOKEN_ENV = "QUANTFLOW_STATION_TOKEN"
-
-
-def _station_token() -> str | None:
-    """The shared secret required for mutation endpoints, if configured.
-
-    Read from QUANTFLOW_STATION_TOKEN. When unset, the station allows
-    unauthenticated mutations ONLY on loopback binds (the default single-
-    operator mode). Binding to a non-loopback host without a token is refused
-    in run_station to prevent silently exposing live-trading controls.
-    """
-    token = os.environ.get(STATION_TOKEN_ENV, "").strip()
-    return token or None
-
-
-def _is_loopback_host(host: str) -> bool:
-    """True if ``host`` resolves to a loopback address (127.0.0.0/8 or ::1)."""
-    if not host:
-        return False
-    # Host may be "0.0.0.0", "127.0.0.1", "localhost", or "[::1]".
-    cleaned = host.strip().strip("[]")
-    if cleaned == "localhost":
-        return True
-    if cleaned in ("0.0.0.0", "::"):
-        # 0.0.0.0 / :: bind to all interfaces — NOT loopback-only exposure.
-        return False
-    try:
-        return ip_address(cleaned).is_loopback
-    except ValueError:
-        return False
+# Auth/CSRF policy now lives in quantflow.web.security (REV-013) so it can be
+# audited and tested in isolation and reused by any Station entry point. The
+# names below are re-exported for back-compat (tests import the underscored
+# forms from this module); the authoritative definitions are in security.py.
 
 
 def _parse_limit(request: web.Request, default: int = 12, maximum: int = 500) -> int:
@@ -79,62 +49,6 @@ def _parse_limit(request: web.Request, default: int = 12, maximum: int = 500) ->
     if value < 0:
         return 0
     return min(value, maximum)
-
-
-@web.middleware
-async def _same_origin_guard(
-    request: web.Request,
-    handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
-) -> web.StreamResponse:
-    """Reject unauthenticated / cross-origin mutations to trading controls.
-
-    Two layered controls (defends SEC-002 no-auth and SEC-004 Origin-bypass):
-
-    1. Shared-secret auth: if QUANTFLOW_STATION_TOKEN is set, every mutation
-       requires ``Authorization: Bearer <token>``. Without the token, any
-       local process could start a live session or flip the kill switch.
-
-    2. CSRF: a browser-driven cross-site POST sends an ``Origin`` header that
-       will not match the local ``Host`` (127.0.0.1:<port>) — browsers do not
-       let pages override the Host header, so the comparison is trustworthy for
-       browser-originated requests. When ``Origin`` is absent (non-browser
-       clients like the TestClient or curl), the request is allowed: such
-       clients already have local access in the single-operator threat model,
-       and the token control (1) governs network exposure. The Station UI also
-       sends ``X-Requested-With`` as defense in depth; its presence is an
-       alternative same-origin signal.
-
-       Note: the Host header alone is NOT trusted for the comparison because a
-       non-browser client can forge it — we only rely on it as the reference
-       address that a browser guarantees matches the actual server.
-    """
-    if request.method in _MUTATION_METHODS:
-        # 1. Shared-secret auth (when configured).
-        token = _station_token()
-        if token:
-            auth = request.headers.get("Authorization", "")
-            expected = f"Bearer {token}"
-            # Constant-time comparison to avoid token leakage via timing.
-            if not auth or not hmac.compare_digest(auth, expected):
-                return web.json_response({"error": "unauthorized"}, status=401)
-            return await handler(request)
-
-        # 2. CSRF: reject when Origin is present and does not match Host.
-        origin = request.headers.get("Origin")
-        if origin:
-            host = request.headers.get("Host", "")
-            try:
-                origin_host = urlparse(origin).netloc
-            except Exception:
-                origin_host = ""
-            same_origin = bool(origin_host) and bool(host) and origin_host == host
-            has_custom_header = request.headers.get("X-Requested-With") is not None
-            if not same_origin and not has_custom_header:
-                return web.json_response(
-                    {"error": "cross-origin mutations are not permitted"},
-                    status=403,
-                )
-    return await handler(request)
 
 
 def _static_dir() -> Path:
@@ -325,16 +239,28 @@ def create_app(
     *,
     service: StationService | None = None,
     session_manager: StationSessionManager | None = None,
+    history_store: StationHistoryStore | None = None,
 ) -> web.Application:
-    """Create the QuantFlow Station application."""
+    """Create the QuantFlow Station application.
+
+    SECURITY note (REV-006): this constructor is host-agnostic by design so it
+    can be exercised in tests without binding a socket. The non-loopback bind
+    guard therefore lives at the bind boundary in :func:`run_station` (the only
+    entry point that knows the host) — it cannot be checked here because
+    ``host`` is not a parameter. Tests construct the app directly and assume a
+    loopback/loopback-equivalent threat model; the guard is enforced when the
+    server is actually launched.
+    """
     app = web.Application(middlewares=[_same_origin_guard])
-    history_store = (
-        getattr(service, "history_store", None)
-        or getattr(session_manager, "_history_store", None)
-        or StationHistoryStore()
+    # REV-012: history_store is now an explicit parameter rather than reached
+    # out of session_manager._history_store (a private attribute). The private
+    # getattr fallback is gone; callers pass history_store explicitly, and the
+    # service/session_manager both expose it as a public field/param.
+    resolved_store = history_store or StationHistoryStore()
+    app[STATION_SERVICE_KEY] = service or StationService(history_store=resolved_store)
+    app[SESSION_MANAGER_KEY] = session_manager or StationSessionManager(
+        history_store=resolved_store
     )
-    app[STATION_SERVICE_KEY] = service or StationService(history_store=history_store)
-    app[SESSION_MANAGER_KEY] = session_manager or StationSessionManager(history_store=history_store)
     app.router.add_get("/", _index)
     app.router.add_get("/api/overview", _overview)
     app.router.add_get("/api/strategies", _strategies)

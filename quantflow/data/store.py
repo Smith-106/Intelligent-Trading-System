@@ -3,38 +3,37 @@
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
 
 import duckdb
 import pandas as pd
 
+from quantflow.common.validators import (
+    COLUMN_PATTERN,
+    SYMBOL_PATTERN,
+)
+from quantflow.common.validators import (
+    validate_columns as _validate_columns_impl,
+)
+from quantflow.common.validators import (
+    validate_symbol as _validate_symbol_impl,
+)
+
 logger = logging.getLogger(__name__)
 
-_SYMBOL_PATTERN = re.compile(r"^[A-Za-z0-9/_-]{1,20}$")
-_COLUMN_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+# Public patterns re-exported for back-compat / introspection.
+_SYMBOL_PATTERN = SYMBOL_PATTERN
+_COLUMN_PATTERN = COLUMN_PATTERN
 
 
 def _validate_symbol(symbol: str) -> str:
-    """Validate symbol format to prevent SQL injection."""
-    if not _SYMBOL_PATTERN.match(symbol):
-        raise ValueError(
-            f"Invalid symbol format: {symbol!r}. "
-            "Only alphanumeric, /, _, - characters allowed (max 20 chars)."
-        )
-    return symbol.replace("/", "_")
+    """Back-compat alias for :func:`quantflow.common.validators.validate_symbol`."""
+    return _validate_symbol_impl(symbol)
 
 
 def _validate_columns(columns: list[str] | tuple[str, ...] | None) -> list[str] | None:
-    """Validate column names used in dynamically generated SQL."""
-    if columns is None:
-        return None
-    if not columns:
-        raise ValueError("columns must not be empty")
-    invalid = [column for column in columns if not _COLUMN_PATTERN.match(column)]
-    if invalid:
-        raise ValueError(f"Invalid column name(s): {invalid!r}")
-    return list(dict.fromkeys(columns))
+    """Back-compat alias for :func:`quantflow.common.validators.validate_columns`."""
+    return _validate_columns_impl(columns)
 
 
 class DataStore:
@@ -51,6 +50,11 @@ class DataStore:
         if df.empty:
             return
 
+        # SECURITY: validate symbol on the write path too (REV-008) — the read
+        # path (query/get_date_range) validates, but save() previously did a
+        # bare symbol.replace('/', '_'), leaving a path-traversal surface for
+        # a future caller passing user input. Mirrors the read-side choke point.
+        symbol_name = _validate_symbol(symbol)
         store_df = df.copy()
         if "datetime" in store_df.columns:
             store_df["year"] = store_df["datetime"].dt.year
@@ -62,7 +66,7 @@ class DataStore:
         else:
             raise ValueError("DataFrame must have 'datetime' or 'timestamp' column")
 
-        symbol_dir = self._parquet_dir / symbol.replace("/", "_")
+        symbol_dir = self._parquet_dir / symbol_name
         symbol_dir.mkdir(parents=True, exist_ok=True)
 
         # Write partitioned parquet
@@ -152,7 +156,9 @@ class DataStore:
         # a single quote could break out of the glob literal and inject
         # arbitrary SQL (e.g. read_csv_auto('/etc/passwd')). Mirrors query().
         symbol_name = _validate_symbol(symbol)
-        pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/*/*.parquet"
+        # Escape single quotes so a parquet_dir containing a quote cannot break
+        # the glob literal (mirrors _read_parquet_source's chr(39) escaping).
+        pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/*/*.parquet".replace("'", "''")
         try:
             result = self._db.query(f"""
                 SELECT MIN(timestamp) as min_ts, MAX(timestamp) as max_ts
@@ -160,8 +166,10 @@ class DataStore:
             """).fetchone()
             if result and result[0] is not None:
                 return (result[0], result[1])
-        except Exception:
-            pass
+        except Exception as e:
+            # Log rather than silently swallow (REV-010) — a genuine storage
+            # error should be observable, not indistinguishable from "no data".
+            logger.warning("get_date_range failed for %s: %s", symbol, e)
         return None
 
     def close(self) -> None:
@@ -182,11 +190,20 @@ class DataStore:
         if not symbol_dir.exists():
             return None
 
-        paths = self._candidate_paths(symbol_dir, start, end)
+        # When no start/end filter is applied, hand DuckDB a glob literal
+        # directly instead of materializing the path list and string-building
+        # a SQL array — a single glob lets DuckDB push the scan into the
+        # reader, avoiding an O(N) Python loop + a larger query string as the
+        # partition count grows (REV-014). We still probe the directory once
+        # so an empty symbol dir returns None (clean "no data") rather than a
+        # glob matching zero files, which DuckDB errors on.
         if start is None and end is None:
-            if not paths:
-                pattern = f"{symbol_dir.as_posix()}/**/*.parquet"
-                return f"'{pattern}'"
+            if not any(symbol_dir.glob("*/*.parquet")):
+                return None
+            pattern = f"{symbol_dir.as_posix()}/**/*.parquet"
+            return f"'{pattern}'"
+
+        paths = self._candidate_paths(symbol_dir, start, end)
         if not paths:
             return None
 

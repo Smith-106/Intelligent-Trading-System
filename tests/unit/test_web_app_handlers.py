@@ -256,10 +256,11 @@ class TestStationAuthAndCSRF:
             )
             assert resp.status == 403
 
-    async def test_cross_origin_mutation_allowed_with_custom_header(self):
-        """SEC-004: a custom X-Requested-With header is accepted as a same-origin
-        signal (cross-origin browser fetches cannot set custom headers without a
-        preflight the Station never grants), so the mutation is allowed."""
+    async def test_cross_origin_mutation_blocked_even_with_custom_header(self):
+        """REV-001: X-Requested-With is NOT a forbidden CORS header, so any
+        cross-origin fetch can set it. The CSRF guard must NOT accept its mere
+        presence as a same-origin signal — a cross-origin POST with
+        X-Requested-With is still blocked (403)."""
         history_store = StationHistoryStore()
         app = create_app(
             service=StationService(history_store=history_store),
@@ -274,7 +275,28 @@ class TestStationAuthAndCSRF:
                     "X-Requested-With": "XMLHttpRequest",
                 },
             )
-            assert resp.status == 200
+            assert resp.status == 403
+
+    async def test_valid_token_does_not_skip_csrf_for_cross_origin(self, monkeypatch):
+        """REV-002: a valid Bearer token does NOT bypass the CSRF check — the
+        two controls are orthogonal (auth=who, CSRF=browser intent). A valid
+        token + mismatched Origin is still 403."""
+        monkeypatch.setenv("QUANTFLOW_STATION_TOKEN", "secret-token-value-123")
+        history_store = StationHistoryStore()
+        app = create_app(
+            service=StationService(history_store=history_store),
+            session_manager=StationSessionManager(history_store=history_store),
+        )
+        async with TestClient(TestServer(app)) as client:
+            resp = await self._post(
+                client,
+                "/api/session/stop",
+                headers={
+                    "Authorization": "Bearer secret-token-value-123",
+                    "Origin": "https://evil.example.com",
+                },
+            )
+            assert resp.status == 403
 
     async def test_origin_absent_allowed_non_browser(self):
         """SEC-004: absent Origin (non-browser client like the TestClient) is

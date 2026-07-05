@@ -8,6 +8,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
+from quantflow.common.validators import validate_symbol
 from quantflow.data.store import DataStore
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,10 @@ class FeatureStore:
         if features.empty:
             return
 
-        symbol_dir = self._parquet_dir / symbol.replace("/", "_")
+        # SECURITY: validate symbol on the write path (REV-008) — mirrors the
+        # read-side check in load_features so a user-supplied symbol cannot
+        # traverse the parquet dir.
+        symbol_dir = self._parquet_dir / validate_symbol(symbol)
         symbol_dir.mkdir(parents=True, exist_ok=True)
 
         store_df = features.copy()
@@ -90,9 +94,7 @@ class FeatureStore:
         # SECURITY: validate symbol (prevents path traversal in _read_feature_source
         # and SQL injection via the read_parquet source) and parameterize start/end
         # rather than f-string interpolating them into the WHERE clause.
-        from quantflow.data.store import _validate_symbol
-
-        symbol_name = _validate_symbol(symbol)
+        symbol_name = validate_symbol(symbol)
         source = self._read_feature_source(symbol_name, start, end)
         if source is None:
             return pd.DataFrame()
@@ -115,7 +117,9 @@ class FeatureStore:
                 """,
                 params=params,
             ).df()
-        except Exception:
+        except Exception as e:
+            # Log rather than silently swallow (REV-010) — mirrors store.query().
+            logger.warning("load_features failed for %s: %s", symbol, e)
             return pd.DataFrame()
 
     def close(self) -> None:
@@ -133,6 +137,16 @@ class FeatureStore:
             return f"'{legacy_path.as_posix()}'"
         if not symbol_dir.exists():
             return None
+
+        # No filter → hand DuckDB a glob literal directly instead of
+        # materializing the path list and string-building a SQL array (REV-014).
+        # Probe once so an empty dir returns None (clean "no data") rather than
+        # a glob matching zero files, which DuckDB errors on.
+        if start is None and end is None:
+            if not any(symbol_dir.glob("*/*.parquet")):
+                return None
+            pattern = f"{symbol_dir.as_posix()}/**/*.parquet"
+            return f"'{pattern}'"
 
         paths = self._candidate_paths(symbol_dir, start, end)
         if not paths:
