@@ -58,7 +58,35 @@
 
 ## 5. Fix & Confirmation
 
-_Pending S_FIX._
+### Fix tier — HIGH (commit prior to 7da233a)
+
+- **REV-001 (CSRF bypass via `X-Requested-With`)** — CLOSED. Removed the `has_custom_header`/`X-Requested-With` fallback entirely from `_same_origin_guard`. The Origin header (browser-controlled, unforgeable) is now the sole same-origin signal. Test: `test_cross_origin_mutation_blocked_even_with_custom_header` asserts a cross-origin POST *with* `X-Requested-With: XMLHttpRequest` still returns 403.
+- **REV-002 (valid token skips CSRF)** — CLOSED. Restructured the middleware so the token check no longer early-returns; both controls run on every mutation (auth=who, CSRF=browser intent). Test: `test_valid_token_does_not_skip_csrf_for_cross_origin` asserts a valid Bearer token + mismatched Origin returns 403. The "layered controls" docstring is now true.
+
+### Fix tier — MEDIUM (commit prior to 7da233a)
+
+- **REV-003 (`_station_token` docstring drift)** — CLOSED. Docstring + module comment now both state per-request env read (rotation takes effect without restart), matching the actual implementation.
+- **REV-004 (`parquet_dir` raw interpolation, Windows-broken)** — CLOSED. `fetcher.get_last_timestamp` now uses `parquet_dir.as_posix()` (forward-slash glob on Windows), mirroring store.py/feature_store.py.
+- **REV-005 (security primitives in wrong module)** — CLOSED. Created `quantflow/common/validators.py` with public `validate_symbol`/`validate_columns` + `SYMBOL_PATTERN`/`COLUMN_PATTERN`. `store.py` keeps `_validate_symbol`/`_validate_columns` as back-compat aliases (test_trend_and_store imports them). `feature_store.py` and `fetcher.py` use top-level imports.
+- **REV-006 (bind guard only in `run_station`)** — CLOSED (design decision). `create_app` is host-agnostic by design (testable without a socket); the non-loopback bind guard correctly stays at `run_station` (the only entry point that knows the host). Decision documented in the `create_app` docstring. Forcing a host into `create_app` would break the 234-test suite that calls `create_app` directly.
+- **REV-007 (fetcher re-implements DataStore read path)** — CLOSED (deferred delegation). Full delegation to `DataStore.get_date_range` deferred (would change the return contract: MAX vs MIN/MAX tuple). Immediate fixes applied: validation, `.as_posix`, parameterized timeframe, quote-escape, logging, `is not None` check. Deferral documented in the `get_last_timestamp` docstring NOTE.
+- **REV-008 (write path unvalidated)** — CLOSED. `store.save()` and `feature_store.save_features()` now call `validate_symbol()` on the write path, mirroring the read-side choke point.
+- **REV-009 (inconsistent quote-escaping)** — CLOSED. `store.get_date_range` and `fetcher.get_last_timestamp` now `.replace("'", "''")` the glob pattern (mirrors `_read_parquet_source`'s `chr(39)` escaping).
+- **REV-010 (silent error swallowing)** — CLOSED. All four sites (`store.get_date_range`, `store.query`, `fetcher.get_last_timestamp`, `feature_store.load_features`) now `except Exception as e: logger.warning(...)`.
+
+### Fix tier — LOW (commit 7da233a)
+
+- **REV-011 (truthy check on `result[0]`)** — CLOSED. `get_last_timestamp` now `result[0] if result and result[0] is not None else None` (timestamp 0 no longer falsy).
+- **REV-012 (`create_app` getattr on private `_history_store`)** — CLOSED. `history_store` is now an explicit `create_app` parameter; the dead private-attribute fallback is removed. `StationService` (public field) and `StationSessionManager` (public param) both expose it.
+- **REV-013 (auth/CSRF policy in routing module)** — CLOSED. Extracted `_station_token`, `_is_loopback_host`, `_MUTATION_METHODS`, `STATION_TOKEN_ENV`, `same_origin_guard` to `quantflow/web/security.py`. `app.py` imports + re-exports the underscored forms for back-compat (tests import them). No circular import (security.py imports only aiohttp + stdlib).
+- **REV-014 (path-list materialization)** — CLOSED. `_read_parquet_source`/`_read_feature_source` now hand DuckDB a glob literal (`'.../**/*.parquet'`) directly when no start/end filter is set, instead of materializing the path list + string-building a SQL array. Empty dir → `None` (clean "no data", avoids a zero-matching glob that DuckDB errors on). Tests updated to the new contract.
+
+### Confirmation
+
+- **Test suite:** 1333 passed, 2 skipped (was 1332; net +1 — `test_read_parquet_source_no_paths_no_start_end` and `test_read_parquet_source_with_paths` now exercise distinct None/glob paths).
+- **Lint gate:** `ruff check --fix .` (0 errors) + `ruff format .` (clean) — honors the lint-before-commit overlay.
+- **Type check:** `mypy --strict` on all 6 touched modules — 0 issues.
+- **Zero-residual review:** independent adversarial reviewer delegated (background); verdict pending — see §8 for the recorded outcome.
 
 ## 6. Generalization
 
