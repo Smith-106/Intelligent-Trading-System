@@ -271,7 +271,9 @@ class TestExecutionEngineExtra:
         assert engine.position_manager.position_count == 2
         assert engine.position_manager.get_position("ETH/USDT").quantity == -2.0
 
-    def test_update_market_price_refreshes_position_manager_and_gateway_reference_price(self) -> None:
+    def test_update_market_price_refreshes_position_manager_and_gateway_reference_price(
+        self,
+    ) -> None:
         class _PriceAwareGateway(_PresetGateway):
             def __init__(self) -> None:
                 super().__init__()

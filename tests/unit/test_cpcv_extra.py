@@ -6,7 +6,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from quantflow.strategy.validation.cpcv import _cpcv_failure_result, _sanitize_metric_array, cpcv_backtest, split_cpcv
+from quantflow.strategy.validation.cpcv import (
+    _cpcv_failure_result,
+    _sanitize_metric_array,
+    cpcv_backtest,
+    split_cpcv,
+)
 
 
 def _make_price_series(n: int = 200, trend: float = 0.002) -> pd.Series:
@@ -117,8 +122,11 @@ class TestCPCVBacktestWithSignalFn:
             return ents.fillna(False), exts.fillna(False)
 
         result = cpcv_backtest(
-            close, entries, exits,
-            n_groups=4, n_test_groups=1,
+            close,
+            entries,
+            exits,
+            n_groups=4,
+            n_test_groups=1,
             signal_fn=signal_fn,
             param_space=param_space,
             data=data,
@@ -142,8 +150,11 @@ class TestCPCVBacktestWithSignalFn:
             return ents.fillna(False), exts.fillna(False)
 
         result = cpcv_backtest(
-            close, entries, exits,
-            n_groups=3, n_test_groups=1,
+            close,
+            entries,
+            exits,
+            n_groups=3,
+            n_test_groups=1,
             signal_fn=signal_fn,
             data=data,
         )
@@ -170,14 +181,18 @@ class TestCPCVBacktestWithSignalFn:
         class FailingOptimizer:
             def __init__(self, engine=None):
                 pass
+
             def optimize(self, *args, **kwargs):
                 raise RuntimeError("optimization failed")
 
         monkeypatch.setattr(opt_mod, "StrategyOptimizer", FailingOptimizer)
 
         result = cpcv_backtest(
-            close, entries, exits,
-            n_groups=3, n_test_groups=1,
+            close,
+            entries,
+            exits,
+            n_groups=3,
+            n_test_groups=1,
             signal_fn=signal_fn,
             param_space=param_space,
             data=data,

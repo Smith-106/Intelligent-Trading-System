@@ -1,12 +1,15 @@
 """Additional _runtime helper tests — covers lines 41, 49, 68."""
 
+import pandas as pd
+import pytest
+
+from quantflow.common.models import Bar
 from quantflow.strategy.templates._runtime import (
     closes,
     ewm_series,
     highs,
     lows,
     profit_target_exit,
-    rolling_mean_at,
     rolling_mean_optional_at,
     rolling_std_at,
     simple_rsi_last,
@@ -14,10 +17,6 @@ from quantflow.strategy.templates._runtime import (
     true_ranges,
     volumes,
 )
-from quantflow.common.models import Bar
-
-import pandas as pd
-import pytest
 
 
 class TestRollingStdAtShortWindow:
@@ -116,7 +115,6 @@ class TestRollingMeanOptionalAt:
 class TestProfitTargetExitShort:
     def test_short_direction_profit_exit(self):
         """Lines 174-178: SHORT direction profit target exit."""
-        n = 10
         close = pd.Series([100.0, 99.0, 98.0, 97.0, 96.0, 95.0, 94.0, 93.0, 92.0, 91.0])
         entries = pd.Series(False, index=close.index)
         entries.iloc[0] = True
@@ -124,7 +122,7 @@ class TestProfitTargetExitShort:
         result = profit_target_exit(close, entries, 0.05, 100, direction=-1)
         # SHORT: target = 100 * (1 - 0.05) = 95
         # close[5]=95 → exit!
-        assert result.iloc[5] == True or result.iloc[4] == True  # exact boundary
+        assert bool(result.iloc[5]) or bool(result.iloc[4])  # exact boundary
 
     def test_long_direction_profit_exit(self):
         close = pd.Series([100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0])
@@ -134,7 +132,7 @@ class TestProfitTargetExitShort:
         result = profit_target_exit(close, entries, 0.05, 100, direction=1)
         # LONG: target = 100 * 1.05 = 105
         # close[5]=105 → exit
-        assert result.iloc[5] == True
+        assert bool(result.iloc[5])
 
     def test_max_holding_bars_exit(self):
         close = pd.Series([100.0] * 20)
@@ -143,4 +141,4 @@ class TestProfitTargetExitShort:
 
         result = profit_target_exit(close, entries, 1.0, 5)  # 100% profit target → never triggers
         # Max holding = 5, so exit at bar 5
-        assert result.iloc[5] == True
+        assert bool(result.iloc[5])

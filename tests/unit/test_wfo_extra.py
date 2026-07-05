@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -53,7 +51,9 @@ class TestWFOEdgeCases:
             return pd.Series(False, index=data.index), pd.Series(False, index=data.index)
 
         result = walk_forward_optimization(
-            close, entries, exits,
+            close,
+            entries,
+            exits,
             n_windows=2,
             signal_fn=failing_optimize_signal_fn,
             param_space={"period": (2, 10)},
@@ -74,7 +74,9 @@ class TestWFOEdgeCases:
             return pd.Series(False, index=data.index), pd.Series(False, index=data.index)
 
         result = walk_forward_optimization(
-            close, entries, exits,
+            close,
+            entries,
+            exits,
             n_windows=2,
             signal_fn=failing_oos_signal_fn,
             param_space={"period": (2, 10)},
@@ -95,7 +97,9 @@ class TestWFOEdgeCases:
             return pd.Series(False, index=data.index), pd.Series(False, index=data.index)
 
         result = walk_forward_optimization(
-            close, entries, exits,
+            close,
+            entries,
+            exits,
             n_windows=2,
             signal_fn=failing_train_signal_fn,
             param_space={"period": (2, 10)},
@@ -107,7 +111,9 @@ class TestWFOEdgeCases:
         close = _make_price_series(100)
         entries, exits = _make_signals(100)
         result = walk_forward_optimization(
-            close, entries, exits,
+            close,
+            entries,
+            exits,
             n_windows=3,
         )
         assert isinstance(result, dict)
@@ -118,8 +124,11 @@ class TestWFOEdgeCases:
         close = _make_price_series(100)
         entries, exits = _make_signals(100)
         result = walk_forward_optimization(
-            close, entries, exits,
-            n_windows=2, mode="anchored",
+            close,
+            entries,
+            exits,
+            n_windows=2,
+            mode="anchored",
         )
         assert isinstance(result, dict)
 
@@ -132,7 +141,9 @@ class TestWFOEdgeCases:
             return pd.Series(False, index=data.index), pd.Series(False, index=data.index)
 
         result = walk_forward_optimization(
-            close, entries, exits,
+            close,
+            entries,
+            exits,
             n_windows=2,
             signal_fn=signal_fn,
             param_space=None,  # no optimization

@@ -12,9 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from quantflow.common.models import Bar
 from quantflow.web.history import StationHistoryStore
-
 
 # ===================================================================
 # service.py lines 124-125: _safe_number np.floating non-finite
@@ -30,16 +28,19 @@ class TestServiceSafeNumberNpFloating:
 
     def test_safe_number_np_inf(self):
         from quantflow.web.service import _safe_number
+
         result = _safe_number(np.float32("inf"))
         assert result is None
 
     def test_safe_number_np_nan(self):
         from quantflow.web.service import _safe_number
+
         result = _safe_number(np.float32("nan"))
         assert result is None
 
     def test_safe_number_np_finite(self):
         from quantflow.web.service import _safe_number
+
         result = _safe_number(np.float32(3.14))
         assert result == pytest.approx(3.14, rel=1e-5)
 
@@ -52,20 +53,30 @@ class TestServiceSafeNumberNpFloating:
 def _make_market_overview():
     """overview dict with data.mode='market' so health_tone stays 'accent'."""
     return {
-        "version": "1.0", "phase": 3, "config_path": "/test",
+        "version": "1.0",
+        "phase": 3,
+        "config_path": "/test",
         "docker_available": True,
         "monitoring": {
             "prometheus_port": 8000,
             "grafana_port": 3000,
         },
         "data": {
-            "parquet_dir": "/tmp/test", "duckdb_path": "/tmp/test.duckdb",
-            "mode": "market", "symbol_count": 1,
+            "parquet_dir": "/tmp/test",
+            "duckdb_path": "/tmp/test.duckdb",
+            "mode": "market",
+            "symbol_count": 1,
             "source_counts": {"okx": 1},
             "source_context": {"message": "Market data ready"},
-            "symbols": [{"symbol": "BTC/USDT", "data_source": "okx", "files": 1,
-                         "date_range": [1700000000000, 1700003600000],
-                         "source_breakdown": {"okx": 1}}],
+            "symbols": [
+                {
+                    "symbol": "BTC/USDT",
+                    "data_source": "okx",
+                    "files": 1,
+                    "date_range": [1700000000000, 1700003600000],
+                    "source_breakdown": {"okx": 1},
+                }
+            ],
         },
         "risk": {"max_drawdown": -0.1},
     }
@@ -76,21 +87,29 @@ class TestServiceHealthExternalUnavailable:
 
     def test_external_unavailable_started(self):
         from quantflow.web.service import StationService
+
         service = StationService(history_store=StationHistoryStore())
 
         def port_side_effect(host, port):
             # Make grafana reachable → reachable_total=1 (skip line 1449)
             return port == 3000
 
-        with patch.object(service, "overview", return_value=_make_market_overview()), \
-             patch("quantflow.web.service.metrics_registry_snapshot",
-                   return_value={"values": {}, "available": True}), \
-             patch("quantflow.web.service.metrics_server_status",
-                   return_value={"attempted": True, "started": True, "started_in_process": True}), \
-             patch("quantflow.web.service._port_reachable", side_effect=port_side_effect):
+        with (
+            patch.object(service, "overview", return_value=_make_market_overview()),
+            patch(
+                "quantflow.web.service.metrics_registry_snapshot",
+                return_value={"values": {}, "available": True},
+            ),
+            patch(
+                "quantflow.web.service.metrics_server_status",
+                return_value={"attempted": True, "started": True, "started_in_process": True},
+            ),
+            patch("quantflow.web.service._port_reachable", side_effect=port_side_effect),
+        ):
             result = service.monitoring_snapshot(
                 session_snapshot={"running": True, "session_id": "s1"},
-                session_history=[], session_events=[],
+                session_history=[],
+                session_events=[],
             )
             assert result["health"]["overall_tone"] == "warning"
             assert any("unreachable" in s for s in result["health"]["signals"])
@@ -101,6 +120,7 @@ class TestServiceHealthRegistryOnly:
 
     def test_registry_only(self):
         from quantflow.web.service import StationService
+
         service = StationService(history_store=StationHistoryStore())
         overview = _make_market_overview()
 
@@ -108,15 +128,22 @@ class TestServiceHealthRegistryOnly:
             # Make grafana reachable → reachable_total=1 (skip line 1449)
             return port == 3000
 
-        with patch.object(service, "overview", return_value=overview), \
-             patch("quantflow.web.service.metrics_registry_snapshot",
-                   return_value={"values": {}, "available": True}), \
-             patch("quantflow.web.service.metrics_server_status",
-                   return_value={"attempted": False, "started": False}), \
-             patch("quantflow.web.service._port_reachable", side_effect=port_side_effect):
+        with (
+            patch.object(service, "overview", return_value=overview),
+            patch(
+                "quantflow.web.service.metrics_registry_snapshot",
+                return_value={"values": {}, "available": True},
+            ),
+            patch(
+                "quantflow.web.service.metrics_server_status",
+                return_value={"attempted": False, "started": False},
+            ),
+            patch("quantflow.web.service._port_reachable", side_effect=port_side_effect),
+        ):
             result = service.monitoring_snapshot(
                 session_snapshot={"running": True, "session_id": "s1"},
-                session_history=[], session_events=[],
+                session_history=[],
+                session_events=[],
             )
             assert result["health"]["overall_tone"] == "warning"
 
@@ -126,22 +153,30 @@ class TestServiceHealthWarningEvents:
 
     def test_warning_events(self):
         from quantflow.web.service import StationService
+
         service = StationService(history_store=StationHistoryStore())
 
         def port_side_effect(host, port):
             # Both ports reachable → reachable_total=2 (skip line 1449)
             return True
 
-        with patch.object(service, "overview", return_value=_make_market_overview()), \
-             patch("quantflow.web.service.metrics_registry_snapshot",
-                   return_value={"values": {}, "available": False}), \
-             patch("quantflow.web.service.metrics_server_status",
-                   return_value={"attempted": False, "started": False}), \
-             patch("quantflow.web.service._port_reachable", side_effect=port_side_effect):
+        with (
+            patch.object(service, "overview", return_value=_make_market_overview()),
+            patch(
+                "quantflow.web.service.metrics_registry_snapshot",
+                return_value={"values": {}, "available": False},
+            ),
+            patch(
+                "quantflow.web.service.metrics_server_status",
+                return_value={"attempted": False, "started": False},
+            ),
+            patch("quantflow.web.service._port_reachable", side_effect=port_side_effect),
+        ):
             events = [{"level": "warning", "event_type": "timeout"}]
             result = service.monitoring_snapshot(
                 session_snapshot={"running": True, "session_id": "s1"},
-                session_history=[], session_events=events,
+                session_history=[],
+                session_events=events,
             )
             assert result["health"]["overall_tone"] == "warning"
             assert any("warning" in s.lower() for s in result["health"]["signals"])
@@ -152,20 +187,28 @@ class TestServiceHealthNoReachableServices:
 
     def test_no_reachable_services(self):
         from quantflow.web.service import StationService
+
         service = StationService(history_store=StationHistoryStore())
 
-        with patch.object(service, "overview", return_value=_make_market_overview()), \
-             patch("quantflow.web.service.metrics_registry_snapshot",
-                   return_value={"values": {}, "available": False}), \
-             patch("quantflow.web.service.metrics_server_status",
-                   return_value={"attempted": False, "started": False}), \
-             patch("quantflow.web.service._port_reachable", return_value=False):
+        with (
+            patch.object(service, "overview", return_value=_make_market_overview()),
+            patch(
+                "quantflow.web.service.metrics_registry_snapshot",
+                return_value={"values": {}, "available": False},
+            ),
+            patch(
+                "quantflow.web.service.metrics_server_status",
+                return_value={"attempted": False, "started": False},
+            ),
+            patch("quantflow.web.service._port_reachable", return_value=False),
+        ):
             # metrics_server_status attempted=False → prometheus status_kind="idle"
             # → no prometheus-based downgrade, health_tone stays "accent"
             # _port_reachable=False → reachable_total==0 → line 1449-1451 fires
             result = service.monitoring_snapshot(
                 session_snapshot={"running": True, "session_id": "s1"},
-                session_history=[], session_events=[],
+                session_history=[],
+                session_events=[],
             )
             assert result["health"]["overall_tone"] == "warning"
             assert any("not reachable" in s.lower() for s in result["health"]["signals"])
@@ -176,6 +219,7 @@ class TestServiceHealthDockerUnavailable:
 
     def test_docker_unavailable(self):
         from quantflow.web.service import StationService
+
         service = StationService(history_store=StationHistoryStore())
         overview = _make_market_overview()
         overview["docker_available"] = False
@@ -184,15 +228,22 @@ class TestServiceHealthDockerUnavailable:
             # Both ports reachable → reachable_total=2 (skip line 1449)
             return True
 
-        with patch.object(service, "overview", return_value=overview), \
-             patch("quantflow.web.service.metrics_registry_snapshot",
-                   return_value={"values": {}, "available": False}), \
-             patch("quantflow.web.service.metrics_server_status",
-                   return_value={"attempted": False, "started": False}), \
-             patch("quantflow.web.service._port_reachable", side_effect=port_side_effect):
+        with (
+            patch.object(service, "overview", return_value=overview),
+            patch(
+                "quantflow.web.service.metrics_registry_snapshot",
+                return_value={"values": {}, "available": False},
+            ),
+            patch(
+                "quantflow.web.service.metrics_server_status",
+                return_value={"attempted": False, "started": False},
+            ),
+            patch("quantflow.web.service._port_reachable", side_effect=port_side_effect),
+        ):
             result = service.monitoring_snapshot(
                 session_snapshot={"running": True, "session_id": "s1"},
-                session_history=[], session_events=[],
+                session_history=[],
+                session_events=[],
             )
             assert result["health"]["overall_tone"] == "warning"
             assert any("Docker" in s for s in result["health"]["signals"])
@@ -208,37 +259,66 @@ class TestServiceMarketModeDataSource:
 
     def test_symbol_source_market_mode(self):
         from quantflow.web.service import StationService
+
         service = StationService(history_store=StationHistoryStore())
         overview_data = {
-            "version": "1.0", "phase": 3, "config_path": "/test",
+            "version": "1.0",
+            "phase": 3,
+            "config_path": "/test",
             "docker_available": False,
             "data": {
-                "parquet_dir": "/tmp/test", "duckdb_path": "/tmp/test.duckdb",
-                "symbols": [{"symbol": "BTC/USDT", "data_source": "unknown", "files": 1,
-                             "date_range": [1700000000000, 1700003600000],
-                             "source_breakdown": {}}],
+                "parquet_dir": "/tmp/test",
+                "duckdb_path": "/tmp/test.duckdb",
+                "symbols": [
+                    {
+                        "symbol": "BTC/USDT",
+                        "data_source": "unknown",
+                        "files": 1,
+                        "date_range": [1700000000000, 1700003600000],
+                        "source_breakdown": {},
+                    }
+                ],
                 "mode": "market",
                 "source_context": {"message": "Market data ready"},
             },
         }
         with patch.object(service, "overview", return_value=overview_data):
             session_snapshot = {
-                "session_id": "s1", "running": True,
+                "session_id": "s1",
+                "running": True,
                 "dashboard": {"status_label": "Running", "status_tone": "accent"},
-                "request": {"mode": "paper", "symbol": "BTC/USDT", "timeframe": "1h",
-                            "strategies": ["trend_following"]},
-                "portfolio": {"equity": 100000, "cash": 50000, "market_value": 50000,
-                              "drawdown": -0.01},
+                "request": {
+                    "mode": "paper",
+                    "symbol": "BTC/USDT",
+                    "timeframe": "1h",
+                    "strategies": ["trend_following"],
+                },
+                "portfolio": {
+                    "equity": 100000,
+                    "cash": 50000,
+                    "market_value": 50000,
+                    "drawdown": -0.01,
+                },
                 "health": {"running": True, "open_positions": 1, "pending_orders": 0},
                 "kill_switch": {"active": False, "reason": None},
-                "positions": [], "open_orders": [],
-                "telemetry": {"labels": [], "equity": [], "cash": [], "market_value": [],
-                              "drawdown": [], "open_positions": [], "pending_orders": []},
+                "positions": [],
+                "open_orders": [],
+                "telemetry": {
+                    "labels": [],
+                    "equity": [],
+                    "cash": [],
+                    "market_value": [],
+                    "drawdown": [],
+                    "open_positions": [],
+                    "pending_orders": [],
+                },
                 "started_at": "2024-01-01T00:00:00+00:00",
                 "updated_at": "2024-01-01T00:01:00+00:00",
             }
             result = service.execution_snapshot(
-                session_snapshot=session_snapshot, session_history=[], session_events=[],
+                session_snapshot=session_snapshot,
+                session_history=[],
+                session_events=[],
             )
             ctx = result.get("execution_context", {})
             assert ctx.get("data_source") == "okx"
@@ -259,6 +339,7 @@ class TestServiceArtifactRequestPayloadFallback:
 
     def test_artifact_request_in_payload(self):
         from quantflow.web.service import StationService
+
         service = StationService(history_store=StationHistoryStore())
 
         # Mock research_history to return item without top-level 'request'
@@ -273,37 +354,67 @@ class TestServiceArtifactRequestPayloadFallback:
         }
 
         overview_data = {
-            "version": "1.0", "phase": 3, "config_path": "/test",
+            "version": "1.0",
+            "phase": 3,
+            "config_path": "/test",
             "docker_available": False,
             "data": {
-                "parquet_dir": "/tmp/test", "duckdb_path": "/tmp/test.duckdb",
-                "symbols": [{"symbol": "BTC/USDT", "data_source": "okx", "files": 1,
-                             "date_range": [1700000000000, 1700003600000],
-                             "source_breakdown": {}}],
+                "parquet_dir": "/tmp/test",
+                "duckdb_path": "/tmp/test.duckdb",
+                "symbols": [
+                    {
+                        "symbol": "BTC/USDT",
+                        "data_source": "okx",
+                        "files": 1,
+                        "date_range": [1700000000000, 1700003600000],
+                        "source_breakdown": {},
+                    }
+                ],
                 "mode": "market",
                 "source_context": {"message": "Market data ready"},
             },
         }
 
-        with patch.object(service, "overview", return_value=overview_data), \
-             patch.object(service, "research_history", return_value=[mock_research_item]):
+        with (
+            patch.object(service, "overview", return_value=overview_data),
+            patch.object(service, "research_history", return_value=[mock_research_item]),
+        ):
             session_snapshot = {
-                "session_id": "s1", "running": True,
+                "session_id": "s1",
+                "running": True,
                 "dashboard": {"status_label": "Running", "status_tone": "accent"},
-                "request": {"mode": "paper", "symbol": "BTC/USDT", "timeframe": "1h",
-                            "strategies": ["trend_following"]},
-                "portfolio": {"equity": 100000, "cash": 50000, "market_value": 50000,
-                              "drawdown": -0.01},
+                "request": {
+                    "mode": "paper",
+                    "symbol": "BTC/USDT",
+                    "timeframe": "1h",
+                    "strategies": ["trend_following"],
+                },
+                "portfolio": {
+                    "equity": 100000,
+                    "cash": 50000,
+                    "market_value": 50000,
+                    "drawdown": -0.01,
+                },
                 "health": {"running": True, "open_positions": 1, "pending_orders": 0},
                 "kill_switch": {"active": False, "reason": None},
-                "positions": [], "open_orders": [],
-                "telemetry": {"labels": [], "equity": [], "cash": [], "market_value": [],
-                              "drawdown": [], "open_positions": [], "pending_orders": []},
+                "positions": [],
+                "open_orders": [],
+                "telemetry": {
+                    "labels": [],
+                    "equity": [],
+                    "cash": [],
+                    "market_value": [],
+                    "drawdown": [],
+                    "open_positions": [],
+                    "pending_orders": [],
+                },
                 "started_at": "2024-01-01T00:00:00+00:00",
                 "updated_at": "2024-01-01T00:01:00+00:00",
             }
             result = service.execution_snapshot(
-                session_snapshot=session_snapshot, session_history=[], session_events=[],
+                session_snapshot=session_snapshot,
+                session_history=[],
+                session_events=[],
             )
             assert isinstance(result, dict)
 
@@ -323,6 +434,7 @@ class TestServiceValidationSummaryNotList:
 
     def test_validation_summary_is_list(self):
         from quantflow.web.service import StationService
+
         service = StationService(history_store=StationHistoryStore())
 
         # Mock validation_history to return item with summary as a list
@@ -332,37 +444,67 @@ class TestServiceValidationSummaryNotList:
         }
 
         overview_data = {
-            "version": "1.0", "phase": 3, "config_path": "/test",
+            "version": "1.0",
+            "phase": 3,
+            "config_path": "/test",
             "docker_available": False,
             "data": {
-                "parquet_dir": "/tmp/test", "duckdb_path": "/tmp/test.duckdb",
-                "symbols": [{"symbol": "BTC/USDT", "data_source": "okx", "files": 1,
-                             "date_range": [1700000000000, 1700003600000],
-                             "source_breakdown": {}}],
+                "parquet_dir": "/tmp/test",
+                "duckdb_path": "/tmp/test.duckdb",
+                "symbols": [
+                    {
+                        "symbol": "BTC/USDT",
+                        "data_source": "okx",
+                        "files": 1,
+                        "date_range": [1700000000000, 1700003600000],
+                        "source_breakdown": {},
+                    }
+                ],
                 "mode": "market",
                 "source_context": {"message": "Market data ready"},
             },
         }
 
-        with patch.object(service, "overview", return_value=overview_data), \
-             patch.object(service, "validation_history", return_value=[mock_validation_item]):
+        with (
+            patch.object(service, "overview", return_value=overview_data),
+            patch.object(service, "validation_history", return_value=[mock_validation_item]),
+        ):
             session_snapshot = {
-                "session_id": "s1", "running": True,
+                "session_id": "s1",
+                "running": True,
                 "dashboard": {"status_label": "Running", "status_tone": "accent"},
-                "request": {"mode": "paper", "symbol": "BTC/USDT", "timeframe": "1h",
-                            "strategies": ["trend_following"]},
-                "portfolio": {"equity": 100000, "cash": 50000, "market_value": 50000,
-                              "drawdown": -0.01},
+                "request": {
+                    "mode": "paper",
+                    "symbol": "BTC/USDT",
+                    "timeframe": "1h",
+                    "strategies": ["trend_following"],
+                },
+                "portfolio": {
+                    "equity": 100000,
+                    "cash": 50000,
+                    "market_value": 50000,
+                    "drawdown": -0.01,
+                },
                 "health": {"running": True, "open_positions": 1, "pending_orders": 0},
                 "kill_switch": {"active": False, "reason": None},
-                "positions": [], "open_orders": [],
-                "telemetry": {"labels": [], "equity": [], "cash": [], "market_value": [],
-                              "drawdown": [], "open_positions": [], "pending_orders": []},
+                "positions": [],
+                "open_orders": [],
+                "telemetry": {
+                    "labels": [],
+                    "equity": [],
+                    "cash": [],
+                    "market_value": [],
+                    "drawdown": [],
+                    "open_positions": [],
+                    "pending_orders": [],
+                },
                 "started_at": "2024-01-01T00:00:00+00:00",
                 "updated_at": "2024-01-01T00:01:00+00:00",
             }
             result = service.execution_snapshot(
-                session_snapshot=session_snapshot, session_history=[], session_events=[],
+                session_snapshot=session_snapshot,
+                session_history=[],
+                session_events=[],
             )
             assert isinstance(result, dict)
 
@@ -377,6 +519,7 @@ class TestTrendFollowingEmptyMacdSignal:
 
     def test_macd_signal_empty_via_mock(self):
         from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+
         strategy = TrendFollowingStrategy()
         n = 40
         strategy._bars = [MagicMock() for _ in range(n)]
@@ -389,6 +532,7 @@ class TestTrendFollowingEmptyMacdSignal:
         # IMPORTANT: patch at trend_following module, not _runtime, because
         # trend_following.py does "from ..._runtime import ewm_series"
         import quantflow.strategy.templates._runtime as _runtime
+
         original_ewm = _runtime.ewm_series
         call_count = [0]
 
@@ -414,18 +558,21 @@ class TestTrendFollowingRSIAdaptiveProfitOversold:
 
     def test_rsi_oversold_at_entry(self):
         from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+
         strategy = TrendFollowingStrategy(
             params={"rsi_adaptive_profit": True, "min_conditions": 1, "rsi_period": 5}
         )
         # Long steady decline → RSI stays very low, most entries have RSI < 30
         n = 120
         close_vals = [500.0 - i * 4.0 for i in range(100)] + [100.0 + i * 0.5 for i in range(20)]
-        df = pd.DataFrame({
-            "open": close_vals,
-            "high": [c + 2.0 for c in close_vals],
-            "low": [c - 2.0 for c in close_vals],
-            "close": close_vals,
-            "volume": [3000.0] * n,
-        })
-        entries, exits = strategy.generate_signals(df)
+        df = pd.DataFrame(
+            {
+                "open": close_vals,
+                "high": [c + 2.0 for c in close_vals],
+                "low": [c - 2.0 for c in close_vals],
+                "close": close_vals,
+                "volume": [3000.0] * n,
+            }
+        )
+        entries, _exits = strategy.generate_signals(df)
         assert isinstance(entries, pd.Series)

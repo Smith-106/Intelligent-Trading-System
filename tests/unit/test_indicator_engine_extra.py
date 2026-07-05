@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from quantflow.indicators.engine import IndicatorEngine
 
@@ -14,13 +13,15 @@ def _make_ohlcv(n: int = 60) -> pd.DataFrame:
     rng = np.random.default_rng(42)
     close = pd.Series(100.0 + rng.normal(0, 2, n).cumsum())
     close = close.clip(lower=10)
-    return pd.DataFrame({
-        "open": close + rng.normal(0, 0.5, n),
-        "high": close + rng.uniform(0.5, 3, n),
-        "low": close - rng.uniform(0.5, 3, n),
-        "close": close,
-        "volume": rng.uniform(100, 1000, n),
-    })
+    return pd.DataFrame(
+        {
+            "open": close + rng.normal(0, 0.5, n),
+            "high": close + rng.uniform(0.5, 3, n),
+            "low": close - rng.uniform(0.5, 3, n),
+            "close": close,
+            "volume": rng.uniform(100, 1000, n),
+        }
+    )
 
 
 class TestIndicatorEngineComputeAllSelective:
@@ -155,9 +156,17 @@ class TestIndicatorEngineComputeAllSelective:
         """Request a mix of indicators — all should appear."""
         engine = IndicatorEngine()
         df = _make_ohlcv(80)
-        result = engine.compute_all(df, indicator_names=[
-            "sma_20", "rsi_14", "macd", "bb_upper", "adx_14", "obv",
-        ])
+        result = engine.compute_all(
+            df,
+            indicator_names=[
+                "sma_20",
+                "rsi_14",
+                "macd",
+                "bb_upper",
+                "adx_14",
+                "obv",
+            ],
+        )
         assert "sma_20" in result.columns
         assert "rsi_14" in result.columns
         assert "macd" in result.columns

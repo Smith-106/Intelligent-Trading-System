@@ -4,13 +4,11 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestMetricsServerStart:
     def test_start_metrics_server(self):
         """start_metrics_server starts a Prometheus HTTP server."""
-        from quantflow.monitoring.metrics import start_metrics_server, metrics_server_status
+        from quantflow.monitoring.metrics import start_metrics_server
 
         with patch("quantflow.monitoring.metrics.start_http_server") as mock_start:
             start_metrics_server(9092)
@@ -39,17 +37,19 @@ class TestUpdatePortfolioMetrics:
     def test_update_portfolio_metrics(self):
         """update_portfolio_metrics sets gauge values."""
         from quantflow.monitoring.metrics import (
-            update_portfolio_metrics,
-            PORTFOLIO_VALUE,
             PORTFOLIO_CASH,
             PORTFOLIO_DRAWDOWN,
+            PORTFOLIO_VALUE,
             POSITIONS_COUNT,
+            update_portfolio_metrics,
         )
 
-        with patch.object(PORTFOLIO_VALUE, "set") as mock_value, \
-             patch.object(PORTFOLIO_CASH, "set") as mock_cash, \
-             patch.object(PORTFOLIO_DRAWDOWN, "set") as mock_dd, \
-             patch.object(POSITIONS_COUNT, "set") as mock_pos:
+        with (
+            patch.object(PORTFOLIO_VALUE, "set") as mock_value,
+            patch.object(PORTFOLIO_CASH, "set") as mock_cash,
+            patch.object(PORTFOLIO_DRAWDOWN, "set") as mock_dd,
+            patch.object(POSITIONS_COUNT, "set") as mock_pos,
+        ):
             update_portfolio_metrics(100000.0, 50000.0, 0.05, 3)
             mock_value.assert_called_once_with(100000.0)
             mock_cash.assert_called_once_with(50000.0)

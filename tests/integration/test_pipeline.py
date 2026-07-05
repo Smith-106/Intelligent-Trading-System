@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
-import pytest
-
 from quantflow.common.config import AppConfig, RiskConfig
 from quantflow.common.models import Bar, Direction, Signal
 from quantflow.signal.generator import SignalGenerator
 from quantflow.signal.portfolio import PortfolioManager
 from quantflow.signal.position_sizer import PositionSizer
 from quantflow.signal.risk_engine import RiskEngine
-from quantflow.strategy.base import StrategyBase, StrategyContext
+from quantflow.strategy.base import StrategyContext
 from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
 
 
@@ -25,7 +21,7 @@ class TestFullPipeline:
         risk_engine = RiskEngine(config.risk)
         portfolio = PortfolioManager(initial_capital=100000.0)
         sizer = PositionSizer(method="kelly", kelly_fraction=0.5, max_position_pct=20.0)
-        signal_gen = SignalGenerator()
+        SignalGenerator()
 
         strategy = TrendFollowingStrategy()
         ctx = StrategyContext()
@@ -82,7 +78,7 @@ class TestFullPipeline:
         portfolio = pf.portfolio
 
         sig = Signal("BTC/USDT", Direction.LONG, 0.8, 50000, "trend")
-        result = risk.check(sig, portfolio)
+        risk.check(sig, portfolio)
         # trend exposure = 0.2 * 50000 = 10000, total = 110000, budget = 11000 → passes
         # Let's make it fail: increase the position
         pf.update_position("ETH/USDT", 1.0, 3000.0, strategy_id="trend")
@@ -108,7 +104,7 @@ class TestFullPipeline:
 
     def test_pipeline_risk_blocks_daily_loss(self):
         """Daily loss limit should block signals."""
-        config = AppConfig()
+        AppConfig()
         risk = RiskEngine(RiskConfig(daily_loss_limit=-0.03, position_limit_pct=1.0))
         portfolio = PortfolioManager(initial_capital=100000.0)
         # Create a position with large unrealized loss

@@ -573,12 +573,7 @@ class TestMomentumRotationStrategy:
         # Per-bar ranking is causal: at each timestamp at most top_n symbols
         # hold an entry signal. (Across the whole series more than top_n
         # symbols may have entered at some bar — that is correct, not a bug.)
-        aligned = pd.DataFrame(
-            {
-                symbol: df["close"].pct_change(20)
-                for symbol, df in data.items()
-            }
-        )
+        aligned = pd.DataFrame({symbol: df["close"].pct_change(20) for symbol, df in data.items()})
         ranks = aligned.rank(axis=1, method="min", ascending=False)
         per_bar_entries = (ranks <= 2).sum(axis=1).dropna()
         assert (per_bar_entries <= 2).all()

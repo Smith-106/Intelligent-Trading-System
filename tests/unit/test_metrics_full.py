@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from quantflow.monitoring.metrics import metrics_registry_snapshot, REGISTRY
+from quantflow.monitoring.metrics import REGISTRY, metrics_registry_snapshot
 
 
 class TestMetricsRegistrySnapshotFull:
@@ -24,7 +22,7 @@ class TestMetricsRegistrySnapshotFull:
             snapshot = metrics_registry_snapshot()
             assert isinstance(snapshot, dict)
             # Should contain the gauge value
-            key = "PORTFOLIO_VALUE{strategy=\"trend_following\"}"
+            key = 'PORTFOLIO_VALUE{strategy="trend_following"}'
             if key in snapshot:
                 assert snapshot[key] == 100000.0
 

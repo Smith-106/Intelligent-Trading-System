@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from quantflow.signal.portfolio import PortfolioManager
-from quantflow.common.models import Position
 
 
 class TestPortfolioQuantityDeltaZero:
@@ -51,7 +50,6 @@ class TestPortfolioQuantityDeltaZero:
         pm = PortfolioManager(initial_capital=100000.0)
         # Create position first, then do a zero-delta update
         pm.update_position("BTC/USDT", 1.0, 50000.0)
-        initial_dd = pm.current_drawdown
         # Zero-delta update with lower price → drawdown should change
         pm.update_position("BTC/USDT", 0.0, 40000.0)
         # Drawdown should now reflect the price drop

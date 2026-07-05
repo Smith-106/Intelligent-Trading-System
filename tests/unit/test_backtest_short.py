@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from quantflow.strategy.research.backtest import BacktestEngine, BacktestResult
+from quantflow.strategy.research.backtest import BacktestEngine
 
 
 def _make_price_series(n: int = 100, start: float = 100.0, trend: float = 0.01) -> pd.Series:
@@ -56,7 +56,9 @@ class TestBacktestShort:
         n = 10
         dates = pd.date_range("2024-01-01", periods=n, freq="D")
         # Declining prices: SHORT should profit
-        close = pd.Series([100.0, 98.0, 96.0, 94.0, 92.0, 90.0, 88.0, 86.0, 84.0, 82.0], index=dates)
+        close = pd.Series(
+            [100.0, 98.0, 96.0, 94.0, 92.0, 90.0, 88.0, 86.0, 84.0, 82.0], index=dates
+        )
         entries = pd.Series(False, index=dates)
         exits = pd.Series(False, index=dates)
         entries.iloc[0] = True
@@ -73,7 +75,9 @@ class TestBacktestShort:
         """SHORT in uptrend should lose money."""
         n = 10
         dates = pd.date_range("2024-01-01", periods=n, freq="D")
-        close = pd.Series([100.0, 102.0, 104.0, 106.0, 108.0, 110.0, 112.0, 114.0, 116.0, 118.0], index=dates)
+        close = pd.Series(
+            [100.0, 102.0, 104.0, 106.0, 108.0, 110.0, 112.0, 114.0, 116.0, 118.0], index=dates
+        )
         entries = pd.Series(False, index=dates)
         exits = pd.Series(False, index=dates)
         entries.iloc[0] = True
@@ -129,7 +133,7 @@ class TestBacktestShort:
         close = pd.Series(close_vals, index=dates)
         entries = pd.Series(False, index=dates)
         exits = pd.Series(False, index=dates)
-        entries.iloc[0] = True   # SHORT in decline
+        entries.iloc[0] = True  # SHORT in decline
         exits.iloc[5] = True
         entries.iloc[10] = True  # SHORT again but now rising → loss
         exits.iloc[15] = True
@@ -146,7 +150,9 @@ class TestBacktestShort:
         """SHORT winning trade should count in win_rate and profit_factor."""
         n = 10
         dates = pd.date_range("2024-01-01", periods=n, freq="D")
-        close = pd.Series([100.0, 99.0, 98.0, 97.0, 96.0, 95.0, 94.0, 93.0, 92.0, 91.0], index=dates)
+        close = pd.Series(
+            [100.0, 99.0, 98.0, 97.0, 96.0, 95.0, 94.0, 93.0, 92.0, 91.0], index=dates
+        )
         entries = pd.Series(False, index=dates)
         exits = pd.Series(False, index=dates)
         entries.iloc[0] = True

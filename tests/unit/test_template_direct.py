@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import numpy as np
 import pandas as pd
-import pytest
 
-from quantflow.common.models import Bar, Direction
+from quantflow.common.models import Bar
 from quantflow.strategy.base import StrategyContext
 from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
 from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
@@ -30,18 +27,21 @@ def _make_bar(price: float = 100.0, high: float = 101.0, low: float = 99.0, idx:
 # TrendFollowing — direct _latest_signal tests for lines 153-154, 165-166, 283, 285
 # ---------------------------------------------------------------------------
 
+
 class TestTrendFollowingLatestSignalDirect:
     def test_latest_signal_indicators_none_returns_false(self):
         """Lines 153-154: When rolling computations return None → return False, False."""
-        s = TrendFollowingStrategy(params={
-            "fast_ma_period": 50,  # Long period → insufficient data → None
-            "slow_ma_period": 100,
-            "macd_slow": 50,
-            "macd_signal": 20,
-            "rsi_period": 50,
-            "atr_period": 50,
-            "volume_period": 50,
-        })
+        s = TrendFollowingStrategy(
+            params={
+                "fast_ma_period": 50,  # Long period → insufficient data → None
+                "slow_ma_period": 100,
+                "macd_slow": 50,
+                "macd_signal": 20,
+                "rsi_period": 50,
+                "atr_period": 50,
+                "volume_period": 50,
+            }
+        )
         ctx = _FakeContext()
         s.on_init(ctx)
         # Feed enough bars to pass the on_bar early return (>= slow_period + macd_signal = 120)
@@ -60,10 +60,17 @@ class TestTrendFollowingLatestSignalDirect:
 
     def test_insufficient_bars_returns_false_false(self):
         """Lines 153-154: Direct test — very few bars, indicators are None."""
-        s = TrendFollowingStrategy(params={
-            "fast_ma_period": 2, "slow_ma_period": 5, "macd_slow": 3, "macd_signal": 2,
-            "rsi_period": 14, "atr_period": 14, "volume_period": 14,
-        })
+        s = TrendFollowingStrategy(
+            params={
+                "fast_ma_period": 2,
+                "slow_ma_period": 5,
+                "macd_slow": 3,
+                "macd_signal": 2,
+                "rsi_period": 14,
+                "atr_period": 14,
+                "volume_period": 14,
+            }
+        )
         ctx = _FakeContext()
         s.on_init(ctx)
         # Need >= slow_period + macd_signal = 7 bars for on_bar to proceed
@@ -76,10 +83,17 @@ class TestTrendFollowingLatestSignalDirect:
 
     def test_macd_signal_empty_returns_false_false(self):
         """Lines 165-166: When MACD signal series is empty → return False, False."""
-        s = TrendFollowingStrategy(params={
-            "fast_ma_period": 2, "slow_ma_period": 2, "macd_slow": 2, "macd_signal": 5,
-            "rsi_period": 2, "atr_period": 2, "volume_period": 2,
-        })
+        s = TrendFollowingStrategy(
+            params={
+                "fast_ma_period": 2,
+                "slow_ma_period": 2,
+                "macd_slow": 2,
+                "macd_signal": 5,
+                "rsi_period": 2,
+                "atr_period": 2,
+                "volume_period": 2,
+            }
+        )
         ctx = _FakeContext()
         s.on_init(ctx)
         # Need >= slow_period + macd_signal = 7 bars
@@ -100,26 +114,30 @@ class TestTrendFollowingLatestSignalDirect:
         n = 300
         # Strong uptrend for RSI > 70
         close = pd.Series(100 + np.cumsum(np.abs(np.random.randn(n)) * 2))
-        df = pd.DataFrame({
-            "close": close,
-            "high": close + 5,
-            "low": close - 5,
-            "volume": pd.Series(1000.0, index=close.index),
-        })
-        entries, exits = s.generate_signals(df)
+        df = pd.DataFrame(
+            {
+                "close": close,
+                "high": close + 5,
+                "low": close - 5,
+                "volume": pd.Series(1000.0, index=close.index),
+            }
+        )
+        entries, _exits = s.generate_signals(df)
         assert isinstance(entries, pd.Series)
 
         # Strong downtrend for RSI < 30
         np.random.seed(7)
         close2 = pd.Series(100 - np.cumsum(np.abs(np.random.randn(n)) * 2))
         close2 = close2.clip(lower=1)
-        df2 = pd.DataFrame({
-            "close": close2,
-            "high": close2 + 5,
-            "low": close2 - 5,
-            "volume": pd.Series(1000.0, index=close2.index),
-        })
-        entries2, exits2 = s.generate_signals(df2)
+        df2 = pd.DataFrame(
+            {
+                "close": close2,
+                "high": close2 + 5,
+                "low": close2 - 5,
+                "volume": pd.Series(1000.0, index=close2.index),
+            }
+        )
+        entries2, _exits2 = s.generate_signals(df2)
         assert isinstance(entries2, pd.Series)
 
 
@@ -127,13 +145,19 @@ class TestTrendFollowingLatestSignalDirect:
 # VolatilityBreakout — direct tests for lines 191, 195, 343, 353
 # ---------------------------------------------------------------------------
 
+
 class TestVolatilityBreakoutLatestSignalDirect:
     def test_latest_signal_returns_false_insufficient_data(self):
         """Line 191: _latest_signal returns False, False when insufficient data."""
-        s = VolatilityBreakoutStrategy(params={
-            "atr_period": 14, "bb_period": 20, "keltner_ema_period": 14,
-            "keltner_atr_period": 14, "volume_period": 14,
-        })
+        s = VolatilityBreakoutStrategy(
+            params={
+                "atr_period": 14,
+                "bb_period": 20,
+                "keltner_ema_period": 14,
+                "keltner_atr_period": 14,
+                "volume_period": 14,
+            }
+        )
         ctx = _FakeContext()
         s.on_init(ctx)
         # Feed bars but not enough for all computations
@@ -143,10 +167,15 @@ class TestVolatilityBreakoutLatestSignalDirect:
 
     def test_latest_signal_bb_middle_zero(self):
         """Line 195: bb_middle == 0 → return False, False."""
-        s = VolatilityBreakoutStrategy(params={
-            "atr_period": 2, "bb_period": 2, "keltner_ema_period": 2,
-            "keltner_atr_period": 2, "volume_period": 2,
-        })
+        s = VolatilityBreakoutStrategy(
+            params={
+                "atr_period": 2,
+                "bb_period": 2,
+                "keltner_ema_period": 2,
+                "keltner_atr_period": 2,
+                "volume_period": 2,
+            }
+        )
         ctx = _FakeContext()
         s.on_init(ctx)
         # Feed bars with very small/zero values to make bb_middle ≈ 0

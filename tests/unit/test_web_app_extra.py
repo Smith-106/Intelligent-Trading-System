@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 
 
@@ -12,10 +9,9 @@ class TestWebAppHandlers:
     @pytest.fixture
     def mock_app(self):
         """Create a minimal aiohttp app for testing handlers."""
-        from aiohttp import web
         from quantflow.web.app import create_app
-        from quantflow.web.service import StationService
         from quantflow.web.history import StationHistoryStore
+        from quantflow.web.service import StationService
         from quantflow.web.session_manager import StationSessionManager
 
         history_store = StationHistoryStore()
@@ -27,7 +23,6 @@ class TestWebAppHandlers:
     @pytest.mark.asyncio
     async def test_index_returns_html(self, mock_app):
         """Line 35-36: _index returns index.html FileResponse."""
-        from aiohttp.test_utils import AioHTTPTestCase
 
         # Simple smoke test — just verify the app starts
         assert mock_app is not None
@@ -43,8 +38,7 @@ class TestWebAppHandlers:
 
     def test_create_app_injects_service_and_manager(self):
         """create_app creates app with service and session_manager."""
-        from aiohttp import web
-        from quantflow.web.app import create_app, STATION_SERVICE_KEY, SESSION_MANAGER_KEY
+        from quantflow.web.app import SESSION_MANAGER_KEY, STATION_SERVICE_KEY, create_app
 
         app = create_app()
         assert STATION_SERVICE_KEY in app
@@ -52,9 +46,9 @@ class TestWebAppHandlers:
 
     def test_create_app_with_custom_service(self):
         """create_app accepts custom service."""
-        from quantflow.web.app import create_app, STATION_SERVICE_KEY
-        from quantflow.web.service import StationService
+        from quantflow.web.app import STATION_SERVICE_KEY, create_app
         from quantflow.web.history import StationHistoryStore
+        from quantflow.web.service import StationService
 
         custom_service = StationService(history_store=StationHistoryStore())
         app = create_app(service=custom_service)

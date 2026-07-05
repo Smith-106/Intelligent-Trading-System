@@ -44,7 +44,31 @@
 
 ## 6. Fix & Confirmation
 
-_Pending S_FIX._
+### Fix applied
+
+**Immediate (format/lint):** ran the project-mandated ruff pipeline across the 30 offending test files (45 files total reformatted):
+- `ruff check --fix tests/` → 156 safe autofixes (F401 unused imports, I001 import order, RUF059 unused unpacked vars).
+- `ruff check --fix --unsafe-fixes tests/` → 44 more (F841 unused locals, B007 unused loop vars, RUF059, B018) — all verified as benign mechanical renames in test code, no semantic risk.
+- `ruff format quantflow tests scripts` → 45 files reformatted.
+- **4 manual fixes** for non-autofixable errors:
+  - E712 (×4 in `test_runtime_extra.py`): `result.iloc[i] == True` → `bool(result.iloc[i])` (NOT `is True` — that would break for numpy/pandas bools; `bool()` is the behavior-preserving truthiness fix).
+  - RUF043 (`test_data_layer_extra.py:151`): `match="datetime.*timestamp"` → `match=r"datetime.*timestamp"` (signals intentional regex).
+  - E741 (`test_remaining_coverage.py:1324`): loop var `l` → `low`.
+  - F811 (`test_remaining_coverage.py:1420`): duplicate `TestAiFactorsNoSplits` class → renamed second to `TestAiFactorsComputeFactorSplitsEmpty` (both test methods now collected — gained 1 test).
+  - B018 (`test_remaining_coverage.py:1293`): bare `quantflow.data.NonExistentAttr` → `_ = quantflow.data.NonExistentAttr` (avoids both B018 useless-expr and B009 constant-getattr).
+
+**Sibling bug fixed inline:** `tests/unit/test_remaining_coverage.py::TestAppRunStation::test_run_station_calls_run_app` called `run_station(host="0.0.0.0")` without the `QUANTFLOW_STATION_TOKEN` env patch, hitting the SEC-002 non-loopback guard (added in `84c355c`). The security commit updated the **duplicate** test in `test_web_app_handlers.py` but missed this second copy. Fixed by wrapping in `patch.dict("os.environ", {...})`.
+
+### Confirmation
+
+| Gate | Before | After | Status |
+|------|--------|-------|--------|
+| `ruff check quantflow tests scripts` | 200 errors | **All checks passed!** | ✅ green |
+| `ruff format --check quantflow tests scripts` | 44 files need reformat | **187 files already formatted** | ✅ green |
+| `mypy quantflow tests` | 36 errors | **35 errors** (pre-existing `[arg-type]` in tests; F811 fix removed 1 `no-redef`) | ✅ improved (remaining pre-existing, out of scope) |
+| `pytest tests/` | 1331 passed, 2 skipped | **1332 passed, 2 skipped** (F811 fix un-shadowed a test) | ✅ green |
+
+The 35 remaining mypy `arg-type` errors are pre-existing (verified via `git stash` comparison: HEAD had 36) and outside the scope of this CI-ruff-breakage debug. They are tracked as a separate concern.
 
 ## 7. Generalization
 

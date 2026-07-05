@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from quantflow.indicators.regime import MarketRegime, MarketRegimeDetector
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_ohlcv(n: int = 100, trend: str = "up") -> pd.DataFrame:
     """Build a synthetic OHLCV DataFrame."""
@@ -40,6 +39,7 @@ def _make_ohlcv(n: int = 100, trend: str = "up") -> pd.DataFrame:
 # MarketRegime dataclass
 # ---------------------------------------------------------------------------
 
+
 class TestMarketRegime:
     def test_default_values(self):
         r = MarketRegime()
@@ -60,6 +60,7 @@ class TestMarketRegime:
 # ---------------------------------------------------------------------------
 # MarketRegimeDetector — detect() vectorized path
 # ---------------------------------------------------------------------------
+
 
 class TestMarketRegimeDetectorDetect:
     def test_detect_trending_market(self):
@@ -103,6 +104,7 @@ class TestMarketRegimeDetectorDetect:
 # MarketRegimeDetector — update() incremental path
 # ---------------------------------------------------------------------------
 
+
 class TestMarketRegimeDetectorUpdate:
     def test_update_returns_default_regime_with_few_bars(self):
         det = MarketRegimeDetector(adx_period=14)
@@ -140,7 +142,7 @@ class TestMarketRegimeDetectorUpdate:
             high = 120.0 + i * 1.0
             low = 80.0 + i * 0.5
             close = 100.0 + i * 0.8
-            r = det.update(high, low, close)
+            det.update(high, low, close)
         # With clearly varying bars, ADX should be non-zero
         assert det._last_regime.adx > 0.0 or det._last_regime.bb_width_pct > 0.0
 
@@ -160,7 +162,7 @@ class TestMarketRegimeDetectorUpdate:
 
     def test_update_consecutive_calls_accumulate(self):
         det = MarketRegimeDetector(adx_period=14)
-        for i in range(35):
+        for _i in range(35):
             det.update(105.0, 95.0, 100.0)
         assert len(det._closes) == 35
 
@@ -172,7 +174,7 @@ class TestMarketRegimeDetectorUpdate:
 
     def test_update_atr_percentile_in_bounds(self):
         det = MarketRegimeDetector(adx_period=14, atr_lookback=50)
-        for i in range(60):
+        for _i in range(60):
             r = det.update(105.0, 95.0, 100.0)
         assert 0.0 <= r.atr_percentile <= 1.0
 
@@ -180,6 +182,7 @@ class TestMarketRegimeDetectorUpdate:
 # ---------------------------------------------------------------------------
 # Edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestMarketRegimeDetectorEdgeCases:
     def test_detect_with_constant_prices(self):
@@ -208,7 +211,7 @@ class TestMarketRegimeDetectorEdgeCases:
         """When ATR lookback has < 5 non-NaN values, percentile defaults to 0.5."""
         det = MarketRegimeDetector(adx_period=14, atr_lookback=100)
         # Only 30 bars → lookback won't have many ATR values
-        for i in range(30):
+        for _i in range(30):
             det.update(110.0, 90.0, 100.0)
         r = det._last_regime
         # With 30 bars, ATR rolling(14) produces ~16 non-NaN values
@@ -219,7 +222,7 @@ class TestMarketRegimeDetectorEdgeCases:
         """When ATR lookback has < 5 non-NaN values (line 113/166), percentile = 0.5."""
         det = MarketRegimeDetector(adx_period=14, atr_lookback=200)
         # Only 16 bars → ATR rolling(14) = ~3 non-NaN, < 5 → else branch
-        for i in range(16):
+        for _i in range(16):
             det.update(110.0, 90.0, 100.0)
         r = det._last_regime
         # With fewer than 5 non-NaN ATR values, percentile should be 0.5

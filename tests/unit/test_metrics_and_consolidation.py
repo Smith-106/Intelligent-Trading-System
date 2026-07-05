@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
-from quantflow.signal.risk_metrics import calmar_ratio, max_drawdown, sharpe_ratio, sortino_ratio
-from quantflow.strategy.validation.signal_quality import aggregate_signal_quality, signal_quality_metrics
+from quantflow.signal.risk_metrics import calmar_ratio
+from quantflow.strategy.validation.signal_quality import (
+    aggregate_signal_quality,
+    signal_quality_metrics,
+)
 
 
 class TestCalmarRatio:
@@ -97,8 +99,14 @@ class TestAggregateSignalQuality:
         assert result["n_signals"] == 0
 
     def test_single_row(self):
-        row = {"precision": 0.7, "recall": 0.5, "n_predictions": 100, "n_signals": 30,
-               "brier_score": 0.2, "oos_sharpe": 1.5}
+        row = {
+            "precision": 0.7,
+            "recall": 0.5,
+            "n_predictions": 100,
+            "n_signals": 30,
+            "brier_score": 0.2,
+            "oos_sharpe": 1.5,
+        }
         result = aggregate_signal_quality([row])
         assert result["precision"] == 0.7
         assert result["recall"] == 0.5
@@ -106,10 +114,22 @@ class TestAggregateSignalQuality:
 
     def test_weighted_average(self):
         rows = [
-            {"precision": 0.8, "recall": 0.6, "n_predictions": 200, "n_signals": 50,
-             "brier_score": 0.15, "oos_sharpe": 1.0},
-            {"precision": 0.4, "recall": 0.8, "n_predictions": 100, "n_signals": 20,
-             "brier_score": 0.3, "oos_sharpe": 0.5},
+            {
+                "precision": 0.8,
+                "recall": 0.6,
+                "n_predictions": 200,
+                "n_signals": 50,
+                "brier_score": 0.15,
+                "oos_sharpe": 1.0,
+            },
+            {
+                "precision": 0.4,
+                "recall": 0.8,
+                "n_predictions": 100,
+                "n_signals": 20,
+                "brier_score": 0.3,
+                "oos_sharpe": 0.5,
+            },
         ]
         result = aggregate_signal_quality(rows)
         # Weighted: (0.8*200 + 0.4*100) / 300 = 200/300 ≈ 0.667
@@ -119,8 +139,14 @@ class TestAggregateSignalQuality:
 
     def test_zero_total_predictions(self):
         rows = [
-            {"precision": 0.5, "n_predictions": 0, "n_signals": 0,
-             "brier_score": 0.0, "oos_sharpe": 0.0, "recall": 0.0},
+            {
+                "precision": 0.5,
+                "n_predictions": 0,
+                "n_signals": 0,
+                "brier_score": 0.0,
+                "oos_sharpe": 0.0,
+                "recall": 0.0,
+            },
         ]
         result = aggregate_signal_quality(rows)
         assert result["precision"] == 0.0

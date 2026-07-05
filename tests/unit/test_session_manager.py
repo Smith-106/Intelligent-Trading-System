@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
-from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from quantflow.common.event_bus import Event, EventBus
 from quantflow.common.models import EVENT_FILL, EVENT_ORDER, EVENT_RISK, EVENT_SIGNAL
 from quantflow.web.history import StationHistoryStore
 from quantflow.web.session_manager import (
@@ -63,6 +60,7 @@ class TestJsonable:
 
     def test_path(self):
         from pathlib import Path
+
         result = _jsonable(Path("/tmp"))
         assert isinstance(result, str)
 
@@ -121,7 +119,15 @@ class TestSessionManagerEvents:
     @pytest.mark.asyncio
     async def test_events_no_runtime(self):
         store = StationHistoryStore()
-        store.append_session_event({"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m"})
+        store.append_session_event(
+            {
+                "session_id": "s1",
+                "event_type": "test",
+                "title": "t",
+                "level": "info",
+                "message": "m",
+            }
+        )
         manager = StationSessionManager(history_store=store)
         result = await manager.events(session_id="s1")
         assert len(result["items"]) >= 1
@@ -132,7 +138,15 @@ class TestSessionManagerEvents:
         manager = StationSessionManager(history_store=store)
         manager._runtime = MagicMock()
         manager._runtime.session_id = "active-session"
-        store.append_session_event({"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m"})
+        store.append_session_event(
+            {
+                "session_id": "active-session",
+                "event_type": "signal",
+                "title": "t",
+                "level": "info",
+                "message": "m",
+            }
+        )
         result = await manager.events()
         assert any(item.get("session_id") == "active-session" for item in result["items"])
         manager._runtime = None
@@ -150,7 +164,8 @@ class TestSessionManagerSessionHistory:
 class TestDescribeEvent:
     def test_signal_event(self):
         from quantflow.web.session_manager import StationSessionManager
-        title, level, message = StationSessionManager._describe_event(
+
+        title, level, _message = StationSessionManager._describe_event(
             EVENT_SIGNAL,
             {"strategy_id": "trend", "direction": 1, "symbol": "BTC/USDT", "strength": 0.8},
         )
@@ -159,7 +174,8 @@ class TestDescribeEvent:
 
     def test_order_filled(self):
         from quantflow.web.session_manager import StationSessionManager
-        title, level, message = StationSessionManager._describe_event(
+
+        title, level, _message = StationSessionManager._describe_event(
             EVENT_ORDER,
             {"status": "filled", "side": "buy", "symbol": "BTC/USDT"},
         )
@@ -168,7 +184,8 @@ class TestDescribeEvent:
 
     def test_order_rejected(self):
         from quantflow.web.session_manager import StationSessionManager
-        title, level, message = StationSessionManager._describe_event(
+
+        title, level, _message = StationSessionManager._describe_event(
             EVENT_ORDER,
             {"status": "rejected", "side": "sell", "symbol": "ETH/USDT"},
         )
@@ -177,7 +194,8 @@ class TestDescribeEvent:
 
     def test_order_cancelled(self):
         from quantflow.web.session_manager import StationSessionManager
-        title, level, message = StationSessionManager._describe_event(
+
+        title, level, _message = StationSessionManager._describe_event(
             EVENT_ORDER,
             {"status": "cancelled", "side": "buy", "symbol": "BTC/USDT"},
         )
@@ -186,7 +204,8 @@ class TestDescribeEvent:
 
     def test_order_submitted(self):
         from quantflow.web.session_manager import StationSessionManager
-        title, level, message = StationSessionManager._describe_event(
+
+        title, level, _message = StationSessionManager._describe_event(
             EVENT_ORDER,
             {"status": "submitted", "side": "buy", "symbol": "BTC/USDT"},
         )
@@ -195,7 +214,8 @@ class TestDescribeEvent:
 
     def test_fill_event(self):
         from quantflow.web.session_manager import StationSessionManager
-        title, level, message = StationSessionManager._describe_event(
+
+        title, level, _message = StationSessionManager._describe_event(
             EVENT_FILL,
             {"side": "buy", "quantity": 0.5, "symbol": "BTC/USDT", "price": 50000},
         )
@@ -204,7 +224,8 @@ class TestDescribeEvent:
 
     def test_risk_event(self):
         from quantflow.web.session_manager import StationSessionManager
-        title, level, message = StationSessionManager._describe_event(
+
+        title, level, _message = StationSessionManager._describe_event(
             EVENT_RISK,
             {"type": "drawdown_breach", "reason": "Max drawdown exceeded"},
         )
@@ -215,10 +236,27 @@ class TestDescribeEvent:
 class TestTelemetryPayload:
     def test_telemetry_payload(self):
         from quantflow.web.session_manager import SessionRuntime
+
         runtime = MagicMock(spec=SessionRuntime)
         runtime.telemetry_points = [
-            {"timestamp": "2024-01-01T00:00:00+00:00", "equity": 100000, "cash": 50000, "market_value": 50000, "drawdown": -0.01, "open_positions": 1, "pending_orders": 0},
-            {"timestamp": "2024-01-01T00:01:00+00:00", "equity": 100500, "cash": 49900, "market_value": 50600, "drawdown": -0.005, "open_positions": 2, "pending_orders": 1},
+            {
+                "timestamp": "2024-01-01T00:00:00+00:00",
+                "equity": 100000,
+                "cash": 50000,
+                "market_value": 50000,
+                "drawdown": -0.01,
+                "open_positions": 1,
+                "pending_orders": 0,
+            },
+            {
+                "timestamp": "2024-01-01T00:01:00+00:00",
+                "equity": 100500,
+                "cash": 49900,
+                "market_value": 50600,
+                "drawdown": -0.005,
+                "open_positions": 2,
+                "pending_orders": 1,
+            },
         ]
         payload = StationSessionManager._telemetry_payload(runtime)
         assert len(payload["labels"]) == 2
@@ -243,12 +281,15 @@ class TestEventSummary:
 class TestGatewayConfigFromEnv:
     def test_paper_mode(self):
         from quantflow.web.session_manager import _gateway_config_from_env
+
         result = _gateway_config_from_env("paper", sandbox=False)
         assert result == {"sandbox": False}
 
     def test_live_mode_missing_env(self):
-        from quantflow.web.session_manager import _gateway_config_from_env
         import os
+
+        from quantflow.web.session_manager import _gateway_config_from_env
+
         # Clear env vars to ensure they're missing
         for key in ["OKX_API_KEY", "OKX_SECRET", "OKX_PASSPHRASE"]:
             os.environ.pop(key, None)
@@ -256,8 +297,10 @@ class TestGatewayConfigFromEnv:
             _gateway_config_from_env("live", sandbox=False)
 
     def test_live_mode_with_env(self):
-        from quantflow.web.session_manager import _gateway_config_from_env
         import os
+
+        from quantflow.web.session_manager import _gateway_config_from_env
+
         os.environ["OKX_API_KEY"] = "test_key"
         os.environ["OKX_SECRET"] = "test_secret"
         os.environ["OKX_PASSPHRASE"] = "test_pass"

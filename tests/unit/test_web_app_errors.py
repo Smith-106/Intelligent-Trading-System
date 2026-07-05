@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
-import pytest
-from aiohttp import web
-from aiohttp.test_utils import AioHTTPTestCase, TestClient, TestServer
+from aiohttp.test_utils import AioHTTPTestCase
 
-from quantflow.web.app import create_app, STATION_SERVICE_KEY, SESSION_MANAGER_KEY
+from quantflow.web.app import SESSION_MANAGER_KEY, STATION_SERVICE_KEY, create_app
+from quantflow.web.history import StationHistoryStore
 from quantflow.web.service import StationService
 from quantflow.web.session_manager import StationSessionManager
-from quantflow.web.history import StationHistoryStore
 
 
 class TestAppErrorHandlers(AioHTTPTestCase):
@@ -32,13 +29,16 @@ class TestAppErrorHandlers(AioHTTPTestCase):
             new_callable=AsyncMock,
             side_effect=ValueError("bad download request"),
         ):
-            resp = await self.client.post("/api/data/download", json={
-                "symbol": "BTC/USDT",
-                "timeframe": "1h",
-                "start": "2024-01-01",
-                "end": "2024-01-02",
-                "config_path": "quantflow/config/default.yaml",
-            })
+            resp = await self.client.post(
+                "/api/data/download",
+                json={
+                    "symbol": "BTC/USDT",
+                    "timeframe": "1h",
+                    "start": "2024-01-01",
+                    "end": "2024-01-02",
+                    "config_path": "quantflow/config/default.yaml",
+                },
+            )
             assert resp.status == 400
 
     async def test_data_seed_demo_handler_error(self):
@@ -48,13 +48,16 @@ class TestAppErrorHandlers(AioHTTPTestCase):
             "seed_demo_data",
             side_effect=ValueError("seed error"),
         ):
-            resp = await self.client.post("/api/data/seed-demo", json={
-                "symbol": "BTC/USDT",
-                "timeframe": "4h",
-                "start": "2025-01-01",
-                "end": "2025-06-01",
-                "config_path": "quantflow/config/default.yaml",
-            })
+            resp = await self.client.post(
+                "/api/data/seed-demo",
+                json={
+                    "symbol": "BTC/USDT",
+                    "timeframe": "4h",
+                    "start": "2025-01-01",
+                    "end": "2025-06-01",
+                    "config_path": "quantflow/config/default.yaml",
+                },
+            )
             assert resp.status == 400
 
     async def test_research_handler_error(self):
@@ -64,10 +67,13 @@ class TestAppErrorHandlers(AioHTTPTestCase):
             "research",
             side_effect=ValueError("research error"),
         ):
-            resp = await self.client.post("/api/research", json={
-                "strategy": "trend_following",
-                "symbol": "BTC/USDT",
-            })
+            resp = await self.client.post(
+                "/api/research",
+                json={
+                    "strategy": "trend_following",
+                    "symbol": "BTC/USDT",
+                },
+            )
             assert resp.status == 400
 
     async def test_validate_handler_error(self):
@@ -77,11 +83,14 @@ class TestAppErrorHandlers(AioHTTPTestCase):
             "validate",
             side_effect=ValueError("validate error"),
         ):
-            resp = await self.client.post("/api/validate", json={
-                "strategy": "trend_following",
-                "symbol": "BTC/USDT",
-                "method": "gate",
-            })
+            resp = await self.client.post(
+                "/api/validate",
+                json={
+                    "strategy": "trend_following",
+                    "symbol": "BTC/USDT",
+                    "method": "gate",
+                },
+            )
             assert resp.status == 400
 
     async def test_session_start_handler_error(self):
@@ -92,10 +101,13 @@ class TestAppErrorHandlers(AioHTTPTestCase):
             new_callable=AsyncMock,
             side_effect=ValueError("start error"),
         ):
-            resp = await self.client.post("/api/session/start", json={
-                "mode": "paper",
-                "strategies": ["trend_following"],
-            })
+            resp = await self.client.post(
+                "/api/session/start",
+                json={
+                    "mode": "paper",
+                    "strategies": ["trend_following"],
+                },
+            )
             assert resp.status == 400
 
 
@@ -103,5 +115,6 @@ class TestRunStation:
     def test_run_station(self):
         """Line 248: run_station function."""
         from quantflow.web.app import run_station
+
         # run_station calls web.run_app — just verify it doesn't crash on import
         assert callable(run_station)

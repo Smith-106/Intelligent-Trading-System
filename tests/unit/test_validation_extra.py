@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from quantflow.strategy.validation import gate as gate_module
 from quantflow.strategy.validation.cpcv import cpcv_backtest
@@ -116,8 +115,11 @@ class TestCPCVSignalGenerationFailure:
             return pd.Series(False, index=frame.index), pd.Series(False, index=frame.index)
 
         result = cpcv_backtest(
-            close, entries, exits,
-            n_groups=3, n_test_groups=1,
+            close,
+            entries,
+            exits,
+            n_groups=3,
+            n_test_groups=1,
             signal_fn=failing_signal_fn,
         )
 
@@ -137,8 +139,11 @@ class TestCPCVSignalGenerationFailure:
             return pd.Series(False, index=frame.index), pd.Series(False, index=frame.index)
 
         result = cpcv_backtest(
-            close, entries, exits,
-            n_groups=3, n_test_groups=1,
+            close,
+            entries,
+            exits,
+            n_groups=3,
+            n_test_groups=1,
             signal_fn=failing_oos_signal_fn,
         )
 

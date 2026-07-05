@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
-import numpy as np
 import pandas as pd
 import pytest
 
-from quantflow.common.models import Bar, Direction, Signal
-from quantflow.strategy.engine import TradingSession
 from quantflow.common.config import AppConfig
+from quantflow.common.models import Bar
 from quantflow.signal.portfolio import PortfolioManager
+from quantflow.strategy.engine import TradingSession
 
 
 def _make_bar(price: float = 100.0, idx: int = 0) -> Bar:
-    return Bar("BTC/USDT", 1700000000 + idx * 60000, price - 0.5, price + 1.0, price - 1.0, price, 1000.0)
+    return Bar(
+        "BTC/USDT", 1700000000 + idx * 60000, price - 0.5, price + 1.0, price - 1.0, price, 1000.0
+    )
 
 
 class TestWinRateAllocation:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -121,8 +120,11 @@ class TestOptimizerOptimize:
         """Grid method produces results without optuna."""
         engine_mock = MagicMock()
         engine_mock.run_backtest.return_value = MagicMock(
-            sharpe_ratio=1.0, sortino_ratio=1.2, calmar_ratio=0.9,
-            total_return=0.1, win_rate=0.55,
+            sharpe_ratio=1.0,
+            sortino_ratio=1.2,
+            calmar_ratio=0.9,
+            total_return=0.1,
+            win_rate=0.55,
         )
         optimizer = StrategyOptimizer(engine=engine_mock)
         close = pd.Series([100.0 + i * 0.5 for i in range(50)])
@@ -135,8 +137,11 @@ class TestOptimizerOptimize:
             return e, x
 
         result = optimizer.optimize(
-            close, signal_fn, {"period": (2, 10)},
-            n_trials=3, method="grid",
+            close,
+            signal_fn,
+            {"period": (2, 10)},
+            n_trials=3,
+            method="grid",
         )
         assert "best_params" in result
         assert "best_value" in result
@@ -145,8 +150,11 @@ class TestOptimizerOptimize:
         """Bayesian method uses optuna (lazy imported)."""
         engine_mock = MagicMock()
         engine_mock.run_backtest.return_value = MagicMock(
-            sharpe_ratio=0.5, sortino_ratio=0.6, calmar_ratio=0.4,
-            total_return=0.05, win_rate=0.5,
+            sharpe_ratio=0.5,
+            sortino_ratio=0.6,
+            calmar_ratio=0.4,
+            total_return=0.05,
+            win_rate=0.5,
         )
         optimizer = StrategyOptimizer(engine=engine_mock)
         close = pd.Series([100.0 + i * 0.5 for i in range(50)])
@@ -156,13 +164,17 @@ class TestOptimizerOptimize:
 
         # Patch optuna at import site inside _create_sampler
         import optuna
+
         mock_study = MagicMock()
         mock_study.optimize = MagicMock()
         mock_study.best_params = {"period": 5}
         mock_study.best_value = 0.5
         with patch.object(optuna, "create_study", return_value=mock_study):
             result = optimizer.optimize(
-                close, signal_fn, {"period": (2, 10)},
-                n_trials=3, method="bayesian",
+                close,
+                signal_fn,
+                {"period": (2, 10)},
+                n_trials=3,
+                method="bayesian",
             )
         assert "best_params" in result

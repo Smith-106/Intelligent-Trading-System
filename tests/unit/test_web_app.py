@@ -495,7 +495,9 @@ class FakeSessionManager:
                 "timeframe": "1h",
                 "interval_seconds": 30,
                 "capital": 100000.0,
-            } if running else None,
+            }
+            if running
+            else None,
             "health": {
                 "running": running,
                 "drawdown_ok": True,
@@ -522,7 +524,9 @@ class FakeSessionManager:
                     "unrealized_pnl": 25.0,
                     "pnl_pct": 0.0104166667,
                 }
-            ] if running else [],
+            ]
+            if running
+            else [],
             "open_orders": [
                 {
                     "order_id": "ord-1",
@@ -535,7 +539,9 @@ class FakeSessionManager:
                     "notional": 940.0,
                     "strategy_id": "trend_following",
                 }
-            ] if running else [],
+            ]
+            if running
+            else [],
             "kill_switch": {"active": False, "reason": None},
             "last_error": None,
             "recent_events": [
@@ -548,9 +554,13 @@ class FakeSessionManager:
                     "message": "trend_following emitted long signal.",
                     "created_at": "2026-06-07T12:05:00+00:00",
                 }
-            ] if running else [],
+            ]
+            if running
+            else [],
             "telemetry": {
-                "labels": ["2026-06-07T12:00:00+00:00", "2026-06-07T12:05:00+00:00"] if running else [],
+                "labels": ["2026-06-07T12:00:00+00:00", "2026-06-07T12:05:00+00:00"]
+                if running
+                else [],
                 "equity": [100000.0, 100900.0] if running else [],
                 "cash": [100000.0, 98500.0] if running else [],
                 "market_value": [0.0, 2400.0] if running else [],
@@ -789,7 +799,10 @@ async def test_station_history_and_event_endpoints() -> None:
             assert validation_history_response.status == 200
             validation_history_payload = await validation_history_response.json()
             assert validation_history_payload["items"][0]["summary"]["decision"] == "GO"
-            assert validation_history_payload["items"][0]["summary"]["method_label"] == "Validation Gate"
+            assert (
+                validation_history_payload["items"][0]["summary"]["method_label"]
+                == "Validation Gate"
+            )
 
             session_events_response = await client.get("/api/session/events?session_id=station-1")
             assert session_events_response.status == 200
@@ -838,7 +851,9 @@ async def test_station_history_and_event_endpoints() -> None:
 def test_station_service_monitoring_snapshot_aggregates_state(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    service = StationService(history_store=StationHistoryStore(base_dir=tmp_path / "station_history"))
+    service = StationService(
+        history_store=StationHistoryStore(base_dir=tmp_path / "station_history")
+    )
 
     monkeypatch.setattr(
         service,
@@ -995,7 +1010,9 @@ def test_station_service_monitoring_snapshot_aggregates_state(
 def test_station_service_data_snapshot_summarizes_storage(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    service = StationService(history_store=StationHistoryStore(base_dir=tmp_path / "station_history"))
+    service = StationService(
+        history_store=StationHistoryStore(base_dir=tmp_path / "station_history")
+    )
 
     monkeypatch.setattr(
         service,
@@ -1106,7 +1123,9 @@ async def test_station_service_download_data_persists_market_data(
     monkeypatch.setattr("quantflow.data.fetcher.DataFetcher", FakeFetcher)
     monkeypatch.setattr("quantflow.data.cleaner.clean_ohlcv", lambda df: df)
 
-    service = StationService(history_store=StationHistoryStore(base_dir=tmp_path / "station_history"))
+    service = StationService(
+        history_store=StationHistoryStore(base_dir=tmp_path / "station_history")
+    )
     payload = await service.download_data(
         DataDownloadRequest(
             symbol="BTC/USDT",
@@ -1145,7 +1164,9 @@ def test_station_service_seed_demo_data_persists_demo_source(
         ),
     )
 
-    service = StationService(history_store=StationHistoryStore(base_dir=tmp_path / "station_history"))
+    service = StationService(
+        history_store=StationHistoryStore(base_dir=tmp_path / "station_history")
+    )
     payload = service.seed_demo_data(
         DataDownloadRequest(
             symbol="ETH/USDT",
@@ -1207,7 +1228,9 @@ def test_station_service_tag_data_source_persists_market_source(
     finally:
         store.close()
 
-    service = StationService(history_store=StationHistoryStore(base_dir=tmp_path / "station_history"))
+    service = StationService(
+        history_store=StationHistoryStore(base_dir=tmp_path / "station_history")
+    )
     payload = service.tag_data_source(
         DataSourceTagRequest(
             symbol="BTC/USDT",
@@ -1434,7 +1457,11 @@ def test_station_service_research_returns_chart_payload(
     monkeypatch.setattr(
         "quantflow.web.service._load_store",
         lambda config_path: (
-            SimpleNamespace(data=SimpleNamespace(exchange="okx", parquet_dir="data/parquet", duckdb_path="data/quantflow.duckdb")),
+            SimpleNamespace(
+                data=SimpleNamespace(
+                    exchange="okx", parquet_dir="data/parquet", duckdb_path="data/quantflow.duckdb"
+                )
+            ),
             FakeStore(),
         ),
     )
@@ -1443,7 +1470,9 @@ def test_station_service_research_returns_chart_payload(
         lambda store, symbol, start, end: (frame, "market"),
     )
 
-    service = StationService(history_store=StationHistoryStore(base_dir=tmp_path / "station_history"))
+    service = StationService(
+        history_store=StationHistoryStore(base_dir=tmp_path / "station_history")
+    )
     payload = service.research(
         ResearchRequest(
             strategy="trend_following",
@@ -1490,7 +1519,9 @@ def test_query_symbol_frame_uses_timestamp_column_as_datetime_index() -> None:
     assert data_source == "okx"
 
 
-def test_station_service_validate_returns_summary(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_station_service_validate_returns_summary(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     frame = pd.DataFrame(
         {
             "open": [100.0, 102.0, 104.0, 103.0],
@@ -1541,7 +1572,9 @@ def test_station_service_validate_returns_summary(tmp_path, monkeypatch: pytest.
         },
     )
 
-    service = StationService(history_store=StationHistoryStore(base_dir=tmp_path / "station_history"))
+    service = StationService(
+        history_store=StationHistoryStore(base_dir=tmp_path / "station_history")
+    )
     payload = service.validate(
         ValidationRequest(
             strategy="trend_following",
@@ -1603,7 +1636,9 @@ def test_station_service_validate_gate_short_sample_returns_no_go(
         lambda store, symbol, start=None, end=None: (frame, "demo"),
     )
 
-    service = StationService(history_store=StationHistoryStore(base_dir=tmp_path / "station_history"))
+    service = StationService(
+        history_store=StationHistoryStore(base_dir=tmp_path / "station_history")
+    )
     payload = service.validate(
         ValidationRequest(
             strategy="trend_following",

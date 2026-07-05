@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -10,14 +9,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from quantflow.data.store import DataStore
-from quantflow.data.feature_store import FeatureStore
 from quantflow.common.exceptions import GatewayConnectionError
-
+from quantflow.data.feature_store import FeatureStore
+from quantflow.data.store import DataStore
 
 # ---------------------------------------------------------------------------
 # DataStore — query exception path, _read_parquet_source edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestDataStoreQueryException:
     def test_query_returns_empty_on_exception(self, tmp_path):
@@ -85,12 +84,13 @@ class TestDataStoreQueryException:
 # Fetcher — connect exception close path
 # ---------------------------------------------------------------------------
 
+
 class TestFetcherConnectCloseException:
     @pytest.mark.asyncio
     async def test_connect_closes_exchange_on_failure(self):
         """Lines 55-56: On connection failure, exchange.close() is called."""
-        from quantflow.data.fetcher import DataFetcher
         from quantflow.common.config import DataConfig
+        from quantflow.data.fetcher import DataFetcher
 
         mock_exchange = AsyncMock()
         mock_exchange.load_markets = AsyncMock(side_effect=RuntimeError("market load failed"))
@@ -109,8 +109,8 @@ class TestFetcherConnectCloseException:
     @pytest.mark.asyncio
     async def test_connect_closes_even_if_close_fails(self):
         """Lines 55-56: If exchange.close() also fails, still raises GatewayConnectionError."""
-        from quantflow.data.fetcher import DataFetcher
         from quantflow.common.config import DataConfig
+        from quantflow.data.fetcher import DataFetcher
 
         mock_exchange = AsyncMock()
         mock_exchange.load_markets = AsyncMock(side_effect=RuntimeError("market load failed"))
@@ -130,15 +130,18 @@ class TestFetcherConnectCloseException:
 # FeatureStore — timestamp path, _candidate_parquet_files, _timestamp_period
 # ---------------------------------------------------------------------------
 
+
 class TestFeatureStoreEdgeCases:
     def test_save_features_with_timestamp_column(self, tmp_path):
         """Line 64-67: save_features() with timestamp column (no datetime)."""
         store = FeatureStore(str(tmp_path))
-        df = pd.DataFrame({
-            "timestamp": [1700000000000, 1700086400000],
-            "feat1": [1.0, 2.0],
-            "feat2": [3.0, 4.0],
-        })
+        df = pd.DataFrame(
+            {
+                "timestamp": [1700000000000, 1700086400000],
+                "feat1": [1.0, 2.0],
+                "feat2": [3.0, 4.0],
+            }
+        )
         store.save_features("TEST/USDT", df)
         # Verify parquet files created
         symbol_dir = tmp_path / "features" / "TEST_USDT"
@@ -148,7 +151,7 @@ class TestFeatureStoreEdgeCases:
         """Line 69: ValueError when neither datetime nor timestamp column."""
         store = FeatureStore(str(tmp_path))
         df = pd.DataFrame({"feat1": [1.0], "feat2": [2.0]})
-        with pytest.raises(ValueError, match="datetime.*timestamp"):
+        with pytest.raises(ValueError, match=r"datetime.*timestamp"):
             store.save_features("TEST/USDT", df)
 
     def test_load_features_legacy_parquet(self, tmp_path):
@@ -206,11 +209,13 @@ class TestFeatureStoreEdgeCases:
         """Full save → load roundtrip with datetime column."""
         store = FeatureStore(str(tmp_path))
         dates = pd.date_range("2024-01-01", periods=10, freq="D", tz="UTC")
-        df = pd.DataFrame({
-            "datetime": dates,
-            "feat1": np.arange(10, dtype=float),
-            "feat2": np.arange(10, 20, dtype=float),
-        })
+        df = pd.DataFrame(
+            {
+                "datetime": dates,
+                "feat1": np.arange(10, dtype=float),
+                "feat2": np.arange(10, 20, dtype=float),
+            }
+        )
         store.save_features("TEST/USDT", df)
         result = store.load_features("TEST/USDT")
         assert result is not None

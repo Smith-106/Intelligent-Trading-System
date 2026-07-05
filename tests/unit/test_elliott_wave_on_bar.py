@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
-import numpy as np
 import pandas as pd
-import pytest
 
 from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyContext
 from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_bar(price: float = 100.0, idx: int = 0) -> Bar:
     return Bar(
@@ -42,6 +38,7 @@ class _FakeContext(StrategyContext):
 # ---------------------------------------------------------------------------
 # on_bar path tests
 # ---------------------------------------------------------------------------
+
 
 class TestElliottWaveOnBar:
     def test_on_bar_accumulates_bars(self):
@@ -76,7 +73,7 @@ class TestElliottWaveOnBar:
             s.on_bar(ctx, _make_bar(100.0 + i, i))
         # No guarantee of entry from random data, so patch generate_signals
         original_gen = s.generate_signals
-        n_bars = len(s._bars)
+        len(s._bars)
 
         def patched_gen(df):
             entries, exits = original_gen(df)
@@ -103,7 +100,7 @@ class TestElliottWaveOnBar:
             s.on_bar(ctx, _make_bar(100.0 + i, i))
 
         # Patch generate_signals to force exit
-        n_bars_at_call = len(s._bars)
+        len(s._bars)
         original_gen = s.__class__.generate_signals
 
         def patched_gen(df):
@@ -118,7 +115,9 @@ class TestElliottWaveOnBar:
 
     def test_on_bar_no_duplicate_entry_when_in_position(self):
         """Already in position — entry signal should be ignored."""
-        s = ElliottWaveStrategy({"use_divergence": False, "profit_take_pct": 1.0, "max_holding_bars": 1000})
+        s = ElliottWaveStrategy(
+            {"use_divergence": False, "profit_take_pct": 1.0, "max_holding_bars": 1000}
+        )
         ctx = _FakeContext()
         s._in_position = True
         s._entry_price = 100.0
@@ -162,6 +161,7 @@ class TestElliottWaveOnBar:
 # ---------------------------------------------------------------------------
 # _check_position_exits path tests
 # ---------------------------------------------------------------------------
+
 
 class TestElliottWaveCheckPositionExits:
     def test_profit_target_exit(self):
@@ -242,7 +242,7 @@ class TestElliottWaveCheckPositionExits:
         s._entry_price = 100.0
         s._bars_since_entry = 0
 
-        for i in range(5):
+        for _i in range(5):
             s._check_position_exits(ctx, _make_bar(101.0))
 
         assert s._bars_since_entry == 5
@@ -284,6 +284,7 @@ class TestElliottWaveCheckPositionExits:
 # Integration: on_bar → _check_position_exits chain
 # ---------------------------------------------------------------------------
 
+
 class TestElliottWaveOnBarIntegration:
     def test_on_bar_triggers_profit_exit(self):
         """Full chain: on_bar entry → price rise → profit exit in same on_bar."""
@@ -322,7 +323,6 @@ class TestElliottWaveOnBarIntegration:
         s._bars_since_entry = 0
 
         # Patch _bars_to_df to return a valid df, and generate_signals to force exit
-        original_bars_to_df = s._bars_to_df
 
         def force_exit_gen(df):
             entries = pd.Series(False, index=df.index)
@@ -333,7 +333,7 @@ class TestElliottWaveOnBarIntegration:
         s.generate_signals = force_exit_gen
         # Feed enough bars first so generate_signals works
         for i in range(25):
-            bar = _make_bar(100.0 + i, i)
+            _make_bar(100.0 + i, i)
             # Use a different approach: feed the bar but with patched generate_signals
         # Instead, just directly set the bars and call on_bar
         s._bars = [_make_bar(100.0 + i, i) for i in range(25)]

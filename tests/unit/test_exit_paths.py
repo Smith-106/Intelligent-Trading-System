@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyContext
+from quantflow.strategy.templates.funding_rate import FundingRateStrategy
+from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
 from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
 from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
-from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
-from quantflow.strategy.templates.funding_rate import FundingRateStrategy
-from quantflow.strategy.templates.momentum_rotation import MomentumRotationStrategy
 
 
 def _make_bar(price: float = 100.0, high: float = 101.0, low: float = 99.0, idx: int = 0) -> Bar:
@@ -26,6 +26,7 @@ class _FakeContext(StrategyContext):
 # ---------------------------------------------------------------------------
 # TrendFollowing — profit target + trailing stop + max holding
 # ---------------------------------------------------------------------------
+
 
 class TestTrendFollowingExits:
     def test_profit_target_exit(self):
@@ -96,6 +97,7 @@ class TestTrendFollowingExits:
 # VolatilityBreakout — direction-aware profit + trailing + max holding
 # ---------------------------------------------------------------------------
 
+
 class TestVolatilityBreakoutExits:
     def test_long_profit_target_exit(self):
         s = VolatilityBreakoutStrategy(params={"profit_take_pct": 0.05})
@@ -128,7 +130,9 @@ class TestVolatilityBreakoutExits:
         assert ctx.signals[0][1] == Direction.FLAT
 
     def test_short_trailing_stop_exit(self):
-        s = VolatilityBreakoutStrategy(params={"trailing_stop_atr_mult": 2.0, "profit_take_pct": 1.0})
+        s = VolatilityBreakoutStrategy(
+            params={"trailing_stop_atr_mult": 2.0, "profit_take_pct": 1.0}
+        )
         ctx = _FakeContext()
         s._in_position = True
         s._entry_direction = Direction.SHORT
@@ -169,6 +173,7 @@ class TestVolatilityBreakoutExits:
 # ---------------------------------------------------------------------------
 # MeanReversion — direction-aware profit target + max holding
 # ---------------------------------------------------------------------------
+
 
 class TestMeanReversionExits:
     def test_long_profit_target_exit(self):
@@ -222,6 +227,7 @@ class TestMeanReversionExits:
 # FundingRate — direction-aware profit target + max holding
 # ---------------------------------------------------------------------------
 
+
 class TestFundingRateExits:
     def test_long_profit_target_exit(self):
         s = FundingRateStrategy(params={"profit_take_pct": 0.02})
@@ -274,6 +280,7 @@ class TestFundingRateExits:
 # MomentumRotation — stop-loss + profit target + max holding
 # ---------------------------------------------------------------------------
 
+
 class TestMomentumRotationExits:
     def test_stop_loss_exit(self):
         s = MomentumRotationStrategy(params={"stop_loss_pct": 0.05, "profit_take_pct": 1.0})
@@ -302,7 +309,9 @@ class TestMomentumRotationExits:
         assert ctx.signals[0][1] == Direction.FLAT
 
     def test_max_holding_exit(self):
-        s = MomentumRotationStrategy(params={"max_holding_bars": 5, "profit_take_pct": 1.0, "stop_loss_pct": 0.0})
+        s = MomentumRotationStrategy(
+            params={"max_holding_bars": 5, "profit_take_pct": 1.0, "stop_loss_pct": 0.0}
+        )
         ctx = _FakeContext()
         s._in_position = True
         s._entry_price = 100.0
@@ -321,7 +330,9 @@ class TestMomentumRotationExits:
         assert len(ctx.signals) == 0
 
     def test_no_stop_loss_when_pct_zero(self):
-        s = MomentumRotationStrategy(params={"stop_loss_pct": 0.0, "profit_take_pct": 1.0, "max_holding_bars": 100})
+        s = MomentumRotationStrategy(
+            params={"stop_loss_pct": 0.0, "profit_take_pct": 1.0, "max_holding_bars": 100}
+        )
         ctx = _FakeContext()
         s._in_position = True
         s._entry_price = 100.0

@@ -39,8 +39,12 @@ def test_all_factories_produce_strategy_base_instances() -> None:
     factories = get_strategy_factories()
     for strategy_id, factory in factories.items():
         strategy = factory()
-        assert isinstance(strategy, StrategyBase), f"{strategy_id} factory returned {type(strategy)}"
-        assert strategy.name == strategy_id or strategy.name.replace("_", "") == strategy_id.replace("_", "")
+        assert isinstance(strategy, StrategyBase), (
+            f"{strategy_id} factory returned {type(strategy)}"
+        )
+        assert strategy.name == strategy_id or strategy.name.replace(
+            "_", ""
+        ) == strategy_id.replace("_", "")
 
 
 def test_factory_with_custom_params() -> None:

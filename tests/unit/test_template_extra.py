@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pandas as pd
-import pytest
 
-from quantflow.common.models import Bar, Direction
+from quantflow.common.models import Bar
 from quantflow.strategy.base import StrategyContext
 from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
 from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
@@ -31,13 +30,21 @@ def _make_bar(price: float = 100.0, high: float = 101.0, low: float = 99.0, idx:
 # TrendFollowing — uncovered lines 153-154, 165-166, 283, 285, 341-351
 # ---------------------------------------------------------------------------
 
+
 class TestTrendFollowingLatestSignalEdge:
     def test_latest_signal_returns_false_when_indicators_none(self):
         """Lines 153-154: When _latest_signal gets None indicators, return False, False."""
-        s = TrendFollowingStrategy(params={
-            "fast_ma_period": 2, "slow_ma_period": 2, "macd_slow": 2, "macd_signal": 1,
-            "rsi_period": 2, "atr_period": 2, "volume_period": 2,
-        })
+        s = TrendFollowingStrategy(
+            params={
+                "fast_ma_period": 2,
+                "slow_ma_period": 2,
+                "macd_slow": 2,
+                "macd_signal": 1,
+                "rsi_period": 2,
+                "atr_period": 2,
+                "volume_period": 2,
+            }
+        )
         # Only a few bars → insufficient for all rolling computations → return False, False
         ctx = _FakeContext()
         s.on_init(ctx)
@@ -48,10 +55,17 @@ class TestTrendFollowingLatestSignalEdge:
 
     def test_latest_signal_returns_false_when_macd_signal_empty(self):
         """Lines 165-166: When MACD signal series is empty, return False, False."""
-        s = TrendFollowingStrategy(params={
-            "fast_ma_period": 2, "slow_ma_period": 2, "macd_slow": 2, "macd_signal": 1,
-            "rsi_period": 2, "atr_period": 2, "volume_period": 2,
-        })
+        s = TrendFollowingStrategy(
+            params={
+                "fast_ma_period": 2,
+                "slow_ma_period": 2,
+                "macd_slow": 2,
+                "macd_signal": 1,
+                "rsi_period": 2,
+                "atr_period": 2,
+                "volume_period": 2,
+            }
+        )
         ctx = _FakeContext()
         s.on_init(ctx)
         # Force _runtime_state_is_current to False to trigger MACD computation
@@ -68,7 +82,7 @@ class TestTrendFollowingLatestSignalEdge:
         close = pd.Series(100 + np.random.randn(n).cumsum())
         close = close.clip(lower=1)
         df = pd.DataFrame({"close": close, "high": close + 1, "low": close - 1, "volume": 1000.0})
-        entries, exits = s.generate_signals(df)
+        entries, _exits = s.generate_signals(df)
         # Just ensure no crash — the branch fires when rsi_at_entry has entries > 70
         assert isinstance(entries, pd.Series)
 
@@ -80,7 +94,7 @@ class TestTrendFollowingLatestSignalEdge:
         close = pd.Series(100 - np.abs(np.random.randn(n).cumsum()))  # declining
         close = close.clip(lower=1)
         df = pd.DataFrame({"close": close, "high": close + 1, "low": close - 1, "volume": 1000.0})
-        entries, exits = s.generate_signals(df)
+        entries, _exits = s.generate_signals(df)
         assert isinstance(entries, pd.Series)
 
     def test_bars_to_df_empty(self):
@@ -117,13 +131,19 @@ class TestTrendFollowingLatestSignalEdge:
 # VolatilityBreakout — uncovered lines 191, 195, 319, 324, 330, 343, 353, 493-503
 # ---------------------------------------------------------------------------
 
+
 class TestVolatilityBreakoutEdgeCases:
     def test_latest_signal_returns_false_when_bb_zero(self):
         """Line 195: bb_middle == 0 → return False, False."""
-        s = VolatilityBreakoutStrategy(params={
-            "atr_period": 2, "bb_period": 2, "keltner_ema_period": 2,
-            "keltner_atr_period": 2, "volume_period": 2,
-        })
+        s = VolatilityBreakoutStrategy(
+            params={
+                "atr_period": 2,
+                "bb_period": 2,
+                "keltner_ema_period": 2,
+                "keltner_atr_period": 2,
+                "volume_period": 2,
+            }
+        )
         ctx = _FakeContext()
         s.on_init(ctx)
         # Build bars with close values near zero to trigger bb_middle == 0
@@ -164,6 +184,7 @@ class TestVolatilityBreakoutEdgeCases:
 # MeanReversion — uncovered line 110
 # ---------------------------------------------------------------------------
 
+
 class TestMeanReversionLatestSignalEdge:
     def test_latest_signal_returns_none_when_insufficient_data(self):
         """Line 110: When indicators are None, return None, False."""
@@ -178,6 +199,7 @@ class TestMeanReversionLatestSignalEdge:
 # ---------------------------------------------------------------------------
 # MLEnsemble — uncovered lines 21, 25, 31, 46, 204, 223
 # ---------------------------------------------------------------------------
+
 
 class TestMLEnsembleHelpers:
     def test_positive_class_probability_single_column(self):
@@ -230,7 +252,7 @@ class TestMLEnsembleHelpers:
 
         splits = _time_series_splits(100)
         assert len(splits) > 0
-        for train, test in splits:
+        for _train, test in splits:
             assert test.stop <= 100
 
 

@@ -114,8 +114,6 @@ class TestTradingSessionOnBarRegimeGating:
         """Lines 178-181: regime gating in on_bar()."""
         from quantflow.strategy.base import StrategyBase
 
-        signals_emitted = []
-
         class TrendStrategy(StrategyBase):
             required_regime = "trending"
 
@@ -367,7 +365,7 @@ class TestTradingSessionRunDataLoop:
 
         with (
             patch("quantflow.data.fetcher.DataFetcher", return_value=mock_fetcher),
-            patch("quantflow.data.store.DataStore") as mock_store_cls,
+            patch("quantflow.data.store.DataStore"),
             patch.object(session, "check_health"),
             patch.object(session._execution, "check_timeouts"),
             patch.object(session._execution, "start", new_callable=AsyncMock),
