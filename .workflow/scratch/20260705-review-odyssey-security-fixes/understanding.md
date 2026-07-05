@@ -86,16 +86,130 @@
 - **Test suite:** 1333 passed, 2 skipped (was 1332; net +1 — `test_read_parquet_source_no_paths_no_start_end` and `test_read_parquet_source_with_paths` now exercise distinct None/glob paths).
 - **Lint gate:** `ruff check --fix .` (0 errors) + `ruff format .` (clean) — honors the lint-before-commit overlay.
 - **Type check:** `mypy --strict` on all 6 touched modules — 0 issues.
-- **Zero-residual review:** independent adversarial reviewer delegated (background); verdict pending — see §8 for the recorded outcome.
+- **Zero-residual review:** independent adversarial reviewer (workflow-reviewer agent) returned **CONFIRMED** — all 14 findings closed with verifiable code evidence, 0 new defects introduced. Threat-model decisions ("valid token does not bypass CSRF", "absent Origin = allowed for non-browser clients") confirmed sound for the single-operator local-first model. Reviewer raised 4 non-blocking concerns (glob inclusivity nuance, fetcher's module-level duckdb connection, port-sensitive Origin comparison, missing focused `SYMBOL_PATTERN` rejection test); the last is actionable and will be added.
+
+### Confirmation verdict
+
+**CONFIRMED** — `remaining_actionable == 0`. S_CONFIRM → S_GENERALIZE.
 
 ## 6. Generalization
 
-_Pending S_GENERALIZE._
+Five distinct generalizable patterns extracted from findings with severity ≥ medium.
+
+### Pattern G1 — "Layered security controls made mutually exclusive by early-return"
+- **Source findings:** REV-001 (HIGH), REV-002 (HIGH), REV-003 (MEDIUM, docstring drift)
+- **Affected dimensions:** security, correctness
+- **Signature:** a middleware/handler docstring promises "layered defense-in-depth" (multiple controls), but the implementation `return`s after the first passing control, making the others dead code. Worse: a control that consults an attacker-controllable header (`X-Requested-With`) as a same-origin signal *actively weakens* the primary control.
+- **Risk:** the docstring advertises protection that doesn't exist; a bypass of one control bypasses all.
+- **Fix template:** (1) remove attacker-controllable signals from same-origin checks (Origin is the only browser-unforgeable one); (2) ensure each control runs to completion — no early `return` past a control unless it rejected the request; (3) align the docstring with the actual control flow.
+- **Scope:** any auth/CSRF middleware claiming layered controls.
+- **Coding standard:** "Layered controls must all execute per request. A `return` after one control is only permitted on rejection. Same-origin signals must be browser-unforgeable (Origin), never attacker-controllable headers."
+
+### Pattern G2 — "Cross-cutting security primitive lives as a private helper in a sibling module"
+- **Source findings:** REV-005 (MEDIUM), REV-007 (MEDIUM, layer violation), REV-013 (LOW but same root)
+- **Affected dimensions:** architecture, security
+- **Signature:** a security choke point (symbol validation, auth policy) is defined as a `_private` function in one module and borrowed via in-method `from sibling import _private` across 2+ other modules. The underscore signals "module-private implementation detail" — the wrong contract for a security primitive imported across layers.
+- **Risk:** inconsistent audit surface (callers may bypass by re-implementing); the borrowing module's import breaks silently if the underscore form is renamed; security review can't grep for a single public API.
+- **Fix template:** move the primitive to a dedicated `common/` module as a public (no underscore) function with a docstring explaining why it's public; keep a back-compat alias at the old site if needed.
+- **Scope:** any `from X import _private` where the private name enforces a security/validity invariant.
+- **Coding standard:** "Security/validation choke points imported across layers MUST be public API in `quantflow/common/`. Underscored forms are module-private implementation details — wrong contract for cross-layer security."
+
+### Pattern G3 — "Duplicated lower-quality copy of a layer-correct read path"
+- **Source findings:** REV-004 (MEDIUM), REV-007 (MEDIUM), REV-009 (LOW, escaping)
+- **Affected dimensions:** correctness, architecture, security
+- **Signature:** a higher layer re-implements a lower layer's read path against the lower layer's on-disk layout (e.g., `fetcher` hand-rolling a DuckDB glob against `DataStore`'s partition layout). The copy drifts below the original's safety: missing `.as_posix()` (Windows-broken), missing quote-escaping (SQL-injection surface), missing logging, missing `is not None` checks.
+- **Risk:** the duplicated path is the one that breaks on Windows, leaks SQL, or swallows errors — because it doesn't inherit the original's hardening.
+- **Fix template:** delegate to the layer-correct owner; if delegation is deferred (contract mismatch), apply the same hardening (`.as_posix`, escaping, logging, `is not None`) to the copy immediately and document the deferral.
+- **Scope:** any `read_parquet`/`read_csv_auto` query outside the layer that owns the on-disk layout.
+- **Coding standard:** "Parquet reads belong to L1 (DataStore). Higher layers delegate; if they must re-implement, they inherit every hardening from the original, not a subset."
+
+### Pattern G4 — "Write path skips the validation choke point the read path enforces"
+- **Source findings:** REV-008 (MEDIUM→LOW), plus the discovered sibling in `service.py:tag_data_source` (§7)
+- **Affected dimensions:** security
+- **Signature:** the read path (`query`, `get_date_range`) calls `validate_symbol()`, but the write/transform path (`save`, `save_features`, or a service-layer direct `Path` construction) does `symbol.replace('/', '_')` bare. Asymmetric validation leaves a path-traversal surface on the less-traveled path.
+- **Risk:** a caller that only writes (or only transforms in-place) bypasses validation entirely.
+- **Fix template:** every code path that turns a user/operator symbol into a filesystem path OR a DuckDB glob must pass through the single validation choke point — read, write, and in-place transform alike.
+- **Scope:** every `Path(...) / symbol_name` and every `read_parquet('...{symbol}...')`.
+- **Coding standard:** "Symbol → path/glob conversion validates at EVERY site, not just reads. `validate_symbol()` is mandatory on write and in-place-transform paths, symmetric with reads."
+
+### Pattern G5 — "Launch-time safety guard not inherited by alternative entry points"
+- **Source findings:** REV-006 (MEDIUM→design decision)
+- **Affected dimensions:** architecture, security
+- **Signature:** a fail-closed guard (non-loopback bind requires a token) lives in the launcher (`run_station`) but not the app constructor (`create_app`). Test harnesses and alternative launchers that call `create_app` directly bypass the guard.
+- **Risk:** a future launcher or test that binds to a non-loopback host via `create_app` + manual `web.run_app` silently exposes live-trading controls.
+- **Fix template:** when the guard genuinely depends on a parameter the constructor doesn't receive (host), keep it at the bind boundary BUT document the contract explicitly in the constructor docstring, and add a `validate_bind_config(host, token)` helper the launcher calls so the guard logic is reusable and unit-testable in isolation.
+- **Scope:** any app with a fail-closed launch guard (bind address, TLS, feature flag).
+- **Coding standard:** "Launch-time guards that depend on bind-time parameters live at the bind boundary, with the contract documented in the app-constructor docstring. The guard logic is a reusable helper, not inline in the launcher."
 
 ## 7. Discoveries
 
-_Pending S_DISCOVER._
+Project-wide scan for sibling instances of the §6 patterns.
+
+### Sibling scan results
+
+| Pattern | Scan method | Hits | Classification |
+|---------|-------------|------|----------------|
+| G1 (layered controls / early-return) | grep `_same_origin_guard`, `return await handler` in middlewares | 0 sibling | safe (single middleware) |
+| G2 (private security primitive borrow-in) | grep `from quantflow.*import.*_validate` | 1 hit: `tests/unit/test_trend_and_store.py:12` imports the back-compat alias | safe (test-only; alias is intentional back-compat) |
+| G3 (duplicated read path) | grep `read_parquet(`, `read_csv_auto(` outside `data/` | 0 production sibling | safe |
+| **G4 (write/transform path unvalidated)** | grep `symbol.*\.replace`, `Path\(.*symbol`, `parquet_dir.*symbol` | **1 hit: `web/service.py:1163` `tag_data_source`** | **risk — path traversal on HTTP endpoint** |
+| G5 (launch guard) | grep `run_station`, `create_app` callers | 0 sibling launcher | safe |
+
+### Confirmed sibling — `web/service.py:1163` (`tag_data_source`)
+
+- **Pattern:** G4 (write/transform path skips validation choke point).
+- **Site:** `tag_data_source(self, request: DataSourceTagRequest)` — handler for `POST /api/data/tag-source`.
+- **Code:** `symbol_name = request.symbol.replace("/", "_")` → `symbol_dir = Path(config.data.parquet_dir) / symbol_name` → `symbol_dir.glob("*/*.parquet")`.
+- **Request model:** `DataSourceTagRequest.symbol: str = "BTC/USDT"` — bare `str`, no validation constraint.
+- **Failure scenario:** a request with `symbol = "../../etc"` (or any path-traversal payload) passes pydantic, reaches `Path(parquet_dir) / "..__etc"`, and globs an unintended directory. The downstream `store.query(request.symbol, ...)` calls would validate (DataStore choke point), but the **direct `Path` construction at line 1164 bypasses DataStore** and runs first.
+- **Severity:** MEDIUM (HTTP-exposed, but single-operator local threat model + the endpoint is mutation-class so it already passes through `_same_origin_guard` token/CSRF checks; traversal is bounded to the parquet_dir parent in practice).
+- **Action:** FIXED (cross_phase_loops=1, commit f26285b). Applied `validate_symbol(request.symbol)` at line 1163, mirroring the store.py/feature_store.py write-path fix. Added a focused 14-case `SYMBOL_PATTERN` rejection test (reviewer non-blocking concern, made explicit). Suite 1347 passed / 2 skipped; ruff clean; mypy edit-site clean (14 pre-existing unrelated errors in service.py predate this work).
+- **Note:** the same `request.symbol` flows to `store.save(...)` / `store.query(...)` / `store.get_date_range(...)` elsewhere in the file — those are safe (DataStore validates). Only the direct `Path` construction at 1163-1164 is the hole.
 
 ## 8. Learnings
 
-_Pending S_RECORD._
+Knowledge persistence per the review Knowledge Persistence categories table. Each entry below is a candidate for `/spec-add` in the indicated category.
+
+### Cross-dimension recurring pattern → `/spec-add review`
+
+**P-G1: Layered security controls made mutually exclusive by early-return.**
+- Affected dimensions: security, correctness (REV-001, REV-002, REV-003 converged across all 4 review dimensions).
+- Coding standard: layered controls must ALL execute per request; a `return` after one control is only permitted on rejection; same-origin signals must be browser-unforgeable (Origin), never attacker-controllable headers (`X-Requested-With` is NOT a forbidden CORS header — any cross-origin fetch can set it).
+- Detection: grep for `return await handler` inside middleware that claims "layered" / "defense-in-depth" in its docstring; grep for `X-Requested-With` in security middleware.
+
+### Security finding → `/spec-add debug`
+
+**S-G4: Write/transform path skips the validation choke point the read path enforces.**
+- Vulnerability type: path traversal (CWE-22) + SQL injection via glob literal (CWE-89).
+- Triggers: any `symbol.replace('/', '_')` followed by `Path(...) / symbol_name` or `read_parquet('...{symbol}...')` that does NOT pass through `validate_symbol()`. The read path validates; the write/in-place-transform path often doesn't. Discovered sibling: `web/service.py:1163` (HTTP-exposed).
+- Fix approach: every symbol→path/glob conversion site calls `validate_symbol()` — read, write, AND in-place transform. The choke point is `quantflow.common.validators.validate_symbol` (public, not underscored).
+- Detection: `grep -rn "symbol.*\.replace.*['\"]/[\"']" quantflow/` then verify each hit calls `validate_symbol` first.
+
+**S-G2: Cross-cutting security primitive as a private (`_`) helper borrowed across modules.**
+- Vulnerability type: inconsistent audit surface (CWE-1104) — callers may re-implement instead of importing, bypassing the invariant.
+- Triggers: `from X import _private` where the private name enforces a security/validity invariant and is imported by 2+ modules.
+- Fix approach: move to `quantflow/common/` as public API; keep a back-compat alias at the old site if tests import the underscored form.
+
+### Architecture violation pattern → `/spec-add arch`
+
+**A-G3: Higher layer re-implements a lower layer's read path against the lower layer's on-disk layout.**
+- Violation: L1 (DataStore) owns parquet reads; `fetcher.get_last_timestamp` hand-rolled a DuckDB glob against DataStore's partition layout (L1→L3 layer violation).
+- Correct boundary: higher layers delegate to `DataStore.get_date_range` / `DataStore.query`. If delegation is deferred (contract mismatch), the copy inherits EVERY hardening from the original (`.as_posix`, quote-escape, logging, `is not None`), not a subset.
+- Verification: `grep -rn "read_parquet\|read_csv_auto" quantflow/` outside `quantflow/data/` — every hit should either delegate to DataStore or carry a deferred-delegation NOTE.
+
+**A-G5: Launch-time safety guard not inherited by alternative entry points.**
+- Violation: `run_station` enforces non-loopback-requires-token; `create_app` (test harness) doesn't.
+- Correct boundary: when the guard depends on a bind-time parameter (host) the constructor doesn't receive, the guard lives at the bind boundary with the contract documented in the constructor docstring. The guard logic is a reusable `validate_bind_config(host, token)` helper, not inline in the launcher.
+- Verification: grep launchers for inline guards; confirm the app-constructor docstring states the contract.
+
+### Reusable generalization pattern → `/spec-add coding`
+
+**R-G1: Middleware "layered controls" docstring must match control flow.** When a middleware docstring promises multiple controls, write a test that proves EACH control independently rejects its targeted attack (e.g. valid-token-still-blocked-by-CSRF; cross-origin-still-blocked-with-X-Requested-With). A docstring that drifts from control flow is a security lie.
+
+**R-G4: Validate at every symbol→path/glob site, symmetric across read/write/transform.** The validation choke point is a single public function (`validate_symbol`); every conversion site calls it. Do NOT rely on "the downstream DataStore call validates" — a direct `Path` construction runs first.
+
+### Non-blocking reviewer concerns (recorded, not actioned)
+
+- Glob inclusivity: `**/*.parquet` is slightly more inclusive than the old `*/*.parquet` array (would match a stray depth-1 parquet). `DataStore.save()` never writes such files, so not a correctness regression; `union_by_name=true` handles schema merge. Worth a one-line comment if a future caller writes non-partitioned parquet into a symbol dir.
+- `fetcher.get_last_timestamp` uses the module-level `duckdb.query` (shared global connection) rather than an instance `self._db`. Pre-existing; the function is currently uncalled dead code per its own docstring (REV-007 deferred delegation).
+- Origin comparison is port-sensitive (`netloc` includes port). Correct for same-origin browser POSTs (matching Origin/Host ports); a reverse-proxy that rewrites Host without port could cause a false 403. Acceptable for the single-operator local threat model; document if deployment topology changes.
