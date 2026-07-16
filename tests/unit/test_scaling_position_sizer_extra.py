@@ -51,9 +51,9 @@ class TestScalingPositionSizerExtra:
         sizer = ScalingPositionSizer()
         wave_count = _wave_count(2)
 
-        trial = sizer.compute_trial_position(100000.0, 100.0, 100.0, wave_count)
-        add = sizer.compute_add_position(100000.0, 100.0, 100.0, wave_count)
-        chase = sizer.compute_chase_position(100000.0, 100.0, 100.0, wave_count)
+        trial = sizer.compute_trial_position(100000.0, 100.0, 100.0, wave_count.current_wave)
+        add = sizer.compute_add_position(100000.0, 100.0, 100.0, wave_count.current_wave)
+        chase = sizer.compute_chase_position(100000.0, 100.0, 100.0, wave_count.current_wave)
 
         assert trial.phase == PositionPhase.TRIAL
         assert add.phase == PositionPhase.ADD
@@ -70,13 +70,13 @@ class TestScalingPositionSizerExtra:
         sizer = ScalingPositionSizer(config)
         wave_count = _wave_count(3)
 
-        trial = sizer.compute_trial_position(100000.0, 100.0, 99.0, wave_count)
+        trial = sizer.compute_trial_position(100000.0, 100.0, 99.0, wave_count.current_wave)
         assert trial.size_pct == pytest.approx(0.10)
         assert trial.risk_pct == pytest.approx(0.001)
 
         sizer._current_position_pct = 0.25
-        add = sizer.compute_add_position(100000.0, 100.0, 99.0, wave_count)
-        chase = sizer.compute_chase_position(100000.0, 100.0, 99.0, wave_count)
+        add = sizer.compute_add_position(100000.0, 100.0, 99.0, wave_count.current_wave)
+        chase = sizer.compute_chase_position(100000.0, 100.0, 99.0, wave_count.current_wave)
 
         assert add.size_pct == pytest.approx(0.05)
         assert chase.size_pct == pytest.approx(0.05)
@@ -90,8 +90,8 @@ class TestScalingPositionSizerExtra:
         sizer._current_position_pct = 0.4
         wave_count = _wave_count(5)
 
-        add = sizer.compute_add_position(100000.0, 100.0, 99.0, wave_count)
-        chase = sizer.compute_chase_position(100000.0, 100.0, 99.0, wave_count)
+        add = sizer.compute_add_position(100000.0, 100.0, 99.0, wave_count.current_wave)
+        chase = sizer.compute_chase_position(100000.0, 100.0, 99.0, wave_count.current_wave)
 
         assert add.size_pct == 0.0
         assert chase.size_pct == 0.0

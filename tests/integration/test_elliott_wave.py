@@ -207,13 +207,13 @@ class TestScalingPositionPipeline:
         wc = WaveCount(pattern=WavePattern.IMPULSE, current_wave=2)
 
         # Trial position
-        trial = sizer.compute_trial_position(100000, 90000, 88000, wc)
+        trial = sizer.compute_trial_position(100000, 90000, 88000, wc.current_wave)
         assert trial.size_pct > 0
         assert trial.phase.value == "trial"
 
         # Add position
         sizer._current_position_pct = trial.size_pct
-        add = sizer.compute_add_position(100000, 92000, 90000, wc)
+        add = sizer.compute_add_position(100000, 92000, 90000, wc.current_wave)
         assert add.size_pct > 0
         assert add.phase.value == "add"
 

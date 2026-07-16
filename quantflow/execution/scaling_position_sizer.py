@@ -15,8 +15,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from quantflow.indicators.wave_models import WaveCount
-
 
 class PositionPhase(StrEnum):
     TRIAL = "trial"  # 试仓 10-15%
@@ -92,7 +90,7 @@ class ScalingPositionSizer:
         capital: float,
         entry_price: float,
         stop_price: float,
-        wave_count: WaveCount,
+        wave_label: int = 0,
     ) -> PositionRequest:
         """Compute trial (试仓) position size at W2/W4 pullback.
 
@@ -108,7 +106,7 @@ class ScalingPositionSizer:
                 size_pct=0,
                 entry_price=entry_price,
                 stop_price=stop_price,
-                wave_label=wave_count.current_wave,
+                wave_label=wave_label,
                 risk_pct=0,
             )
 
@@ -122,7 +120,7 @@ class ScalingPositionSizer:
             size_pct=size_pct,
             entry_price=entry_price,
             stop_price=stop_price,
-            wave_label=wave_count.current_wave,
+            wave_label=wave_label,
             risk_pct=actual_risk,
         )
 
@@ -131,7 +129,7 @@ class ScalingPositionSizer:
         capital: float,
         entry_price: float,
         stop_price: float,
-        wave_count: WaveCount,
+        wave_label: int = 0,
     ) -> PositionRequest:
         """Compute add (加仓) position size on W3 breakout confirmation."""
         risk_amount = capital * self.config.single_risk_pct
@@ -143,7 +141,7 @@ class ScalingPositionSizer:
                 size_pct=0,
                 entry_price=entry_price,
                 stop_price=stop_price,
-                wave_label=wave_count.current_wave,
+                wave_label=wave_label,
                 risk_pct=0,
             )
 
@@ -158,7 +156,7 @@ class ScalingPositionSizer:
             size_pct=size_pct,
             entry_price=entry_price,
             stop_price=stop_price,
-            wave_label=wave_count.current_wave,
+            wave_label=wave_label,
             risk_pct=actual_risk,
         )
 
@@ -167,7 +165,7 @@ class ScalingPositionSizer:
         capital: float,
         entry_price: float,
         stop_price: float,
-        wave_count: WaveCount,
+        wave_label: int = 0,
     ) -> PositionRequest:
         """Compute chase (追仓) position during W3 trend continuation."""
         risk_amount = capital * self.config.single_risk_pct
@@ -179,7 +177,7 @@ class ScalingPositionSizer:
                 size_pct=0,
                 entry_price=entry_price,
                 stop_price=stop_price,
-                wave_label=wave_count.current_wave,
+                wave_label=wave_label,
                 risk_pct=0,
             )
 
@@ -192,7 +190,7 @@ class ScalingPositionSizer:
             size_pct=size_pct,
             entry_price=entry_price,
             stop_price=stop_price,
-            wave_label=wave_count.current_wave,
+            wave_label=wave_label,
             risk_pct=size_pct * risk_per_unit / entry_price,
         )
 
@@ -273,8 +271,5 @@ class ScalingPositionSizer:
         Returns position size as a fraction of capital (0.0-1.0).
         Uses the trial position model as the default sizing method.
         """
-        from quantflow.indicators.wave_models import WaveCount
-
-        wc = WaveCount()  # neutral wave count for basic sizing
-        req = self.compute_trial_position(capital, entry_price, stop_price, wc)
+        req = self.compute_trial_position(capital, entry_price, stop_price)
         return min(req.size_pct, self.config.trial_pct)
