@@ -327,3 +327,67 @@ class TestCLIBasics:
         assert gate_call["regenerated_entries"].index.equals(dates)
         assert gate_call["regenerated_exits"].index.equals(dates)
         assert calls[-1] == {"closed": True}
+
+
+class TestAICommand:
+    def test_ai_help_lists_rdagent_action(self):
+        result = runner.invoke(app, ["ai", "--help"])
+        assert result.exit_code == 0
+        assert "rdagent" in result.output.lower()
+
+    def test_ai_rdagent_prints_install_hint_when_qlib_missing(self, monkeypatch):
+        """qlib absent → command prints install hint and exits 0 (not a crash)."""
+        from quantflow.strategy.rd_agent import RDAgentRunner
+
+        monkeypatch.setattr(
+            RDAgentRunner,
+            "check_available",
+            staticmethod(lambda: (False, "qlib is not installed. pip install...")),
+        )
+        result = runner.invoke(app, ["ai", "rdagent", "--symbol", "BTC/USDT"])
+        assert result.exit_code == 0
+        assert "not available" in result.output.lower()
+        assert "pip install" in result.output.lower()
+
+    def test_ai_rdagent_evalates_factors_when_qlib_available(self, monkeypatch):
+        from quantflow.strategy.rd_agent import RDAgentRunner
+
+        monkeypatch.setattr(RDAgentRunner, "check_available", staticmethod(lambda: (True, "")))
+
+        # Non-trivial price series so IC metrics are finite (linear data → NaN IC)
+        import numpy as np
+
+        rng = np.random.default_rng(7)
+        close = 100.0 * (1.0 + rng.standard_normal(80).cumsum() * 0.01)
+        close = np.maximum(close, 1.0)
+        fake_df = pd.DataFrame(
+            {"close": close},
+            index=pd.date_range("2024-01-01", periods=80, freq="D"),
+        )
+
+        class FakeStore:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def query(self, symbol):
+                return fake_df.copy()
+
+            def close(self):
+                pass
+
+        monkeypatch.setattr("quantflow.data.store.DataStore", FakeStore)
+
+        # discover_factors runs the real pandas baseline path (no qlib needed)
+        real_factors = RDAgentRunner().discover_factors(fake_df)
+        monkeypatch.setattr(RDAgentRunner, "discover_factors", lambda self, df: real_factors)
+
+        result = runner.invoke(app, ["ai", "rdagent", "--symbol", "BTC/USDT"])
+        assert result.exit_code == 0
+        assert "RD-Agent" in result.output
+        assert "factors passed" in result.output
+        assert "momentum_5" in result.output
+
+    def test_ai_unknown_action_rejected(self):
+        result = runner.invoke(app, ["ai", "bogus"])
+        assert result.exit_code == 0
+        assert "Unknown AI action" in result.output

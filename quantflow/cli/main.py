@@ -1044,6 +1044,74 @@ def station(
 
 
 @app.command()
+def ai(
+    action: str = typer.Argument(
+        "rdagent", help="AI action: 'rdagent' (Qlib RD-Agent factor mining)"
+    ),
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol for factor evaluation"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
+) -> None:
+    """Run AI-layer workflows (Qlib RD-Agent factor mining).
+
+    Examples:
+        quantflow ai rdagent --symbol BTC/USDT
+    """
+    if action != "rdagent":
+        console.print(f"[red]Unknown AI action: {action}. Available: rdagent[/]")
+        return
+
+    from quantflow.data.store import DataStore
+    from quantflow.strategy.rd_agent import QlibNotAvailableError, RDAgentRunner
+
+    runner = RDAgentRunner()
+    available, msg = runner.check_available()
+    if not available:
+        # Optional dependency missing — print install hint and exit cleanly.
+        console.print("[yellow]Qlib RD-Agent not available.[/]")
+        console.print(msg)
+        return
+
+    cfg = _load(config)
+    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+    try:
+        df = store.query(symbol)
+        if df.empty:
+            console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+            return
+        if "datetime" in df.columns:
+            df = df.set_index("datetime")
+
+        console.print(f"[bold blue]Running RD-Agent factor mining on {symbol}[/]")
+        try:
+            factors = runner.discover_factors(df)
+        except QlibNotAvailableError as e:
+            console.print(f"[yellow]{e}[/]")
+            return
+
+        selected = [f for f in factors if f.selected]
+        table = Table(title=f"RD-Agent Factors — {symbol}")
+        table.add_column("Factor", style="cyan")
+        table.add_column("IC", justify="right")
+        table.add_column("Rank IC", justify="right")
+        table.add_column("Selected", justify="center")
+        for f in factors:
+            table.add_row(
+                f.name,
+                f"{f.ic:+.4f}",
+                f"{f.rank_ic:+.4f}",
+                "[green]✓[/]" if f.selected else "[red]✗[/]",
+            )
+        console.print(table)
+        console.print(
+            f"[bold]{len(selected)}/{len(factors)} factors passed "
+            f"IC>{runner.config.ic_threshold} gate "
+            f"(target: {runner.config.min_selected})[/]"
+        )
+    finally:
+        store.close()
+
+
+@app.command()
 def status() -> None:
     """Show current system status."""
     table = Table(title="QuantFlow Status")

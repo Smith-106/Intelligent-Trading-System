@@ -18,7 +18,7 @@
 
 ## Description
 
-Typer + Rich CLI, entry point `quantflow.cli.main:app` (`no_args_is_help=True`, rich markup mode). 8 commands (CLAUDE.md lists 6):
+Typer + Rich CLI, entry point `quantflow.cli.main:app` (`no_args_is_help=True`, rich markup mode). 9 commands (CLAUDE.md original list of 6 now updated):
 
 | Command | Line | Purpose |
 |---------|------|---------|
@@ -28,8 +28,9 @@ Typer + Rich CLI, entry point `quantflow.cli.main:app` (`no_args_is_help=True`, 
 | `validate` | `:288` | Anti-overfitting: cpcv/dsr/pbo/wfo/full/gate |
 | `run` | `:444` | Live/sandbox/paper trading; comma-separated multi-strategy; polling data loop |
 | `benchmark` | `:631` | Synthetic perf baseline across all layer paths with threshold gates |
-| `station` | `:1034` | Launch QuantFlow Station Web UI at `host:port` |
-| `status` | `:1046` | System status table (data, config, strategies, risk, Docker) |
+| `ai` | `:1047` | AI-layer workflows: `ai rdagent` runs Qlib RD-Agent factor mining (dependency guard: qlib optional) |
+| `station` | `:1035` | Launch QuantFlow Station Web UI at `host:port` |
+| `status` | `:1115` | System status table (data, config, strategies, risk, Docker) |
 
 OKX creds from env vars only (`_load_gateway_config_from_env` L61-81, raises `typer.BadParameter` if missing for non-paper).
 

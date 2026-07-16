@@ -78,6 +78,7 @@ quantflow research --strategy trend_following --symbol BTC/USDT
 quantflow optimize --strategy trend_following --method bayesian
 quantflow validate --strategy trend_following --method gate
 quantflow run --mode paper --strategy trend_following
+quantflow ai rdagent --symbol BTC/USDT
 quantflow status
 ```
 

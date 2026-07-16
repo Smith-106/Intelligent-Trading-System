@@ -23,7 +23,7 @@
       "requirement_ids": [],
       "component_ids": ["TC-008"],
       "phase": "Phase 1 complete",
-      "description": "Typer + Rich CLI with 8 commands: download, research, optimize, validate, run, benchmark, station, status. Entry point: quantflow.cli.main:app."
+      "description": "Typer + Rich CLI with 9 commands: download, research, optimize, validate, run, benchmark, ai (rdagent), station, status. Entry point: quantflow.cli.main:app."
     },
     {
       "id": "FT-003",
@@ -95,7 +95,7 @@
       "requirement_ids": [],
       "component_ids": ["TC-003"],
       "phase": "Phase 3 partial",
-      "description": "AIFactorEngine (Meta-Labeling, expanding CV splits) + MLEnsembleStrategy active. FinBERT sentiment (SentimentAnalyzer/NewsCollector) implemented in sentiment.py with tests — but not exported from strategy/__init__ nor CLI-wired. Qlib RD-Agent NOT implemented (ai_factors.py:5 comment claiming CLI integration is inaccurate); qlib is optional [ml] extra, planned in blueprint E13-S1."
+      "description": "AIFactorEngine (Meta-Labeling, expanding CV splits) + MLEnsembleStrategy active. FinBERT sentiment (SentimentAnalyzer/NewsCollector) implemented in sentiment.py with tests — but not exported from strategy/__init__ nor CLI-wired. Qlib RD-Agent: CLI skeleton wired (quantflow ai rdagent) — RDAgentRunner with dependency guard (qlib optional [ml] extra); when qlib absent prints install hint, when present runs Alpha158-style baseline factor evaluation with IC gate (blueprint E13-S1 acceptance: 5+ factors IC>0.03). Full RD-Agent LLM factor search is a future layer on top."
     }
   ],
   "components": [
@@ -123,7 +123,7 @@
       "type": "L3-strategy",
       "code_locations": ["quantflow/strategy/base.py", "quantflow/strategy/engine.py", "quantflow/strategy/catalog.py", "quantflow/strategy/ai_factors.py", "quantflow/strategy/sentiment.py", "quantflow/strategy/elliott_wave_strategy.py", "quantflow/strategy/research/", "quantflow/strategy/templates/", "quantflow/strategy/validation/"],
       "feature_ids": ["FT-001", "FT-003", "FT-004", "FT-010"],
-      "symbols": ["StrategyBase", "StrategyContext", "TradingSession", "get_strategy_definitions", "load_strategy_config", "AIFactorEngine", "SentimentAnalyzer", "NewsCollector", "LiuYudongWaveStrategy", "BacktestEngine", "StrategyOptimizer", "generate_report", "cpcv_backtest", "deflated_sharpe_ratio", "probability_of_overfitting", "walk_forward_optimization", "validation_gate", "TrendFollowingStrategy", "MeanReversionStrategy", "VolatilityBreakoutStrategy", "FundingRateStrategy", "MomentumRotationStrategy", "MLEnsembleStrategy"],
+      "symbols": ["StrategyBase", "StrategyContext", "TradingSession", "get_strategy_definitions", "load_strategy_config", "AIFactorEngine", "SentimentAnalyzer", "NewsCollector", "RDAgentRunner", "DiscoveredFactor", "LiuYudongWaveStrategy", "BacktestEngine", "StrategyOptimizer", "generate_report", "cpcv_backtest", "deflated_sharpe_ratio", "probability_of_overfitting", "walk_forward_optimization", "validation_gate", "TrendFollowingStrategy", "MeanReversionStrategy", "VolatilityBreakoutStrategy", "FundingRateStrategy", "MomentumRotationStrategy", "MLEnsembleStrategy"],
       "last_updated": "2026-07-15T22:35:00Z"
     },
     {
@@ -168,7 +168,7 @@
       "type": "cli",
       "code_locations": ["quantflow/cli/main.py", "quantflow/cli/__init__.py"],
       "feature_ids": ["FT-002"],
-      "symbols": ["app", "download", "research", "optimize", "validate", "run", "benchmark", "station", "status", "_load_gateway_config_from_env"],
+      "symbols": ["app", "download", "research", "optimize", "validate", "run", "benchmark", "ai", "station", "status", "_load_gateway_config_from_env"],
       "last_updated": "2026-07-15T22:35:00Z"
     },
     {
