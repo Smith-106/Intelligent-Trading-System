@@ -87,6 +87,15 @@ class TradingSession:
         """Start the trading session."""
         await self._execution.start(mode, gateway_config)
 
+        # Safety: live mode MUST run with the kill switch armed (CLAUDE.md
+        # "实盘模式必须启用 Kill Switch"). Refuse to start rather than silently
+        # trading live without an emergency-stop path.
+        if mode == "live" and not self._config.risk.kill_switch_enabled:
+            raise RuntimeError(
+                "Kill switch must be enabled in live mode "
+                "(config.risk.kill_switch_enabled=True); refusing to start."
+            )
+
         # Initialize kill switch if enabled
         if self._config.risk.kill_switch_enabled and self._execution.gateway:
             self._kill_switch = KillSwitch(self._execution.gateway)

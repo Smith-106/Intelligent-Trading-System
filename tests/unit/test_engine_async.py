@@ -438,3 +438,101 @@ class TestTradingSessionOnRiskEvent:
 
         event = Event(type="risk", data={"severity": "warn"})
         session._on_risk_event(event)
+
+
+class TestTradingSessionLiveKillSwitchEnforcement:
+    """Safety: live mode MUST run with kill switch armed (CLAUDE.md).
+
+    start() refuses to enter live trading when kill_switch_enabled=False,
+    rather than silently trading live without an emergency-stop path.
+    """
+
+    @pytest.mark.asyncio
+    async def test_live_refuses_without_kill_switch(self):
+        """mode='live' + kill_switch_enabled=False → RuntimeError, not started."""
+        from quantflow.strategy.base import StrategyBase
+
+        class DummyStrategy(StrategyBase):
+            def on_init(self, ctx):
+                pass
+
+            def on_bar(self, ctx, bar):
+                pass
+
+            def generate_signals(self, df):
+                return pd.Series(dtype=bool), pd.Series(dtype=bool)
+
+        config = AppConfig()
+        config.risk.kill_switch_enabled = False
+        session = TradingSession(config, [DummyStrategy(name="s1")])
+
+        with (
+            patch.object(session._execution, "start", new_callable=AsyncMock),
+            patch("quantflow.strategy.engine._ensure_metrics_server_started"),
+        ):
+            with pytest.raises(RuntimeError, match="Kill switch must be enabled"):
+                await session.start(mode="live")
+
+        assert session._running is False
+        assert session._kill_switch is None
+
+    @pytest.mark.asyncio
+    async def test_live_allows_with_kill_switch(self):
+        """mode='live' + kill_switch_enabled=True + gateway → kill switch armed."""
+        from quantflow.strategy.base import StrategyBase
+
+        class DummyStrategy(StrategyBase):
+            def on_init(self, ctx):
+                pass
+
+            def on_bar(self, ctx, bar):
+                pass
+
+            def generate_signals(self, df):
+                return pd.Series(dtype=bool), pd.Series(dtype=bool)
+
+        config = AppConfig()
+        config.risk.kill_switch_enabled = True
+        session = TradingSession(config, [DummyStrategy(name="s1")])
+
+        # live mode requires a gateway present on the execution engine
+        session._execution._gateway = MagicMock()
+
+        with (
+            patch.object(session._execution, "start", new_callable=AsyncMock),
+            patch("quantflow.strategy.engine._ensure_metrics_server_started"),
+        ):
+            await session.start(mode="live")
+
+        assert session._running is True
+        assert session._kill_switch is not None
+        session._running = False
+
+    @pytest.mark.asyncio
+    async def test_paper_allows_without_kill_switch(self):
+        """mode='paper' is never force-gated — kill switch optional in paper."""
+        from quantflow.strategy.base import StrategyBase
+
+        class DummyStrategy(StrategyBase):
+            def on_init(self, ctx):
+                pass
+
+            def on_bar(self, ctx, bar):
+                pass
+
+            def generate_signals(self, df):
+                return pd.Series(dtype=bool), pd.Series(dtype=bool)
+
+        config = AppConfig()
+        config.risk.kill_switch_enabled = False
+        session = TradingSession(config, [DummyStrategy(name="s1")])
+
+        with (
+            patch.object(session._execution, "start", new_callable=AsyncMock),
+            patch("quantflow.strategy.engine._ensure_metrics_server_started"),
+        ):
+            await session.start(mode="paper")
+
+        assert session._running is True
+        assert session._kill_switch is None
+        session._running = False
