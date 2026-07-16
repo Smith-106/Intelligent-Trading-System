@@ -8,7 +8,7 @@
 - **防过拟合**：CPCV 组合交叉验证 + DSR 稳定性 + PBO 过拟合概率 + WFO 滚动前进 + GO/NO-GO 门
 - **风控完备**：半 Kelly 仓位 + VaR/CVaR + 回撤熔断 + Kill Switch
 - **事件驱动**：自建 TradingSession 引擎，回测/模拟/实盘统一架构
-- **AI 增强**（V3）：Qlib RD-Agent 因子挖掘 + FinBERT 情绪 + Meta-Labeling
+- **AI 增强**（V3）：Meta-Labeling + FinBERT 情绪分析（已实现）；Qlib RD-Agent 因子挖掘（规划中，qlib 为可选依赖）
 - **配置驱动**：策略参数、风控规则、交易对全部 YAML 管理，零硬编码
 
 ## 架构

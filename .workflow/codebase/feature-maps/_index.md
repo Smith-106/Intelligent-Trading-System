@@ -17,4 +17,4 @@
 | FT-009 | Indicators (27 factors) | active | TC-002 | — |
 | FT-010 | AI Layer | partial | TC-003 | — |
 
-**Total features: 10** · Phase 1/2/3 complete (FT-010 AI layer partial — FinBERT/Qlib RD-Agent planned, no impl files).
+**Total features: 10** · Phase 1/2/3 complete (FT-010 AI layer: FinBERT + Meta-Labeling implemented+tested; Qlib RD-Agent not implemented — planned).

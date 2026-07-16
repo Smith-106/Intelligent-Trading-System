@@ -2,7 +2,10 @@
 
 Provides Meta-Labeling (secondary model filtering), feature importance
 via tree-based models, and an extensible interface for custom ML factors.
-Qlib-style RD-Agent integration is via the CLI research workflow.
+
+NOTE: Qlib RD-Agent auto factor mining is NOT yet integrated — planned in
+blueprint E13-S1 (acceptance: 5+ factors with IC > 0.03). qlib is an optional
+[ml] extra. There is currently no CLI research path wiring RD-Agent.
 """
 
 from __future__ import annotations

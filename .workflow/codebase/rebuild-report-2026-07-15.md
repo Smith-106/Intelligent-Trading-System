@@ -18,7 +18,7 @@
 |--------|--------|--------------|
 | Tech stack | ✅ | Py3.11+ (Docker 3.12-slim); CCXT/Optuna/DuckDB/Parquet/Redis/Pydantic v2/Typer/Rich/aiohttp; `vectorbt` commented out (Py3.14+ numba incompat), replaced by self-built `BacktestEngine`; aiohttp/cryptography security-pinned for CVEs |
 | Architecture | ✅ | 6-layer L1→L6 enforced downward-only deps; `web/` (23 endpoints) + `trading/` shim beyond CLAUDE.md; `TradingSession` orchestrator; one anomaly: `execution/scaling_position_sizer.py` (L5) → `indicators.wave_models` (L2) |
-| Features | ✅ | 7 strategies (dual-mode API), 8 CLI commands, full anti-overfitting pipeline, 3 execution modes, 7-check risk engine, 27 factors (21+6 EW), Station web UI; AI layer partial (FinBERT/Qlib RD-Agent planned, no impl) |
+| Features | ✅ | 7 strategies (dual-mode API), 8 CLI commands, full anti-overfitting pipeline, 3 execution modes, 7-check risk engine, 27 factors (21+6 EW), Station web UI; AI layer: FinBERT sentiment + Meta-Labeling **implemented+tested**, Qlib RD-Agent **not implemented** (mapper initially misreported FinBERT as missing — corrected) |
 | Concerns | ✅ | Public security primitives (`common/validators.py`), bind-boundary launch guard, env-only creds, secret redaction; gaps: kill_switch not enforced in live, unused pytest marks, logger inconsistency, duplicated event constants |
 
 ## Outputs Generated
@@ -42,7 +42,7 @@
 - **⚠️ L5→L2 layering anomaly** — `execution/scaling_position_sizer.py:18` imports `indicators.wave_models.WaveCount`
 - **⚠️ Unused pytest marks** — `@pytest.mark.live` / `@pytest.mark.slow` registered but never applied
 - **⚠️ Duplicated event constants** — `execution/engine.py:24-25` redefines `EVENT_ORDER`/`EVENT_FILL` instead of importing from `common/models.py`
-- **⚠️ AI layer gap** — FinBERT/Qlib RD-Agent referenced in CLAUDE.md Phase 3 but no implementation files in `quantflow/`
+- **⚠️ AI layer gap** — FinBERT sentiment (`sentiment.py`) + Meta-Labeling (`ai_factors.py`) ARE implemented+tested (mapper initially misreported as missing — corrected in docs). True gap: **Qlib RD-Agent not implemented**; `ai_factors.py:5` comment claiming CLI integration is inaccurate (no qlib code, no CLI wiring). `qlib` is optional `[ml]` extra. Planned in blueprint E13-S1.
 
 ## KG Pipeline
 - **Skipped** (multi-source db protection). KG db current (staleness 0.0%); `.workflow/codebase/knowledge-graph.json` left absent.

@@ -20,7 +20,7 @@
 - 风控：半Kelly + VaR/CVaR + 回撤熔断 + Kill Switch
 - 监控：Grafana + Prometheus, 告警 Telegram/LINE
 - 部署：Docker Compose
-- AI(V3)：Qlib RD-Agent + FinBERT + Meta-Labeling
+- AI(V3)：Meta-Labeling + FinBERT 情绪（已实现+测试）；Qlib RD-Agent 因子挖掘（未实现，规划中）
 
 ## 开发规范
 

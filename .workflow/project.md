@@ -73,7 +73,7 @@
 - **Web**：aiohttp（QuantFlow Station，23 REST endpoints）+ Typer/Rich CLI（8 commands）
 - **Config/Validation**：Pydantic v2（`AppConfig`）+ PyYAML；安全固定 `aiohttp>=3.14.1` / `cryptography>=48.0.1`
 - **Monitoring**：Prometheus + Grafana + structlog；告警 Telegram/LINE
-- **AI**：Meta-Labeling + `AIFactorEngine`（活跃）；FinBERT / Qlib RD-Agent（规划中，无实现文件）
+- **AI**：`AIFactorEngine` + Meta-Labeling（活跃，被 MLEnsembleStrategy 使用）；FinBERT 情绪（`SentimentAnalyzer`/`NewsCollector` 已实现+测试，未导出/未接 CLI）；Qlib RD-Agent（**未实现**，规划中 E13-S1，qlib 为可选 `[ml]` extra）
 - **Quality**：ruff format+lint、mypy strict、pytest+pytest-asyncio（coverage 70%）、pip-audit、pre-commit
 - **Deployment**：Docker Compose（quantflow + redis + prometheus + grafana）
 
