@@ -66,12 +66,16 @@
 
 ## Tech Stack
 
-- **Language**：Python 3.11+
-- **Framework**：CCXT（OKX）、Optuna、纯 pandas/numpy 回测引擎
-- **Database**：DuckDB + Parquet + Redis
-- **Monitoring**：Grafana + Prometheus
-- **AI**：Qlib RD-Agent + FinBERT + Meta-Labeling
-- **Deployment**：Docker Compose
+- **Language**：Python 3.11+（Docker 运行 `python:3.12-slim`；ruff/mypy target py311，`mypy --strict`）
+- **Framework**：CCXT（OKX REST+WebSocket，async）、Optuna、自建纯 pandas/numpy 回测引擎（`BacktestEngine`，已替代 VectorBT — Py3.14+ numba 不兼容）
+- **Data**：DuckDB + Parquet（Hive 分区 symbol/year/month）+ Redis（实时缓存）
+- **Indicators**：27 注册因子（21 基础 + 6 Elliott Wave）via `FactorBase`/`IndicatorEngine`，纯 pandas/numpy（TA-Lib 可选）
+- **Web**：aiohttp（QuantFlow Station，23 REST endpoints）+ Typer/Rich CLI（8 commands）
+- **Config/Validation**：Pydantic v2（`AppConfig`）+ PyYAML；安全固定 `aiohttp>=3.14.1` / `cryptography>=48.0.1`
+- **Monitoring**：Prometheus + Grafana + structlog；告警 Telegram/LINE
+- **AI**：Meta-Labeling + `AIFactorEngine`（活跃）；FinBERT / Qlib RD-Agent（规划中，无实现文件）
+- **Quality**：ruff format+lint、mypy strict、pytest+pytest-asyncio（coverage 70%）、pip-audit、pre-commit
+- **Deployment**：Docker Compose（quantflow + redis + prometheus + grafana）
 
 ## Key Decisions
 
@@ -87,4 +91,4 @@
 - 个人量化交易开发者（主用户）
 
 ---
-*Last updated: 2026-06-02 after strategy expansion completion*
+*Last updated: 2026-07-15 after codebase-rebuild (tech stack refreshed)*
