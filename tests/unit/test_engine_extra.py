@@ -392,3 +392,69 @@ class TestP1WiringEndToEnd:
         size_off = off._position_sizer.size(sig, pf)
         # vol-target binds in high-vol → ON strictly smaller than OFF.
         assert 0.0 < size_on < size_off
+
+
+class TestPaperReplayFeedsF4F5Diagnostics:
+    """Data-flow bridge test: a paper session's on_bar wiring fills
+    _risk_engine._returns_history, which is the exact input F4 (bootstrap_cvar)
+    and F5 returns-bootstrap (monte_carlo_stress(bar_returns=...)) consume.
+
+    Confirms the 3rd goal's premise — a paper replay of historical bars can
+    accumulate the bar-return history F4/F5 need WITHOUT new code: the wiring
+    (ISS-20260719-001) already feeds returns into the risk engine, and both
+    diagnostics take plain lists. F5 trade-shuffle is out of scope here (it
+    needs per-trade returns, which paper sessions do not yet collect — a
+    separate enhancement), but F4 + F5-returns-bootstrap are reachable now.
+    """
+
+    @staticmethod
+    def _config():
+        cfg = AppConfig()
+        cfg.risk.kill_switch_enabled = False
+        cfg.risk.max_drawdown = -0.90
+        return cfg
+
+    @pytest.mark.asyncio
+    async def test_paper_replay_history_feeds_bootstrap_cvar(self):
+        """bootstrap_cvar accepts the session's returns history directly."""
+        session = TradingSession(self._config(), [])
+        session._running = True
+        session._portfolio.update_position("BTC/USDT", 1.0, 100.0)
+        for i in range(35):
+            price = 100.0 + (5.0 if i % 2 == 0 else -5.0)
+            await session.on_bar(_make_bar(price=price, idx=i))
+        history = list(session._risk_engine._returns_history)
+        assert len(history) >= 30  # CVaR gate threshold
+        # F4 bootstrap CVaR — pure list input, no BacktestEngine needed.
+        from quantflow.signal.risk_metrics import bootstrap_cvar
+
+        res = bootstrap_cvar(history, confidence=0.95, n_bootstrap=500, seed=0)
+        assert {"point", "ci_low", "ci_high", "n", "n_bootstrap"}.issubset(res.keys())
+        assert res["n"] == len(history)
+        assert res["n_bootstrap"] == 500
+        assert res["ci_low"] <= res["point"] <= res["ci_high"]
+
+    @pytest.mark.asyncio
+    async def test_paper_replay_history_feeds_monte_carlo_returns_bootstrap(self):
+        """monte_carlo_stress(bar_returns=...) accepts the session history
+        directly and produces a returns-bootstrap result (F5)."""
+        session = TradingSession(self._config(), [])
+        session._running = True
+        session._portfolio.update_position("BTC/USDT", 1.0, 100.0)
+        for i in range(35):
+            price = 100.0 + (5.0 if i % 2 == 0 else -5.0)
+            await session.on_bar(_make_bar(price=price, idx=i))
+        history = list(session._risk_engine._returns_history)
+
+        from quantflow.strategy.validation.monte_carlo import monte_carlo_stress
+
+        results = monte_carlo_stress(
+            trade_returns=None,  # F5 trade-shuffle needs per-trade returns (not collected)
+            bar_returns=history,
+            n_paths=200,
+            initial_capital=100000.0,
+            seed=0,
+        )
+        assert len(results) >= 1  # returns-bootstrap ran (trade-shuffle skipped)
+        # The result is the returns-bootstrap variant (trade-shuffle omitted).
+        assert any(r.method == "returns_bootstrap" for r in results)
