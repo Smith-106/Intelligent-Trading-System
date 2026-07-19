@@ -6,7 +6,7 @@
 
 - `M1` 已完成：4 个新增策略的实现与验证
 - `M2` 进行中：`v0.1.3` 发布候选准备，目标是对齐版本、治理打包内容、重建制品校验信息，并为后续 tag / release 对齐铺平状态
-- `M3` 规划中：按 deep-research 研究文档（ANL-002）分批里程碑实施 P0 数据层防泄漏 → P1 风控层补齐 → P2 AI 层升级，每批独立实盘验证后才进下一批
+- `M3` 进行中：按 deep-research 研究文档（ANL-002）分批里程碑实施 P0 数据层防泄漏 → P1 风控层补齐 → P2 AI 层升级，每批独立实盘验证后才进下一批。当前 P0 代码层完成（待 P0-verify），P1 代码层完成 + 阻塞已清（待 P1-verify），P2 待 P1-verify 通过方可启动
 
 ## Milestones
 
@@ -72,7 +72,7 @@
 ### Milestone 3: deep-research 改进分批实施（P0/P1/P2）
 
 **Target**：按 ANL-002 分析结论分三批实施 deep-research 验证的 10 条改进，每批独立实盘验证后才进下一批
-**Status**：planned
+**Status**：in_progress
 **Upstream**：ANL-002（analyze-macro，scope=large，GO_CONDITIONAL 88%）、GRL-001（grill）、deep-research-20260718（15 findings，24/25 verified）
 
 #### 串行硬约束
@@ -81,23 +81,27 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 #### Phase 1: P0 数据层防泄漏（milestone-gate: P0-verify）
 
+**Status**：代码层完成，待 P0-verify（产出 `verification.json` + 回测回归守卫证据）
+
 **Scope**：F1 MTF look-ahead 核实+修复、F2 look-ahead 检测 CLI
 **Target files**：`mtf_aligner.py:139-177`、`fetcher.py:63-110`、`cli/main.py:288-439`、`strategy/validation/lookahead.py`（新建）、`tests/`
 
 **Tasks**:
-- [ ] **P0.0 只读核实**：读 `_create_aligned_index` + 写「跨 HTF 边界 minor bar 断言无未收盘 HTF 值泄漏」测试，用证据决定是否进 P0.1（grill Q1.2 locked：禁止在核实前修改 mtf_aligner）
-- [ ] **P0.1 MTF 修复（方案 b）**：aligner 层只 ffill 已收盘 HTF bar（最小改动，不改 fetcher 索引，不破坏 backtest parity）
-- [ ] **P0.2 look-ahead CLI**：`quantflow validate --method lookahead` 新建 `validation/lookahead.py`，检出 `series[entries].mean()` 聚合泄漏模式（仿 Freqtrade lookahead-analysis）
-- [ ] **P0.3 回归守卫**：4 策略回测基线 byte-for-byte 不变
+- [x] **P0.0 只读核实**：读 `_create_aligned_index` + 写「跨 HTF 边界 minor bar 断言无未收盘 HTF 值泄漏」测试。核实结论：CCXT fetch_ohlcv 返回 bar-open 时间戳（fetcher.py:102-105），原 reindex+ffill 会暴露未收盘 HTF bar → 确认泄漏存在，进 P0.1
+- [x] **P0.1 MTF 修复（方案 b）**：reindex 前将 HTF index 整体右移一个周期（`_infer_period` 三级推断：freq → infer_freq → median diff），HTF bar 值只在下一根开盘（== 本根收盘）后对 minor 可见；不改 fetcher 索引，不破坏 backtest parity — commit `01f05fb`
+- [x] **P0.2 look-ahead CLI**：`quantflow validate --method lookahead` 新建 `validation/lookahead.py`，静态 AST 扫描检出 `series[mask].agg()` 聚合泄漏模式（Shape 1 high / Shape 2 medium），无需数据/回测可直接进 CI — commit `99795b2`
+- [ ] **P0.3 回归守卫**：4 策略回测基线 byte-for-byte 不变 — 待 P0-verify 产出 `test-results.json`
 
 **Acceptance**:
-- MTF 跨 HTF 边界无未收盘值泄漏断言通过
-- look-ahead CLI 能检出已知泄漏模式
-- 4 策略回测无回归
+- MTF 跨 HTF 边界无未收盘值泄漏断言通过 ✅（`test_mtf_does_not_expose_unclosed_htf_bar_close_to_minor`）
+- look-ahead CLI 能检出已知泄漏模式 ✅（12 测试覆盖 clean/leaky/链式去重/分级/真实策略零误报）
+- 4 策略回测无回归 — 待 P0-verify
 
 **Done when**: `verification.json` passed + `test-results.json` 泄漏断言绿
 
 #### Phase 2: P1 风控层补齐（milestone-gate: P1-verify）
+
+**Status**：代码层完成 + 阻塞已清（ISS-20260719-001），待 P1-verify（按 `.workflow/specs/p1-live-verification-checklist.md` 跑 F3/F4/F5 观察项，产出 `verification.json` + `review.json`）
 
 **Scope**：F3 vol-targeting（opt-in）、F4 辅助诊断 CVaR、F5 路径级 MC 压力测试
 **Target files**：`config.py:50-68`、`position_sizer.py:12-99`、`risk_metrics.py:13-62`、`risk_engine.py:176-193`、`strategy/validation/monte_carlo.py`（新建）、`cli/main.py`
@@ -109,19 +113,24 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 - [x] **P1.2 MC 压力测试**：新建 `validation/monte_carlo.py`，trade-shuffle + returns-bootstrap 两法（candles-based 因 vectorbt 移除改 returns-bootstrap），诊断非 gate — commit `9b856ff`
 - [x] **P1.3 辅助 CVaR**：`risk_metrics` 加 `bootstrap_cvar` 作辅助诊断（非主 gate，不替代 historical CVaR） — commit `5e5b432`
 - [x] **P1.4 CLI**：`quantflow validate --method stress` — commit `9b856ff`
-- [x] **P1.5 回归守卫**：默认 off 时 byte-for-byte 不变（`test_default_off_is_byte_for_byte_baseline` + 全量 1403 passed，唯一失败为预存 FeatureStore pandas3.14 超界，与 P1 无关）
+- [x] **P1.5 回归守卫**：默认 off 时 byte-for-byte 不变（`test_default_off_is_byte_for_byte_baseline` + 全量 1411 passed，唯一失败为预存 FeatureStore pandas3.14 超界，与 P1 无关）
+- [x] **P1.0-B1 阻塞修复**：`add_return` 零调用方导致 `_returns_history` 永空 → `engine.on_bar` 接线 `bar_ret = (curr_equity - prev_equity)/prev_equity`（pre-mark 捕获，无 look-ahead），喂给 `risk_engine.add_return` + `position_sizer.add_return`，8 单测覆盖历史填充与 gate 触发；CVaR gate 现真正生效 — commit `ec17b23`（issue 登记 `82331b4`，ISS-20260719-001 resolved）
 
-**Acceptance**:
+**Acceptance（代码层）**:
 - 仓位绑定规则 opt-in 生效（高波动区间 vol-target < Kelly，低波动区间不绑定）✅
 - MC 压力测试接入 CLI `--method stress`（诊断 method，不动 GO/NO-GO）✅
 - 默认 off 时 4 策略回测 byte-for-byte 不变 ✅
+- `add_return` 接线后 `_returns_history` 真实累积，CVaR gate 历史 ≥30 时真正阻断 ✅
+
+**Acceptance（实盘 verify，待）**：按 `.workflow/specs/p1-live-verification-checklist.md`，F3 缩仓行为 / F5 路径运气红旗 / F4 CI 收窄在实盘数据上复现，全 GO/NO-GO 项 PASS + 两「诊断非 gate」契约项 PASS。
 
 **Deferred**：研究层大规模参数扫描优化（依赖 F8 vectorbt 裁决——「numpy 向量化并行」vs「重新评估 vectorbt 2026 兼容性」，用户 P1 启动前裁决）
 
-**Done when**: `verification.json` + `review.json` passed
+**Done when**: P1-verify `verification.json` + `review.json` passed（checklist 全 PASS）
 
 #### Phase 3: P2 AI 层升级（milestone-gate: P2-verify）
 
+**Status**：blocked — 串行约束要求 P1-verify PASS 后方可启动
 **Scope**：F6 schema-only 暴露层（P2 内部硬约束）、F11 FinGPT、F12 情绪传播广度
 **Target files**：`strategy/sentiment.py`、新建 schema 暴露层
 
@@ -150,6 +159,6 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 | 2. v0.1.3 发布候选准备 | 1. 版本与工作流对齐 | Completed | 2026-06-07 |
 | 2. v0.1.3 发布候选准备 | 2. 打包治理与制品重建 | Completed | 2026-06-07 |
 | 2. v0.1.3 发布候选准备 | 3. 发布证据与远端对齐 | In Progress | - |
-| 3. deep-research 改进分批实施 | 1. P0 数据层防泄漏 | Planned | - |
-| 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | Planned | - |
-| 3. deep-research 改进分批实施 | 3. P2 AI 层升级 | Planned | - |
+| 3. deep-research 改进分批实施 | 1. P0 数据层防泄漏 | 代码完成，待 P0-verify | `01f05fb` `99795b2` |
+| 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | 代码完成+阻塞已清，待 P1-verify | `09445de` `9b856ff` `5e5b432` `ec17b23` |
+| 3. deep-research 改进分批实施 | 3. P2 AI 层升级 | Blocked（待 P1-verify） | - |
