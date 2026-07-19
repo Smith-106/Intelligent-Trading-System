@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyContext
@@ -715,3 +716,105 @@ class TestMLEnsembleStrategy:
         assert "rsi_14" in features.columns
         assert "macd_hist" in features.columns
         assert "bb_position" in features.columns
+
+
+class TestSignalParityGuard:
+    """ISS-20260613-006 guard: signal parity between trend_following's
+    on_bar incremental path (_latest_signal) and the generate_signals
+    vectorized path.
+
+    The existing test_latest_signal_matches_vectorized_last_row /
+    test_incremental_on_bar_matches_vectorized_last_row only compare the
+    last row of the series — drift at intermediate bars goes undetected.
+    This guard streams bars into on_bar and, after each bar, re-runs
+    generate_signals on the accumulated frame, comparing per-bar signals
+    across the full series and across multiple market regimes (seeds).
+
+    P1-verify foundation: F3 runs via paper-on_bar while F5 runs via
+    BacktestEngine (generate_signals). The two paths' ENTRY signals must
+    agree or F3 sizing validation and F5 stress testing validate different
+    strategy behaviors.
+
+    Finding (2026-07-19): ENTRY signal 0 drift across 5 seeds (solid
+    foundation for F3). EXIT signal has systematic drift — _latest_signal
+    exit uses (no vol_ok, threshold min_conditions-1) while generate_signals
+    exits use (with vol_ok, threshold min_conditions) then OR profit/trailing.
+    This is the concrete instance of ISS-20260613-006, a strategy-semantic
+    divergence predating P1, NOT fixed in P1-verify (out of scope; fixing
+    would perturb the P1 byte-for-byte regression guard). Exit drift is
+    recorded as a known item here; entry parity is strictly guarded.
+    """
+
+    @staticmethod
+    def _parity_per_bar(strategy, df: pd.DataFrame) -> list[tuple[bool, bool, bool, bool]]:
+        """Stream bars into on_bar; after each bar compare _latest_signal()
+        (incremental) vs generate_signals(df_so_far).iloc[-1] (vectorized).
+
+        Returns a list of (inc_entry, vec_entry, inc_exit, vec_exit) per bar
+        for bars where generate_signals has enough data to evaluate.
+        """
+        ctx = StrategyContext()
+        strategy.on_init(ctx)
+        comparisons: list[tuple[bool, bool, bool, bool]] = []
+        min_bars = strategy._slow_period + strategy._macd_signal
+        for i in range(len(df)):
+            bar = _bars_from_df(df.iloc[: i + 1])[i]
+            strategy.on_bar(ctx, bar)
+            ctx.flush_signals()
+            if i + 1 < min_bars:
+                continue  # generate_signals returns all-False; skip
+            inc_entry, inc_exit = strategy._latest_signal()
+            entries, exits = strategy.generate_signals(df.iloc[: i + 1])
+            vec_entry = bool(entries.iloc[-1])
+            vec_exit = bool(exits.iloc[-1])
+            comparisons.append((bool(inc_entry), vec_entry, bool(inc_exit), vec_exit))
+        return comparisons
+
+    @pytest.mark.parametrize("seed", [42, 7, 123, 2024, 99])
+    def test_entry_signal_parity_incremental_vs_vectorized_every_bar(self, seed):
+        """Per-bar: entry signal _latest_signal() == generate_signals at that
+        bar, across the full series. Entry parity is the P1-verify F3
+        foundation (F3 validates entry-side position shrinkage), so 0 drift
+        is required. Multiple seeds cover different market regimes so a
+        single sparse-signal dataset cannot make parity hold by accident."""
+        strategy = TrendFollowingStrategy()
+        df = _make_ohlcv(160, seed=seed)
+        comparisons = self._parity_per_bar(strategy, df)
+        assert len(comparisons) >= 100  # evaluated a meaningful span, not just the tail
+        entry_mismatches = [i for i, c in enumerate(comparisons) if c[0] != c[1]]
+        assert not entry_mismatches, (
+            f"seed={seed}: entry signal drift incremental vs vectorized at bars "
+            f"{entry_mismatches[:5]} (first 5 of {len(entry_mismatches)})"
+        )
+
+    @pytest.mark.parametrize("seed", [42, 7, 123, 2024, 99])
+    def test_exit_signal_drift_is_known_and_bounded(self, seed):
+        """Exit signal has known drift (ISS-20260613-006 scope); recorded
+        here but not blocking. _latest_signal exit uses (no vol_ok, threshold
+        min_conditions-1); generate_signals exits use (with vol_ok, threshold
+        min_conditions) then OR profit/trailing. The two exit semantics differ
+        by design. This test pins the drift's existence and magnitude so it
+        cannot silently widen; once ISS-006 unifies exit semantics, upgrade
+        to strict parity."""
+        strategy = TrendFollowingStrategy()
+        df = _make_ohlcv(160, seed=seed)
+        comparisons = self._parity_per_bar(strategy, df)
+        exit_drift = sum(1 for c in comparisons if c[2] != c[3])
+        # Known drift band (observed 2026-07-19 across 5 seeds: 12..22 of 122).
+        # If drift exceeds this band the inconsistency is silently worsening;
+        # if it hits 0 the paths converged — either way surface it.
+        assert 0 < exit_drift <= 30, (
+            f"seed={seed}: exit drift {exit_drift}/{len(comparisons)} outside known "
+            f"band (1..30); if >30 the exit-path divergence is worsening and must be "
+            f"investigated, if 0 the exit paths converged (update this guard)."
+        )
+
+    def test_entry_parity_guard_is_not_vacuous(self):
+        """Sanity: the entry-parity guard is not vacuous — at least one entry
+        fires on this data, so the equality assertion can detect drift."""
+        strategy = TrendFollowingStrategy()
+        df = _make_ohlcv(160, seed=42)
+        comparisons = self._parity_per_bar(strategy, df)
+        assert any(c[0] or c[1] for c in comparisons), (
+            "entry parity guard is vacuous — no entry ever fires on this data"
+        )
