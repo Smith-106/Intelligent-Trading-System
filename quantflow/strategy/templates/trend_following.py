@@ -273,14 +273,16 @@ class TrendFollowingStrategy(StrategyBase):
         long_count = (
             trend_up.astype(int) + rsi_ok_long.astype(int) + vol_ok.astype(int) + atr_ok.astype(int)
         )
-        short_count = (
-            trend_down.astype(int)
-            + rsi_ok_short.astype(int)
-            + vol_ok.astype(int)
-            + atr_ok.astype(int)
-        )
+        # Exit mirror of _latest_signal: exits do NOT require volume confirmation
+        # (entry does). Exit count excludes vol_ok and uses a relaxed threshold
+        # (min_conditions - 1) so exits fire on the same bar in both the
+        # vectorized (generate_signals) and incremental (on_bar/_latest_signal)
+        # paths — ISS-20260613-006 parity. Previously exits used short_count
+        # (with vol_ok, threshold min_conditions), which systematically diverged
+        # from _latest_signal (no vol_ok, threshold min_conditions-1).
+        exit_count = trend_down.astype(int) + rsi_ok_short.astype(int) + atr_ok.astype(int)
         entries = long_count >= self._min_conditions
-        exits = short_count >= self._min_conditions
+        exits = exit_count >= max(self._min_conditions - 1, 2)
 
         # Profit target exit (LONG direction only — trend_following entries are LONG)
         effective_pct = self._profit_take_pct

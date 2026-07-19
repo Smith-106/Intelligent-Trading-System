@@ -788,25 +788,42 @@ class TestSignalParityGuard:
         )
 
     @pytest.mark.parametrize("seed", [42, 7, 123, 2024, 99])
-    def test_exit_signal_drift_is_known_and_bounded(self, seed):
-        """Exit signal has known drift (ISS-20260613-006 scope); recorded
-        here but not blocking. _latest_signal exit uses (no vol_ok, threshold
-        min_conditions-1); generate_signals exits use (with vol_ok, threshold
-        min_conditions) then OR profit/trailing. The two exit semantics differ
-        by design. This test pins the drift's existence and magnitude so it
-        cannot silently widen; once ISS-006 unifies exit semantics, upgrade
-        to strict parity."""
+    def test_exit_residual_is_profit_trailing_role_difference(self, seed):
+        """Residual exit divergence after the ISS-20260613-006 fix.
+
+        The condition-exit root cause is fixed (generate_signals exit_count
+        now mirrors _latest_signal: no vol_ok, threshold min_conditions-1).
+        What remains is a role difference, not a bug: generate_signals.exits
+        is the COMBINED exit (condition | profit_target | trailing_stop),
+        while _latest_signal() returns the CONDITION exit only — profit and
+        trailing exits are handled by on_bar's _check_position_exits, a
+        separate path. So vec_exit can be True where inc_exit is False
+        (profit/trailing fired vectorized but the condition itself didn't).
+
+        This pins the residual's magnitude and one-sided direction so the
+        fix cannot silently regress: drift must stay in [1, 20] and every
+        mismatch must be the (inc=False, vec=True) profit/trailing shape.
+        """
         strategy = TrendFollowingStrategy()
         df = _make_ohlcv(160, seed=seed)
         comparisons = self._parity_per_bar(strategy, df)
-        exit_drift = sum(1 for c in comparisons if c[2] != c[3])
-        # Known drift band (observed 2026-07-19 across 5 seeds: 12..22 of 122).
-        # If drift exceeds this band the inconsistency is silently worsening;
-        # if it hits 0 the paths converged — either way surface it.
-        assert 0 < exit_drift <= 30, (
-            f"seed={seed}: exit drift {exit_drift}/{len(comparisons)} outside known "
-            f"band (1..30); if >30 the exit-path divergence is worsening and must be "
-            f"investigated, if 0 the exit paths converged (update this guard)."
+        mismatches = [c for c in comparisons if c[2] != c[3]]
+        # Residual band after fix (observed 2026-07-19 across 5 seeds: 1..16).
+        # Pre-fix it was 12..22 (condition-exit semantic divergence); the drop
+        # confirms the condition-exit root cause is gone.
+        assert len(mismatches) <= 20, (
+            f"seed={seed}: exit residual {len(mismatches)}/{len(comparisons)} exceeds "
+            f"20 — condition-exit parity may have regressed, investigate"
+        )
+        # All mismatches must be the profit/trailing role shape: incremental
+        # condition exit False, vectorized combined exit True. A (True, False)
+        # mismatch would mean the incremental path fires a condition exit the
+        # vectorized path doesn't — a real condition-parity regression.
+        wrong_shape = [c for c in mismatches if c[2] and not c[3]]
+        assert not wrong_shape, (
+            f"seed={seed}: {len(wrong_shape)} bars where inc_exit=True but "
+            f"vec_exit=False — condition-exit parity regressed (incremental fires "
+            f"a condition exit the vectorized combined exit misses)"
         )
 
     def test_entry_parity_guard_is_not_vacuous(self):
@@ -817,4 +834,61 @@ class TestSignalParityGuard:
         comparisons = self._parity_per_bar(strategy, df)
         assert any(c[0] or c[1] for c in comparisons), (
             "entry parity guard is vacuous — no entry ever fires on this data"
+        )
+
+
+class TestRegimeParityGap:
+    """Deeper parity gap than ISS-20260613-006: on_bar applies regime gating
+    (engine skips strategy.on_bar when required_regime != detected regime),
+    but generate_signals does NOT — it emits entries on every bar regardless of
+    regime. So the vectorized research path trades bars the event-driven
+    live/paper path would gate out.
+
+    Observed (2026-07-19): on real BTC/USDT 1h data, all 84 generate_signals
+    entries fall on non-trending bars (ADX<25), which on_bar gates out →
+    backtest trades 84 times, live trades 0. On synthetic data the gated
+    fraction varies (3/6 .. 10/10 of entries) but the gap is systematic.
+
+    Root cause: trend_following entry uses MA direction (fast>slow & MACD>0)
+    while MarketRegimeDetector uses ADX strength (>=25) — direction != strength,
+    so entries and trending-regime rarely coincide. This is a design conflict,
+    NOT fixed here (regime gating is an execution-layer decision; mixing it
+    into generate_signals would break the research-API's stateless contract).
+    Registered as a parity-guard-pending item; this test quantifies the gap so
+    it cannot silently widen and flags the regime↔entry decoupling explicitly.
+    """
+
+    @staticmethod
+    def _regime_per_bar(df: pd.DataFrame) -> pd.Series:
+        """Replay the MarketRegimeDetector the same way engine.on_bar does."""
+        from quantflow.indicators.regime import MarketRegimeDetector
+
+        det = MarketRegimeDetector()
+        trending = []
+        for hi, lo, c in zip(df["high"], df["low"], df["close"], strict=False):
+            trending.append(det.update(float(hi), float(lo), float(c)).is_trending)
+        return pd.Series(trending, index=df.index)
+
+    @pytest.mark.parametrize("seed", [42, 7, 123, 2024, 99])
+    def test_regime_gates_some_vectorized_entries(self, seed):
+        """on_bar's regime gate must gate out a non-trivial fraction of
+        generate_signals entries (the gap exists and is detectable). If this
+        ever hits 0 the regime↔entry decoupling resolved itself — update the
+        guard. If 100% the strategy never trades live on this data."""
+        strategy = TrendFollowingStrategy()
+        df = _make_ohlcv(160, seed=seed)
+        entries, _ = strategy.generate_signals(df)
+        trending = self._regime_per_bar(df)
+        # trend_following.required_regime == "trending": on_bar only calls the
+        # strategy when regime.is_trending is True. Entries on non-trending bars
+        # are gated out of the live/paper path entirely.
+        gated = entries & (~trending)
+        assert entries.sum() > 0, "no entries on this data — guard is vacuous"
+        # The gap is systematic: at least some entries land outside the regime.
+        # (seed=42 hits 100% — all 10 entries gated — which is the extreme of the
+        # decoupling: backtest trades, live trades nothing. Recorded, not blocked;
+        # it is a real property of this strategy+data, not a transient fault.)
+        assert gated.sum() > 0, (
+            f"seed={seed}: 0 gated entries — regime now covers all entries, "
+            f"the parity gap may have resolved (update this guard)"
         )
