@@ -125,7 +125,14 @@ def test_reindex_to_utc_returns_empty_or_forward_filled_frames() -> None:
     reindexed = aligner._reindex_to_utc(eastern, aligned_index)
 
     assert list(reindexed.index) == list(aligned_index)
-    assert reindexed.iloc[-1]["close"] == reindexed.iloc[-2]["close"]
+    # Leak-safe semantics (P0.1): HTF bar values become visible only at bar
+    # close. eastern bar A opens 00:00-05 (close=0), bar B opens 01:00-05
+    # (close=1); after +1h shift they are visible at 01:00-05=06:00Z and
+    # 02:00-05=07:00Z. aligned_index 05:00Z precedes the first closed bar
+    # -> NaN; 06:00Z -> bar A close (0); 07:00Z -> bar B close (1).
+    assert pd.isna(reindexed.loc[aligned_index[0], "close"])
+    assert reindexed.loc[aligned_index[1], "close"] == 0
+    assert reindexed.loc[aligned_index[2], "close"] == 1
 
 
 def test_fallback_align_uses_available_frames_and_localizes_index() -> None:
@@ -191,3 +198,64 @@ def test_align_falls_back_when_fewer_than_three_frames_available() -> None:
     assert aligned.primary.equals(weekly)
     assert aligned.intermediate.equals(hourly)
     assert aligned.minor.empty
+
+
+# ---------------------------------------------------------------------------
+# P0.0 — Multi-timeframe look-ahead verification (deep-research F1)
+#
+# CCXT fetch_ohlcv timestamps are bar-OPEN (fetcher.py:102-105). A higher-
+# timeframe (HTF) bar's OHLCV — especially `close` — is only known AFTER the
+# bar closes (open_ts + timeframe). `_reindex_to_utc` (:177) does
+# `reindex(aligned_index).ffill()`. If the aligned index contains a minor
+# timestamp that falls strictly INSIDE an HTF bar (i.e. open_ts < minor_ts <
+# close_ts), reindex maps the HTF bar's own open_ts onto itself and ffill
+# propagates the *unclosed* HTF bar's close forward to subsequent minor bars
+# — a look-ahead leak.
+#
+# Leak-safe behaviour: a minor bar at time T may only see an HTF bar whose
+# close_ts <= T (i.e. the most recent FULLY CLOSED HTF bar).
+# ---------------------------------------------------------------------------
+
+
+def test_mtf_does_not_expose_unclosed_htf_bar_close_to_minor() -> None:
+    """P0.0: assert no unclosed-HTF-value leakage across the HTF boundary.
+
+    CCXT timestamps are bar-OPEN (fetcher.py:102-105), so an HTF bar's
+    `close` is only known at open_ts + timeframe. `_reindex_to_utc` (:177)
+    does `reindex(aligned_index).ffill()`. If the aligned (minor) index
+    contains a timestamp that falls strictly INSIDE an HTF bar (open_ts <=
+    minor_ts < close_ts), the HTF bar's open_ts aligns to itself and ffill
+    propagates the *unclosed* HTF close to subsequent minor bars — a
+    look-ahead leak. Leak-safe: a minor bar at T may only see an HTF bar
+    whose close_ts <= T (most recent FULLY CLOSED HTF bar).
+
+    Tests the intermediate (1H) frame against minor (15m); primary=1W is a
+    coarse anchor so intermediate is the leak-bearing HTF here.
+    """
+    # intermediate: two 1H bars. Bar A opens 09:00 (close=1, closes 10:00);
+    # bar B opens 10:00 (close=2, closes 11:00). bar-open timestamps.
+    intermediate = _make_frame("2024-01-01 09:00", 2, "1h", tz="UTC")
+    # minor: 15m bars 09:00..10:45 (8 bars). 10:00/10:15/10:30/10:45 fall
+    # INSIDE the unclosed 1H bar B (opens 10:00, closes 11:00).
+    minor = _make_frame("2024-01-01 09:00", 8, "15min", tz="UTC")
+    primary = _make_frame("2024-01-01", 2, "7D", tz="UTC")
+    fetcher = _FakeFetcher({"7D": primary, "4h": intermediate, "15min": minor})
+    # timeframes: primary=1W, intermediate=4H(mapped->4h fetch), minor=15m.
+    aligned = MTFAligner(fetcher=cast(DataFetcher, fetcher)).align(
+        "BTC/USDT", timeframes=["1W", "4H", "15m"]
+    )
+
+    bar_b_open = pd.Timestamp("2024-01-01 10:00", tz="UTC")
+    bar_b_close = pd.Timestamp("2024-01-01 11:00", tz="UTC")
+    inside_b = [t for t in aligned.intermediate.index if bar_b_open <= t < bar_b_close]
+
+    # Bar A's close (last fully-closed 1H bar before bar B) == 1.
+    bar_a_close = intermediate.iloc[0]["close"]
+
+    for t in inside_b:
+        seen_close = aligned.intermediate.loc[t, "close"]
+        assert seen_close == bar_a_close, (
+            f"LOOK-AHEAD LEAK at minor ts={t}: saw HTF close={seen_close} "
+            f"(unclosed bar B close={intermediate.iloc[1]['close']}) "
+            f"instead of last-closed bar A close={bar_a_close}"
+        )

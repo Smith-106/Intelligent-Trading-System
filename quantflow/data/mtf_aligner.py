@@ -29,6 +29,30 @@ TIMEFRAME_MAP = {
 DEFAULT_TIMEFRAMES = ["1W", "4H", "1H", "15m"]
 
 
+def _infer_period(index: pd.DatetimeIndex) -> pd.Timedelta | None:
+    """Infer the bar period of a timeframe index.
+
+    Used to shift HTF bars so their values become visible only at bar close
+    (leak-safe MTF alignment). Prefers the index's declared ``freq``, falls
+    back to inference, then to the median of consecutive diffs. Returns None
+    only for degenerate (<2 bar) indexes — caller skips the shift in that case.
+    """
+    if len(index) < 2:
+        return None
+    if index.freq is not None:
+        return pd.tseries.frequencies.to_offset(index.freq)
+    inferred = pd.infer_freq(index)
+    if inferred is not None:
+        try:
+            return pd.tseries.frequencies.to_offset(inferred)
+        except ValueError:
+            pass
+    diffs = index.to_series().diff().dropna()
+    if diffs.empty:
+        return None
+    return diffs.median()
+
+
 @dataclass
 class MTFData:
     """Multi-timeframe aligned data."""
@@ -163,8 +187,17 @@ class MTFAligner:
     ) -> pd.DataFrame:
         """Reindex a DataFrame to the aligned UTC time index.
 
-        Forward-fill ensures no future data leakage: higher-timeframe
-        data is only available after its bar closes.
+        Leak-safe forward-fill: higher-timeframe (HTF) OHLCV is only knowable
+        once the HTF bar CLOSES (open_ts + timeframe). CCXT timestamps are
+        bar-open (fetcher.py), so a naive ``reindex(aligned_index).ffill()``
+        would align an HTF bar's own open_ts onto a minor timestamp that falls
+        *inside* the still-unclosed HTF bar, exposing its close early — a
+        multi-timeframe look-ahead leak (deep-research F1 / P0.1).
+
+        Fix: shift the HTF index forward by one HTF period before reindex, so
+        each HTF bar's values become visible only at the next bar's open
+        (== current bar's close). Minor timestamps before the first closed HTF
+        bar correctly yield NaN (no closed bar available yet).
         """
         if df.empty or aligned_index.empty:
             return df
@@ -174,6 +207,10 @@ class MTFAligner:
         elif df.index.tz != aligned_index.tz:
             df = df.tz_convert(aligned_index.tz)
 
+        period = _infer_period(df.index)
+        if period is not None:
+            df = df.copy()
+            df.index = df.index + period  # bar-open -> bar-close visibility
         return df.reindex(aligned_index).ffill()
 
     def _fallback_align(
