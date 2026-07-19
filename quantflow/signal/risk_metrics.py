@@ -61,6 +61,59 @@ def conditional_var(returns: pd.Series | np.ndarray, confidence: float = 0.95) -
     return float(cvar)
 
 
+def bootstrap_cvar(
+    returns: pd.Series | np.ndarray,
+    confidence: float = 0.95,
+    n_bootstrap: int = 1000,
+    ci: float = 0.95,
+    seed: int = 0,
+) -> dict[str, float]:
+    """Bootstrap confidence interval for the historical CVaR point estimate.
+
+    DIAGNOSTIC ONLY (deep-research F4 / P1). This does NOT replace the
+    historical CVaR gate in risk_engine._check_var — that gate stays on the
+    point estimate. Instead it quantifies the *uncertainty* of that point
+    estimate by resampling returns with replacement and recomputing CVaR each
+    time. A wide interval that straddles ``cvar_limit`` signals the gate's
+    verdict is sample-fragile and the operator should collect more data before
+    trusting it; a narrow interval on the safe side means the gate is sound.
+
+    Returns a dict with the point estimate and the lower/upper bounds of the
+    CVaR confidence interval. Values follow ``conditional_var``'s convention:
+    a positive loss MAGNITUDE (e.g. 0.05 = 5% expected tail loss). ``ci_low``
+    is the milder (smaller) bound, ``ci_high`` the more severe (larger).
+
+    Anti-pattern avoided (per claude delegate): a Monte-Carlo / parametric
+    CVaR replacing the historical main gate. Parametric CVaR violates the
+    fat-tail spec (understates tail mass); bootstrap CVaR is asymptotically
+    the historical CVaR and adds only a CI, not a competing gate.
+    """
+    r = np.asarray(returns, dtype=float)
+    r = r[~np.isnan(r)]
+    if len(r) < 10:
+        return {"point": 0.0, "ci_low": 0.0, "ci_high": 0.0, "n": 0, "n_bootstrap": 0}
+
+    point = conditional_var(r, confidence)
+    rng = np.random.default_rng(seed)
+    n = len(r)
+    samples = np.empty(n_bootstrap, dtype=float)
+    for i in range(n_bootstrap):
+        idx = rng.integers(0, n, size=n)
+        resample = r[idx]
+        var = np.percentile(resample, (1 - confidence) * 100)
+        samples[i] = -np.mean(resample[resample <= var])
+    alpha = (1 - ci) / 2
+    ci_low = float(np.percentile(samples, alpha * 100))
+    ci_high = float(np.percentile(samples, (1 - alpha) * 100))
+    return {
+        "point": point,
+        "ci_low": ci_low,
+        "ci_high": ci_high,
+        "n": n,
+        "n_bootstrap": n_bootstrap,
+    }
+
+
 def max_drawdown(equity_curve: pd.Series | np.ndarray) -> float:
     """Calculate maximum drawdown from an equity curve.
 
