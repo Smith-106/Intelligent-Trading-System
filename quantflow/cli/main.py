@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 
     from quantflow.strategy.base import StrategyBase
     from quantflow.strategy.validation.lookahead import LookaheadReport
+    from quantflow.strategy.validation.monte_carlo import MonteCarloResult
 
 StrategyFactory: TypeAlias = Callable[[dict[str, Any] | None], "StrategyBase"]
 ParamSpace: TypeAlias = dict[str, tuple[Any, ...]]
@@ -290,7 +291,9 @@ def optimize(
 def validate(
     strategy: str = typer.Option("trend_following", help="Strategy name"),
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
-    method: str = typer.Option("full", help="Validation: cpcv | dsr | pbo | wfo | full | gate | lookahead"),
+    method: str = typer.Option(
+        "full", help="Validation: cpcv | dsr | pbo | wfo | full | gate | lookahead | stress"
+    ),
     groups: int = typer.Option(8, help="CPCV groups"),
     test_groups: int = typer.Option(2, help="CPCV test groups"),
     n_trials: int = typer.Option(100, help="Number of trials for DSR"),
@@ -310,11 +313,13 @@ def validate(
         full       — All validation methods
         gate       — GO/NO-GO decision gate (CPCV + DSR + WFO)
         lookahead  — Static look-ahead leak scan (no data needed)
+        stress     — Monte Carlo path-level stress (diagnostic, non-gate)
 
     Examples:
         quantflow validate --strategy trend_following --method gate
         quantflow validate --method cpcv --groups 10 --test-groups 3
         quantflow validate --method lookahead --strategy trend_following
+        quantflow validate --method stress --strategy trend_following
     """
     from quantflow.data.store import DataStore
 
@@ -340,9 +345,7 @@ def validate(
     if method == "lookahead":
         from quantflow.strategy.validation.lookahead import scan_strategy
 
-        console.print(
-            "[bold blue]Running static look-ahead leak scan on generate_signals...[/]"
-        )
+        console.print("[bold blue]Running static look-ahead leak scan on generate_signals...[/]")
         report = scan_strategy(strategy_instance)
         _display_lookahead(report)
         store.close()
@@ -354,6 +357,44 @@ def validate(
     def _signal_fn(frame: pd.DataFrame, **params: Any) -> tuple[pd.Series, pd.Series]:
         s = strategy_factory(params)
         return s.generate_signals(frame)
+
+    if method == "stress":
+        from quantflow.strategy.research.backtest import BacktestEngine
+        from quantflow.strategy.validation.monte_carlo import monte_carlo_stress
+
+        console.print("[bold blue]Running Monte Carlo path-level stress test...[/]")
+        bt = BacktestEngine().run_backtest(
+            close,
+            entries,
+            exits,
+            initial_capital=capital,
+            fee=cfg.execution.taker_fee,
+            strategy_id=strategy,
+            symbol=symbol,
+        )
+        trade_returns = bt.trade_returns
+        bar_returns = (
+            bt.equity_curve.pct_change()
+            .replace([float("inf"), float("-inf")], float("nan"))
+            .fillna(0.0)
+            .to_numpy(dtype=float)
+        )
+        results = monte_carlo_stress(
+            trade_returns=trade_returns if len(trade_returns) >= 2 else None,
+            bar_returns=bar_returns if len(bar_returns) >= 2 else None,
+            n_paths=1000,
+            initial_capital=capital,
+            seed=0,
+        )
+        if not results:
+            console.print(
+                f"[yellow]Insufficient trade/return history for MC stress "
+                f"(trades={len(trade_returns)}, bars={len(bar_returns)}).[/]"
+            )
+        for res in results:
+            _display_monte_carlo(res)
+        store.close()
+        return
 
     if method == "cpcv":
         from quantflow.strategy.validation.cpcv import cpcv_backtest
@@ -619,9 +660,7 @@ def _display_lookahead(report: LookaheadReport) -> None:
     verdict = "PASS" if report.passed else "FAIL"
     color = "green" if report.passed else "red"
     console.print(f"\n[bold {color}]LOOK-AHEAD SCAN: {report.strategy} — {verdict}[/]")
-    console.print(
-        f"Scanned: {', '.join(report.scanned_methods) or '(no generate_signals found)'}"
-    )
+    console.print(f"Scanned: {', '.join(report.scanned_methods) or '(no generate_signals found)'}")
     if report.source_path:
         console.print(f"Source: {report.source_path}")
     if report.passed:
@@ -644,6 +683,39 @@ def _display_lookahead(report: LookaheadReport) -> None:
     )
     console.print()
 
+
+def _display_monte_carlo(res: MonteCarloResult) -> None:
+    """Render a Monte Carlo path-level stress result (diagnostic, non-gate)."""
+    console.print(f"\n[bold cyan]MC STRESS — {res.method} (n_paths={res.n_paths})[/]")
+    console.print("[yellow]Diagnostic only — does not alter the GO/NO-GO gate.[/]")
+    table = Table(title=f"Path band ({res.method})")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Observed", justify="right")
+    table.add_column("P5 (worst)", justify="right", style="red")
+    table.add_column("P50 (median)", justify="right")
+    table.add_column("P95 (best)", justify="right", style="green")
+    table.add_row(
+        "Max drawdown",
+        f"{res.observed_max_drawdown:.4f}",
+        f"{res.p5_max_drawdown:.4f}",
+        f"{res.p50_max_drawdown:.4f}",
+        "—",
+    )
+    table.add_row(
+        "Terminal return",
+        f"{res.observed_terminal_return:.4f}",
+        f"{res.p5_terminal_return:.4f}",
+        "—",
+        f"{res.p95_terminal_return:.4f}",
+    )
+    console.print(table)
+    flag = (
+        "[red]observed path was unusually lucky (>50% of resampled paths drew down worse)[/]"
+        if res.prob_worse_drawdown > 0.5
+        else "[green]observed drawdown is within the resampled band[/]"
+    )
+    console.print(f"P(path worse than observed dd) = {res.prob_worse_drawdown:.3f} — {flag}")
+    console.print()
 
 
 _SIGNAL_QUALITY_ROWS = (

@@ -38,6 +38,10 @@ class BacktestResult:
     num_trades: int
     equity_curve: pd.Series = field(default_factory=pd.Series)
     drawdown_curve: pd.Series = field(default_factory=pd.Series)
+    # Per-closed-trade realized returns (fractions), in chronological order.
+    # Empty list when no trades closed. Used by the Monte Carlo path-level
+    # stress test (validation/monte_carlo.py) to permute trade ordering.
+    trade_returns: list[float] = field(default_factory=list)
 
     def summary(self) -> str:
         return (
@@ -227,6 +231,7 @@ class BacktestEngine:
             num_trades=num_trades,
             equity_curve=equity_series,
             drawdown_curve=dd,
+            trade_returns=trade_pnls,
         )
 
     def parameter_sweep(
