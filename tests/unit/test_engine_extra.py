@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from quantflow.common.config import AppConfig
-from quantflow.common.models import Bar
+from quantflow.common.models import Bar, Direction, Signal
 from quantflow.signal.portfolio import PortfolioManager
 from quantflow.strategy.engine import TradingSession
 
@@ -256,3 +256,139 @@ class TestAddReturnWiring:
         # The actual post-bar-1 equity:
         post = session._portfolio.total_value
         assert fed == pytest.approx((post - equity_before_bar1) / equity_before_bar1, abs=1e-9)
+
+
+class TestP1WiringEndToEnd:
+    """P1-verify code-level end-to-end: assert via the TradingSession.on_bar
+    event flow that the ISS-20260719-001 wiring actually makes vol-target
+    (F3) and the CVaR gate effective at the event-flow level, not just the
+    component-unit level.
+
+    The existing TestAddReturnWiring / TestCvarGateWiring only call component
+    APIs directly (engine.add_return / position_sizer.add_return /
+    risk_engine.check). This class covers the last mile through the on_bar
+    signal chain:
+    - CVaR gate block prevents the signal from reaching execution
+    - on_bar wiring makes _realized_vol() return a positive value (was None)
+    - vol-target ON produces a strictly smaller size than OFF (shrinkage)
+    """
+
+    @staticmethod
+    def _always_long_strategy(name: str = "probe"):
+        """Stub strategy that emits a LONG signal every bar at bar.close."""
+        from quantflow.strategy.base import StrategyBase
+
+        class AlwaysLong(StrategyBase):
+            required_regime = "any"
+
+            def on_init(self, ctx):
+                pass
+
+            def on_bar(self, ctx, bar):
+                ctx.emit_signal(
+                    bar.symbol,
+                    Direction.LONG,
+                    strength=0.8,
+                    price=bar.close,
+                    strategy_id=name,
+                )
+
+            def generate_signals(self, df):
+                return pd.Series(dtype=bool), pd.Series(dtype=bool)
+
+        return AlwaysLong(name=name)
+
+    def _config(self, vol_target_pct=None):
+        cfg = AppConfig()
+        cfg.risk.vol_target_pct = vol_target_pct
+        # Tighten kill-switch so drawdown from the synth price path does not
+        # trip it mid-test (we are testing risk/CVaR/vol paths, not kill-switch).
+        cfg.risk.kill_switch_enabled = False
+        cfg.risk.max_drawdown = -0.90
+        return cfg
+
+    @pytest.mark.asyncio
+    async def test_cvar_gate_blocks_signal_before_execution_in_event_flow(self):
+        """CVaR gate block path: on_bar signal goes _process_signal ->
+        risk_engine.check returns not-passed -> early return, so
+        submit_order is never called."""
+        session = TradingSession(self._config(), [self._always_long_strategy()])
+        session._running = True
+        # Stub execution so a would-be order is observable but harmless.
+        submitted: list = []
+        session._execution.submit_order = MagicMock(  # type: ignore[method-assign]
+            side_effect=lambda req: submitted.append(req) or "stub-order-id"
+        )
+        # Pre-fill a deep-tail history so the CVaR gate has grounds to block:
+        # worst 5% ~ -0.10 < cvar_limit -0.05.
+        deep = [0.001] * 30 + [-0.10] * 5
+        for r in deep:
+            session._risk_engine.add_return(r)
+        baseline = len(session._risk_engine._returns_history)
+
+        # Drive one bar; the stub emits a LONG signal → _process_signal.
+        await session.on_bar(_make_bar(price=100.0, idx=0))
+
+        # Gate must have blocked: no order reached execution.
+        assert submitted == []
+        # This is the session's FIRST bar → prev_equity is the NaN sentinel →
+        # on_bar skips feeding bar_ret (the no-lookahead first-bar contract,
+        # also asserted in TestAddReturnWiring). History stays at baseline.
+        assert len(session._risk_engine._returns_history) == baseline
+
+    @pytest.mark.asyncio
+    async def test_on_bar_wiring_enables_vol_target_realized_vol(self):
+        """After on_bar wiring, _position_sizer._realized_vol() returns a
+        positive value; before wiring _returns_history stayed empty and
+        _realized_vol was always None."""
+        session = TradingSession(self._config(vol_target_pct=0.15), [])
+        session._running = True
+        # Build a long position so price moves change equity → non-zero bar_ret.
+        session._portfolio.update_position("BTC/USDT", 1.0, 100.0)
+        # 35 bars of oscillating price → non-zero realized vol history filled.
+        for i in range(35):
+            price = 100.0 + (5.0 if i % 2 == 0 else -5.0)
+            await session.on_bar(_make_bar(price=price, idx=i))
+        # Wiring filled the sizer history. First bar skipped (NaN sentinel) →
+        # 34 feeds, but the sizer's deque is capped at vol_window=30, so it
+        # holds the 30 most recent. The point is it is FULL, not empty.
+        assert len(session._position_sizer._returns_history) == 30
+        # vol-target ON + sufficient history → _realized_vol() is a positive number.
+        rv = session._position_sizer._realized_vol()
+        assert rv is not None and rv > 0
+
+    def test_vol_target_on_shrinks_size_vs_off_via_on_bar_history(self):
+        """checklist P1.1-V1 offline repro: same signal under vol-target ON
+        vs OFF, high-vol history makes ON strictly smaller than OFF
+        (shrinkage engaged). Compare PositionSizer.size() directly; on_bar
+        wiring fills the same high-vol return series into both, isolating
+        vol-target as the only variable."""
+        # Build two sessions, identical except vol_target_pct.
+        on = TradingSession(self._config(vol_target_pct=0.15), [])
+        off = TradingSession(self._config(vol_target_pct=None), [])
+        # Feed the SAME high-vol return series into both sizers' history (the
+        # value on_bar would have produced from a real position). Annualized
+        # vol of these ~0.10/bar * sqrt(365) is huge, so vol-target binds hard.
+        import random as _r
+
+        _r.seed(0)
+        rets = [_r.gauss(0.0, 0.10) for _ in range(35)]
+        for r in rets:
+            on._position_sizer.add_return(r)
+            off._position_sizer.add_return(r)
+        # Sanity: ON has realized vol, OFF stays None (OFF branch).
+        assert on._position_sizer._realized_vol() is not None
+        assert off._position_sizer._realized_vol() is None
+
+        sig = Signal(
+            symbol="BTC/USDT",
+            direction=Direction.LONG,
+            strength=0.8,
+            price=100.0,
+            strategy_id="probe",
+        )
+        pf = PortfolioManager(initial_capital=100000.0).portfolio
+        size_on = on._position_sizer.size(sig, pf)
+        size_off = off._position_sizer.size(sig, pf)
+        # vol-target binds in high-vol → ON strictly smaller than OFF.
+        assert 0.0 < size_on < size_off

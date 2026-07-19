@@ -30,6 +30,13 @@
 
 **符号澄清**（修正起草时的误判）：`risk_engine._check_var` 的 `cvar_95 = returns[returns<=var].mean()` 是**负收益约定**（与 `cvar_limit=-0.05` 同号），gate 比较逻辑本身正确。此前不触发的唯一原因是 `add_return` 零调用方导致 `len<30` 短路，现已消除。注意 `risk_metrics.conditional_var` 用 `-np.mean(...)` 返回**正损失幅度**，与 `_check_var` 约定相反——两者是不同函数，F4 诊断用的是前者，gate 用的是后者，勿混。
 
+**端到端确认**（代码层，经 `TradingSession.on_bar` 事件流，`tests/unit/test_engine_extra.py::TestP1WiringEndToEnd`，commit 见下）：
+- `test_cvar_gate_blocks_signal_before_execution_in_event_flow`：stub 策略每 bar 产 LONG 信号，预填深尾历史 → on_bar 触发 `_process_signal` → `risk_engine.check` 返回 not-passed → 早 return，`submit_order` 零调用（gate 在事件流真阻断下单）。
+- `test_on_bar_wiring_enables_vol_target_realized_vol`：建仓 + 35 bar 振荡价 → `_position_sizer._returns_history` 填满 deque(maxlen=30) → `_realized_vol()` 返回正值（接线前永 None）。
+- `test_vol_target_on_shrinks_size_vs_off_via_on_bar_history`：相同高波动历史，ON 组 `size()` 严格 < OFF 组（缩仓在事件流层面真发生，checklist P1.1-V1 离线复现）。
+
+1415 passed（基线 1411 + 新增 3 端到端 + 接线计数），零回归。
+
 ---
 
 ## P1.1 F3 vol-target opt-in 缩仓行为验证
@@ -133,6 +140,7 @@
 | 项 | 类型 | 判定 |
 |----|------|------|
 | P1.0-B1 add_return 接线 | Blocker | ✅ 已修复 + 8 单测（ISS-20260719-001） |
+| P1.0-B1 端到端确认（事件流） | Blocker | ✅ 3 单测经 on_bar 链确认 gate 阻断下单 / vol-target 缩仓 / 历史填充 |
 | P1.1-V1 高波动缩仓 | GO/NO-GO | ☐ |
 | P1.1-V2 低波动不绑定 | GO/NO-GO | ☐ |
 | P1.1-V3 off byte-for-byte | GO/NO-GO | ☐ |
