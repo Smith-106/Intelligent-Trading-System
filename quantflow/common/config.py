@@ -66,6 +66,19 @@ class RiskConfig(BaseModel):
     # in default.yaml; previously hardcoded as 0.95 in risk_engine, so the YAML
     # value was silently dropped.
     var_confidence: float = 0.95
+    # Volatility-targeting cap (opt-in, default None = OFF). When set, position
+    # size is additionally bounded by min(half-Kelly, vol-target, single-name
+    # cap). vol_target_pct is the target annualized volatility fraction (e.g.
+    # 0.15 = 15% annual); position notional is scaled so the strategy's
+    # contribution to portfolio volatility does not exceed this target.
+    # Default OFF preserves the byte-for-byte backtest baseline (deep-research
+    # F3 / P1); enable explicitly via risk.vol_target_pct in YAML.
+    vol_target_pct: float | None = None
+    # Annualization factor for volatility (crypto trades 24/7/365).
+    vol_annualization: int = 365
+    # Rolling window (in bars) for realized-volatility estimation when
+    # vol-targeting is enabled.
+    vol_window: int = 30
 
 
 class ExecutionConfig(BaseModel):

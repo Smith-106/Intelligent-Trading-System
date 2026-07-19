@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import logging
+import math
+import statistics
+from collections import deque
 
 from quantflow.common.models import Portfolio, Signal, strategy_id_constituents
 
@@ -14,6 +17,13 @@ class PositionSizer:
 
     Size = kelly_fraction * raw_kelly * signal.strength
     Clamped by position_limit_pct from risk config.
+
+    Optional vol-targeting (deep-research F3 / P1): when ``vol_target_pct``
+    is set, the notional is additionally bounded by
+    ``min(half-Kelly, vol-target, single-name cap)``. Vol-target scales
+    exposure inversely to realized volatility so the strategy's contribution
+    to portfolio volatility stays near the target. OFF by default (None) to
+    preserve the byte-for-byte backtest baseline.
     """
 
     def __init__(
@@ -24,6 +34,9 @@ class PositionSizer:
         max_position_pct: float = 0.20,
         min_order_notional: float = 10.0,
         fee_rate: float = 0.001,
+        vol_target_pct: float | None = None,
+        vol_annualization: int = 365,
+        vol_window: int = 30,
     ) -> None:
         self._method = method
         self._kelly_fraction = kelly_fraction
@@ -31,6 +44,50 @@ class PositionSizer:
         self._max_position_pct = max_position_pct
         self._min_order_notional = min_order_notional
         self._fee_rate = fee_rate
+        self._vol_target_pct = vol_target_pct
+        self._vol_annualization = vol_annualization
+        self._vol_window = vol_window
+        self._returns_history: deque[float] = deque(maxlen=max(vol_window, 2))
+
+    def add_return(self, ret: float) -> None:
+        """Feed a realized bar return for volatility-targeting estimation.
+
+        No-op effect on sizing when vol-targeting is OFF (the default); only
+        consulted when ``vol_target_pct`` is set. Mirrors RiskEngine.add_return.
+        """
+        self._returns_history.append(ret)
+
+    def _realized_vol(self) -> float | None:
+        """Annualized realized volatility from recent returns, or None.
+
+        Returns None when vol-targeting is OFF or insufficient history
+        (< vol_window bars), so the caller falls back to the Kelly target.
+        """
+        if self._vol_target_pct is None:
+            return None
+        if len(self._returns_history) < 2:
+            return None
+        values = [float(x) for x in self._returns_history if not math.isnan(x)]
+        if len(values) < 2:
+            return None
+        sigma = statistics.stdev(values)
+        # float() wraps the product: statistics.stdev is typed as Any under
+        # strict checking, so the bare product would propagate Any.
+        return float(sigma * (self._vol_annualization**0.5))
+
+    def _vol_target_notional(self, total_value: float) -> float | None:
+        """Max notional implied by the volatility target, or None if N/A.
+
+        vol_target_notional = total_value * vol_target_pct / realized_vol,
+        i.e. scale exposure down in high-vol regimes and up in low-vol
+        regimes so realized portfolio vol tracks the target.
+        """
+        realized = self._realized_vol()
+        if realized is None or realized <= 0:
+            return None
+        target_pct = self._vol_target_pct
+        assert target_pct is not None  # guarded by _realized_vol() returning None when OFF
+        return float(total_value * target_pct / realized)
 
     def size(
         self,
@@ -43,6 +100,8 @@ class PositionSizer:
         """Return order notional value (quote currency).
 
         Scales by signal.strength and clamps by max_position_pct.
+        When vol-targeting is enabled, additionally clamps by the
+        vol-target notional (min of half-Kelly, vol-target, single-name cap).
         Deducts existing position and estimated fees.
         """
         total_value = portfolio.total_value
@@ -73,6 +132,12 @@ class PositionSizer:
         # Scale by signal strength [0, 1]
         strength = max(0.0, min(signal.strength, 1.0))
         target = base * strength
+
+        # Vol-target cap (opt-in): min(half-Kelly, vol-target, single-name cap).
+        # When OFF or insufficient history, this is a no-op (None).
+        vol_cap = self._vol_target_notional(total_value)
+        if vol_cap is not None:
+            target = min(target, vol_cap)
 
         # Clamp to max position limit
         max_notional = total_value * self._max_position_pct

@@ -69,6 +69,12 @@ class TradingSession:
             # directly. Multiplying by 100 yielded 20.0 = 2000%, making the
             # max-position clamp a no-op and silently ignoring the risk config.
             max_position_pct=config.risk.position_limit_pct,
+            # Volatility-targeting cap (deep-research F3 / P1). Default None
+            # = OFF, preserving the byte-for-byte backtest baseline. Opt-in
+            # via risk.vol_target_pct in YAML.
+            vol_target_pct=config.risk.vol_target_pct,
+            vol_annualization=config.risk.vol_annualization,
+            vol_window=config.risk.vol_window,
         )
         self._portfolio = PortfolioManager(initial_capital=100000.0)
         self._signal_gen = SignalGenerator()
