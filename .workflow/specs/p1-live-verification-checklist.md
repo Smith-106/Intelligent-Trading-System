@@ -161,11 +161,12 @@
 
 回答「能否用历史实盘历史模拟实盘跑 F4/F5」——三步前置工作结论：
 
-### 1. parity 守卫（commit `4c2dbd0`）——P1-verify F3 地基
+### 1. parity 守卫（commit `4c2dbd0` 初版 → `0dbee17` exit 根因修复）——P1-verify F3 地基
 
 逐 bar 比对 trend_following 增量路径 `_latest_signal()` vs 向量化 `generate_signals`，5 seed × 全序列（`TestSignalParityGuard`）：
 - ✅ **ENTRY 信号 0 漂移**（5/5 seed 全绿）——F3 用 paper-on_bar 跑、F5 用 BacktestEngine 跑，两路径入场信号完全一致，F3 缩仓结论可信。
-- ⚠️ **EXIT 信号系统性漂移**（12..22/122 bars/seed）——ISS-20260613-006 具体落点：`_latest_signal` exit 用「无 vol_ok + 阈值 min_conditions-1」，`generate_signals` exits 用「含 vol_ok + 阈值 min_conditions」再 OR profit/trailing。设计性语义不一致，先于 P1 存在，固化为已知区间 (1..30) 不阻塞——避免扰动 P1 byte-for-byte 回归守卫。待 ISS-006 裁决 exit 统一语义后升级为严格 parity。
+- ✅ **EXIT 条件漂移根因已修**（`0dbee17`）：`generate_signals` exit 此前用 `short_count`（含 vol_ok + 阈值 min_conditions），与 `_latest_signal` 的 `exit_count`（无 vol_ok + 阈值 min_conditions-1）不一致，违反 `# exit without vol_ok` 设计意图。已对齐为无 vol_ok + 阈值 min_conditions-1。守卫 `test_exit_residual_is_profit_trailing_role_difference` 确认条件 exit 漂移消除（12..22 → 1..16）。
+- ⚠️ **EXIT 残留 1..16**：单向 `(inc=False, vec=True)` shape = profit/trailing 合并的职责差异（`generate_signals.exits` = condition|profit|trailing，`_latest_signal` = condition-only，profit/trailing 由 on_bar 的 `_check_position_exits` 独立处理），非 bug，守卫固化方向防止条件 parity 回归。
 
 ### 2. F5 输入源确认（commit `4f5e218`）——数据流已通
 
@@ -179,4 +180,4 @@
 
 **信号密度约束**：trend_following `required_regime="trending"`，真实 BTC/USDT 1h parquet（2024-12..2025-06）仅 ~21/676 bar 为 trending → 回放产出的 bar returns 多为 0。非 P1 接线问题，是策略/数据特性。要积累非零 returns 需：trending 数据段 / 非 trending regime 策略 / 调参。
 
-**副发现（更深 parity 缺口）**：on_bar 事件路径应用 regime gating（`required_regime` + `MarketRegimeDetector`），而 `generate_signals` 向量化路径**不应用** regime gating——两路径在 regime 维度本就不 parity。这比 ISS-006 的 exit 漂移更结构性：回测（generate_signals）会交易所有 bar 的信号，实盘（on_bar）只在对应 regime 交易。属既有设计，登记为后续 parity 守卫待补项（regime 维度），不在 P1-verify 范围强修。
+**更深 parity 缺口——regime 维度（`0dbee17` 已登记守卫）**：on_bar 事件路径应用 regime gating（`required_regime` + `MarketRegimeDetector` ADX>=25），而 `generate_signals` 向量化路径**不应用** regime gating——两路径在 regime 维度不 parity。实测真实 BTC/USDT 1h：`generate_signals` 的 **84 个 entries 全部落在非 trending bar** → on_bar 全 gate → 回测交易 84 次、实盘 0 次。根因：trend_following entry 用 MA 方向（fast>slow & MACD>0），regime 用 ADX 强度——direction != strength，两者判定器不一致。属设计冲突非 bug（regime gating 是执行层决策，混入 generate_signals 破坏其无状态研究 API 契约）。`TestRegimeParityGap` 量化缺口并固化，待人裁决 regime↔entry 对齐方向。比 ISS-006 exit 漂移更结构性。
