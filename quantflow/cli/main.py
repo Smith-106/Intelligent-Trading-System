@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from quantflow.strategy.base import StrategyBase
+    from quantflow.strategy.validation.lookahead import LookaheadReport
 
 StrategyFactory: TypeAlias = Callable[[dict[str, Any] | None], "StrategyBase"]
 ParamSpace: TypeAlias = dict[str, tuple[Any, ...]]
@@ -289,7 +290,7 @@ def optimize(
 def validate(
     strategy: str = typer.Option("trend_following", help="Strategy name"),
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
-    method: str = typer.Option("full", help="Validation: cpcv | dsr | pbo | wfo | full | gate"),
+    method: str = typer.Option("full", help="Validation: cpcv | dsr | pbo | wfo | full | gate | lookahead"),
     groups: int = typer.Option(8, help="CPCV groups"),
     test_groups: int = typer.Option(2, help="CPCV test groups"),
     n_trials: int = typer.Option(100, help="Number of trials for DSR"),
@@ -302,16 +303,18 @@ def validate(
     """Run anti-overfitting validation.
 
     Methods:
-        cpcv   — Combinatorial Purged Cross-Validation (PBO < 0.5)
-        dsr    — Deflated Sharpe Ratio (DSR > 0.95)
-        pbo    — Probability of Backtest Overfitting
-        wfo    — Walk-Forward Optimization (OOS efficiency > 50%)
-        full   — All validation methods
-        gate   — GO/NO-GO decision gate (CPCV + DSR + WFO)
+        cpcv       — Combinatorial Purged Cross-Validation (PBO < 0.5)
+        dsr        — Deflated Sharpe Ratio (DSR > 0.95)
+        pbo        — Probability of Backtest Overfitting
+        wfo        — Walk-Forward Optimization (OOS efficiency > 50%)
+        full       — All validation methods
+        gate       — GO/NO-GO decision gate (CPCV + DSR + WFO)
+        lookahead  — Static look-ahead leak scan (no data needed)
 
     Examples:
         quantflow validate --strategy trend_following --method gate
         quantflow validate --method cpcv --groups 10 --test-groups 3
+        quantflow validate --method lookahead --strategy trend_following
     """
     from quantflow.data.store import DataStore
 
@@ -333,6 +336,18 @@ def validate(
 
     strategy_factory, param_space = strategy_spec
     strategy_instance = strategy_factory(None)
+
+    if method == "lookahead":
+        from quantflow.strategy.validation.lookahead import scan_strategy
+
+        console.print(
+            "[bold blue]Running static look-ahead leak scan on generate_signals...[/]"
+        )
+        report = scan_strategy(strategy_instance)
+        _display_lookahead(report)
+        store.close()
+        return
+
     entries, exits = strategy_instance.generate_signals(df)
     close = df["close"]
 
@@ -597,6 +612,38 @@ def _display_gate(result: ResultDict) -> None:
         if check_result.get("signal_quality"):
             console.print(f"    Signal quality: {_signal_quality_summary(check_result)}")
     console.print()
+
+
+def _display_lookahead(report: LookaheadReport) -> None:
+    """Render a static look-ahead scan report for one strategy."""
+    verdict = "PASS" if report.passed else "FAIL"
+    color = "green" if report.passed else "red"
+    console.print(f"\n[bold {color}]LOOK-AHEAD SCAN: {report.strategy} — {verdict}[/]")
+    console.print(
+        f"Scanned: {', '.join(report.scanned_methods) or '(no generate_signals found)'}"
+    )
+    if report.source_path:
+        console.print(f"Source: {report.source_path}")
+    if report.passed:
+        console.print("[green]No masked-aggregation leaks detected.[/]")
+        console.print()
+        return
+    table = Table(title=f"Look-ahead findings ({len(report.findings)})")
+    table.add_column("Sev", style="cyan", no_wrap=True)
+    table.add_column("Line", justify="right", no_wrap=True)
+    table.add_column("Pattern", style="magenta")
+    table.add_column("Snippet")
+    for f in report.findings:
+        sev_color = "bold red" if f.severity == "high" else "yellow"
+        table.add_row(f"[{sev_color}]{f.severity}[/]", str(f.line), f.pattern, f.snippet[:60])
+    console.print(table)
+    console.print(
+        "[yellow]Fix: capture the entry-bar value and forward-fill it for the "
+        "position lifetime (profit_target_exit_series in "
+        "strategy/templates/_runtime.py).[/]"
+    )
+    console.print()
+
 
 
 _SIGNAL_QUALITY_ROWS = (
