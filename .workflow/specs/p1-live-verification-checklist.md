@@ -154,3 +154,29 @@
 **进 P2 条件**：P1.0-B1 已修复且复验 + 全部 GO/NO-GO 项 PASS + 两个「诊断非 gate」契约项 PASS。任一 NO-GO 或契约破裂 → 停在 P1，不得启动 P2。
 
 **验证周期建议**：≥30 个交易 bar（满足 `vol_window` 与 CVaR 的 `len < 30` 阈）+ ≥20 笔已平仓交易（满足 trade-shuffle 统计意义）。crypto 24/7，按 1d bar 约 30 天，按 1h bar 约 30 小时——周期长度由所配 timeframe 决定。
+
+---
+
+## 离线/模拟实盘可执行性（2026-07-19 增补）
+
+回答「能否用历史实盘历史模拟实盘跑 F4/F5」——三步前置工作结论：
+
+### 1. parity 守卫（commit `4c2dbd0`）——P1-verify F3 地基
+
+逐 bar 比对 trend_following 增量路径 `_latest_signal()` vs 向量化 `generate_signals`，5 seed × 全序列（`TestSignalParityGuard`）：
+- ✅ **ENTRY 信号 0 漂移**（5/5 seed 全绿）——F3 用 paper-on_bar 跑、F5 用 BacktestEngine 跑，两路径入场信号完全一致，F3 缩仓结论可信。
+- ⚠️ **EXIT 信号系统性漂移**（12..22/122 bars/seed）——ISS-20260613-006 具体落点：`_latest_signal` exit 用「无 vol_ok + 阈值 min_conditions-1」，`generate_signals` exits 用「含 vol_ok + 阈值 min_conditions」再 OR profit/trailing。设计性语义不一致，先于 P1 存在，固化为已知区间 (1..30) 不阻塞——避免扰动 P1 byte-for-byte 回归守卫。待 ISS-006 裁决 exit 统一语义后升级为严格 parity。
+
+### 2. F5 输入源确认（commit `4f5e218`）——数据流已通
+
+`validate --method stress` 当前完全绑死 `BacktestEngine`（`trade_returns`/`bar_returns` 都来自 `bt`）。但 `bootstrap_cvar`/`monte_carlo_stress` 是纯 list 接口——paper session 的 `_risk_engine._returns_history`（on_bar 接线填充）可直接喂入。`TestPaperReplayFeedsF4F5Diagnostics` 实证：
+- ✅ F4（`bootstrap_cvar`）+ F5 returns-bootstrap（`monte_carlo_stress(bar_returns=...)`）现在即可用 paper 回放数据跑，无需改代码。
+- ⚠️ F5 trade-shuffle 需补 per-trade returns 收集（paper session 尚未配对开仓/平仓成 trade），属单独增强项。
+
+### 3. paper 历史回放脚本（commit `ce4d9b4`）——工具就绪
+
+`scripts/replay_paper_f4f5.py`：回放本地 parquet 经 `TradingSession.on_bar`（手动注入 PaperGateway 绕过 start() 副作用），取 returns 历史喂 F4/F5。烟测试端到端通。
+
+**信号密度约束**：trend_following `required_regime="trending"`，真实 BTC/USDT 1h parquet（2024-12..2025-06）仅 ~21/676 bar 为 trending → 回放产出的 bar returns 多为 0。非 P1 接线问题，是策略/数据特性。要积累非零 returns 需：trending 数据段 / 非 trending regime 策略 / 调参。
+
+**副发现（更深 parity 缺口）**：on_bar 事件路径应用 regime gating（`required_regime` + `MarketRegimeDetector`），而 `generate_signals` 向量化路径**不应用** regime gating——两路径在 regime 维度本就不 parity。这比 ISS-006 的 exit 漂移更结构性：回测（generate_signals）会交易所有 bar 的信号，实盘（on_bar）只在对应 regime 交易。属既有设计，登记为后续 parity 守卫待补项（regime 维度），不在 P1-verify 范围强修。
