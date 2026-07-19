@@ -175,3 +175,84 @@ class TestSessionLastError:
         session = TradingSession(config, [])
         session._last_error = "test error"
         assert session._last_error == "test error"
+
+
+class TestAddReturnWiring:
+    """ISS-20260719-001: on_bar must feed the realized per-bar return to both
+    RiskEngine.add_return and PositionSizer.add_return. Before the fix, neither
+    had any caller, so _returns_history never filled — vol-target (F3) never
+    bound and the CVaR gate (risk_engine._check_var) always returned passed.
+    """
+
+    def _session(self) -> TradingSession:
+        config = AppConfig()
+        session = TradingSession(config, [])
+        session._running = True  # on_bar early-returns while not running
+        return session
+
+    @pytest.mark.asyncio
+    async def test_first_bar_does_not_feed_return(self):
+        """The first bar has no prior equity to ratio against — no feed."""
+        session = self._session()
+        bar = _make_bar(price=100.0, idx=0)
+        await session.on_bar(bar)
+        assert len(session._risk_engine._returns_history) == 0
+        assert len(session._position_sizer._returns_history) == 0
+
+    @pytest.mark.asyncio
+    async def test_second_bar_feeds_return(self):
+        """From the second bar on, the realized return is fed to both."""
+        session = self._session()
+        await session.on_bar(_make_bar(price=100.0, idx=0))
+        await session.on_bar(_make_bar(price=100.0, idx=1))
+        # equity unchanged (no position) → bar_ret == 0, but still fed
+        assert len(session._risk_engine._returns_history) == 1
+        assert len(session._position_sizer._returns_history) == 1
+        assert session._risk_engine._returns_history[0] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_return_value_reflects_equity_change(self):
+        """With an open position, a price move changes equity → non-zero bar_ret."""
+        session = self._session()
+        # Manually open a long: 1 unit @ 100, funded from cash.
+        session._portfolio.update_position("BTC/USDT", 1.0, 100.0)
+        # First bar at 100 establishes the prev_equity baseline (no feed yet).
+        await session.on_bar(_make_bar(price=100.0, idx=0))
+        prev = session._portfolio.total_value
+        # Second bar at 110: position marks up, equity rises ~10/prev.
+        await session.on_bar(_make_bar(price=110.0, idx=1))
+        expected = (session._portfolio.total_value - prev) / prev
+        fed_re = session._risk_engine._returns_history[-1]
+        fed_ps = session._position_sizer._returns_history[-1]
+        assert fed_re == pytest.approx(expected, abs=1e-9)
+        assert fed_ps == pytest.approx(expected, abs=1e-9)
+        assert fed_re > 0  # price rose → positive realized return
+
+    @pytest.mark.asyncio
+    async def test_history_grows_across_bars(self):
+        """Feeding accumulates: 5 bars → 4 fed returns (first bar skipped)."""
+        session = self._session()
+        for i in range(5):
+            await session.on_bar(_make_bar(price=100.0 + i, idx=i))
+        assert len(session._risk_engine._returns_history) == 4
+        assert len(session._position_sizer._returns_history) == 4
+
+    @pytest.mark.asyncio
+    async def test_no_lookahead_prev_equity_captured_before_mark(self):
+        """The return's denominator must be the PRE-mark equity, not post-mark.
+
+        Construct a position and a bar whose price move would change equity.
+        The fed return must ratio against the equity BEFORE this bar's price
+        was applied — otherwise it is a self-referential (look-ahead) return.
+        """
+        session = self._session()
+        session._portfolio.update_position("BTC/USDT", 1.0, 100.0)
+        # Bar 0 @ 100: prev_equity captured post-mark-100 (baseline for bar 1).
+        await session.on_bar(_make_bar(price=100.0, idx=0))
+        equity_before_bar1 = session._portfolio.total_value
+        # Bar 1 @ 120: the return must use equity_before_bar1 as denominator.
+        await session.on_bar(_make_bar(price=120.0, idx=1))
+        fed = session._risk_engine._returns_history[-1]
+        # The actual post-bar-1 equity:
+        post = session._portfolio.total_value
+        assert fed == pytest.approx((post - equity_before_bar1) / equity_before_bar1, abs=1e-9)

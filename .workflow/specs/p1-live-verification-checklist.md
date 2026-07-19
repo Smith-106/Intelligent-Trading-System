@@ -17,16 +17,25 @@
 - CVaR gate（既有，非 F4 引入）：`risk_engine._check_var` 在 `len(_returns_history) < 30` 时直接返回 passed → gate 永远不阻断。
 - F4 bootstrap CVaR：诊断对象是空历史 → CI 退化，无意义。
 
-**判定标准**：在 `quantflow/strategy/engine.py` 的 bar 处理循环中接入 `self._position_sizer.add_return(bar_ret)` 与 `self._risk_engine.add_return(bar_ret)`（bar_ret = 当根 bar 的已实现收益率），且新增单元测试覆盖「喂满 ≥30 根后 `_returns_history` 长度正确、`_realized_vol()` 返回正值」。**未修复前禁止开启 vol-target 进实盘**——否则验证数据全是噪声。
+**状态：✅ 已修复（ISS-20260719-001，commit 见下）**
 
-**建议归属**：登记为 issue（G2 阻塞），不混入 F3/F4/F5 任一交付，因其影响范围横跨 L4 信号层两个组件。
+**修复内容**：`quantflow/strategy/engine.py` 的 `on_bar` 在 portfolio 用当根 bar.close 标记持仓后，计算 `bar_ret = (curr_equity - prev_equity) / prev_equity`（分母是上一根 bar 收盘的 equity，在标记前捕获，无未来函数），喂给 `self._risk_engine.add_return(bar_ret)` 与 `self._position_sizer.add_return(bar_ret)`。首根 bar 用 NaN 哨兵跳过。
+
+**单测覆盖**（`tests/unit/test_engine_extra.py::TestAddReturnWiring` + `tests/unit/test_risk_engine.py::TestCvarGateWiring`）：
+- 首根 bar 不喂、第二根起喂
+- 有持仓时 bar_ret 反映 equity 变化、数值正确
+- 历史跨 bar 累积（5 bar → 4 笔）
+- 无未来函数：分母是标记前 equity
+- **CVaR gate 真正触发**：≥30 笔深尾收益 → CVaR < cvar_limit → 阻断（`reason="var_breach"`）；浅尾 → 放行；<30 笔 → 安全默认放行
+
+**符号澄清**（修正起草时的误判）：`risk_engine._check_var` 的 `cvar_95 = returns[returns<=var].mean()` 是**负收益约定**（与 `cvar_limit=-0.05` 同号），gate 比较逻辑本身正确。此前不触发的唯一原因是 `add_return` 零调用方导致 `len<30` 短路，现已消除。注意 `risk_metrics.conditional_var` 用 `-np.mean(...)` 返回**正损失幅度**，与 `_check_var` 约定相反——两者是不同函数，F4 诊断用的是前者，gate 用的是后者，勿混。
 
 ---
 
 ## P1.1 F3 vol-target opt-in 缩仓行为验证
 
 > **配置开启**：在 `quantflow/config/default.yaml` 的 `risk:` 段加 `vol_target_pct: 0.15`（15% 年化目标）。`vol_annualization: 365`、`vol_window: 30` 为默认值，crypto 24/7 无需改。
-> **前提**：P1.0-B1 已修复，`_returns_history` 真实累积。
+> **前提**：~~P1.0-B1 已修复~~ ✅ 已修复，`_returns_history` 真实累积。
 
 ### P1.1-V1 高波动区间 vol-target 是否真的缩仓
 
@@ -104,12 +113,12 @@
 
 ### P1.3-V2 CI 与 cvar_limit 的关系（gate 可信度）
 
-**观察**：`cvar_limit` 当前为 `-0.05`（config.py:60）。注意符号——`conditional_var` 返回**正**损失幅度，而 `cvar_limit` 是**负**分数。比较时取绝对值：gate 实际阈值是「CVaR 损失幅度 > 0.05 即阻断」（若符号一致化后；当前因 P1.0-B1 符号/调用缺陷 gate 实际未生效）。
+**观察**：`cvar_limit` 当前为 `-0.05`（config.py:60）。符号澄清：`risk_engine._check_var` 的 CVaR 用**负收益约定**（`returns[returns<=var].mean()`，负数），与 `cvar_limit=-0.05` 同号比较，gate 逻辑正确且现已在历史填满后生效（P1.0-B1 已修复）。而 F4 `bootstrap_cvar` 包装的 `risk_metrics.conditional_var` 返回**正损失幅度**（`-np.mean(...)`）——两者约定相反，比较 CI 与阈值时统一取绝对值：gate 实际阈值是「CVaR 损失幅度 > 0.05 即阻断」。
 
 **判定标准**：
 - ✅ GO（gate 可信）：`ci_high`（最严重侧）仍 < 0.05 → 即使最坏抽样，CVaR 也没触碰阈值，gate 的 passed 判定稳健。
 - ⚠️ 黄旗：`ci_low < 0.05 < ci_high` → CI 跨越阈值，gate 判定样本脆弱，应继续累积数据再下结论。
-- ❌ NO-GO：`ci_low` > 0.05 → 即使最轻抽样也超阈值，gate 应判 NO-GO 但若实际 passed 说明 gate 未触发（指向 P1.0-B1 未修复）。
+- ❌ NO-GO：`ci_low` > 0.05 → 即使最轻抽样也超阈值，gate 应判 NO-GO 但若实际 passed 说明历史未喂或 `_check_var` 回归失效（回归测试 `test_gate_blocks_when_tail_breaches_limit` 守护）。
 
 ### P1.3-V3 辅助非 gate 契约
 
@@ -123,7 +132,7 @@
 
 | 项 | 类型 | 判定 |
 |----|------|------|
-| P1.0-B1 add_return 接线 | Blocker | ☐ 修复 + 单测覆盖 |
+| P1.0-B1 add_return 接线 | Blocker | ✅ 已修复 + 8 单测（ISS-20260719-001） |
 | P1.1-V1 高波动缩仓 | GO/NO-GO | ☐ |
 | P1.1-V2 低波动不绑定 | GO/NO-GO | ☐ |
 | P1.1-V3 off byte-for-byte | GO/NO-GO | ☐ |

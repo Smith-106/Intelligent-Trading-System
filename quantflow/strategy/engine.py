@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from collections.abc import Sequence
 from time import perf_counter
 from typing import Any
@@ -86,6 +87,10 @@ class TradingSession:
         self._running = False
         self._alert_mgr: AlertManager | None = None
         self._last_error: str | None = None
+        # Equity snapshot from the previous bar's close, used to derive the
+        # realized per-bar return fed to PositionSizer.add_return and
+        # RiskEngine.add_return (ISS-20260719-001). NaN until the second bar.
+        self._prev_equity: float = float("nan")
 
     async def start(
         self, mode: str = "paper", gateway_config: dict[str, Any] | None = None
@@ -166,6 +171,19 @@ class TradingSession:
         # Update position prices
         self._execution.update_market_price(bar.symbol, bar.close)
         self._portfolio.update_position(bar.symbol, 0, bar.close)
+
+        # Feed the realized per-bar return to the risk engine and position
+        # sizer so vol-targeting (F3) and the CVaR gate (risk_engine._check_var)
+        # have a history to operate on (ISS-20260719-001). The denominator is
+        # the previous bar's close equity, captured before this bar's price
+        # mark — no look-ahead. Skipped on the first bar (NaN sentinel).
+        curr_equity = self._portfolio.total_value
+        prev_equity = self._prev_equity
+        if not math.isnan(prev_equity) and prev_equity > 0:
+            bar_ret = (curr_equity - prev_equity) / prev_equity
+            self._risk_engine.add_return(bar_ret)
+            self._position_sizer.add_return(bar_ret)
+        self._prev_equity = curr_equity
 
         # Refresh the portfolio gauges from the same state the session uses.
         self._update_portfolio_observability()

@@ -67,3 +67,46 @@ class TestRiskEngine:
         # Should pass because symbol already exists (portfolio_limit check)
         # but may fail position_limit if existing position is too large
         assert isinstance(result.passed, bool)
+
+
+class TestCvarGateWiring:
+    """ISS-20260719-001: the CVaR gate (_check_var) must actually trigger once
+    the returns history is filled. Before the fix, add_return had no caller so
+    _returns_history stayed empty and the `len < 30` guard short-circuited the
+    gate to always-passed. The fix wires on_bar → add_return; these tests prove
+    the gate fires when the tail breaches cvar_limit.
+    """
+
+    def test_insufficient_history_short_circuits_to_pass(self):
+        """< 30 returns → gate cannot evaluate → passed (safe default)."""
+        engine = RiskEngine(RiskConfig(cvar_limit=-0.05))
+        for r in [0.01, -0.01, 0.02, -0.02]:  # only 4 returns
+            engine.add_return(r)
+        sig = Signal("BTC/USDT", Direction.LONG, 0.8, 50000)
+        pf = Portfolio(cash=100000)
+        assert engine.check(sig, pf).passed
+
+    def test_gate_passes_when_tail_within_limit(self):
+        """≥30 returns with a mild tail → CVaR milder than -0.05 → passed."""
+        engine = RiskEngine(RiskConfig(cvar_limit=-0.05))
+        # 50 returns, worst ~ -0.02 → CVaR ~ -0.02, well within -0.05
+        mild = [0.01, -0.02, 0.015, -0.01, 0.005] * 10
+        for r in mild:
+            engine.add_return(r)
+        sig = Signal("BTC/USDT", Direction.LONG, 0.8, 50000)
+        pf = Portfolio(cash=100000)
+        assert engine.check(sig, pf).passed
+
+    def test_gate_blocks_when_tail_breaches_limit(self):
+        """≥30 returns with a deep tail → CVaR worse than -0.05 → blocked."""
+        engine = RiskEngine(RiskConfig(cvar_limit=-0.05))
+        # 50 returns where the worst 5% are ~ -0.10 → CVaR ~ -0.10 < -0.05
+        deep = [0.001] * 45 + [-0.10] * 5
+        for r in deep:
+            engine.add_return(r)
+        sig = Signal("BTC/USDT", Direction.LONG, 0.8, 50000)
+        pf = Portfolio(cash=100000)
+        result = engine.check(sig, pf)
+        assert not result.passed
+        assert result.reason == "var_breach"
+        assert "cvar_95" in result.details
