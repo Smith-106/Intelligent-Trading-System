@@ -20,10 +20,14 @@ class PaperGateway(GatewayBase):
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         cfg = config or {}
-        self._slippage = cfg.get("slippage", 0.001)
-        self._maker_fee = cfg.get("maker_fee", 0.0008)
-        self._taker_fee = cfg.get("taker_fee", 0.001)
-        self._initial_capital = cfg.get("initial_capital", 1_000_000.0)
+        # Clamp config-driven rates to a sane non-negative range so a malformed
+        # config (negative fee / slippage > 1) cannot inflate equity or invert
+        # fill direction (SEC-L3). These are simulator parameters, not user
+        # input, but defense-in-depth: never trust a raw dict value.
+        self._slippage = max(0.0, min(float(cfg.get("slippage", 0.001)), 0.5))
+        self._maker_fee = max(0.0, float(cfg.get("maker_fee", 0.0008)))
+        self._taker_fee = max(0.0, float(cfg.get("taker_fee", 0.001)))
+        self._initial_capital = float(cfg.get("initial_capital", 1_000_000.0))
         self._cash = self._initial_capital
         self._positions: dict[str, Position] = {}
         self._order_counter = 0
@@ -54,6 +58,12 @@ class PaperGateway(GatewayBase):
 
         fill_price = price or self._prices.get(symbol, 0.0)
         if fill_price <= 0:
+            # No reference price: reject explicitly and log so the dropped order
+            # is visible (CORR-L3 — the previous path set REJECTED silently,
+            # making a stream of failed fills look like inactivity).
+            logger.warning(
+                "Paper order REJECTED: no fill price for %s (order_id=%s)", symbol, order_id
+            )
             order.status = OrderStatus.REJECTED
             order.order_id = order_id
             return order_id

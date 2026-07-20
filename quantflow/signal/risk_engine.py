@@ -196,7 +196,16 @@ class RiskEngine:
         return RiskDecision(passed=True)
 
     def _check_var(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
-        """Check VaR (Value at Risk) limit."""
+        """Check VaR (Value at Risk) limit.
+
+        The returns history is portfolio-level (fed by TradingSession.on_bar's
+        mark-to-market of total equity), so this gate — and the per-strategy
+        _check_strategy_budget — operate at different granularities by design
+        (ARCH-L2): a signal on symbol A may be blocked by portfolio VaR driven
+        primarily by symbol B's losses. This is intentional (portfolio VaR
+        should gate all signals); per-strategy isolation is _check_strategy_budget's
+        job, not this gate's.
+        """
         if len(self._returns_history) < 30:
             return RiskDecision(passed=True)
 
