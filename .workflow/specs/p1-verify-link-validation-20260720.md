@@ -63,7 +63,7 @@ F5 returns-bootstrap: observed terminal=-0.00314, P5/P95=[-0.00978, 0.00335]
 | P1.1-V1 高波动缩仓 | ⏳ 待数据 | 需非零 returns，受阻塞 1+2 |
 | P1.1-V2 低波动不绑定 | ⏳ 待数据 | 同上 |
 | P1.1-V3 off byte-for-byte | ✅ PASS | `test_default_off_is_byte_for_byte_baseline` |
-| P1.2-V1 trade-shuffle 顺序风险 | ⚠️ mean_reversion NO-GO | prob_worse_dd=0.775>0.7，红旗重现（诊断非 gate，策略调优信号） |
+| P1.2-V1 trade-shuffle 顺序风险 | ⚠️ mean_reversion NO-GO | prob_worse_dd=0.775>0.7，红旗重现（诊断非 gate，策略调优信号）。登记 ISS-20260720-003 跟踪（8 笔交易统计意义有限，待 ≥20 笔复验） |
 | P1.2-V2 returns-bootstrap 带宽 | ✅ 有数据 | mean_reversion P5/P95=[-0.00978, 0.00335] 同号不爆仓，符号稳定 |
 | P1.2-V3 MC 诊断非 gate | ✅ PASS | gate.py 无 monte_carlo 引用 |
 | P1.3-V1 CI 随样本收窄 | ⏳ 待数据 | 链路通，需非零 returns 多 n 里程碑 |
