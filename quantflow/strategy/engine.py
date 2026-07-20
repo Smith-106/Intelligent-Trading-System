@@ -204,7 +204,14 @@ class TradingSession:
             self._record_bar_latency(bar.symbol, started_at)
             return
 
-        # Detect market regime for strategy gating
+        # Detect market regime for strategy gating.
+        # Two-layer design (ISS-20260720-001, resolved as design-property): regime
+        # is a macro market-state gate (ADX strength via MarketRegimeDetector),
+        # while strategy entries are micro signals (MA direction). They use
+        # different detectors on purpose — a strategy's entries may fire on bars
+        # the regime gate excludes, so backtest (generate_signals, no regime gate)
+        # trades a superset of live/paper (on_bar, regime-gated). Live-faithful
+        # validation uses paper-on_bar replay, not the vectorized backtest path.
         regime = self._regime_detector.update(bar.high, bar.low, bar.close)
 
         # Collect signals from regime-eligible strategies, then consolidate per symbol

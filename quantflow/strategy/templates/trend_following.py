@@ -223,7 +223,18 @@ class TrendFollowingStrategy(StrategyBase):
         return closes(self._bars), highs(self._bars), lows(self._bars), volumes(self._bars)
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
-        """Vectorized signal generation."""
+        """Vectorized signal generation (research/backtest API).
+
+        .. note:: This is a stateless research API and does NOT apply regime
+            gating. The event-driven ``on_bar`` path (TradingSession) gates the
+            strategy by ``required_regime`` via MarketRegimeDetector (ADX>=25 for
+            "trending") before calling ``on_bar`` — so entries computed here on
+            non-regime bars are traded in backtest but gated out of live/paper.
+            This is an intentional two-layer design (regime = macro market-state
+            gate via ADX strength; entry = micro signal via MA direction), NOT a
+            bug (ISS-20260720-001, resolved as design-property). For live-faithful
+            validation use paper-on_bar replay, not this vectorized path.
+        """
         if len(df) < self._slow_period + self._macd_signal:
             empty = pd.Series(False, index=df.index)
             return empty, empty
