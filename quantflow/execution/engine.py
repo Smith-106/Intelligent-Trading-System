@@ -216,6 +216,7 @@ class ExecutionEngine:
             quantity=request.quantity,
             price=request.price,
             strategy_id=request.strategy_id,
+            params=dict(request.params),
         )
         return await self.submit(order)
 

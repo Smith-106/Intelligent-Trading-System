@@ -134,6 +134,9 @@ class Order:
     fee: float = 0.0
     strategy_id: str = ""
     created_at: float = 0.0
+    # Exchange-specific params forwarded to the gateway (e.g.
+    # {"reduce_only": True} for FLAT close orders). Opaque to the engine.
+    params: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

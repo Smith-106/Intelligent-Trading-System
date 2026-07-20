@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from quantflow.common.models import Portfolio, Position
+from quantflow.common.models import Portfolio, Position, strategy_id_constituents
 
 logger = logging.getLogger(__name__)
 
@@ -187,8 +187,22 @@ class PortfolioManager:
         self._allocation = allocation
 
     def get_strategy_allocation(self, strategy_id: str) -> float:
-        """Get allocation weight for a strategy, or 0 if not set."""
-        return self._allocation.get(strategy_id, 0.0)
+        """Get allocation weight for a strategy, or 0 if not set.
+
+        A consolidated signal carries a compound ``strategy_id`` (e.g.
+        ``"momentum_rotation,trend_following"``). An exact-key lookup would
+        miss the joined key and return 0.0, silently dropping the signal's
+        sizing to zero (same class of bug as the strategy_budget bypass in
+        risk_engine._check_strategy_budget and the win-rate blending in
+        position_sizer.size). Expand the compound key and sum the constituent
+        weights so consolidated signals keep their combined allocation.
+        """
+        if not strategy_id:
+            return 0.0
+        constituents = strategy_id_constituents(strategy_id)
+        if not constituents:
+            return self._allocation.get(strategy_id, 0.0)
+        return sum(self._allocation.get(c, 0.0) for c in constituents)
 
     @property
     def allocation(self) -> dict[str, float]:

@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+from collections import deque
 from collections.abc import Sequence
 from time import perf_counter
 from typing import Any
@@ -91,6 +92,13 @@ class TradingSession:
         # realized per-bar return fed to PositionSizer.add_return and
         # RiskEngine.add_return (ISS-20260719-001). NaN until the second bar.
         self._prev_equity: float = float("nan")
+        # Rolling (timestamp_ms, equity) snapshots for the weekly-loss gate
+        # (RiskEngine._check_weekly_loss). The weekly PnL is the realized
+        # return over the trailing 7-day window measured by bar timestamps,
+        # so it is correct across any timeframe (1h/4h/1d). Without this the
+        # weekly_loss_limit in default.yaml is silently unenforced because
+        # set_weekly_pnl is never called (ARCH-H1).
+        self._equity_history: deque[tuple[int, float]] = deque(maxlen=100_000)
 
     async def start(
         self, mode: str = "paper", gateway_config: dict[str, Any] | None = None
@@ -184,6 +192,23 @@ class TradingSession:
             self._risk_engine.add_return(bar_ret)
             self._position_sizer.add_return(bar_ret)
         self._prev_equity = curr_equity
+
+        # Weekly-loss gate (ARCH-H1): feed the realized 7-day PnL to the risk
+        # engine so _check_weekly_loss is no longer a permanent no-op. Window
+        # is measured by bar timestamps (not bar count) so it is correct for
+        # any timeframe. The 7-day cutoff falls back to the oldest snapshot
+        # when the session is younger than 7 days — a conservative (less
+        # negative) measure during warmup.
+        self._equity_history.append((bar.timestamp, curr_equity))
+        week_ago_ms = bar.timestamp - 7 * 24 * 3600 * 1000
+        base_equity = curr_equity
+        for ts, eq in self._equity_history:
+            if ts >= week_ago_ms:
+                base_equity = eq
+                break
+        if base_equity > 0:
+            weekly_pnl_pct = (curr_equity - base_equity) / base_equity
+            self._risk_engine.set_weekly_pnl(weekly_pnl_pct)
 
         # Refresh the portfolio gauges from the same state the session uses.
         self._update_portfolio_observability()
@@ -361,6 +386,12 @@ class TradingSession:
                 order_type="market",
                 quantity=quantity,
                 strategy_id=signal.strategy_id,
+                # reduceOnly tells the live exchange this order may only
+                # decrease an existing position, never open a new one — so a
+                # SELL that flattens a long cannot flip into a new short if
+                # the held quantity has changed between sizing and submit
+                # (e.g. a concurrent live fill). PaperGateway ignores params.
+                params={"reduce_only": True},
             )
         )
         if order.status == OrderStatus.FILLED:

@@ -15,6 +15,23 @@ RECONNECT_INTERVAL = 5
 MAX_RECONNECT_ATTEMPTS = 5
 
 
+def _safe_error(e: BaseException) -> str:
+    """Render an exception for logging without leaking credentials.
+
+    CCXT exceptions and their ``str()`` may include the request URL, headers,
+    or API key/secret echoed back by the exchange on auth failures. Logging
+    the raw exception (``%s``, e) therefore risks writing secrets to logs
+    (ISS-20260613-004). Keep only the exception type name and a class-level
+    description — never the message body — so operators see what failed
+    without the credential surface.
+    """
+    cls = type(e).__name__
+    # CCXT error classes carry a human label in .name (e.g. "AuthenticationError");
+    # prefer it when present, otherwise fall back to the class name alone.
+    label = getattr(e, "name", None) or cls
+    return f"{label} (type={cls})"
+
+
 class OKXGateway(GatewayBase):
     """OKX exchange gateway.
 
@@ -69,7 +86,7 @@ class OKXGateway(GatewayBase):
                 logger.info("Reconnected on attempt %d", attempt)
                 return
             except Exception as e:
-                logger.error("Reconnect attempt %d failed: %s", attempt, e)
+                logger.error("Reconnect attempt %d failed: %s", attempt, _safe_error(e))
                 if attempt < self._max_reconnect_attempts:
                     await asyncio.sleep(self._reconnect_interval)
 
@@ -80,9 +97,18 @@ class OKXGateway(GatewayBase):
         if not self._exchange:
             raise RuntimeError("Not connected")
 
+        # Numeric safety: reject NaN / non-positive quantity before the exchange
+        # rejects it with a message that may echo request details into logs.
+        if not (order.quantity > 0 and order.quantity == order.quantity):  # x==x is the NaN check
+            raise ValueError(f"Invalid order quantity: {order.quantity!r}")
         await self.ensure_connected()
 
         side = "buy" if order.side == OrderSide.BUY else "sell"
+        # Forward exchange-specific params (e.g. reduceOnly for FLAT/close orders)
+        # so a SELL that flattens a long cannot accidentally open a new short on
+        # the live exchange. PaperGateway ignores params (its SELL is already
+        # reduce-only by construction via _close_position_for_signal sizing).
+        params: dict[str, Any] = dict(order.params) if order.params else {}
         try:
             result = await self._exchange.create_order(
                 symbol=order.symbol,
@@ -90,12 +116,13 @@ class OKXGateway(GatewayBase):
                 side=side,
                 amount=order.quantity,
                 price=order.price,
+                params=params,
             )
             order_id = str(result.get("id", ""))
             logger.info("OKX order placed: %s %s %.6f", side, order.symbol, order.quantity)
             return order_id
         except Exception as e:
-            logger.error("OKX order failed: %s", e)
+            logger.error("OKX order failed: %s", _safe_error(e))
             self._connected = False
             raise
 
@@ -107,7 +134,7 @@ class OKXGateway(GatewayBase):
             logger.info("OKX cancel: %s", order_id)
             return True
         except Exception as e:
-            logger.error("OKX cancel failed: %s", e)
+            logger.error("OKX cancel failed: %s", _safe_error(e))
             return False
 
     async def cancel_all_orders(self, symbol: str | None = None) -> list[bool]:
@@ -120,7 +147,7 @@ class OKXGateway(GatewayBase):
             logger.info("OKX cancel all: %d orders", len(ids))
             return [True] * len(ids)
         except Exception as e:
-            logger.error("OKX cancel all failed: %s", e)
+            logger.error("OKX cancel all failed: %s", _safe_error(e))
             return []
 
     async def query_positions(self) -> list[Position]:
@@ -143,7 +170,7 @@ class OKXGateway(GatewayBase):
                     )
             return positions
         except Exception as e:
-            logger.error("OKX query positions failed: %s", e)
+            logger.error("OKX query positions failed: %s", _safe_error(e))
             self._connected = False
             return []
 
