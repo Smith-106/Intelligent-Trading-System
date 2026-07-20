@@ -115,6 +115,13 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 - [x] **P1.4 CLI**：`quantflow validate --method stress` — commit `9b856ff`
 - [x] **P1.5 回归守卫**：默认 off 时 byte-for-byte 不变（`test_default_off_is_byte_for_byte_baseline` + 全量 1411 passed，唯一失败为预存 FeatureStore pandas3.14 超界，与 P1 无关）
 - [x] **P1.0-B1 阻塞修复**：`add_return` 零调用方导致 `_returns_history` 永空 → `engine.on_bar` 接线 `bar_ret = (curr_equity - prev_equity)/prev_equity`（pre-mark 捕获，无 look-ahead），喂给 `risk_engine.add_return` + `position_sizer.add_return`，8 单测覆盖历史填充与 gate 触发；CVaR gate 现真正生效 — commit `ec17b23`（issue 登记 `82331b4`，ISS-20260719-001 resolved）
+- [x] **P1.6 parity 地基（P1-verify 前置）**：F3 用 paper-on_bar、F5 用 BacktestEngine 跑，两路径信号必须 parity 否则 verify 结论不可信
+  - parity 守卫 `TestSignalParityGuard`（commit `4c2dbd0`）：逐 bar 比对 `_latest_signal` vs `generate_signals`，ENTRY 0 漂移（5/5 seed）
+  - F4/F5 数据流接通（commit `4f5e218`）：paper session 的 `_risk_engine._returns_history` 可直接喂 `bootstrap_cvar` + `monte_carlo_stress(bar_returns=)`，纯 list 接口无需改代码
+  - paper 历史回放脚本（commit `ce4d9b4`）：`scripts/replay_paper_f4f5.py` 回放本地 parquet 经 on_bar 积累 F4/F5 诊断数据
+  - **ISS-20260613-006 exit 漂移根因修复**（commit `0dbee17`）：`generate_signals` exit 此前用 `short_count`（含 vol_ok + 阈值 min_conditions）与 `_latest_signal` 的 `exit_count`（无 vol_ok + 阈值 min_conditions-1）不一致，违反 `# exit without vol_ok` 设计意图 → 对齐为无 vol_ok + 阈值 min_conditions-1；守卫 `test_exit_residual_is_profit_trailing_role_difference` 确认条件 exit 漂移消除（12..22→1..16），残留单向 shape = profit/trailing 合并的职责差异非 bug
+  - **regime 维度 parity 缺口登记**（commit `0dbee17`）：on_bar 应用 regime gating（ADX>=25），`generate_signals` 不应用 → 实测真实 BTC/USDT 1h 全 84 entries 落非 trending bar → on_bar 全 gate → 回测交易 84 次/实盘 0 次。根因 entry 用 MA 方向 vs regime 用 ADX 强度，direction!=strength。设计冲突非 bug，`TestRegimeParityGap` 守卫量化固化，待人裁决 regime↔entry 对齐方向（比 ISS-006 exit 更结构性）
+  - checklist 三步结论（commit `3cfda6a` + `805e5b7`）：离线/模拟实盘可执行性确认，parity 地基 + F5 输入源 + 回放工具就绪
 
 **Acceptance（代码层）**:
 - 仓位绑定规则 opt-in 生效（高波动区间 vol-target < Kelly，低波动区间不绑定）✅
@@ -160,5 +167,5 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 | 2. v0.1.3 发布候选准备 | 2. 打包治理与制品重建 | Completed | 2026-06-07 |
 | 2. v0.1.3 发布候选准备 | 3. 发布证据与远端对齐 | In Progress | - |
 | 3. deep-research 改进分批实施 | 1. P0 数据层防泄漏 | 代码完成，待 P0-verify | `01f05fb` `99795b2` |
-| 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | 代码完成+阻塞已清，待 P1-verify | `09445de` `9b856ff` `5e5b432` `ec17b23` |
+| 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | 代码完成+阻塞已清+parity 地基就绪，待 P1-verify | `09445de` `9b856ff` `5e5b432` `ec17b23` `4c2dbd0` `4f5e218` `ce4d9b4` `0dbee17` `805e5b7` |
 | 3. deep-research 改进分批实施 | 3. P2 AI 层升级 | Blocked（待 P1-verify） | - |
