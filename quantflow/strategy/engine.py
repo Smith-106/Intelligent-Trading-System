@@ -393,12 +393,13 @@ class TradingSession:
                 order_type="market",
                 quantity=quantity,
                 strategy_id=signal.strategy_id,
-                # reduceOnly tells the live exchange this order may only
-                # decrease an existing position, never open a new one — so a
-                # SELL that flattens a long cannot flip into a new short if
-                # the held quantity has changed between sizing and submit
-                # (e.g. a concurrent live fill). PaperGateway ignores params.
-                params={"reduce_only": True},
+                # reduceOnly (CCXT's canonical camelCase param name) tells the
+                # live exchange this order may only decrease an existing
+                # position, never open a new one — so a SELL that flattens a
+                # long cannot flip into a new short if the held quantity has
+                # changed between sizing and submit (e.g. a concurrent live
+                # fill). PaperGateway ignores params.
+                params={"reduceOnly": True},
             )
         )
         if order.status == OrderStatus.FILLED:
