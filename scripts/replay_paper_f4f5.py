@@ -109,6 +109,13 @@ def build_session(strategy_name: str = "trend_following") -> TradingSession:
         gateway=PaperGateway({"initial_capital": 100_000.0, "taker_fee": cfg.execution.taker_fee}),
         timeout=cfg.execution.order_timeout,
     )
+    # start() sets a uniform per-strategy allocation; since we bypass start(),
+    # replicate it here. Without this, get_strategy_allocation() returns 0.0
+    # for every strategy → position_sizer size * 0 = 0 → every signal is
+    # dropped at engine.py:313 (size <= 0) → 0 orders, 0 fills, all-zero
+    # returns history (ISS-20260720-002 root cause: not an on_bar signal bug,
+    # a missing allocation init in this replay harness).
+    session._portfolio.set_allocation({s.name: 1.0 / len(session._strategies) for s in session._strategies})
     return session
 
 
