@@ -127,6 +127,11 @@ class TrendFollowingStrategy(StrategyBase):
             )
             self._in_position = True
             self._entry_price = bar.close
+            # _bars_since_entry is incremented at the START of _check_position_exits
+            # on the NEXT bar. Starting at 0 and skipping the exit check on the
+            # entry bar itself avoids an off-by-one where max_holding_bars=N would
+            # actually close after N-1 bars (CORR-L2) — entry bar is the open,
+            # not the first held bar.
             self._bars_since_entry = 0
             self._highest_since_entry = bar.high
         elif exit_ and self._in_position:
@@ -140,8 +145,13 @@ class TrendFollowingStrategy(StrategyBase):
             )
             self._in_position = False
 
-        # on_bar exit mechanisms: profit target + max holding + trailing stop
-        self._check_position_exits(ctx, bar)
+        # on_bar exit mechanisms: profit target + max holding + trailing stop.
+        # Skip on the entry bar — a position opened this bar cannot also be
+        # exited this bar by a holding-period/profit-target rule (mirrors the
+        # generate_signals profit_target_exit loop, which `continue`s on the
+        # entry bar before evaluating exits).
+        if self._in_position and self._bars_since_entry > 0:
+            self._check_position_exits(ctx, bar)
 
     def _latest_signal(self) -> tuple[bool, bool]:
         """Compute the last signal without rebuilding a DataFrame."""

@@ -67,6 +67,15 @@ class PaperGateway(GatewayBase):
         fee = notional * self._taker_fee
 
         # Update cash
+        # NOTE: PaperGateway maintains its own cash/position book for the gateway
+        # contract (query_positions, _equity for kill-switch). This is a THIRD
+        # source of truth alongside L4 PortfolioManager and L5 PositionManager.
+        # The SELL branch (notional - fee) is numerically equivalent to L4's
+        # (_cash += notional; _cash -= fee), so the fee-credit formula does not
+        # drift in value — but the structural divergence (no reconcile between
+        # the three books) is tracked as ARCH-H2/ARCH-M5 (issue: L4/L5/gateway
+        # position-state reconciliation). PaperGateway is intentionally a pure
+        # fill simulator here; L4 remains authoritative for risk decisions.
         if side == "buy":
             self._cash -= notional + fee
         else:

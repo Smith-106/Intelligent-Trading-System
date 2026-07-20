@@ -57,6 +57,13 @@ class PositionSizer:
         """
         self._returns_history.append(ret)
 
+    def reset(self) -> None:
+        """Clear the returns history so a restarted session's vol-target
+        estimate is not biased by the previous run's returns (CORR-M2).
+        Mirrors RiskEngine.reset.
+        """
+        self._returns_history.clear()
+
     def _realized_vol(self) -> float | None:
         """Annualized realized volatility from recent returns, or None.
 
@@ -65,7 +72,11 @@ class PositionSizer:
         """
         if self._vol_target_pct is None:
             return None
-        if len(self._returns_history) < 2:
+        # Need at least vol_window bars of history so the realized-vol estimate
+        # is stable; the previous guard (<2) let sizing fire with as few as 2
+        # bars, producing a wildly volatile sigma that over-traded on the
+        # first handful of bars after warmup.
+        if len(self._returns_history) < self._vol_window:
             return None
         values = [float(x) for x in self._returns_history if not math.isnan(x)]
         if len(values) < 2:

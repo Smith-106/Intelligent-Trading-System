@@ -27,6 +27,13 @@ class RiskEngine:
         self._strategy_risk_budgets = strategy_risk_budgets or {}
         self._weekly_pnl_pct: float = 0.0
         self._returns_history: list[float] = []
+        # Cache of the last-computed VaR/CVaR percentiles. _check_var runs once
+        # per signal; recomputing np.percentile over the full history on every
+        # signal is wasteful when the history has not changed since the last
+        # bar. Invalidated by add_return (new bar) and reset() (new session).
+        self._var_cache_len: int = -1
+        self._var_cache_var: float = 0.0
+        self._var_cache_cvar: float = 0.0
 
     def set_weekly_pnl(self, pnl_pct: float) -> None:
         """Update weekly PnL percentage (called by portfolio manager)."""
@@ -37,6 +44,21 @@ class RiskEngine:
         self._returns_history.append(ret)
         if len(self._returns_history) > 500:
             self._returns_history = self._returns_history[-500:]
+        # History changed — invalidate the percentile cache (PERF-M3).
+        self._var_cache_len = -1
+
+    def reset(self) -> None:
+        """Reset per-session state so a fresh session does not inherit the
+        previous session's returns / weekly-PnL history.
+
+        TradingSession reuses a single RiskEngine instance across runs; without
+        a reset, a restarted session would gate on stale returns from the prior
+        run (CORR-M2), biasing VaR and weekly-loss checks. Call at session
+        start (or wherever a clean run begins).
+        """
+        self._returns_history.clear()
+        self._weekly_pnl_pct = 0.0
+        self._var_cache_len = -1
 
     def check(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
         """Run all risk checks on a signal."""
@@ -178,17 +200,27 @@ class RiskEngine:
         if len(self._returns_history) < 30:
             return RiskDecision(passed=True)
 
-        returns = np.array(self._returns_history)
-        var_pct = (1 - self._config.var_confidence) * 100
-        var_95 = np.percentile(returns, var_pct)
-        cvar_95 = (
-            returns[returns <= var_95].mean() if len(returns[returns <= var_95]) > 0 else var_95
-        )
+        # Percentile recompute is O(n log n); cache it keyed on history length
+        # so multiple signals within the same bar share one computation (PERF-M3).
+        # add_return invalidates the cache when a new bar arrives.
+        if len(self._returns_history) != self._var_cache_len:
+            returns = np.array(self._returns_history)
+            var_pct = (1 - self._config.var_confidence) * 100
+            var_95 = np.percentile(returns, var_pct)
+            tail = returns[returns <= var_95]
+            cvar_95 = float(tail.mean()) if len(tail) > 0 else float(var_95)
+            self._var_cache_len = len(self._returns_history)
+            self._var_cache_var = float(var_95)
+            self._var_cache_cvar = cvar_95
+        else:
+            cvar_95 = self._var_cache_cvar
 
         # If CVaR exceeds the configured loss threshold, block the signal.
         if cvar_95 < self._config.cvar_limit:
             return RiskDecision(
-                passed=False, reason="var_breach", details={"var_95": var_95, "cvar_95": cvar_95}
+                passed=False,
+                reason="var_breach",
+                details={"var_95": self._var_cache_var, "cvar_95": cvar_95},
             )
         return RiskDecision(passed=True)
 

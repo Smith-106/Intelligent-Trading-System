@@ -111,6 +111,27 @@ class StrategyBase(ABC):
         -------
         tuple[pd.Series, pd.Series]
             (entries, exits) boolean Series aligned to df index.
+
+        Note
+        ----
+        ``generate_signals`` (stateless research/backtest API) and ``on_bar``
+        (stateful live/paper path) are **best-effort parity**, NOT a strict
+        guarantee. Two documented divergence classes exist:
+
+        1. **Regime gate**: ``on_bar`` is gated by ``required_regime`` via
+           MarketRegimeDetector (e.g. ADX>=25 for "trending"); the vectorized
+           path is not. So backtest trades a superset of live/paper entries.
+           This is an intentional two-layer design (ISS-20260720-001,
+           resolved as design-property): regime = macro market-state gate,
+           entry = micro MA-direction signal. For live-faithful validation use
+           paper-on_bar replay, not this vectorized path.
+        2. **Indicator formula**: a strategy may compute an indicator
+           differently in the two paths (e.g. trend_following uses SMA-based
+           RSI in ``generate_signals`` and a matching incremental RSI in
+           ``on_bar``). Each strategy must document its own divergence points.
+
+        Implementers SHOULD keep the two paths as close as possible and
+        document any remaining divergence in the ``generate_signals`` docstring.
         """
         ...
 

@@ -120,6 +120,13 @@ class TradingSession:
             self._kill_switch = KillSwitch(self._execution.gateway)
             self._event_bus.subscribe(EVENT_RISK, self._on_risk_event)
 
+        # Reset per-session state so a restarted session does not gate on the
+        # previous run's returns / weekly-PnL / equity history (CORR-M2).
+        self._risk_engine.reset()
+        self._position_sizer.reset()
+        self._prev_equity = float("nan")
+        self._equity_history.clear()
+
         # Initialize alert manager from config
         channels = self._config.monitoring.alert_channels
         if channels:
@@ -451,12 +458,19 @@ class TradingSession:
             timeframe_filter: str | None = timeframe
             pending_frame = store.query(symbol, timeframe=timeframe_filter)
             if pending_frame.empty:
+                # Timeframe fallback: the requested timeframe is not in local
+                # parquet. Rather than silently trading a different timeframe
+                # than configured (a backtest/live parity leak — ARCH-M6), log
+                # at WARNING and replay whatever IS available so the operator
+                # sees the divergence. The log names both the requested and the
+                # fallback cadence explicitly.
                 pending_frame = store.query(symbol)
                 if not pending_frame.empty:
                     timeframe_filter = None
-                    logger.info(
-                        "Paper session requested %s/%s but only alternate local parquet data exists; "
-                        "replaying available bars.",
+                    logger.warning(
+                        "Paper session requested %s/%s but only alternate local "
+                        "parquet data exists; replaying available bars (timeframe "
+                        "divergence from config — verify this is intended).",
                         symbol,
                         timeframe,
                     )
