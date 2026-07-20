@@ -52,8 +52,20 @@ from quantflow.execution.engine import ExecutionEngine  # noqa: E402
 from quantflow.execution.paper_gateway import PaperGateway  # noqa: E402
 from quantflow.signal.risk_metrics import bootstrap_cvar  # noqa: E402
 from quantflow.strategy.engine import TradingSession  # noqa: E402
+from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy  # noqa: E402
 from quantflow.strategy.templates.trend_following import TrendFollowingStrategy  # noqa: E402
 from quantflow.strategy.validation.monte_carlo import monte_carlo_stress  # noqa: E402
+
+# Strategy registry — keys are required_regime values. P1-verify needs a
+# strategy that actually trades under the regime gate on real data: trend_following
+# (required_regime="trending") is gated out on most real BTC/USDT 1h bars (only
+# ~21/676 trending), so its returns history is near-empty and F4/F5 diagnostics
+# are degenerate. mean_reversion (required_regime="mean_reversion") trades in
+# non-trending regimes and yields a non-empty history on the same data.
+STRATEGIES = {
+    "trend_following": TrendFollowingStrategy,
+    "mean_reversion": MeanReversionStrategy,
+}
 
 
 def load_bars(
@@ -74,7 +86,7 @@ def load_bars(
     return df
 
 
-def build_session() -> TradingSession:
+def build_session(strategy_name: str = "trend_following") -> TradingSession:
     """Build a paper TradingSession with PaperGateway injected directly,
     bypassing start() so no Prometheus server or live data loop is started."""
     cfg = AppConfig()
@@ -83,7 +95,12 @@ def build_session() -> TradingSession:
     cfg.risk.max_drawdown = -0.90  # do not trip kill-switch mid-replay
     cfg.risk.vol_target_pct = None  # OFF: byte-for-byte baseline (F3 is unit-tested separately)
 
-    strategy = TrendFollowingStrategy()
+    strategy_cls = STRATEGIES.get(strategy_name)
+    if strategy_cls is None:
+        raise SystemExit(
+            f"Unknown strategy '{strategy_name}'. Available: {list(STRATEGIES)}"
+        )
+    strategy = strategy_cls()
     session = TradingSession(cfg, [strategy])
     # Inject the paper gateway directly so submit_order simulates fills without
     # going through start()'s Prometheus/network init or the live data loop.
@@ -173,10 +190,17 @@ def main() -> int:
     ap.add_argument("--max-bars", type=int, default=None, help="limit replay to first N bars")
     ap.add_argument("--parquet-dir", default="./data/parquet")
     ap.add_argument("--capital", type=float, default=100_000.0)
+    ap.add_argument(
+        "--strategy",
+        default="trend_following",
+        choices=list(STRATEGIES),
+        help="strategy to replay (trend_following is gated out on most real BTC/USDT 1h; "
+        "mean_reversion trades non-trending bars and yields non-empty history)",
+    )
     args = ap.parse_args()
 
     bars_df = load_bars(args.parquet_dir, args.symbol, args.timeframe, args.max_bars)
-    session = build_session()
+    session = build_session(args.strategy)
     history = asyncio.run(replay(session, bars_df, args.symbol))
     f4 = run_f4(history)
     f5 = run_f5_returns_bootstrap(history, args.capital)
