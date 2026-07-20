@@ -24,6 +24,15 @@ def value_at_risk(
     method : str
         "historical" or "parametric" (Gaussian).
 
+        .. warning:: The ``parametric`` (Gaussian) branch systematically
+            underestimates tail risk for crypto returns, which are
+            leptokurtic (fat-tailed). It is retained only as an auxiliary
+            reference; the risk engine's gate (RiskEngine._check_var) uses
+            historical CVaR/ES, not this parametric branch. Per Hull,
+            McNeil/Frey/Embrechts, and Basel FRTB (ES_97.5 replaced 99% VaR
+            as the coheret tail-risk measure since 2019) — prefer
+            ``conditional_var`` (ES) for any tail-risk decision (ISS-20260718-004).
+
     Returns
     -------
     float
