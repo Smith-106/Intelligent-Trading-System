@@ -614,10 +614,19 @@ class TradingSession:
             logger.info("Data loop cancelled")
 
     def check_health(self) -> dict[str, Any]:
-        """Check session health: drawdown, pending orders, positions."""
+        """Check session health: drawdown, pending orders, positions.
+
+        Position count is read from the L4 PortfolioManager (the authoritative
+        book for risk decisions) rather than the L5 PositionManager. The two
+        can diverge in live mode (sync_positions updates only L5; partial fills
+        may land in one but not the other), so mixing them lets health status
+        disagree with the drawdown reading — both now come from L4 (ISS-20260720-004
+        partial fix: presentation-layer consistency; full L4/L5 reconcile tracked
+        separately).
+        """
         dd_ok = self._portfolio.check_drawdown(self._config.risk.max_drawdown)
         pending = self._execution.order_manager.pending_count
-        positions = self._execution.position_manager.position_count
+        positions = len(self._portfolio.positions)
 
         health = {
             "running": self._running,
@@ -659,10 +668,21 @@ class TradingSession:
     # the session as the single integration boundary.
 
     def snapshot_state(self) -> dict[str, Any]:
-        """Return a structured live-state snapshot for presentation layers."""
+        """Return a structured live-state snapshot for presentation layers.
+
+        All position/cash state is read from the L4 PortfolioManager (the
+        authoritative book for risk decisions) so the snapshot is internally
+        consistent — cash, total_value, drawdown, and positions all reflect
+        the same source of truth. Previously positions came from the L5
+        PositionManager while cash/portfolio came from L4, allowing the two to
+        disagree in live mode (sync_positions updates only L5). Full L4/L5
+        reconcile (including live sync_positions→L4) is tracked as
+        ISS-20260720-004; this snapshot unification closes the
+        presentation-layer inconsistency.
+        """
         health = self.check_health()
         portfolio = self._portfolio.snapshot()
-        portfolio["market_value"] = self._execution.position_manager.total_market_value
+        portfolio["market_value"] = sum(p.market_value for p in self._portfolio.positions.values())
         portfolio["equity"] = self._portfolio.cash + portfolio["market_value"]
         portfolio["total_value"] = portfolio["equity"]
         positions = [
@@ -675,7 +695,7 @@ class TradingSession:
                 "unrealized_pnl": p.unrealized_pnl,
                 "strategy_id": p.strategy_id,
             }
-            for p in self._execution.position_manager.get_all_positions()
+            for p in self._portfolio.positions.values()
         ]
         open_orders = [
             {

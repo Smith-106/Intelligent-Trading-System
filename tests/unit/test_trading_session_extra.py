@@ -392,7 +392,11 @@ class TestTradingSessionExtra:
         session._on_risk_event(Event(EVENT_RISK, {"severity": "warn"}))
 
         session._running = True
-        session.execution.position_manager.update_position("BTC/USDT", 1.0, 100.0)
+        # Position lives in the L4 PortfolioManager (authoritative book; check_health
+        # reads open_positions from L4, not L5 — ISS-20260720-004 unification).
+        # A real fill goes through _process_signal → portfolio.update_position; this
+        # stub mirrors that by writing to L4 directly.
+        session.portfolio.update_position("BTC/USDT", 1.0, 100.0)
         session.execution.order_manager.track(
             OrderRequest(
                 symbol="BTC/USDT",
