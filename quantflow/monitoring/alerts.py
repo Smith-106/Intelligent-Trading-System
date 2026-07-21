@@ -9,6 +9,8 @@ from typing import Any
 
 import aiohttp
 
+from quantflow.common.url_safety import UnsafeUrlError, validate_outbound_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -116,6 +118,16 @@ class AlertManager:
         extra: dict[str, Any] | None,
     ) -> bool:
         payload = {"level": level.value, "message": message, **(extra or {})}
+        # ISS-003 (SEC-010): SSRF guard. The generic webhook URL is operator-
+        # configurable; without scheme/host validation it is a pure SSRF sink
+        # (a misconfigured webhook_url pointing at 127.0.0.1, a private host, or
+        # a cloud-metadata endpoint would let an attacker probe the internal
+        # network). Reject non-https and non-public hosts before any HTTP call.
+        try:
+            validate_outbound_url(self.webhook_url)
+        except UnsafeUrlError as exc:
+            logger.error("Webhook URL rejected (SSRF guard): %s", exc)
+            return False
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(

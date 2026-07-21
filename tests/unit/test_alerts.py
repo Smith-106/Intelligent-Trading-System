@@ -143,6 +143,50 @@ async def test_send_webhook_accepts_any_2xx_or_3xx(monkeypatch: pytest.MonkeyPat
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
+    "bad_url",
+    [
+        "http://example.com/hook",  # non-https
+        "https://127.0.0.1/hook",  # loopback IP
+        "https://localhost/hook",  # loopback name
+        "https://10.0.0.5/hook",  # private
+        "https://192.168.1.1/hook",  # private
+        "https://169.254.169.254/latest/meta-data/",  # link-local metadata
+        "https://user:pass@example.com/hook",  # embedded creds
+        "",
+    ],
+)
+async def test_send_webhook_rejects_ssrf_targets(
+    monkeypatch: pytest.MonkeyPatch, bad_url: str
+) -> None:
+    """ISS-003: the SSRF guard rejects non-https / loopback / private /
+    link-local / userinfo URLs before any HTTP call is made."""
+    manager = AlertManager(webhook_url=bad_url or "https://example.com/hook")
+    manager.webhook_url = bad_url
+    # The fake session records calls; if the guard works, no call is made.
+    session = _FakeSession(status=200)
+    monkeypatch.setattr("quantflow.monitoring.alerts.aiohttp.ClientSession", lambda: session)
+
+    ok = await manager._send_webhook("m", AlertLevel.WARNING, None)
+
+    assert ok is False
+    assert session.calls == []  # SSRF rejection happened before HTTP
+
+
+@pytest.mark.asyncio
+async def test_send_webhook_allows_public_https(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A public https hostname passes the SSRF guard and is POSTed."""
+    manager = AlertManager(webhook_url="https://alerts.example.com/inbox")
+    session = _FakeSession(status=200)
+    monkeypatch.setattr("quantflow.monitoring.alerts.aiohttp.ClientSession", lambda: session)
+
+    ok = await manager._send_webhook("m", AlertLevel.INFO, None)
+
+    assert ok is True
+    assert session.calls[0]["url"] == "https://alerts.example.com/inbox"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
     ("sender_name", "args"),
     [
         ("_send_telegram", ("hello", AlertLevel.INFO, None)),
