@@ -385,3 +385,54 @@ async def test_station_session_manager_records_lifecycle_and_signal_events(
     persisted_events = store.list_session_events(limit=10, session_id=session_id)
     assert any(item["event_type"] == "kill_switch" for item in persisted_events)
     assert any(item["event_type"] == "session_stopped" for item in persisted_events)
+
+
+def test_append_rejects_unknown_category(tmp_path) -> None:
+    """ISS-009: a path-shaped or unknown category must not escape base_dir."""
+    store = StationHistoryStore(base_dir=tmp_path / "station_history")
+    with pytest.raises(ValueError, match="unknown history category"):
+        store._append("../escape", {"record_id": "x"})  # type: ignore[operator]
+    # base_dir has no sibling escape file
+    assert not (tmp_path / "escape.jsonl").exists()
+
+
+def test_append_truncates_oversized_record(tmp_path) -> None:
+    """ISS-009 (SEC-018): a record whose JSON line exceeds the per-line cap is
+    written as a capped placeholder, not the megabyte blob."""
+    from quantflow.web.history import _MAX_JSONL_LINE_BYTES
+
+    store = StationHistoryStore(base_dir=tmp_path / "station_history")
+    # Payload larger than the 256KiB line cap.
+    huge_payload = "X" * (_MAX_JSONL_LINE_BYTES + 4096)
+    record = store.append_session_event(
+        {"session_id": "session-big", "event_type": "signal", "payload": huge_payload}
+    )
+    events = store.list_session_events(limit=5, session_id="session-big")
+    assert len(events) == 1
+    item = events[0]
+    # The payload blob was dropped; the line is well under the cap.
+    assert "_truncated" in item
+    assert "payload" not in item
+    assert item["session_id"] == "session-big"
+    assert item["event_type"] == "signal"
+    # record_id/created_at preserved (audit continuity).
+    assert item["record_id"] == record["record_id"]
+    assert item["created_at"] == record["created_at"]
+    # Sanity: no file line exceeds the cap.
+    lines = (
+        (tmp_path / "station_history" / "session_events.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    )
+    assert all(len(line.encode("utf-8")) <= _MAX_JSONL_LINE_BYTES for line in lines)
+
+
+def test_append_keeps_normal_sized_record(tmp_path) -> None:
+    """A normal-sized record is written verbatim, never truncated."""
+    store = StationHistoryStore(base_dir=tmp_path / "station_history")
+    store.append_session_event(
+        {"session_id": "session-ok", "event_type": "signal", "strength": 0.5}
+    )
+    events = store.list_session_events(limit=5, session_id="session-ok")
+    assert events[0].get("_truncated") is None
+    assert events[0]["strength"] == 0.5

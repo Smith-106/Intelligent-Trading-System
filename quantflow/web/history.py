@@ -13,6 +13,24 @@ from uuid import uuid4
 # long-running station session (events are appended per SIGNAL/ORDER/FILL/RISK).
 _MAX_JSONL_BYTES = 8 * 1024 * 1024
 
+# ISS-009 (SEC-018): per-line size cap. A single malformed/huge record (e.g. a
+# payload with an embedded megabyte blob) should not be appendable as one line,
+# bounding the worst-case memory when _read_tail_lines parses the tail.
+_MAX_JSONL_LINE_BYTES = 256 * 1024
+
+# Whitelist of valid category names. _append/_list build the path as
+# base_dir / f"{category}.jsonl"; category always comes from code-internal
+# callers today, but validating it defends against a future caller passing a
+# path-shaped value (e.g. "../x") that would escape base_dir.
+_VALID_CATEGORIES: frozenset[str] = frozenset(
+    {
+        "research_runs",
+        "validation_runs",
+        "session_events",
+        "session_snapshots",
+    }
+)
+
 
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat()
@@ -127,9 +145,19 @@ class StationHistoryStore:
         return json.loads(path.read_text(encoding="utf-8"))
 
     def _append(self, category: str, record: dict[str, Any]) -> None:
+        # ISS-009: category builds the path; reject anything outside the
+        # whitelist so a path-shaped value cannot escape base_dir.
+        if category not in _VALID_CATEGORIES:
+            raise ValueError(f"unknown history category: {category!r}")
         path = self.base_dir / f"{category}.jsonl"
         path.parent.mkdir(parents=True, exist_ok=True)
         line = json.dumps(record, ensure_ascii=False) + "\n"
+        # ISS-009 (SEC-018): bound per-line size so one oversized record cannot
+        # dominate the file or blow memory on the next tail-read. Truncate the
+        # record's payload rather than refuse the write — the event still lands
+        # (lifecycle/audit continuity) without the megabyte blob.
+        if len(line.encode("utf-8")) > _MAX_JSONL_LINE_BYTES:
+            line = self._truncate_line(category, record)
         with path.open("a", encoding="utf-8") as handle:
             handle.write(line)
         # Cap on-disk growth: if the file exceeds the limit, truncate to the
@@ -140,6 +168,35 @@ class StationHistoryStore:
                 self._rotate(path)
         except OSError:
             pass
+
+    @staticmethod
+    def _truncate_line(category: str, record: dict[str, Any]) -> str:
+        """Render an oversized record as a capped placeholder line.
+
+        Drops the bulky ``payload``/``request``/``data`` fields (which carry
+        the backtest result / chart points that bloat a record past the line
+        cap) and keeps the audit-critical keys (record_id, kind, created_at,
+        strategy, symbol, summary). The record remains valid JSONL.
+        """
+        keep_keys = {
+            "record_id",
+            "kind",
+            "created_at",
+            "session_id",
+            "event_type",
+            "title",
+            "level",
+            "message",
+            "strategy",
+            "symbol",
+            "summary",
+            "operator_id",
+            "data",
+        }
+        slim = {k: v for k, v in record.items() if k in keep_keys}
+        slim["_truncated"] = True
+        slim["_reason"] = f"record exceeded {_MAX_JSONL_LINE_BYTES}B line cap"
+        return json.dumps(slim, ensure_ascii=False, default=str) + "\n"
 
     @staticmethod
     def _rotate(path: Path) -> None:
