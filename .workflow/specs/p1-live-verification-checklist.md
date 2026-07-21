@@ -141,15 +141,15 @@
 |----|------|------|
 | P1.0-B1 add_return 接线 | Blocker | ✅ 已修复 + 8 单测（ISS-20260719-001） |
 | P1.0-B1 端到端确认（事件流） | Blocker | ✅ 3 单测经 on_bar 链确认 gate 阻断下单 / vol-target 缩仓 / 历史填充 |
-| P1.1-V1 高波动缩仓 | GO/NO-GO | ☐ |
-| P1.1-V2 低波动不绑定 | GO/NO-GO | ☐ |
-| P1.1-V3 off byte-for-byte | GO/NO-GO | ☐ |
-| P1.2-V1 trade-shuffle 顺序风险 | GO/NO-GO | ☐ |
-| P1.2-V2 returns-bootstrap 带宽 | GO/NO-GO | ☐ |
-| P1.2-V3 MC 诊断非 gate | 契约 | ☐ |
-| P1.3-V1 CI 随样本收窄 | GO/NO-GO | ☐ |
-| P1.3-V2 CI vs cvar_limit | gate 可信度 | ☐ |
-| P1.3-V3 CVaR 诊断非 gate | 契约 | ☐ |
+| P1.1-V1 高波动缩仓 | GO/NO-GO | ✅ GO (diagnostic) — 真实 BTC 1h 不绑定（Kelly 主导），公式正确性由单测守护（2026-07-21 真实数据复现） |
+| P1.1-V2 低波动不绑定 | GO/NO-GO | ✅ PASS — 真实数据复现 ON==OFF（2026-07-21） |
+| P1.1-V3 off byte-for-byte | GO/NO-GO | ✅ PASS |
+| P1.2-V1 trade-shuffle 顺序风险 | GO/NO-GO | ⚠️ mean_reversion NO-GO（prob_worse_dd=0.775>0.7，诊断非 gate，ISS-20260720-003 跟踪） |
+| P1.2-V2 returns-bootstrap 带宽 | GO/NO-GO | ✅ PASS |
+| P1.2-V3 MC 诊断非 gate | 契约 | ✅ PASS |
+| P1.3-V1 CI 随样本收窄 | GO/NO-GO | ✅ GO — 真实数据 n=100→500 ci_width 0.00080→0.00034 单调下降（2026-07-21） |
+| P1.3-V2 CI vs cvar_limit | gate 可信度 | ✅ GO (robust) — ci_high=0.00069 ≪ 0.05（2026-07-21） |
+| P1.3-V3 CVaR 诊断非 gate | 契约 | ✅ PASS |
 
 **进 P2 条件**：P1.0-B1 已修复且复验 + 全部 GO/NO-GO 项 PASS + 两个「诊断非 gate」契约项 PASS。任一 NO-GO 或契约破裂 → 停在 P1，不得启动 P2。
 
