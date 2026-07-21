@@ -65,7 +65,9 @@ def test_operator_id_none_without_token_or_env(monkeypatch):
 def test_operator_id_truncates_long_explicit_env(monkeypatch):
     monkeypatch.setenv("QUANTFLOW_OPERATOR_ID", "x" * 200)
     monkeypatch.delenv("QUANTFLOW_STATION_TOKEN", raising=False)
-    assert len(StationSessionManager._operator_id()) <= 64
+    op = StationSessionManager._operator_id()
+    assert op is not None
+    assert len(op) <= 64
 
 
 def test_empty_snapshot_exposes_operator_id_none():
