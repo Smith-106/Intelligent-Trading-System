@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from quantflow.common.config import load_config, resolve_config_path_safe
 from quantflow.common.event_bus import Event, EventBus
 from quantflow.common.models import EVENT_FILL, EVENT_ORDER, EVENT_RISK, EVENT_SIGNAL
+from quantflow.common.redaction import redact_secrets
 from quantflow.monitoring.metrics import update_portfolio_metrics
 from quantflow.strategy.catalog import get_strategy_factories
 from quantflow.strategy.engine import TradingSession
@@ -86,20 +87,17 @@ def _safe_number(value: Any) -> Any:
 
 
 def _redact_secrets(text: str) -> str:
-    """Redact environment-known secret values from a string.
+    """Redact secret values from a string (thin wrapper over common.redaction).
 
-    Exception messages and error logs can embed OKX API credentials / tokens
-    passed through gateway layers. Replace any occurrence of those secret
-    values with a placeholder before persisting or exposing them.
+    Exception messages and error logs can embed OKX API credentials, alert
+    channel tokens (Telegram/LINE), the Station auth token, or Redis URLs
+    with passwords. Delegate to the centralized scrubber so the secret set
+    has a single source of truth in ``quantflow.common.redaction`` (ISS-002).
+
+    Kept as a module-level name for back-compat (tests import the underscored
+    form); new call sites should import ``redact_secrets`` directly.
     """
-    if not text:
-        return text
-    redacted = text
-    for env_name in ("OKX_API_KEY", "OKX_SECRET", "OKX_PASSPHRASE"):
-        value = os.environ.get(env_name)
-        if value and value in redacted:
-            redacted = redacted.replace(value, "***REDACTED***")
-    return redacted
+    return redact_secrets(text)
 
 
 def _jsonable(value: Any) -> Any:
@@ -388,7 +386,13 @@ class StationSessionManager:
             "positions": positions,
             "open_orders": open_orders,
             "kill_switch": kill_switch_state,
-            "last_error": runtime.last_error or getattr(runtime.session, "last_error", None),
+            # ISS-002/009: redact at the single snapshot sink. The fallback
+            # reads TradingSession.last_error directly (set unredacted in
+            # engine.py) — CCXT errors echo apiKey / Redis URLs with creds, so
+            # scrub both branches before the snapshot is persisted/exposed.
+            "last_error": redact_secrets(
+                runtime.last_error or getattr(runtime.session, "last_error", "") or ""
+            ),
             "recent_events": recent_events[:12],
         }
         self._record_telemetry_point(runtime, snapshot, captured_at)

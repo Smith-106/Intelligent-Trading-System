@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from importlib import resources
 from pathlib import Path
 
 from aiohttp import web
 
 from quantflow.common.exceptions import DataError, GatewayConnectionError
+from quantflow.common.redaction import redact_secrets
 from quantflow.web.history import StationHistoryStore
 from quantflow.web.security import (
     STATION_TOKEN_ENV,
@@ -30,6 +32,8 @@ STATIC_PACKAGE = "quantflow.web.static"
 STATION_SERVICE_KEY = web.AppKey("station_service", StationService)
 SESSION_MANAGER_KEY = web.AppKey("station_session_manager", StationSessionManager)
 
+logger = logging.getLogger(__name__)
+
 # Auth/CSRF policy now lives in quantflow.web.security (REV-013) so it can be
 # audited and tested in isolation and reused by any Station entry point. The
 # names below are re-exported for back-compat (tests import the underscored
@@ -49,6 +53,20 @@ def _parse_limit(request: web.Request, default: int = 12, maximum: int = 500) ->
     if value < 0:
         return 0
     return min(value, maximum)
+
+
+def _error_response(exc: BaseException, *, status: int = 400) -> web.Response:
+    """Build a client-safe 400 response from a service-layer exception.
+
+    ISS-004/ISS-002: service ``ValueError`` echoes user-supplied config paths;
+    ``DataError``/``GatewayConnectionError`` may embed internal paths, OKX error
+    bodies, or DuckDB text. Redact at this single sink so no secret-shaped
+    value (OKX creds, alert tokens, redis URLs) reaches the client. The full
+    exception is logged server-side for diagnostics.
+    """
+    message = redact_secrets(str(exc))
+    logger.warning("Station handler error: %s: %s", type(exc).__name__, message)
+    return web.json_response({"error": message}, status=status)
 
 
 def _static_dir() -> Path:
@@ -80,7 +98,7 @@ async def _data_download(request: web.Request) -> web.Response:
     try:
         result = await service.download_data(DataDownloadRequest.model_validate(payload))
     except (ValueError, DataError, GatewayConnectionError) as exc:
-        return web.json_response({"error": str(exc)}, status=400)
+        return _error_response(exc)
     return web.json_response(result)
 
 
@@ -90,7 +108,7 @@ async def _data_seed_demo(request: web.Request) -> web.Response:
     try:
         result = service.seed_demo_data(DataDownloadRequest.model_validate(payload))
     except ValueError as exc:
-        return web.json_response({"error": str(exc)}, status=400)
+        return _error_response(exc)
     return web.json_response(result)
 
 
@@ -100,7 +118,7 @@ async def _data_tag_source(request: web.Request) -> web.Response:
     try:
         result = service.tag_data_source(DataSourceTagRequest.model_validate(payload))
     except ValueError as exc:
-        return web.json_response({"error": str(exc)}, status=400)
+        return _error_response(exc)
     return web.json_response(result)
 
 
@@ -110,7 +128,7 @@ async def _research(request: web.Request) -> web.Response:
     try:
         result = service.research(ResearchRequest.model_validate(payload))
     except ValueError as exc:
-        return web.json_response({"error": str(exc)}, status=400)
+        return _error_response(exc)
     return web.json_response(result)
 
 
@@ -126,7 +144,7 @@ async def _validate(request: web.Request) -> web.Response:
     try:
         result = service.validate(ValidationRequest.model_validate(payload))
     except ValueError as exc:
-        return web.json_response({"error": str(exc)}, status=400)
+        return _error_response(exc)
     return web.json_response(result)
 
 
@@ -146,7 +164,7 @@ async def _workbench_state(request: web.Request) -> web.Response:
     try:
         saved = service.save_workbench_state(payload)
     except ValueError as exc:
-        return web.json_response({"error": str(exc)}, status=400)
+        return _error_response(exc)
     return web.json_response({"state": saved})
 
 
@@ -206,7 +224,7 @@ async def _session_start(request: web.Request) -> web.Response:
     try:
         result = await manager.start(SessionStartRequest.model_validate(payload))
     except (RuntimeError, ValueError) as exc:
-        return web.json_response({"error": str(exc)}, status=400)
+        return _error_response(exc)
     return web.json_response(result)
 
 
@@ -226,7 +244,7 @@ async def _kill_switch(request: web.Request) -> web.Response:
     try:
         result = await manager.trigger_kill_switch(reason)
     except RuntimeError as exc:
-        return web.json_response({"error": str(exc)}, status=400)
+        return _error_response(exc)
     return web.json_response(result)
 
 

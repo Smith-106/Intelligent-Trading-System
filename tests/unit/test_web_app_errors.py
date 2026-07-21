@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import os
 from unittest.mock import AsyncMock, patch
 
 from aiohttp.test_utils import AioHTTPTestCase
 
+from quantflow.common.redaction import REDACTED_PLACEHOLDER
 from quantflow.web.app import SESSION_MANAGER_KEY, STATION_SERVICE_KEY, create_app
 from quantflow.web.history import StationHistoryStore
 from quantflow.web.service import StationService
@@ -109,6 +111,28 @@ class TestAppErrorHandlers(AioHTTPTestCase):
                 },
             )
             assert resp.status == 400
+
+    async def test_handler_error_does_not_leak_secret(self):
+        """ISS-004/002: a service error embedding a secret value is redacted
+        in the client-facing error body (single sink at _error_response)."""
+        secret = "super-secret-okx-key-987654321"
+        os.environ["OKX_API_KEY"] = secret
+        try:
+            with patch.object(
+                self.app[STATION_SERVICE_KEY],
+                "research",
+                side_effect=ValueError(f"OKX rejected api_key={secret} (bad creds)"),
+            ):
+                resp = await self.client.post(
+                    "/api/research",
+                    json={"strategy": "trend_following", "symbol": "BTC/USDT"},
+                )
+                body = await resp.json()
+                assert resp.status == 400
+                assert secret not in body["error"]
+                assert REDACTED_PLACEHOLDER in body["error"]
+        finally:
+            del os.environ["OKX_API_KEY"]
 
 
 class TestRunStation:
