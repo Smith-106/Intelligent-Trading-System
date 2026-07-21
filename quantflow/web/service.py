@@ -16,7 +16,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from quantflow import __version__
 from quantflow.common.config import load_config, resolve_config_path, resolve_config_path_safe
@@ -36,6 +36,46 @@ MAX_CHART_POINTS = 720
 DEFAULT_VISIBLE_BARS = 180
 _MAX_WORKBENCH_STATE_BYTES = 64 * 1024
 
+# ISS-001 (SEC-007): bound the user-supplied strategy ``params`` dict so a
+# deeply-nested or huge payload cannot be used as a memory-amplification /
+# DoS vector. Strategy params are flat (a few scalar hyperparameters); a depth
+# > 4 or > 32 keys is never legitimate.
+_MAX_PARAMS_DEPTH = 4
+_MAX_PARAMS_KEYS = 32
+
+
+def _validate_params_depth(value: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Reject overly-deep or oversized params payloads (ISS-001)."""
+    if value is None:
+        return None
+
+    def _depth_and_keys(node: Any, depth: int) -> tuple[int, int]:
+        if isinstance(node, dict):
+            if depth > _MAX_PARAMS_DEPTH:
+                raise ValueError(f"params nesting exceeds max depth {_MAX_PARAMS_DEPTH}")
+            keys = len(node)
+            sub_depth = depth
+            sub_keys = keys
+            for v in node.values():
+                d, k = _depth_and_keys(v, depth + 1)
+                sub_depth = max(sub_depth, d)
+                sub_keys += k
+            return sub_depth, sub_keys
+        if isinstance(node, list | tuple):
+            sub_depth = depth
+            sub_keys = 0
+            for v in node:
+                d, k = _depth_and_keys(v, depth + 1)
+                sub_depth = max(sub_depth, d)
+                sub_keys += k
+            return sub_depth, sub_keys
+        return depth, 0
+
+    _, total_keys = _depth_and_keys(value, 1)
+    if total_keys > _MAX_PARAMS_KEYS:
+        raise ValueError(f"params payload has too many keys ({total_keys} > {_MAX_PARAMS_KEYS})")
+    return value
+
 
 class ResearchRequest(BaseModel):
     strategy: str = "trend_following"
@@ -46,6 +86,17 @@ class ResearchRequest(BaseModel):
     fee: float = 0.001
     config_path: str = DEFAULT_CONFIG_PATH
     params: dict[str, Any] | None = None
+
+    @field_validator("params")
+    @classmethod
+    def _bound_params(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        return _validate_params_depth(v)
+
+    @field_validator("symbol")
+    @classmethod
+    def _validate_symbol(cls, v: str) -> str:
+        validate_symbol(v)
+        return v
 
 
 class ValidationRequest(BaseModel):
@@ -63,6 +114,17 @@ class ValidationRequest(BaseModel):
     fee: float = 0.001
     config_path: str = DEFAULT_CONFIG_PATH
     params: dict[str, Any] | None = None
+
+    @field_validator("params")
+    @classmethod
+    def _bound_params(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        return _validate_params_depth(v)
+
+    @field_validator("symbol")
+    @classmethod
+    def _validate_symbol(cls, v: str) -> str:
+        validate_symbol(v)
+        return v
 
 
 class DataDownloadRequest(BaseModel):

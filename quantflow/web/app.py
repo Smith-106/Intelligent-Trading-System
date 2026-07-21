@@ -11,6 +11,7 @@ from aiohttp import web
 from quantflow.common.exceptions import DataError, GatewayConnectionError
 from quantflow.common.redaction import redact_secrets
 from quantflow.web.history import StationHistoryStore
+from quantflow.web.rate_limit import RateLimiter, rate_limit_middleware
 from quantflow.web.security import (
     STATION_TOKEN_ENV,
     _is_loopback_host,
@@ -31,6 +32,13 @@ from quantflow.web.session_manager import SessionStartRequest, StationSessionMan
 STATIC_PACKAGE = "quantflow.web.static"
 STATION_SERVICE_KEY = web.AppKey("station_service", StationService)
 SESSION_MANAGER_KEY = web.AppKey("station_session_manager", StationSessionManager)
+
+# ISS-001 (SEC-007): cap request body size. aiohttp defaults to 1 MiB, which is
+# far more than any legitimate Station request needs (research/validate params
+# are a small dict; the largest payload is workbench state at ~64 KiB). A 256
+# KiB ceiling rejects oversized bodies that could be used to starve memory or
+# bury a deeply-nested params payload.
+MAX_REQUEST_BODY_BYTES = 256 * 1024
 
 logger = logging.getLogger(__name__)
 
@@ -258,6 +266,7 @@ def create_app(
     service: StationService | None = None,
     session_manager: StationSessionManager | None = None,
     history_store: StationHistoryStore | None = None,
+    rate_limiter: RateLimiter | None = None,
 ) -> web.Application:
     """Create the QuantFlow Station application.
 
@@ -268,8 +277,19 @@ def create_app(
     ``host`` is not a parameter. Tests construct the app directly and assume a
     loopback/loopback-equivalent threat model; the guard is enforced when the
     server is actually launched.
+
+    ``rate_limiter`` is injectable so tests can drive a tiny bucket to assert
+    429 behavior without flooding the production-sized limiter.
     """
-    app = web.Application(middlewares=[_same_origin_guard])
+    # ISS-001 (SEC-006/007): rate-limit mutation/compute endpoints (per-IP token
+    # bucket) and cap request body size, so a flood of /api/research or
+    # /api/data/download requests cannot starve the trading event loop or be
+    # used as a memory-amplification vector. Order matters: rate_limit runs
+    # before same_origin_guard so an over-limit client is rejected cheapest.
+    app = web.Application(
+        middlewares=[rate_limit_middleware(rate_limiter), _same_origin_guard],
+        client_max_size=MAX_REQUEST_BODY_BYTES,
+    )
     # REV-012: history_store is now an explicit parameter rather than reached
     # out of session_manager._history_store (a private attribute). The private
     # getattr fallback is gone; callers pass history_store explicitly, and the
