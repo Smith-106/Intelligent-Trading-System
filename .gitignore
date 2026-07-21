@@ -23,6 +23,20 @@ data/duckdb/*.wal
 # Config with secrets
 .env
 .env.local
+# Private keys / certs — never commit (ISS-015). A misplaced key would be
+# pushed otherwise; broaden beyond .env to cover TLS/SSH/API key material.
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.keystore
+secrets.yml
+secrets.yaml
+id_rsa
+id_ed25519
+*_rsa
+*_ed25519
 
 # IDE
 .vscode/

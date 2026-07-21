@@ -237,6 +237,40 @@ async def test_send_order_marks_connection_down_on_failure() -> None:
 
 
 @pytest.mark.asyncio
+async def test_send_order_rejects_invalid_symbol() -> None:
+    """ISS-020: a malformed symbol is rejected at the execution choke point
+    before it reaches create_order (whose error body may echo it)."""
+    gateway = OKXGateway()
+    exchange = _FakeExchange()
+    gateway._exchange = exchange
+    gateway._connected = True
+    order = Order(
+        order_id="",
+        symbol="BTC' OR '1'='1",  # SQL-injection-shaped symbol
+        side=OrderSide.BUY,
+        order_type="limit",
+        quantity=0.5,
+        price=50000,
+    )
+    with pytest.raises(ValueError):
+        await gateway.send_order(order)
+    # No order request was forwarded to the exchange.
+    assert exchange.order_requests == []
+
+
+@pytest.mark.asyncio
+async def test_cancel_order_rejects_invalid_symbol() -> None:
+    """ISS-020: cancel_order validates symbol before forwarding to exchange."""
+    gateway = OKXGateway()
+    exchange = _FakeExchange()
+    gateway._exchange = exchange
+    gateway._connected = True
+    with pytest.raises(ValueError):
+        await gateway.cancel_order("1", "../../etc/passwd")
+    assert exchange.cancel_requests == []
+
+
+@pytest.mark.asyncio
 async def test_cancel_order_handles_success_failure_and_missing_exchange() -> None:
     gateway = OKXGateway()
     assert await gateway.cancel_order("1", "BTC/USDT") is False

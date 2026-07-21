@@ -19,7 +19,16 @@ import pandas as pd
 from pydantic import BaseModel, field_validator
 
 from quantflow import __version__
-from quantflow.common.config import load_config, resolve_config_path, resolve_config_path_safe
+
+# resolve_config_path is re-exported here only so existing test patches
+# (`patch("quantflow.web.service.resolve_config_path")`) keep working; the web
+# layer resolves request-supplied paths via resolve_config_path_safe only
+# (ISS-019). Do not add new call sites of the unsafe variant in this module.
+from quantflow.common.config import (  # noqa: F401
+    load_config,
+    resolve_config_path,
+    resolve_config_path_safe,
+)
 from quantflow.common.validators import validate_symbol
 from quantflow.data.store import DataStore
 from quantflow.monitoring.metrics import metrics_registry_snapshot, metrics_server_status
@@ -920,8 +929,12 @@ class StationService:
     history_store: StationHistoryStore = field(default_factory=StationHistoryStore)
 
     def overview(self) -> dict[str, Any]:
-        resolved_config = resolve_config_path(self.config_path)
-        config = load_config(self.config_path)
+        # ISS-019: even though self.config_path is the constructor default (not
+        # request-supplied), resolve via the safe confining variant so the web
+        # layer has a single config-resolution contract — no resolve_config_path
+        # (CLI/unsafe) call site remains in quantflow/web/.
+        resolved_config = resolve_config_path_safe(self.config_path)
+        config = load_config(resolved_config)
         store = _open_station_store(config)
         data_dir = Path(config.data.parquet_dir)
         source_counts: Counter[str] = Counter()

@@ -7,6 +7,7 @@ import logging
 from typing import Any
 
 from quantflow.common.models import Order, OrderSide, Position
+from quantflow.common.validators import validate_symbol
 from quantflow.execution.gateway_base import GatewayBase
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,10 @@ class OKXGateway(GatewayBase):
         # rejects it with a message that may echo request details into logs.
         if not (order.quantity > 0 and order.quantity == order.quantity):  # x==x is the NaN check
             raise ValueError(f"Invalid order quantity: {order.quantity!r}")
+        # ISS-020: validate symbol at the execution choke point. order.symbol
+        # can originate from a web-influenced signal path; reject a malformed
+        # symbol before it reaches create_order (whose error body may echo it).
+        validate_symbol(order.symbol)
         await self.ensure_connected()
 
         side = "buy" if order.side == OrderSide.BUY else "sell"
@@ -129,6 +134,8 @@ class OKXGateway(GatewayBase):
     async def cancel_order(self, order_id: str, symbol: str) -> bool:
         if not self._exchange:
             return False
+        # ISS-020: validate symbol at the execution choke point.
+        validate_symbol(symbol)
         try:
             await self._exchange.cancel_order(order_id, symbol)
             logger.info("OKX cancel: %s", order_id)
@@ -140,6 +147,9 @@ class OKXGateway(GatewayBase):
     async def cancel_all_orders(self, symbol: str | None = None) -> list[bool]:
         if not self._exchange:
             return []
+        if symbol is not None:
+            # ISS-020: validate symbol at the execution choke point.
+            validate_symbol(symbol)
         try:
             params = {"symbol": symbol} if symbol else {}
             result = await self._exchange.cancel_all_orders(params)
