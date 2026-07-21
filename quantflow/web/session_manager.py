@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
+import secrets
 from collections import Counter
 from collections.abc import Callable
 from contextlib import suppress
@@ -11,7 +13,6 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
@@ -23,6 +24,7 @@ from quantflow.monitoring.metrics import update_portfolio_metrics
 from quantflow.strategy.catalog import get_strategy_factories
 from quantflow.strategy.engine import TradingSession
 from quantflow.web.history import StationHistoryStore
+from quantflow.web.security import _station_token
 
 DEFAULT_CONFIG_PATH = "quantflow/config/default.yaml"
 MAX_TELEMETRY_POINTS = 240
@@ -69,6 +71,9 @@ class SessionRuntime:
     request: SessionStartRequest
     started_at: str
     last_error: str | None = None
+    # ISS-021 (SEC-021): non-secret operator id for audit/repudiation. None in
+    # loopback single-operator mode with no token/operator env set.
+    operator_id: str | None = None
     event_handlers: list[tuple[str, Any]] = field(default_factory=list)
     # Buffered event persistence: handlers push dicts here and a background
     # flush task drains them to disk, so the per-bar hot loop does not block
@@ -181,6 +186,7 @@ class StationSessionManager:
                 loop_task=loop_task,
                 request=request,
                 started_at=datetime.now(UTC).isoformat(),
+                operator_id=self._operator_id(),
             )
             self._attach_event_observers(runtime)
             self._record_lifecycle_event(
@@ -192,6 +198,7 @@ class StationSessionManager:
                     f"{request.mode} {request.symbol} {request.timeframe} "
                     f"with {', '.join(request.strategies)}"
                 ),
+                data={"operator_id": runtime.operator_id},
             )
             loop_task.add_done_callback(lambda task: self._capture_task_outcome(task, runtime))
             self._runtime = runtime
@@ -380,6 +387,8 @@ class StationSessionManager:
             "running": running and health.get("running", False),
             "started_at": runtime.started_at,
             "updated_at": captured_at.isoformat(),
+            # ISS-021: non-secret operator id for audit (who started this session).
+            "operator_id": runtime.operator_id,
             "request": runtime.request.model_dump(),
             "health": health,
             "portfolio": portfolio,
@@ -436,8 +445,32 @@ class StationSessionManager:
 
     @staticmethod
     def _build_session_id() -> str:
+        # ISS-022 (SEC-022): use a cryptographically-random, URL-safe suffix
+        # (secrets.token_urlsafe) instead of uuid4().hex[:6] (24 bits, enumerable).
+        # token_urlsafe(16) yields ~128 bits of entropy — not a credential, but
+        # no longer guessable by an attacker scanning session ids. The leading
+        # timestamp is kept for operator readability/diagnostics only.
         stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-        return f"station-{stamp}-{uuid4().hex[:6]}"
+        return f"station-{stamp}-{secrets.token_urlsafe(16)}"
+
+    @staticmethod
+    def _operator_id() -> str | None:
+        """A non-secret identifier for the operator who started the session.
+
+        ISS-021 (SEC-021): record WHO started a live session for audit/
+        repudiation. Derived from QUANTFLOW_OPERATOR_ID if set; otherwise a
+        short stable hash of the configured Station token (the token itself is
+        never stored — only an 8-char SHA-256 prefix). Returns None when
+        neither is configured (loopback, no-token single-operator mode).
+        """
+        explicit = os.environ.get("QUANTFLOW_OPERATOR_ID", "").strip()
+        if explicit:
+            return explicit[:64]
+        token = _station_token()
+        if not token:
+            return None
+        digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        return f"token:{digest[:8]}"
 
     def _attach_event_observers(self, runtime: SessionRuntime) -> None:
         event_bus = getattr(runtime.session, "_event_bus", None)
@@ -533,6 +566,7 @@ class StationSessionManager:
             "running": False,
             "started_at": None,
             "updated_at": None,
+            "operator_id": None,
             "request": None,
             "health": {
                 "running": False,
