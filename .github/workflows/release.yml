@@ -12,6 +12,8 @@ on:
         type: string
 
 permissions:
+  # ISS-009 (SEC-005): least-privilege — release only needs to write release
+  # assets; no broader repo write or admin scope.
   contents: write
 
 jobs:
@@ -21,7 +23,8 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        # ISS-009 (SEC-005): SHA-pinned actions (see ci.yml rationale).
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           fetch-depth: 0
 
@@ -38,7 +41,7 @@ jobs:
           echo "RELEASE_VERSION=${VERSION}" >> "${GITHUB_ENV}"
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@0b93645e2fea747208f53575f101c1b292418e6f # v5
         with:
           python-version: "3.11"
           cache: "pip"
@@ -59,7 +62,7 @@ jobs:
         run: python scripts/build_release.py --tag "${{ env.RELEASE_TAG }}"
 
       - name: Upload workflow artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac09ea0886f96269626b20bc4f1fd # v4
         with:
           name: quantflow-${{ env.RELEASE_TAG }}-artifacts
           path: |

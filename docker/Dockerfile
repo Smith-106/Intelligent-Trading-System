@@ -17,6 +17,13 @@ RUN pip install --no-cache-dir .
 COPY docker ./docker
 COPY scripts ./scripts
 
+# ISS-005 (SEC-012): run as a non-root user so a container escape / RCE inside
+# the process does not immediately have root privileges over the filesystem.
+RUN groupadd --system --gid 1001 quantflow \
+    && useradd --system --uid 1001 --gid quantflow --no-create-home --home-dir /app quantflow \
+    && chown -R quantflow:quantflow /app
+USER quantflow
+
 EXPOSE 8000
 
 CMD ["quantflow", "run", "--mode", "paper", "--interval", "60"]

@@ -1,3 +1,14 @@
+# ISS-005 / ISS-006 (SEC-012/015/016): hardening notes
+#   - Images pinned to a fixed major tag (no `:latest`) so a supply-chain push
+#     cannot silently change what runs in production.
+#   - Redis bound to 127.0.0.1 only and password-protected (requirepass);
+#     it is an internal cache, never exposed to the host network directly.
+#   - Grafana admin password MUST come from the operator env (no hardcoded
+#     `admin`); if unset, compose fails fast via the `${VAR:?...}` form.
+#   - quantflow runs read-only-rootfs + no-new-privileges; the writable
+#     mounts (data/logs/config) are explicit. The published port is bound to
+#     host loopback so the station is not reachable off-box without an
+#     explicit override.
 services:
   quantflow:
     build:
@@ -13,9 +24,15 @@ services:
       - ../quantflow/config:/app/quantflow/config
       - log-data:/app/logs
     ports:
-      - "${QUANTFLOW_HOST_PORT:-18000}:8000"
+      - "127.0.0.1:${QUANTFLOW_HOST_PORT:-18000}:8000"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/metrics"]
       interval: 30s
@@ -35,56 +52,71 @@ services:
     image: redis:7-alpine
     container_name: quantflow-redis
     restart: unless-stopped
+    # ISS-005 (SEC-013): Redis is an internal cache — bind only to loopback on
+    # the host and require authentication. The password is read from the
+    # operator env; compose fails fast if it is unset.
+    command: ["redis-server", "--requirepass", "${QUANTFLOW_REDIS_PASSWORD:?QUANTFLOW_REDIS_PASSWORD must be set}", "--bind", "0.0.0.0"]
+    environment:
+      QUANTFLOW_REDIS_PASSWORD: ${QUANTFLOW_REDIS_PASSWORD:?QUANTFLOW_REDIS_PASSWORD must be set}
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "$${QUANTFLOW_REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
           memory: 128M
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.2.1
     container_name: quantflow-prometheus
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - prometheus-data:/prometheus
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
       interval: 30s
       timeout: 10s
       retries: 3
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
           memory: 256M
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.5.2
     container_name: quantflow-grafana
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      # ISS-005 (SEC-014): admin password MUST come from the operator env — no
+      # hardcoded `admin`. Compose fails fast if unset.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
+      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
@@ -95,3 +127,4 @@ volumes:
   prometheus-data:
   grafana-data:
   log-data:
+
