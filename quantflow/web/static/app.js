@@ -10874,16 +10874,16 @@ function renderSession(snapshot) {
   document.getElementById("session-updated").textContent = formatTimestamp(snapshot.started_at);
   document.getElementById("session-metrics").innerHTML = snapshot.running
     ? [
-        metricCard("现金", Number(snapshot.portfolio.cash).toFixed(2)),
-        metricCard("权益", Number(snapshot.portfolio.equity).toFixed(2)),
+        metricCard("现金", formatMetricNumber(snapshot.portfolio.cash, 2)),
+        metricCard("权益", formatMetricNumber(snapshot.portfolio.equity, 2)),
         metricCard("回撤", formatPercent(snapshot.portfolio.drawdown)),
-        metricCard("挂单", snapshot.health.pending_orders),
+        metricCard("挂单", formatMetricNumber(snapshot.health.pending_orders, 0)),
       ].join("")
     : [metricCard("会话", "已停止")].join("");
   document.getElementById("session-positions").innerHTML = (snapshot.positions || [])
     .map(
       (position) =>
-        `<tr><td>${position.symbol}</td><td>${Number(position.quantity).toFixed(4)}</td><td>${Number(position.entry_price).toFixed(2)}</td><td>${Number(position.current_price).toFixed(2)}</td><td>${Number(position.unrealized_pnl).toFixed(2)}</td></tr>`,
+        `<tr><td>${escapeHtml(safeText(position.symbol, "—"))}</td><td>${formatMetricNumber(position.quantity, 4)}</td><td>${formatMetricNumber(position.entry_price, 2)}</td><td>${formatMetricNumber(position.current_price, 2)}</td><td>${formatMetricNumber(position.unrealized_pnl, 2)}</td></tr>`,
     )
     .join("");
   document.getElementById("session-orders").innerHTML = (snapshot.open_orders || [])
