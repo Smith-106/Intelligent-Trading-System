@@ -9,6 +9,49 @@
   --accent: #2dd4bf;
   --accent-2: #38bdf8;
   --danger: #fb7185;
+
+  /* Semantic status colors (ISS-ui: centralize the go/warn/danger literals
+     previously repeated as raw hex ~51 times across pill/shadow/text). */
+  --status-go: #34d399;
+  --status-warn: #f59e0b;
+  --status-danger: #fb7185;
+  --tone-go-fg: #c8fff7;
+  --tone-warn-fg: #ffe5b3;
+  --tone-danger-fg: #ffd6de;
+
+  /* Spacing scale (4px base) — replaces ad-hoc 8/10/12/14/16/18/20/24px. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+
+  /* Font-size scale — replaces 91 hardcoded px; sizes carry semantic weight. */
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 22px;
+  --fs-3xl: 26px;
+  --fs-4xl: 28px;
+
+  /* Radius scale. */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  /* Elevation / surface depth — the dashboard was a single flat plane. */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.55);
+
+  /* Motion. */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 140ms;
+  --dur: 200ms;
 }
 
 * {
@@ -136,7 +179,7 @@ select {
 
 .topbar h1 {
   margin: 0 0 6px;
-  font-size: 28px;
+  font-size: clamp(20px, 2.2vw + 12px, 28px);
 }
 
 .topbar p {
@@ -3060,6 +3103,34 @@ th {
   .data-workflow-actions {
     width: 100%;
   }
+
+  /* Tablet (720-1180): sidebar is now a top bar — collapse vertical nav stack
+     into a horizontal scrollable row so 8 panels don't eat vertical space. */
+  .sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  .sidebar .brand {
+    flex: 0 0 auto;
+  }
+  .sidebar .nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1 1 auto;
+  }
+  .sidebar .nav-btn {
+    min-height: 40px;
+    padding: 6px 12px;
+    white-space: nowrap;
+  }
+  .sidebar .sidebar-foot {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
 }
 
 @media (max-width: 720px) {
@@ -3486,5 +3557,317 @@ th {
     max-height: 420px;
     overflow-y: auto;
     padding-right: 4px;
+  }
+}
+
+/* ============================================================
+   UI Odyssey (2026-07-22) — motion primitives, feedback, a11y
+   Layered additively at end so existing rules keep specificity.
+   ============================================================ */
+
+/* --- Skip link (WCAG 2.4.1 Bypass Blocks) --- */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 9999;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-2);
+  color: #06111f;
+  font-weight: 700;
+  text-decoration: none;
+  transition: top var(--dur-fast) var(--ease);
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+/* --- Focus-visible ring for all interactive controls (WCAG 2.4.7) --- */
+.nav-btn:focus-visible,
+.button:focus-visible,
+.segment-btn:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+/* --- Button press / disabled states (interaction_states) --- */
+.nav-btn:active,
+.button:active {
+  transform: translateY(1px);
+}
+.nav-btn:disabled,
+.button:disabled,
+.button[disabled],
+.nav-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* --- Toast notifications (micro_interactions: success path) --- */
+.toast-stack {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: min(380px, 90vw);
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(16, 24, 39, 0.96);
+  box-shadow: var(--shadow-pop);
+  color: var(--text);
+  font-size: var(--fs-base);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  animation: toastIn var(--dur) var(--ease);
+}
+.toast.leaving {
+  animation: toastOut var(--dur-fast) var(--ease) forwards;
+}
+.toast.tone-success {
+  border-color: rgba(52, 211, 153, 0.55);
+}
+.toast.tone-success::before {
+  content: "✓";
+  color: var(--status-go);
+  font-weight: 700;
+}
+.toast.tone-danger {
+  border-color: rgba(251, 113, 133, 0.55);
+}
+.toast.tone-danger::before {
+  content: "✕";
+  color: var(--status-danger);
+  font-weight: 700;
+}
+.toast.tone-info::before {
+  content: "·";
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+/* --- Inline button spinner (in-flight action feedback) --- */
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: var(--sp-2);
+  border: 2px solid rgba(230, 237, 247, 0.25);
+  border-top-color: var(--accent-2);
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: spin 700ms linear infinite;
+}
+
+/* --- Polling heartbeat indicator --- */
+.poll-heartbeat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.poll-heartbeat::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-go);
+  animation: heartbeat 1.6s var(--ease) infinite;
+}
+.poll-heartbeat.stalled::before {
+  background: var(--status-danger);
+  animation: none;
+}
+
+/* --- Metric value flash on delta (polish: count-up + flash) --- */
+.metric-flash-up {
+  animation: flashUp 700ms var(--ease);
+}
+.metric-flash-down {
+  animation: flashDown 700ms var(--ease);
+}
+
+/* --- Skeleton shimmer for loading placeholders --- */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.08) 25%,
+    rgba(148, 163, 184, 0.16) 50%,
+    rgba(148, 163, 184, 0.08) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* --- Hold-to-confirm kill switch progress fill --- */
+.hold-confirm {
+  position: relative;
+  overflow: hidden;
+}
+.hold-confirm::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 0;
+  background: rgba(251, 113, 133, 0.28);
+  pointer-events: none;
+  transition: width 1.2s linear;
+}
+.hold-confirm.holding::after {
+  width: 100%;
+}
+
+/* --- Keyframes --- */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+@keyframes heartbeat {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+@keyframes flashUp {
+  0% {
+    background-color: rgba(45, 212, 191, 0.28);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+@keyframes flashDown {
+  0% {
+    background-color: rgba(251, 113, 133, 0.28);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes toastOut {
+  to {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+/* Panel crossfade on nav switch (replaces instant display swap) */
+.panel.active {
+  animation: panelIn var(--dur) var(--ease);
+}
+
+/* --- Custom scrollbar + selection (polish) --- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.32);
+  background-clip: content-box;
+}
+::selection {
+  background: rgba(45, 212, 191, 0.3);
+  color: #fff;
+}
+
+/* --- Truncation utilities (edge_cases: long IDs, pills overflow) --- */
+.pill {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.metric-card .value {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+/* Long record/session IDs in tables and lists — keep columns from blowing out. */
+.history-grid,
+.history-grid td,
+.history-grid th,
+.status-list,
+.status-list > * {
+  min-width: 0;
+}
+.history-grid td {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+/* Generic single-line truncation helper for dynamic text. */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* --- Reduced motion: respect user preference (WCAG 2.3.3) --- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

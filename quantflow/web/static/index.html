@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>QuantFlow Station</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/static/styles.css?v=20260610-platform-ui-r24-workbench-compact">
+  <link rel="stylesheet" href="/static/styles.css?v=20260722-ui-odyssey-motion-a11y">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">跳到主内容</a>
   <div class="app-shell">
-    <aside class="sidebar">
+    <aside class="sidebar" aria-label="主导航">
       <div class="brand">
         <div class="brand-mark">QF</div>
         <div>
@@ -17,8 +18,8 @@
           <div class="brand-subtitle">Crypto 交易平台</div>
         </div>
       </div>
-      <nav class="nav">
-        <button class="nav-btn active" data-panel="overview">总览</button>
+      <nav class="nav" aria-label="面板切换">
+        <button class="nav-btn active" data-panel="overview" aria-current="page">总览</button>
         <button class="nav-btn" data-panel="data">数据中心</button>
         <button class="nav-btn" data-panel="monitoring">监控运维</button>
         <button class="nav-btn" data-panel="research">研究回测</button>
@@ -32,7 +33,7 @@
       </div>
     </aside>
 
-    <main class="main">
+    <main class="main" id="main-content">
       <header class="topbar">
         <div>
           <h1>业务工作台</h1>
@@ -1156,6 +1157,6 @@
       </section>
     </main>
   </div>
-  <script src="/static/app.js?v=20260610-platform-ui-r24-workbench-compact" defer></script>
+  <script src="/static/app.js?v=20260722-ui-odyssey-motion-a11y" defer></script>
 </body>
 </html>

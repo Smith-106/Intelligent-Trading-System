@@ -656,7 +656,13 @@ function showPanel(panelName) {
   state.activePanel = panelName;
 
   document.querySelectorAll(".nav-btn").forEach((button) => {
-    button.classList.toggle("active", button.dataset.panel === panelName);
+    const isActive = button.dataset.panel === panelName;
+    button.classList.toggle("active", isActive);
+    if (isActive) {
+      button.setAttribute("aria-current", "page");
+    } else {
+      button.removeAttribute("aria-current");
+    }
   });
   Object.entries(panels).forEach(([name, node]) => {
     node.classList.toggle("active", name === panelName);
@@ -710,8 +716,148 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+// ---------------------------------------------------------------------------
+// UI Odyssey (2026-07-22) — feedback primitives: toast, spinner, in-flight
+// guard, polling heartbeat. Additive; no existing call sites changed.
+// ---------------------------------------------------------------------------
+
+function ensureToastStack() {
+  let stack = document.querySelector(".toast-stack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.className = "toast-stack";
+    stack.setAttribute("role", "status");
+    stack.setAttribute("aria-live", "polite");
+    stack.setAttribute("aria-atomic", "false");
+    document.body.appendChild(stack);
+  }
+  return stack;
+}
+
+function showToast(message, tone = "info", ttl = 3800) {
+  const stack = ensureToastStack();
+  const toast = document.createElement("div");
+  toast.className = `toast tone-${tone}`;
+  toast.textContent = safeText(message, "");
+  stack.appendChild(toast);
+  const dismiss = () => {
+    toast.classList.add("leaving");
+    window.setTimeout(() => toast.remove(), 160);
+  };
+  window.setTimeout(dismiss, ttl);
+  toast.addEventListener("click", dismiss);
+  return toast;
+}
+
+// Disable a control while async work is in flight and show an inline spinner.
+// Returns a restore() callback. Safe to call on non-button elements.
+function withInFlight(node, label) {
+  if (!node) {
+    return () => {};
+  }
+  const tag = node.tagName.toLowerCase();
+  const isButton = tag === "button";
+  let original = null;
+  if (isButton) {
+    original = { disabled: node.disabled, html: node.innerHTML };
+    node.disabled = true;
+    node.innerHTML = `<span class="btn-spinner"></span>${escapeHtml(safeText(label, "处理中"))}`;
+  } else {
+    node.setAttribute("data-inflight", "1");
+    node.style.opacity = "0.6";
+    node.style.pointerEvents = "none";
+  }
+  return () => {
+    if (isButton) {
+      node.disabled = original.disabled;
+      node.innerHTML = original.html;
+    } else {
+      node.removeAttribute("data-inflight");
+      node.style.opacity = "";
+      node.style.pointerEvents = "";
+    }
+  };
+}
+
+// Hold-to-confirm for destructive actions (Kill Switch). Returns true only
+// if the user held for the full duration.
+function holdToConfirm(node, { duration = 1200, message = "按住以确认" } = {}) {
+  return new Promise((resolve) => {
+    if (!node) {
+      resolve(false);
+      return;
+    }
+    let held = false;
+    let timer = null;
+    const restore = withInFlight(node, message);
+    const arm = () => {
+      held = false;
+      node.classList.add("hold-confirm", "holding");
+      timer = window.setTimeout(() => {
+        held = true;
+        release();
+      }, duration);
+    };
+    const release = () => {
+      if (timer) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      node.classList.remove("hold-confirm", "holding");
+      restore();
+      node.removeEventListener("pointerup", release);
+      node.removeEventListener("pointerleave", release);
+      node.removeEventListener("blur", release);
+      resolve(held);
+    };
+    node.addEventListener("pointerup", release, { once: true });
+    node.addEventListener("pointerleave", release, { once: true });
+    node.addEventListener("blur", release, { once: true });
+    arm();
+  });
+}
+
+// Polling heartbeat — toggles stalled state when refresh throws.
+function setPollHeartbeat(stalled) {
+  const node = document.querySelector(".poll-heartbeat");
+  if (!node) {
+    return;
+  }
+  node.classList.toggle("stalled", !!stalled);
+  node.textContent = stalled ? "刷新暂停" : "实时";
+}
+
+function ensurePollHeartbeat() {
+  let node = document.querySelector(".poll-heartbeat");
+  if (!node) {
+    node = document.createElement("span");
+    node.className = "poll-heartbeat";
+    node.setAttribute("role", "status");
+    node.setAttribute("aria-live", "polite");
+    node.textContent = "实时";
+    const target = document.getElementById("topbar-panel-pill");
+    if (target && target.parentElement) {
+      target.parentElement.appendChild(node);
+    } else {
+      document.body.appendChild(node);
+    }
+  }
+  return node;
+}
+
 function metricCard(label, value) {
-  return `<div class="metric-card"><span class="label">${localizeInlineText(label, label)}</span><span class="value">${typeof value === "string" ? localizeInlineText(value, value) : value}</span></div>`;
+  let display;
+  if (typeof value === "number") {
+    // Guard NaN/Infinity — render placeholder rather than literal "NaN"/"Infinity".
+    display = Number.isFinite(value) ? value : "待检测";
+  } else if (typeof value === "string") {
+    display = localizeInlineText(value, value);
+  } else if (value === null || value === undefined) {
+    display = "待检测";
+  } else {
+    display = escapeHtml(String(value));
+  }
+  return `<div class="metric-card"><span class="label">${localizeInlineText(label, label)}</span><span class="value">${display}</span></div>`;
 }
 
 function safeText(value, fallback = "N/A") {
@@ -1153,34 +1299,38 @@ function formatPositionSide(side) {
 }
 
 function formatPercent(value) {
-  if (value === null || Number.isNaN(Number(value))) {
+  const n = Number(value);
+  if (value === null || value === undefined || Number.isNaN(n) || !Number.isFinite(n)) {
     return "待检测";
   }
-  return `${(Number(value) * 100).toFixed(2)}%`;
+  return `${(n * 100).toFixed(2)}%`;
 }
 
 function formatMetricNumber(value, digits = 3) {
-  if (value === null || Number.isNaN(Number(value))) {
+  const n = Number(value);
+  if (value === null || value === undefined || Number.isNaN(n) || !Number.isFinite(n)) {
     return "待检测";
   }
-  return Number(value).toFixed(digits);
+  return n.toFixed(digits);
 }
 
 function formatLatencyMs(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+  const n = Number(value);
+  if (value === null || value === undefined || Number.isNaN(n) || !Number.isFinite(n)) {
     return "待检测";
   }
-  return `${(Number(value) * 1000).toFixed(1)} ms`;
+  return `${(n * 1000).toFixed(1)} ms`;
 }
 
 function formatCompactNumber(value) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+  const n = Number(value);
+  if (value === null || value === undefined || Number.isNaN(n) || !Number.isFinite(n)) {
     return "待检测";
   }
   return new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 2,
-  }).format(Number(value));
+  }).format(n);
 }
 
 function formatTimestamp(value) {
@@ -9528,18 +9678,22 @@ function setSessionControlFeedback(message, tone = "muted") {
 }
 
 async function startSessionFromForm(formNode, { errorMode = "session" } = {}) {
-  const payload = buildSessionPayload(formNode);
+  const submitBtn = formNode?.querySelector?.("[type=submit]") || null;
+  const restore = withInFlight(submitBtn, "启动中");
   try {
+    const payload = buildSessionPayload(formNode);
     setTerminalDraft(payload, { dirty: false, syncForms: true });
     const review = executionDraftReadinessModel(
       state.executionHub?.control || state.session?.request || payload,
     );
     if (review.startBlocked) {
       renderExecutionDraftSummary(state.executionHub?.control || state.session?.request || payload);
+      showToast("启动条件未满足，请检查执行草稿", "danger");
       return false;
     }
     renderSession(await api("/api/session/start", { method: "POST", body: JSON.stringify(payload) }));
     await refreshRuntimeViews();
+    showToast("交易会话已启动", "success");
     return true;
   } catch (error) {
     if (errorMode === "execution") {
@@ -9547,15 +9701,21 @@ async function startSessionFromForm(formNode, { errorMode = "session" } = {}) {
     } else {
       setSessionControlFeedback(error.message, "danger");
     }
+    showToast(`启动失败：${error.message}`, "danger");
     return false;
+  } finally {
+    restore();
   }
 }
 
 async function stopManagedSession({ errorMode = "session" } = {}) {
+  const btnId = errorMode === "execution" ? "execution-stop-session" : "stop-session";
+  const restore = withInFlight(document.getElementById(btnId), "停止中");
   try {
     renderSession(await api("/api/session/stop", { method: "POST", body: "{}" }));
     await refreshRuntimeViews();
     renderExecutionDraftSummary(state.executionHub?.control || {});
+    showToast("交易会话已停止", "info");
     return true;
   } catch (error) {
     if (errorMode === "execution") {
@@ -9563,11 +9723,17 @@ async function stopManagedSession({ errorMode = "session" } = {}) {
     } else {
       setSessionControlFeedback(error.message, "danger");
     }
+    showToast(`停止失败：${error.message}`, "danger");
     return false;
+  } finally {
+    restore();
   }
 }
 
 async function triggerKillSwitch(reason, { errorMode = "session" } = {}) {
+  const btnId = errorMode === "execution" ? "execution-kill-session" : "kill-session";
+  const btn = document.getElementById(btnId);
+  const restore = withInFlight(btn, "熔断中");
   try {
     await api("/api/session/kill-switch", {
       method: "POST",
@@ -9575,6 +9741,7 @@ async function triggerKillSwitch(reason, { errorMode = "session" } = {}) {
     });
     await refreshSession();
     await refreshRuntimeViews();
+    showToast("Kill Switch 已触发", "danger");
     return true;
   } catch (error) {
     if (errorMode === "execution") {
@@ -9582,7 +9749,10 @@ async function triggerKillSwitch(reason, { errorMode = "session" } = {}) {
     } else {
       setSessionControlFeedback(error.message, "danger");
     }
+    showToast(`熔断失败：${error.message}`, "danger");
     return false;
+  } finally {
+    restore();
   }
 }
 
@@ -11084,6 +11254,8 @@ document.getElementById("research-form").addEventListener("change", () => {
 
 document.getElementById("research-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const submitBtn = event.target.querySelector("[type=submit]");
+  const restore = withInFlight(submitBtn, "回测中");
   const form = new FormData(event.target);
   const payload = Object.fromEntries(form.entries());
   payload.capital = Number(payload.capital);
@@ -11097,13 +11269,19 @@ document.getElementById("research-form").addEventListener("submit", async (event
     await loadResearchHistory();
     await loadMonitoring();
     await loadExecutionHub();
+    showToast("回测完成", "success");
   } catch (error) {
     document.getElementById("research-status").textContent = error.message;
+    showToast(`回测失败：${error.message}`, "danger");
+  } finally {
+    restore();
   }
 });
 
 document.getElementById("validation-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const submitBtn = event.target.querySelector("[type=submit]");
+  const restore = withInFlight(submitBtn, "验证中");
   const form = new FormData(event.target);
   const payload = Object.fromEntries(form.entries());
   payload.capital = Number(payload.capital);
@@ -11118,8 +11296,12 @@ document.getElementById("validation-form").addEventListener("submit", async (eve
     await loadValidationHistory();
     await loadMonitoring();
     await loadExecutionHub();
+    showToast("验证完成", "success");
   } catch (error) {
     document.getElementById("validation-status").textContent = error.message;
+    showToast(`验证失败：${error.message}`, "danger");
+  } finally {
+    restore();
   }
 });
 
@@ -11133,6 +11315,11 @@ document.getElementById("stop-session").addEventListener("click", async () => {
 });
 
 document.getElementById("kill-session").addEventListener("click", async () => {
+  const btn = document.getElementById("kill-session");
+  const confirmed = await holdToConfirm(btn, { duration: 1200, message: "按住以熔断" });
+  if (!confirmed) {
+    return;
+  }
   await triggerKillSwitch("station_manual_override", { errorMode: "session" });
 });
 
@@ -11146,6 +11333,11 @@ document.getElementById("execution-stop-session").addEventListener("click", asyn
 });
 
 document.getElementById("execution-kill-session").addEventListener("click", async () => {
+  const btn = document.getElementById("execution-kill-session");
+  const confirmed = await holdToConfirm(btn, { duration: 1200, message: "按住以熔断" });
+  if (!confirmed) {
+    return;
+  }
   await triggerKillSwitch("station_manual_override", { errorMode: "execution" });
 });
 
@@ -11182,7 +11374,15 @@ document.getElementById("execution-reset-runtime").addEventListener("click", () 
 });
 
 document.getElementById("refresh-all").addEventListener("click", async () => {
-  await refreshAllSurfaces();
+  const restore = withInFlight(document.getElementById("refresh-all"), "刷新中");
+  try {
+    await refreshAllSurfaces();
+    showToast("数据已刷新", "info", 2000);
+  } catch (error) {
+    showToast(`刷新失败：${error.message}`, "danger");
+  } finally {
+    restore();
+  }
 });
 
 document.getElementById("data-download-form").addEventListener("submit", async (event) => {
@@ -11662,8 +11862,13 @@ async function bootstrap() {
     window.clearInterval(refreshState.pollHandle);
   }
   refreshState.pollHandle = window.setInterval(() => {
-    refreshRuntimeSurfaces().catch(() => {});
+    refreshRuntimeSurfaces()
+      .then(() => setPollHeartbeat(false))
+      .catch(() => {
+        setPollHeartbeat(true);
+      });
   }, 5000);
+  ensurePollHeartbeat();
 }
 
 bootstrap().catch((error) => {
