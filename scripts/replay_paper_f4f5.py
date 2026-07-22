@@ -97,9 +97,7 @@ def build_session(strategy_name: str = "trend_following") -> TradingSession:
 
     strategy_cls = STRATEGIES.get(strategy_name)
     if strategy_cls is None:
-        raise SystemExit(
-            f"Unknown strategy '{strategy_name}'. Available: {list(STRATEGIES)}"
-        )
+        raise SystemExit(f"Unknown strategy '{strategy_name}'. Available: {list(STRATEGIES)}")
     strategy = strategy_cls()
     session = TradingSession(cfg, [strategy])
     # Inject the paper gateway directly so submit_order simulates fills without
@@ -115,7 +113,9 @@ def build_session(strategy_name: str = "trend_following") -> TradingSession:
     # dropped at engine.py:313 (size <= 0) → 0 orders, 0 fills, all-zero
     # returns history (ISS-20260720-002 root cause: not an on_bar signal bug,
     # a missing allocation init in this replay harness).
-    session._portfolio.set_allocation({s.name: 1.0 / len(session._strategies) for s in session._strategies})
+    session._portfolio.set_allocation(
+        {s.name: 1.0 / len(session._strategies) for s in session._strategies}
+    )
     return session
 
 
