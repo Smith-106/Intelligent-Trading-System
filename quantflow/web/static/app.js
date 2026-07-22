@@ -716,6 +716,17 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+// Sync a toggle button's aria-pressed with its active class so screen readers
+// announce selection state (WCAG 4.1.2 / toggle pattern). The two must never
+// drift — always set both via this helper instead of raw classList.toggle.
+function setSegmentPressed(button, isActive) {
+  if (!button) {
+    return;
+  }
+  button.classList.toggle("active", isActive);
+  button.setAttribute("aria-pressed", isActive ? "true" : "false");
+}
+
 // ---------------------------------------------------------------------------
 // UI Odyssey (2026-07-22) — feedback primitives: toast, spinner, in-flight
 // guard, polling heartbeat. Additive; no existing call sites changed.
@@ -4760,7 +4771,7 @@ function filteredExecutionEvents(items = []) {
 
 function syncExecutionEventFilterControls() {
   document.querySelectorAll("#execution-event-filter-controls .segment-btn").forEach((button) => {
-    button.classList.toggle("active", button.dataset.executionFilter === state.executionEventFilter);
+    setSegmentPressed(button, button.dataset.executionFilter === state.executionEventFilter);
   });
 }
 
@@ -4844,7 +4855,7 @@ function filteredSessionEvents(items = []) {
 
 function syncSessionEventFilterControls() {
   document.querySelectorAll("#session-event-filter-controls .segment-btn").forEach((button) => {
-    button.classList.toggle("active", button.dataset.sessionFilter === state.sessionEventFilter);
+    setSegmentPressed(button, button.dataset.sessionFilter === state.sessionEventFilter);
   });
 }
 
@@ -8354,7 +8365,7 @@ function renderSessionTelemetryChart() {
 
 function syncSessionChartControls() {
   document.querySelectorAll("#session-telemetry-controls .segment-btn").forEach((button) => {
-    button.classList.toggle("active", button.dataset.sessionChart === state.sessionChart.mode);
+    setSegmentPressed(button, button.dataset.sessionChart === state.sessionChart.mode);
   });
 }
 
@@ -8629,7 +8640,7 @@ function renderExecutionTelemetryChart() {
 
 function syncExecutionTelemetryControls() {
   document.querySelectorAll("#execution-telemetry-controls .segment-btn").forEach((button) => {
-    button.classList.toggle("active", button.dataset.executionChart === state.executionChart.mode);
+    setSegmentPressed(button, button.dataset.executionChart === state.executionChart.mode);
   });
 }
 
@@ -10294,7 +10305,7 @@ function syncRangeControls() {
     } else {
       active = Number(range) === count;
     }
-    button.classList.toggle("active", active);
+    setSegmentPressed(button, active);
   });
 }
 
@@ -11121,7 +11132,7 @@ function bindResearchChartControls() {
       state.researchChart.secondaryMode = button.dataset.secondary;
       document
         .querySelectorAll("#research-secondary-controls .segment-btn")
-        .forEach((item) => item.classList.toggle("active", item.dataset.secondary === state.researchChart.secondaryMode));
+        .forEach((item) => setSegmentPressed(item, item.dataset.secondary === state.researchChart.secondaryMode));
       renderResearchChart();
     });
   });

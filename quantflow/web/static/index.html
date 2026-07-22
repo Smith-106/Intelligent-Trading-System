@@ -509,16 +509,16 @@
                     <div id="research-chart-summary" class="chart-summary-text">等待图表数据。</div>
                   </div>
                   <div class="chart-toolbar-actions">
-                    <div id="research-range-controls" class="segmented">
-                      <button type="button" class="segment-btn active" data-range="48">48 根</button>
-                      <button type="button" class="segment-btn" data-range="96">96 根</button>
-                      <button type="button" class="segment-btn" data-range="180">180 根</button>
-                      <button type="button" class="segment-btn" data-range="360">360 根</button>
-                      <button type="button" class="segment-btn" data-range="all">全部</button>
+                    <div id="research-range-controls" role="group" aria-label="图表根数区间" class="segmented">
+                      <button aria-pressed="true" type="button" class="segment-btn active" data-range="48">48 根</button>
+                      <button aria-pressed="false" type="button" class="segment-btn" data-range="96">96 根</button>
+                      <button aria-pressed="false" type="button" class="segment-btn" data-range="180">180 根</button>
+                      <button aria-pressed="false" type="button" class="segment-btn" data-range="360">360 根</button>
+                      <button aria-pressed="false" type="button" class="segment-btn" data-range="all">全部</button>
                     </div>
-                    <div id="research-secondary-controls" class="segmented">
-                      <button type="button" class="segment-btn active" data-secondary="equity">权益</button>
-                      <button type="button" class="segment-btn" data-secondary="drawdown">回撤</button>
+                    <div id="research-secondary-controls" role="group" aria-label="图表副指标" class="segmented">
+                      <button aria-pressed="true" type="button" class="segment-btn active" data-secondary="equity">权益</button>
+                      <button aria-pressed="false" type="button" class="segment-btn" data-secondary="drawdown">回撤</button>
                     </div>
                   </div>
                 </div>
@@ -805,10 +805,10 @@
                 <div id="execution-chart-subtitle" class="surface-subtitle">等待执行层遥测。</div>
               </div>
               <div class="execution-telemetry-head-actions">
-                <div id="execution-telemetry-controls" class="segmented">
-                  <button type="button" class="segment-btn active" data-execution-chart="portfolio">组合</button>
-                  <button type="button" class="segment-btn" data-execution-chart="drawdown">回撤</button>
-                  <button type="button" class="segment-btn" data-execution-chart="activity">负载</button>
+                <div id="execution-telemetry-controls" role="group" aria-label="执行图表类型" class="segmented">
+                  <button aria-pressed="true" type="button" class="segment-btn active" data-execution-chart="portfolio">组合</button>
+                  <button aria-pressed="false" type="button" class="segment-btn" data-execution-chart="drawdown">回撤</button>
+                  <button aria-pressed="false" type="button" class="segment-btn" data-execution-chart="activity">负载</button>
                 </div>
                 <span id="execution-telemetry-pill" class="pill muted">待加载</span>
               </div>
@@ -840,12 +840,12 @@
                   <div class="surface-subtitle">按订单、成交、风险和信号事件回看执行层动态。</div>
                 </div>
                 <div class="execution-events-head-actions">
-                  <div id="execution-event-filter-controls" class="segmented">
-                    <button type="button" class="segment-btn active" data-execution-filter="all">全部</button>
-                    <button type="button" class="segment-btn" data-execution-filter="signal">信号</button>
-                    <button type="button" class="segment-btn" data-execution-filter="order">订单</button>
-                    <button type="button" class="segment-btn" data-execution-filter="fill">成交</button>
-                    <button type="button" class="segment-btn" data-execution-filter="risk">风控</button>
+                  <div id="execution-event-filter-controls" role="group" aria-label="执行事件过滤" class="segmented">
+                    <button aria-pressed="true" type="button" class="segment-btn active" data-execution-filter="all">全部</button>
+                    <button aria-pressed="false" type="button" class="segment-btn" data-execution-filter="signal">信号</button>
+                    <button aria-pressed="false" type="button" class="segment-btn" data-execution-filter="order">订单</button>
+                    <button aria-pressed="false" type="button" class="segment-btn" data-execution-filter="fill">成交</button>
+                    <button aria-pressed="false" type="button" class="segment-btn" data-execution-filter="risk">风控</button>
                   </div>
                   <span id="execution-events-count" class="pill">0</span>
                 </div>
@@ -1016,9 +1016,9 @@
                     <h3>资金轨迹</h3>
                     <div id="session-chart-subtitle" class="surface-subtitle">等待实时遥测。</div>
                   </div>
-                  <div id="session-telemetry-controls" class="segmented">
-                    <button type="button" class="segment-btn active" data-session-chart="portfolio">组合</button>
-                    <button type="button" class="segment-btn" data-session-chart="drawdown">回撤</button>
+                  <div id="session-telemetry-controls" role="group" aria-label="会话图表类型" class="segmented">
+                    <button aria-pressed="true" type="button" class="segment-btn active" data-session-chart="portfolio">组合</button>
+                    <button aria-pressed="false" type="button" class="segment-btn" data-session-chart="drawdown">回撤</button>
                   </div>
                 </div>
                 <div id="session-telemetry-stage" class="mini-chart-stage">
@@ -1071,13 +1071,13 @@
                 <div class="surface-head">
                   <h3>事件时间线</h3>
                   <div class="session-events-head-actions">
-                    <div id="session-event-filter-controls" class="segmented">
-                      <button type="button" class="segment-btn active" data-session-filter="all">全部</button>
-                      <button type="button" class="segment-btn" data-session-filter="signal">信号</button>
-                      <button type="button" class="segment-btn" data-session-filter="order">订单</button>
-                      <button type="button" class="segment-btn" data-session-filter="fill">成交</button>
-                      <button type="button" class="segment-btn" data-session-filter="risk">风控</button>
-                      <button type="button" class="segment-btn" data-session-filter="lifecycle">生命周期</button>
+                    <div id="session-event-filter-controls" role="group" aria-label="会话事件过滤" class="segmented">
+                      <button aria-pressed="true" type="button" class="segment-btn active" data-session-filter="all">全部</button>
+                      <button aria-pressed="false" type="button" class="segment-btn" data-session-filter="signal">信号</button>
+                      <button aria-pressed="false" type="button" class="segment-btn" data-session-filter="order">订单</button>
+                      <button aria-pressed="false" type="button" class="segment-btn" data-session-filter="fill">成交</button>
+                      <button aria-pressed="false" type="button" class="segment-btn" data-session-filter="risk">风控</button>
+                      <button aria-pressed="false" type="button" class="segment-btn" data-session-filter="lifecycle">生命周期</button>
                     </div>
                     <span id="session-events-count" class="pill">0</span>
                   </div>
