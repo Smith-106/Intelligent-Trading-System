@@ -104,13 +104,13 @@ select {
 }
 
 .brand-title {
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 700;
 }
 
 .brand-subtitle {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .nav {
@@ -147,13 +147,13 @@ select {
 
 .button.danger {
   border-color: rgba(251, 113, 133, 0.45);
-  color: #ffd6de;
+  color: var(--tone-danger-fg);
 }
 
 .button.small {
   min-height: 34px;
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .main {
@@ -249,7 +249,7 @@ select {
 .chart-card h3,
 .markdown-card h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .pill {
@@ -261,7 +261,7 @@ select {
   border: 1px solid var(--border);
   background: rgba(22, 33, 50, 0.8);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
@@ -271,17 +271,17 @@ select {
 
 .pill.accent {
   border-color: rgba(45, 212, 191, 0.45);
-  color: #c8fff7;
+  color: var(--tone-go-fg);
 }
 
 .pill.warning {
   border-color: rgba(245, 158, 11, 0.42);
-  color: #ffe5b3;
+  color: var(--tone-warn-fg);
 }
 
 .pill.danger {
   border-color: rgba(251, 113, 133, 0.45);
-  color: #ffd6de;
+  color: var(--tone-danger-fg);
 }
 
 .form-grid {
@@ -294,7 +294,7 @@ select {
   display: grid;
   gap: 8px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .form-grid input,
@@ -343,13 +343,13 @@ select {
 
 .param-label {
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 600;
 }
 
 .param-hint {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .param-field textarea,
@@ -367,7 +367,7 @@ select {
   resize: vertical;
   min-height: 88px;
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .checkbox-field {
@@ -399,13 +399,13 @@ select {
 .metric-card .label {
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   margin-bottom: 8px;
 }
 
 .metric-card .value {
   display: block;
-  font-size: 22px;
+  font-size: var(--fs-2xl);
   font-weight: 700;
 }
 
@@ -458,7 +458,7 @@ td {
   text-align: left;
   padding: 10px 12px;
   border-bottom: 1px solid rgba(32, 48, 71, 0.55);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 th {
@@ -490,13 +490,13 @@ th {
 }
 
 .chart-summary-title {
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 
 .chart-summary-text {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .chart-toolbar-actions {
@@ -586,7 +586,7 @@ th {
   background: rgba(6, 10, 18, 0.95);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.55;
   pointer-events: none;
   z-index: 3;
@@ -616,7 +616,7 @@ th {
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .legend-swatch {
@@ -628,7 +628,7 @@ th {
 
 .chart-note {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .session-layout {
@@ -649,7 +649,7 @@ th {
 
 .surface-subtitle {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -677,7 +677,7 @@ th {
 
 .config-brief-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .compact-section {
@@ -709,20 +709,20 @@ th {
 
 .dashboard-hero-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .dashboard-hero-value {
-  font-size: 28px;
+  font-size: var(--fs-4xl);
   font-weight: 800;
   line-height: 1.1;
 }
 
 .dashboard-hero-text {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.6;
 }
 
@@ -764,7 +764,7 @@ th {
 
 .platform-workbench.is-compact .platform-workbench-panel .surface-head .surface-subtitle,
 .platform-workbench.is-compact #platform-workbench-note {
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .platform-workbench.is-compact #platform-workbench-blockers-section {
@@ -785,7 +785,7 @@ th {
 
 .platform-workbench-copy h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-xl);
 }
 
 .platform-workbench-head-actions {
@@ -819,7 +819,7 @@ th {
 }
 
 .platform-signal-meta strong {
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .platform-signal-value {
@@ -830,7 +830,7 @@ th {
 
 .platform-signal-note {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -845,7 +845,7 @@ th {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .platform-signal-detail span {
@@ -853,7 +853,7 @@ th {
 }
 
 .platform-signal-detail strong {
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .platform-workbench-mid {
@@ -969,18 +969,18 @@ th {
 }
 
 .overview-pulse-meta strong {
-  font-size: 14px;
+  font-size: var(--fs-base);
 }
 
 .overview-pulse-value {
-  font-size: 26px;
+  font-size: var(--fs-3xl);
   font-weight: 800;
   line-height: 1;
 }
 
 .overview-pulse-note {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.55;
 }
 
@@ -996,7 +996,7 @@ th {
   gap: 10px;
   padding-top: 8px;
   border-top: 1px solid rgba(32, 48, 71, 0.45);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .overview-pulse-detail span {
@@ -1004,7 +1004,7 @@ th {
 }
 
 .overview-pulse-detail strong {
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 700;
   text-align: right;
 }
@@ -1027,11 +1027,11 @@ th {
 
 .hero-stat span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .hero-stat strong {
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 700;
 }
 
@@ -1073,24 +1073,24 @@ th {
 
 .activity-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .activity-value {
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 700;
 }
 
 .tone-accent {
-  color: #c8fff7;
+  color: var(--tone-go-fg);
 }
 
 .tone-warning {
-  color: #ffe5b3;
+  color: var(--tone-warn-fg);
 }
 
 .tone-danger {
-  color: #ffd6de;
+  color: var(--tone-danger-fg);
 }
 
 .tone-muted {
@@ -1129,7 +1129,7 @@ th {
   border-radius: 999px;
   border: 1px solid rgba(32, 48, 71, 0.6);
   background: rgba(16, 24, 39, 0.9);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
@@ -1154,7 +1154,7 @@ th {
   white-space: pre-wrap;
   word-break: break-word;
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.55;
   color: #c7d4e8;
 }
@@ -1173,7 +1173,7 @@ th {
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .json-details {
@@ -1235,7 +1235,7 @@ th {
 
 .research-decision-title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .research-decision-subtitle,
@@ -1244,7 +1244,7 @@ th {
 .research-flow-meta,
 .research-readiness-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .research-readiness-grid {
@@ -1259,7 +1259,7 @@ th {
 }
 
 .research-readiness-value {
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 700;
 }
 
@@ -1277,7 +1277,7 @@ th {
 }
 
 .research-decision-score-value {
-  font-size: 26px;
+  font-size: var(--fs-3xl);
   font-weight: 800;
 }
 
@@ -1324,7 +1324,7 @@ th {
   gap: 12px;
   flex-wrap: wrap;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .research-track-card,
@@ -1337,13 +1337,13 @@ th {
 
 .research-track-label,
 .research-flow-item-title {
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
 .research-track-value,
 .research-flow-item-value {
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
@@ -1414,7 +1414,7 @@ th {
 .research-ops-kpi-note,
 .research-diff-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .research-ops-kpi-value,
@@ -1484,20 +1484,20 @@ th {
 }
 
 .decision-text {
-  font-size: 28px;
+  font-size: var(--fs-4xl);
   font-weight: 800;
 }
 
 .decision-text.go {
-  color: #34d399;
+  color: var(--status-go);
 }
 
 .decision-text.no-go {
-  color: #fb7185;
+  color: var(--danger);
 }
 
 .decision-text.warning {
-  color: #f59e0b;
+  color: var(--status-warn);
 }
 
 .decision-text.neutral {
@@ -1556,7 +1556,7 @@ th {
 
 .validation-evidence-title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .validation-evidence-subtitle,
@@ -1565,7 +1565,7 @@ th {
 .validation-track-note,
 .validation-score-note {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .validation-evidence-kpis {
@@ -1586,11 +1586,11 @@ th {
 .validation-evidence-kpi-label,
 .validation-method-item-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .validation-evidence-kpi-value {
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 700;
 }
 
@@ -1608,7 +1608,7 @@ th {
 }
 
 .validation-score-value {
-  font-size: 26px;
+  font-size: var(--fs-3xl);
   font-weight: 800;
 }
 
@@ -1646,7 +1646,7 @@ th {
   gap: 12px;
   flex-wrap: wrap;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .validation-evidence-tracks {
@@ -1668,12 +1668,12 @@ th {
 }
 
 .validation-track-label {
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
 .validation-track-value {
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
@@ -1742,7 +1742,7 @@ th {
 }
 
 .validation-method-item-name {
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
@@ -1755,7 +1755,7 @@ th {
 }
 
 .validation-method-item-value {
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 700;
 }
 
@@ -1777,11 +1777,11 @@ th {
 .validation-summary-note,
 .validation-card-note {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .validation-summary-value {
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 700;
 }
 
@@ -1811,17 +1811,17 @@ th {
 }
 
 .validation-highlight.tone-accent .validation-highlight-marker {
-  background: #34d399;
+  background: var(--status-go);
   box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
 }
 
 .validation-highlight.tone-warning .validation-highlight-marker {
-  background: #f59e0b;
+  background: var(--status-warn);
   box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
 }
 
 .validation-highlight.tone-danger .validation-highlight-marker {
-  background: #fb7185;
+  background: var(--danger);
   box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.12);
 }
 
@@ -1925,7 +1925,7 @@ th {
 .history-note,
 .timeline-time {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .history-note {
@@ -1936,7 +1936,7 @@ th {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px 12px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .history-actions {
@@ -1992,12 +1992,12 @@ th {
 }
 
 .timeline-dot.success {
-  background: #34d399;
+  background: var(--status-go);
   box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
 }
 
 .timeline-dot.warning {
-  background: #f59e0b;
+  background: var(--status-warn);
   box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
 }
 
@@ -2037,7 +2037,7 @@ th {
 .execution-flow-note,
 .execution-event-meta {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .execution-flow-note {
@@ -2078,7 +2078,7 @@ th {
 
 .execution-event-context-label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .execution-inspector-surface {
@@ -2095,7 +2095,7 @@ th {
 .execution-inspector-note {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.6;
 }
 
@@ -2120,7 +2120,7 @@ th {
 .data-inspector-note {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.6;
 }
 
@@ -2145,7 +2145,7 @@ th {
 .monitoring-inspector-note {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.6;
 }
 
@@ -2170,7 +2170,7 @@ th {
 .overview-inspector-note {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.6;
 }
 
@@ -2222,7 +2222,7 @@ th {
 .data-leader-card.data-selectable.is-selected {
   border-color: rgba(45, 212, 191, 0.42);
   background: rgba(10, 18, 32, 0.88);
-  box-shadow: inset 3px 0 0 #2dd4bf;
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 #data-symbol-rows tr.data-selectable td {
@@ -2238,7 +2238,7 @@ th {
 }
 
 #data-symbol-rows tr.data-selectable.is-selected td:first-child {
-  box-shadow: inset 3px 0 0 #2dd4bf;
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .session-audit-surface {
@@ -2255,7 +2255,7 @@ th {
 .session-audit-note {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.6;
 }
 
@@ -2287,7 +2287,7 @@ th {
 .session-event-item.session-selectable.is-selected {
   border-color: rgba(245, 158, 11, 0.44);
   background: rgba(10, 18, 32, 0.88);
-  box-shadow: inset 3px 0 0 #f59e0b;
+  box-shadow: inset 3px 0 0 var(--status-warn);
 }
 
 #session-positions tr.session-selectable td,
@@ -2307,7 +2307,7 @@ th {
 
 #session-positions tr.session-selectable.is-selected td:first-child,
 #session-orders tr.session-selectable.is-selected td:first-child {
-  box-shadow: inset 3px 0 0 #f59e0b;
+  box-shadow: inset 3px 0 0 var(--status-warn);
 }
 
 .execution-selectable {
@@ -2329,7 +2329,7 @@ th {
 .execution-event-item.execution-selectable.is-selected {
   border-color: rgba(56, 189, 248, 0.42);
   background: rgba(10, 18, 32, 0.88);
-  box-shadow: inset 3px 0 0 #38bdf8;
+  box-shadow: inset 3px 0 0 var(--accent-2);
 }
 
 #execution-positions tr.execution-selectable td,
@@ -2349,7 +2349,7 @@ th {
 
 #execution-positions tr.execution-selectable.is-selected td:first-child,
 #execution-orders tr.execution-selectable.is-selected td:first-child {
-  box-shadow: inset 3px 0 0 #38bdf8;
+  box-shadow: inset 3px 0 0 var(--accent-2);
 }
 
 .monitoring-layout {
@@ -2398,17 +2398,17 @@ th {
 }
 
 .monitoring-signal.tone-accent .monitoring-signal-marker {
-  background: #34d399;
+  background: var(--status-go);
   box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
 }
 
 .monitoring-signal.tone-warning .monitoring-signal-marker {
-  background: #f59e0b;
+  background: var(--status-warn);
   box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
 }
 
 .monitoring-signal.tone-danger .monitoring-signal-marker {
-  background: #fb7185;
+  background: var(--danger);
   box-shadow: 0 0 0 4px rgba(251, 113, 133, 0.12);
 }
 
@@ -2484,7 +2484,7 @@ th {
 
 .monitoring-card-note {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -2496,7 +2496,7 @@ th {
   display: flex;
   justify-content: flex-end;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .monitoring-selectable {
@@ -2571,12 +2571,12 @@ th {
 }
 
 .data-highlight.tone-accent .data-highlight-marker {
-  background: #34d399;
+  background: var(--status-go);
   box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
 }
 
 .data-highlight.tone-warning .data-highlight-marker {
-  background: #f59e0b;
+  background: var(--status-warn);
   box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
 }
 
@@ -2732,7 +2732,7 @@ th {
 
 .execution-review-card h4 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-base);
 }
 
 .execution-review-card .status-list {
@@ -2748,13 +2748,13 @@ th {
 
 .danger-pill {
   border-color: rgba(251, 113, 133, 0.45);
-  color: #ffd6de;
+  color: var(--tone-danger-fg);
 }
 
 .strategy-panel-copy {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .strategy-filter-bar {
@@ -2767,7 +2767,7 @@ th {
   display: grid;
   gap: 8px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .strategy-filter-field input,
@@ -2854,7 +2854,7 @@ th {
   gap: 14px;
   flex-wrap: wrap;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .strategy-detail {
@@ -2894,7 +2894,7 @@ th {
 .strategy-kv-card .label {
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .strategy-summary-card .value,
@@ -2906,7 +2906,7 @@ th {
 
 .strategy-summary-note {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -2923,7 +2923,7 @@ th {
 
 .strategy-code {
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.5;
   word-break: break-all;
 }
@@ -2952,7 +2952,7 @@ th {
 
 .strategy-empty-copy {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .strategy-empty-state {
@@ -2981,7 +2981,7 @@ th {
   border-radius: 999px;
   background: rgba(56, 189, 248, 0.14);
   color: #c5f0ff;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .empty-state {
@@ -3146,7 +3146,7 @@ th {
   .brand-mark {
     width: 36px;
     height: 36px;
-    font-size: 13px;
+    font-size: var(--fs-md);
   }
 
   .brand-title {
@@ -3154,7 +3154,7 @@ th {
   }
 
   .brand-subtitle {
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
 
   .nav {
@@ -3175,7 +3175,7 @@ th {
     line-height: 1.25;
     white-space: normal;
     word-break: break-word;
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
 
   .sidebar-foot {
@@ -3238,7 +3238,7 @@ th {
   }
 
   .overview-pulse-value {
-    font-size: 22px;
+    font-size: var(--fs-2xl);
   }
 
   .overview-action-bar {
@@ -3290,14 +3290,14 @@ th {
 
   .topbar h1,
   .dashboard-hero-value {
-    font-size: 22px;
+    font-size: var(--fs-2xl);
   }
 
   .dashboard-hero-text,
   .surface-subtitle,
   .overview-pulse-note,
   .history-note {
-    font-size: 12px;
+    font-size: var(--fs-sm);
   }
 
   .segmented {
@@ -3311,7 +3311,7 @@ th {
     min-width: 0;
     min-height: 32px;
     padding: 0 10px;
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
 
   .session-config-brief {
@@ -3333,7 +3333,7 @@ th {
   }
 
   .platform-workbench.is-compact .platform-workbench-copy h2 {
-    font-size: 16px;
+    font-size: var(--fs-lg);
   }
 
   .platform-workbench.is-compact #platform-workbench-signals,
@@ -3390,7 +3390,7 @@ th {
   th,
   td {
     padding: 8px 10px;
-    font-size: 12px;
+    font-size: var(--fs-sm);
     white-space: nowrap;
   }
 
@@ -3465,7 +3465,7 @@ th {
   .research-decision-score-value,
   .validation-score-value,
   .decision-text {
-    font-size: 22px;
+    font-size: var(--fs-2xl);
   }
 
   .execution-event-context-grid,
