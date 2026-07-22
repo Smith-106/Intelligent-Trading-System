@@ -110,12 +110,15 @@ Source: odyssey-review deepfix session (Pattern 1, CRITICAL fixes 1-3).
 </spec-entry>
 
 
-<spec-entry category="coding" keywords="vectorbt,参数扫描,向量化,multi-asset,broadcasting" date="2026-07-18" sid="S-20260718-sffn" title="研究层大规模参数扫描用 vectorbt run_combs/Portfolio.from_signals 多资产 broadcasting" description="用 run_combs/Portfolio.from_signals 多资产 broadcasting 替代 Python 循环做大规模参数扫描" source="harvest:deep-research-20260718">
+<spec-entry category="coding" keywords="vectorbt,参数扫描,向量化,multi-asset,broadcasting" date="2026-07-18" sid="S-20260718-sffn" status="contested" contested_by="ISS-20260722-001" title="研究层大规模参数扫描用 vectorbt run_combs/Portfolio.from_signals 多资产 broadcasting" description="用 run_combs/Portfolio.from_signals 多资产 broadcasting 替代 Python 循环做大规模参数扫描" source="harvest:deep-research-20260718">
 
 ### 研究层大规模参数扫描用 vectorbt run_combs/Portfolio.from_signals 多资产 broadcasting
 
+[CONTESTED — 见条目末冲突说明]
+
 研究层应充分利用 vectorbt 的向量化参数扫描:放弃逐 bar 循环,把数千策略配置打包进 NumPy 数组做向量化评估(Numba+Rust 加速热路径),支持多资产 broadcasting 的大规模参数扫描(如 vbt.MA.run_combs(price, window=np.arange(2,101), r=2) 跨 BTC/ETH/XRP,将小时级网格搜索压缩到秒级)。需核实 strategy/research/ 当前是否仍用 Python 循环,若是则迁移到 run_combs/Portfolio.from_signals。注: vectorbt 活跃维护(2026-07 仍有提交);Numba JIT 路径在小数据集上可能产生 cryptic error 与延迟,热路径需基准测试。来源: deep-research-20260718 F6-参考项目 (3-0 verified), polakowo/vectorbt。
 
+**[CONFLICT — 待审计裁决]**: 本条目建议迁移到 vectorbt，但 `quantflow/strategy/research/backtest.py:1-4` 注释明确已**故意移除** vectorbt（Python 3.14/numba 不兼容），全仓零 vectorbt 引用。架构决策与 spec 直接矛盾。ISS-20260722-001 待审计三选一：(a) 撤销迁移方向，重定向 numpy 向量化+并行化（与现状一致，本条目应 deprecated）；(b) 重新评估 vectorbt 2026 兼容性；(c) 保留但维持 contested。grill 倾向 (a)。在裁决前，本条目以 `status="contested"` 标注，search 权重 ×0.5，仍注入但不作为实施依据。裁决入口：`/manage-knowledge-audit --scope spec`。
 </spec-entry>
 
 <spec-entry category="coding" keywords="compound,strategy_id,allocation,consolidated-signal,exact-lookup,silent-drop" date="2026-07-20" sid="S-20260720-98vs" title="Compound strategy_id 精确查找静默失效" description="compound strategy_id 精确查找静默失效范式——consolidated signal 的 joined key 永远 miss，返回 0.0 致信号丢弃/预算 bypass" source="main@428002d">

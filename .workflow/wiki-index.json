@@ -1,7 +1,1194 @@
 {
   "version": 2,
-  "generatedAt": 1781094016747,
+  "generatedAt": 1784555474555,
   "entries": [
+    {
+      "id": "codebase-comp-tc-001",
+      "type": "knowhow",
+      "title": "DataLayer",
+      "summary": "DataFetcher, clean_ohlcv, validate_no_future_leak, DataStore, FeatureStore",
+      "tags": [
+        "L1-data",
+        "FT-007"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "TC-001",
+      "parent": null,
+      "related": [
+        "codebase-feat-ft-007"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/tech-registry/datalayer.md"
+      }
+    },
+    {
+      "id": "codebase-comp-tc-002",
+      "type": "knowhow",
+      "title": "IndicatorsLayer",
+      "summary": "FactorBase, FactorRegistry, IndicatorEngine, MarketRegimeDetector, WavePattern",
+      "tags": [
+        "L2-indicators",
+        "FT-009"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "TC-002",
+      "parent": null,
+      "related": [
+        "codebase-feat-ft-009"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/tech-registry/indicatorslayer.md"
+      }
+    },
+    {
+      "id": "codebase-comp-tc-003",
+      "type": "knowhow",
+      "title": "StrategyLayer",
+      "summary": "StrategyBase, StrategyContext, TradingSession, get_strategy_definitions, load_strategy_config",
+      "tags": [
+        "L3-strategy",
+        "FT-001",
+        "FT-003",
+        "FT-004",
+        "FT-010"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "TC-003",
+      "parent": null,
+      "related": [
+        "codebase-feat-ft-001",
+        "codebase-feat-ft-003",
+        "codebase-feat-ft-004",
+        "codebase-feat-ft-010"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/tech-registry/strategylayer.md"
+      }
+    },
+    {
+      "id": "codebase-comp-tc-004",
+      "type": "knowhow",
+      "title": "SignalRiskLayer",
+      "summary": "SignalGenerator, RiskEngine, PositionSizer, PortfolioManager, value_at_risk",
+      "tags": [
+        "L4-signal-risk",
+        "FT-006"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "TC-004",
+      "parent": null,
+      "related": [
+        "codebase-feat-ft-006"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/tech-registry/signalrisklayer.md"
+      }
+    },
+    {
+      "id": "codebase-comp-tc-005",
+      "type": "knowhow",
+      "title": "ExecutionLayer",
+      "summary": "GatewayBase, OKXGateway, PaperGateway, ExecutionEngine, OrderManager",
+      "tags": [
+        "L5-execution",
+        "FT-005"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "TC-005",
+      "parent": null,
+      "related": [
+        "codebase-feat-ft-005"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/tech-registry/executionlayer.md"
+      }
+    },
+    {
+      "id": "codebase-comp-tc-006",
+      "type": "knowhow",
+      "title": "MonitoringLayer",
+      "summary": "start_metrics_server, update_portfolio_metrics, metrics_registry_snapshot, AlertManager, AlertLevel",
+      "tags": [
+        "L6-monitoring"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "TC-006",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/tech-registry/monitoringlayer.md"
+      }
+    },
+    {
+      "id": "codebase-comp-tc-007",
+      "type": "knowhow",
+      "title": "CommonFoundation",
+      "summary": "Direction, OrderSide, OrderType, OrderStatus, RunMode",
+      "tags": [
+        "L0-common"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "TC-007",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/tech-registry/commonfoundation.md"
+      }
+    },
+    {
+      "id": "codebase-comp-tc-008",
+      "type": "knowhow",
+      "title": "CliEntry",
+      "summary": "app, download, research, optimize, validate",
+      "tags": [
+        "cli",
+        "FT-002"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "TC-008",
+      "parent": null,
+      "related": [
+        "codebase-feat-ft-002"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/tech-registry/clientry.md"
+      }
+    },
+    {
+      "id": "codebase-comp-tc-009",
+      "type": "knowhow",
+      "title": "WebStation",
+      "summary": "create_app, run_station, same_origin_guard, _is_loopback_host, _station_token",
+      "tags": [
+        "web-presentation",
+        "FT-008"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "TC-009",
+      "parent": null,
+      "related": [
+        "codebase-feat-ft-008"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/tech-registry/webstation.md"
+      }
+    },
+    {
+      "id": "codebase-comp-tc-010",
+      "type": "knowhow",
+      "title": "TradingShim",
+      "summary": "TradingSession",
+      "tags": [
+        "shim"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "TC-010",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/tech-registry/tradingshim.md"
+      }
+    },
+    {
+      "id": "codebase-feat-ft-001",
+      "type": "knowhow",
+      "title": "Strategies",
+      "summary": "1 components, 0 requirements, phase Phase 1/2 complete (7 strategies)",
+      "tags": [
+        "feature",
+        "active"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "FT-001",
+      "parent": null,
+      "related": [
+        "codebase-comp-tc-003"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/feature-maps/strategies.md"
+      }
+    },
+    {
+      "id": "codebase-feat-ft-002",
+      "type": "knowhow",
+      "title": "CLI",
+      "summary": "1 components, 0 requirements, phase Phase 1 complete",
+      "tags": [
+        "feature",
+        "active"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "FT-002",
+      "parent": null,
+      "related": [
+        "codebase-comp-tc-008"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/feature-maps/cli.md"
+      }
+    },
+    {
+      "id": "codebase-feat-ft-003",
+      "type": "knowhow",
+      "title": "Research Pipeline",
+      "summary": "1 components, 0 requirements, phase Phase 1 complete",
+      "tags": [
+        "feature",
+        "active"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "FT-003",
+      "parent": null,
+      "related": [
+        "codebase-comp-tc-003"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/feature-maps/research-pipeline.md"
+      }
+    },
+    {
+      "id": "codebase-feat-ft-004",
+      "type": "knowhow",
+      "title": "Anti-Overfitting Validation",
+      "summary": "1 components, 0 requirements, phase Phase 2 complete",
+      "tags": [
+        "feature",
+        "active"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "FT-004",
+      "parent": null,
+      "related": [
+        "codebase-comp-tc-003"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/feature-maps/anti-overfitting-validation.md"
+      }
+    },
+    {
+      "id": "codebase-feat-ft-005",
+      "type": "knowhow",
+      "title": "Execution",
+      "summary": "1 components, 0 requirements, phase Phase 3 complete",
+      "tags": [
+        "feature",
+        "active"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "FT-005",
+      "parent": null,
+      "related": [
+        "codebase-comp-tc-005"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/feature-maps/execution.md"
+      }
+    },
+    {
+      "id": "codebase-feat-ft-006",
+      "type": "knowhow",
+      "title": "Risk Controls",
+      "summary": "1 components, 0 requirements, phase Phase 2 complete",
+      "tags": [
+        "feature",
+        "active"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "FT-006",
+      "parent": null,
+      "related": [
+        "codebase-comp-tc-004"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/feature-maps/risk-controls.md"
+      }
+    },
+    {
+      "id": "codebase-feat-ft-007",
+      "type": "knowhow",
+      "title": "Data Layer",
+      "summary": "1 components, 0 requirements, phase Phase 1 complete",
+      "tags": [
+        "feature",
+        "active"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "FT-007",
+      "parent": null,
+      "related": [
+        "codebase-comp-tc-001"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/feature-maps/data-layer.md"
+      }
+    },
+    {
+      "id": "codebase-feat-ft-008",
+      "type": "knowhow",
+      "title": "QuantFlow Station Web UI",
+      "summary": "1 components, 0 requirements, phase New (beyond CLAUDE.md)",
+      "tags": [
+        "feature",
+        "active"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "FT-008",
+      "parent": null,
+      "related": [
+        "codebase-comp-tc-009"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/feature-maps/quantflow-station-web-ui.md"
+      }
+    },
+    {
+      "id": "codebase-feat-ft-009",
+      "type": "knowhow",
+      "title": "Indicators (27 factors)",
+      "summary": "1 components, 0 requirements, phase Phase 1 complete",
+      "tags": [
+        "feature",
+        "active"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "FT-009",
+      "parent": null,
+      "related": [
+        "codebase-comp-tc-002"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/feature-maps/indicators-27-factors.md"
+      }
+    },
+    {
+      "id": "codebase-feat-ft-010",
+      "type": "knowhow",
+      "title": "AI Layer",
+      "summary": "1 components, 0 requirements, phase Phase 3 partial",
+      "tags": [
+        "feature",
+        "partial"
+      ],
+      "status": "active",
+      "created": "2026-07-15T22:35:00Z",
+      "updated": "2026-07-15T22:35:00Z",
+      "scope": null,
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": "manage-codebase-rebuild",
+      "sourceRef": "FT-010",
+      "parent": null,
+      "related": [
+        "codebase-comp-tc-003"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "codebase/feature-maps/ai-layer.md"
+      }
+    },
+    {
+      "id": "issue-ISS-20260613-001",
+      "type": "issue",
+      "title": "CPCV 创建 O(n²) 子 DataFrame 副本，大数集内存爆炸",
+      "summary": "CPCV 默认 C(8,2)=28 路径，每条路径对数据做 DataFrame 切片复制，O(n²) 内存占用。大数据集下内存可达数十 GB。应改用 views/indices 代替 copies，并引入 chunk processing。",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-06-13T23:30:00+08:00",
+      "updated": "2026-06-13T23:30:00+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260613-001",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 1
+      }
+    },
+    {
+      "id": "issue-ISS-20260613-002",
+      "type": "issue",
+      "title": "FeatureStore(L1) 导入 IndicatorEngine(L2) 层级违规",
+      "summary": "FeatureStore 位于 L1 数据层但导入 L2 的 IndicatorEngine，违反六层单向依赖原则。FeatureStore.compute_features() 调用 engine.compute_all(raw, indicator_names) 但 IndicatorEngine 只有 batch_calculate(df)，方法名和签名都不匹配。",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-06-13T23:30:00+08:00",
+      "updated": "2026-06-13T23:30:00+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260613-002",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 2
+      }
+    },
+    {
+      "id": "issue-ISS-20260613-003",
+      "type": "issue",
+      "title": "OKXGateway 无 WebSocket 订阅实现",
+      "summary": "GatewayBase.subscribe() 是 no-op stub，OKXGateway 未 override。实盘需要 watch_ohlcv/watch_orders 的 WebSocket 流，当前只能轮询 REST。",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-06-13T23:30:00+08:00",
+      "updated": "2026-06-13T23:30:00+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260613-003",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 3
+      }
+    },
+    {
+      "id": "issue-ISS-20260613-004",
+      "type": "issue",
+      "title": "Logging 可能泄漏 API Key 片段",
+      "summary": "monitoring/logger.py 没有 log sanitization filter，API key 片段可能通过 DEBUG 级日志泄露。OKXGateway 在 DEBUG 级记录 order response 包含潜在 PII。",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-06-13T23:30:00+08:00",
+      "updated": "2026-06-13T23:30:00+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260613-004",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 4
+      }
+    },
+    {
+      "id": "issue-ISS-20260613-005",
+      "type": "issue",
+      "title": "CLI research/optimize/validate 不传递日期过滤给 DataStore.query()",
+      "summary": "research() 暴露 start/end 参数但调用 store.query(symbol) 不传递；optimize/validate 也加载全量历史。DataStore.query() 已支持 start/end/timeframe/列投影。",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-06-13T23:30:00+08:00",
+      "updated": "2026-06-13T23:30:00+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260613-005",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 5
+      }
+    },
+    {
+      "id": "issue-ISS-20260613-006",
+      "type": "issue",
+      "title": "增量策略逻辑可能与向量化研究逻辑漂移",
+      "summary": "为 on_bar 添加增量路径后，增量指标计算可能与向量化 generate_signals 结果不一致。若无 parity 测试保障，策略在回测和实盘中表现会差异。",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-06-13T23:30:00+08:00",
+      "updated": "2026-07-20T18:50:47.951793+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260613-006",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issue-history.jsonl",
+        "line": 4
+      }
+    },
+    {
+      "id": "issue-ISS-20260613-007",
+      "type": "issue",
+      "title": "ZigZag min_overlap>80% 可能导致部分品种无共识转折点",
+      "summary": "多参数 ZigZag 交叉验证要求 >80% 重叠，低波动品种可能无共识转折点，导致交易信号缺失。",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-06-13T23:30:00+08:00",
+      "updated": "2026-06-13T23:30:00+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260613-007",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 6
+      }
+    },
+    {
+      "id": "issue-ISS-20260718-001",
+      "type": "issue",
+      "title": "MTF 对齐 reindex+ffill 缺 shift(1)，潜在 0.20 ROC-AUC look-ahead 虚高",
+      "summary": "mtf_aligner.py:177 用 df.reindex(aligned_index).ffill() 实现高时间框架下采样，注释自称「ffill 确保无未来数据泄漏」，但 ffill ≠ shift(1)。若高时间框架 bar 以 bar-open 时间戳索引，reindex+ffill 会让该 bar 的值在 bar 开始即对低时间框架可见，而非 bar 收盘后。MDPI Risks 8(3)40 论文指出此偏差使 ROC-AUC 虚高约 0.20（0.60→0.8",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T00:00:00+08:00",
+      "updated": "2026-07-20T18:49:25.541608+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260718-001",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issue-history.jsonl",
+        "line": 1
+      }
+    },
+    {
+      "id": "issue-ISS-20260718-002",
+      "type": "issue",
+      "title": "缺自动化 look-ahead / 递归公式检测 CLI（Freqtrade lookahead-analysis 等价物）",
+      "summary": "Freqtrade 把 look-ahead bias 检测和递归公式错误检测固化为一等公民 CLI 子命令（lookahead-analysis 内部链式跑回测、主动扰动策略诱发泄漏；recursive-analysis 检测特定指标的递归公式错误）。QuantFlow 目前依赖手写 shift(1)（散见 indicators/trend.py、regime.py）和 FeatureStore 保证时间点安全，无专用泄漏检测工具。v0.1.3 perf run 曾引入 3",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T00:00:00+08:00",
+      "updated": "2026-07-20T18:51:20.863136+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260718-002",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 7
+      }
+    },
+    {
+      "id": "issue-ISS-20260718-003",
+      "type": "issue",
+      "title": "PositionSizer 缺 vol-targeting，应绑定 min(half-Kelly, vol-target, 单名上限)",
+      "summary": "position_sizer.py:21-24 只实现「半Kelly(kelly_fraction=0.5) + 单名上限(max_position_pct=0.20)」两件套，全仓 grep vol.?target|volatility_target 在 quantflow/ 下零命中。主流风控叠加层绑定规则应为仓位 = min(half-Kelly, vol-target, 单名上限)，缺 vol-target 会在低波动期过度加仓。default.yaml:42 设 k",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T00:00:00+08:00",
+      "updated": "2026-07-20T18:49:25.541608+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260718-003",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issue-history.jsonl",
+        "line": 2
+      }
+    },
+    {
+      "id": "issue-ISS-20260718-004",
+      "type": "issue",
+      "title": "parametric-normal VaR 低估 crypto 肥尾，ES_97.5 应提为主指标",
+      "summary": "risk_metrics.py:25,37-42 的 parametric 分支用 mu - sigma*norm.ppf(confidence)，纯高斯——正是论文批评的薄尾方法，crypto 收益尖峰厚尾会系统性低估尾部风险。已有 conditional_var()(CVaR/ES, risk_metrics.py:49-61)实现，但 risk_engine.py:184-191 的 cvar_95 只在 cvar_limit breach 时 block signal",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T00:00:00+08:00",
+      "updated": "2026-07-20T18:57:58.246469+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260718-004",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issue-history.jsonl",
+        "line": 5
+      }
+    },
+    {
+      "id": "issue-ISS-20260718-005",
+      "type": "issue",
+      "title": "验证栈缺 Monte Carlo 压力测试层（Jesse trade-shuffle + candles-based 等价物）",
+      "summary": "strategy/validation/__init__.py 导出集恰为 {cpcv, dsr, pbo, wfo, validation_gate}，无 Monte Carlo。全仓 grep monte.?carlo 在 quantflow/ 代码零命中（仅规划文档提及用于 VaR 估计，非交易顺序压力测试）。Jesse 内置两种 Monte Carlo：trade-order shuffling（测交易时序运气 skill-vs-luck）+ candles-base",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T00:00:00+08:00",
+      "updated": "2026-07-20T18:49:25.541608+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260718-005",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issue-history.jsonl",
+        "line": 3
+      }
+    },
+    {
+      "id": "issue-ISS-20260719-001",
+      "type": "issue",
+      "title": "P1 阻塞：add_return 全项目零调用方，vol-target 与 CVaR gate 历史永不填充",
+      "summary": "P1 风控层实盘验证 checklist 起草期间发现：PositionSizer.add_return() 与 RiskEngine.add_return() 在全项目无任何调用方（grep '\\.add_return(' quantflow/ 返回空）。TradingSession/strategy engine 的 bar 处理循环从未把当根 bar 的已实现收益率喂给这两个组件，导致 _returns_history 永远为空。后果横跨 L4 信号层两个组件：（1）F",
+      "tags": [],
+      "status": "completed",
+      "created": "2026-07-19T00:00:00+08:00",
+      "updated": "2026-07-19T00:00:00+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260719-001",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 8
+      }
+    },
+    {
+      "id": "issue-ISS-20260720-001",
+      "type": "issue",
+      "title": "regime 维度 parity 缺口——on_bar 应用 regime gating 而 generate_signals 不应用",
+      "summary": "on_bar 事件路径应用 regime gating（engine 在 required_regime != detected regime 时跳过 strategy.on_bar，MarketRegimeDetector 用 ADX>=25 判定 trending），而 generate_signals 向量化路径不应用 regime gating——两路径在 regime 维度不 parity。实测真实 BTC/USDT 1h：generate_signals 的 84",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-20T18:49:53.644661+08:00",
+      "updated": "2026-07-20T19:05:45.004338+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260720-001",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issue-history.jsonl",
+        "line": 6
+      }
+    },
+    {
+      "id": "issue-ISS-20260720-002",
+      "type": "issue",
+      "title": "mean_reversion on_bar 不发信号——增量路径与 generate_signals 不 parity",
+      "summary": "P1-verify 回放实测：mean_reversion 在真实 BTC/USDT 1h（676 bar）on_bar 发 0 信号，但 generate_signals 产 11 entries / 59 exits。增量 on_bar 路径与向量化路径严重不 parity （比 ISS-20260613-006 exit 漂移更彻底——完全无信号 vs 部分漂移）。可能原因：on_bar 的 emit_signal 逻辑缺失/entry 条件实现与 generate_s",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-20T19:15:52.249634+08:00",
+      "updated": "2026-07-20T19:41:47.843070+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260720-002",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issue-history.jsonl",
+        "line": 7
+      }
+    },
+    {
+      "id": "issue-ISS-20260720-003",
+      "type": "issue",
+      "title": "mean_reversion F5 trade-shuffle 顺序依赖红旗——prob_worse_dd=0.775 超 NO-GO 阈",
+      "summary": "P1-verify 回放实测（commit cb77bee 修复 ISS-20260720-002 后解锁）：mean_reversion 在真实 BTC/USDT 1h （676 bar）跑 8 笔交易，final equity 99651.65（-0.35%），F5 trade-shuffle prob_worse_dd=0.775 > 0.7 触发 P1.2-V1 NO-GO 旗。观测路径相对交易重排处于偏幸运侧——回撤对交易顺序敏感，实盘若遭遇不利顺序（亏损集中早期）",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-20T20:19:47.806078+08:00",
+      "updated": "2026-07-20T20:19:47.806078+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260720-003",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 9
+      }
+    },
+    {
+      "id": "issue-ISS-20260720-004",
+      "type": "issue",
+      "title": "L4/L5/gateway 三套 position/cash book 无 reconcile（ARCH-H2/M5/CORR-L1）",
+      "summary": "odyssey-review(p1-parity-paths) architecture review 发现：PortfolioManager(L4)、ExecutionEngine.PositionManager(L5)、PaperGateway(L5 内) 三者各自维护独立 cash/position book，无 reconcile。分歧场景：(1) live sync_positions 只更新 L5 不更新 L4；(2) PaperGateway _cash/_po",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-20",
+      "updated": "2026-07-20",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260720-004",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 10
+      }
+    },
+    {
+      "id": "issue-ISS-20260720-005",
+      "type": "issue",
+      "title": "热路径 per-bar 重算/重建 perf gap 集合（PERF-H1/H2/L1/L2/L3/M3-M3已修）",
+      "summary": "odyssey-review(p1-parity-paths) performance review 汇总的 per-bar 热路径重算/重建项，按风险/收益排序后留 issue（已修的 PERF-M3 var cache 不在此列）：(1) PERF-H1 regime.py update 节流后仍每 adx_period//2 bar 全量重建 3 pd.Series + ADX/BB/ATR——已节流 amortized，增量 EMA-ADX 改造风险高需 perf-b",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-20",
+      "updated": "2026-07-20",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260720-005",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 11
+      }
+    },
+    {
+      "id": "issue-ISS-20260720-006",
+      "type": "issue",
+      "title": "多策略 on_bar 委托 generate_signals 致 O(n^2) 热路径 + on_bar idiom 不统一（ARCH-M4）",
+      "summary": "odyssey-review architecture review: elliott_wave/momentum_rotation/funding_rate/ml_ensemble 的 on_bar 调 self.generate_signals(df) 读 entries.iloc[last_idx]，把 stateful live 路径耦合到 stateless vectorized 路径，每 bar O(n) = 每 session O(n^2)。trend_foll",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-20",
+      "updated": "2026-07-20",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": "ISS-20260720-006",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "virtual",
+        "path": "issues/issues.jsonl",
+        "line": 12
+      }
+    },
+    {
+      "id": "knowhow-doc-knowhow-data-layer-upgrade-polars-clickhouse",
+      "type": "knowhow",
+      "title": "数据层升级候选:Polars+ClickHouse/QuestDB;DuckDB QUALIFY ROW_NUMBER 实现 PIT 特征存储",
+      "summary": "数据层改进方向(来自 deep-research fetch 阶段):(1) Machine Learning for Trading 第3版数据层已迁移到 Polars(replacing pandas)做快速 expression-based 操作,并 benchmark 多种存储引擎(Parquet/DuckDB/kdb+/TimescaleDB/ClickHouse/QuestDB/InfluxDB)——QuantFlow 当前 Parquet+DuckDB 是子集,",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T11:02:09.963Z",
+      "updated": "2026-07-18T11:02:09.964Z",
+      "scope": null,
+      "category": "data,infra,upgrade-path",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "deep-research-20260718 F14",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-knowhow-data-layer-upgrade-polars-clickhouse.md"
+      }
+    },
+    {
+      "id": "knowhow-doc-knowhow-fingpt-v33-finbert-upgrade",
+      "type": "knowhow",
+      "title": "FinBERT→FinGPT v3.3 升级路径(单卡 RTX 3090/7.25)",
+      "summary": "QuantFlow 当前 FinBERT 情绪模块可升级为 FinGPT v3.3(Llama2-13B 基座):在 FPB/FiQA-SA/TFNS/NWGI 合成基准加权 F1 达 0.882,自称优于 GPT-4 与 ChatGPT 微调,单卡 RTX 3090、17.25 小时、7.25 成本即可微调(QLoRA int4 版本 .15/次)。对比 BloombergGPT 的 512×A100/53天/~M,让金融 LLM 对个人/小团队可行。来源: ai4fina",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T11:01:14.316Z",
+      "updated": "2026-07-18T11:01:14.317Z",
+      "scope": null,
+      "category": "ai,sentiment,upgrade-path",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "deep-research-20260718 F11",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-knowhow-fingpt-v33-finbert-upgrade.md"
+      }
+    },
+    {
+      "id": "knowhow-doc-knowhow-live-cost-modeling-funding-fee-alerts",
+      "type": "knowhow",
+      "title": "实盘成本建模:滑点+手续费腰斩收益;永续 funding fee 不可忽略;Grafana 告警检测用户面症状",
+      "summary": "实盘成本与监控改进(来自 deep-research fetch 阶段):(1) 忽略交易成本(滑点+手续费)可能让年化回测收益腰斩(20%→10%),成本建模必须在回测管道中显式化;(2) 期货 funding fee 常被忽略,对持仓跨期策略会扭曲盈利性——这对 Crypto 永续合约策略尤为关键,QuantFlow 的 OKX 永续合约策略必须建模 funding rate;(3) Grafana 告警最佳实践:告警应检测用户面症状(延迟/错误/可用性)而非内部基础设施",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T11:02:44.953Z",
+      "updated": "2026-07-18T11:02:44.954Z",
+      "scope": null,
+      "category": "execution,cost,monitoring",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "deep-research-20260718 F15",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-knowhow-live-cost-modeling-funding-fee-alerts.md"
+      }
+    },
+    {
+      "id": "knowhow-doc-knowhow-qlib-model-zoo-benchmark",
+      "type": "knowhow",
+      "title": "Qlib 20+ SOTA 模型动物园可作因子/模型基准",
+      "summary": "Qlib 提供 20+ SOTA 模型动物园(Quant Model Zoo):树模型 XGBoost/LightGBM/CatBoost、深度学习 LSTM/Transformer/TCN、图模型 GATs/HIST,可作为 QuantFlow 当前较窄因子/模型面的参考基准。QuantFlow indicators 层为 27 因子固定集,缺少可对比的模型 zoo 与基准评测体系。Qlib examples/benchmarks 提供可复现评测。来源: microsoft",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T11:01:51.034Z",
+      "updated": "2026-07-18T11:01:51.035Z",
+      "scope": null,
+      "category": "reference,ai,model-zoo",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "deep-research-20260718 F13",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-knowhow-qlib-model-zoo-benchmark.md"
+      }
+    },
+    {
+      "id": "knowhow-doc-knowhow-rdagent-q-factor-mining-architecture",
+      "type": "knowhow",
+      "title": "RD-Agent(Q) 五单元闭环 + Co-STEER DAG + bandit 调度因子挖掘架构",
+      "summary": "Microsoft RD-Agent(Q)(NeurIPS 2025, arXiv:2505.15155)是 QuantFlow 规划中 Qlib RD-Agent 因子挖掘层的直接参考。架构要点:(1) 五单元闭环 Specification→Synthesis→Implementation→Validation→Analysis;(2) Co-STEER 代码生成 agent 用 DAG G=(V,E) 表示任务依赖+拓扑排序,维护 task-code-feedback ",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T11:00:46.256Z",
+      "updated": "2026-07-18T11:00:46.256Z",
+      "scope": null,
+      "category": "ai,factor-mining",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "deep-research-20260718 F10",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-knowhow-rdagent-q-factor-mining-architecture.md"
+      }
+    },
+    {
+      "id": "knowhow-doc-knowhow-sentiment-dissemination-breadth",
+      "type": "knowhow",
+      "title": "情绪分析传播广度感知(聚类+prompt 注入,+8 个百分点)",
+      "summary": "现有 LLM 情绪分析方法通常只关注新闻内容本身、忽略信息传播广度(dissemination breadth),削弱短期走势预测准确性。AAAI 2025 Workshop 论文(arXiv:2412.10823)方法:通过聚类公司相关新闻评估触达与影响力,并将传播广度、上下文数据与明确指令注入 prompt,可使股价走势预测准确率提升约 8 个百分点(55%→63%)。QuantFlow 的 strategy/sentiment.py 的 analyze_text 仅对单",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T11:01:26.454Z",
+      "updated": "2026-07-18T11:01:26.456Z",
+      "scope": null,
+      "category": "ai,sentiment,research",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "deep-research-20260718 F12",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-knowhow-sentiment-dissemination-breadth.md"
+      }
+    },
+    {
+      "id": "knowhow-doc-strategy-matrix-complementarity-and-rationale",
+      "type": "knowhow",
+      "title": "QuantFlow 策略矩阵与互补性 + 候选学术依据",
+      "summary": "## 来源 brainstorm 20260602-brainstorm-new-strategies（5 候选策略收敛）。收割时 4/5 已实现（momentum_rotation / volatility_breakout / funding_rate / ml_ensemble 模板已存在），仅跨交易所套利未实现。此条目记录代码注释未覆盖的增量：策略间互补性矩阵 + 学术依据。",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-20T10:12:45.267Z",
+      "updated": "2026-07-20T10:12:45.268Z",
+      "scope": null,
+      "category": "strategy",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "brainstorm-20260602-new-strategies",
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-strategy-matrix-complementarity-and-rationale.md"
+      }
+    },
+    {
+      "id": "knowhow-DOC-strategy-matrix-complementarity-and-rationale-001",
+      "type": "knowhow",
+      "title": "来源",
+      "summary": "brainstorm 20260602-brainstorm-new-strategies（5 候选策略收敛）。收割时 4/5 已实现（momentum_rotation / volatility_breakout / funding_rate / ml_ensemble 模板已存在），仅跨交易所套利未实现。此条目记录代码注释未覆盖的增量：策略间互补性矩阵 + 学术依据。",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T10:12:45.267Z",
+      "updated": "2026-07-20T10:12:45.268Z",
+      "scope": null,
+      "category": "strategy",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "brainstorm-20260602-new-strategies",
+      "parent": "knowhow-doc-strategy-matrix-complementarity-and-rationale",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-strategy-matrix-complementarity-and-rationale.md"
+      }
+    },
+    {
+      "id": "knowhow-DOC-strategy-matrix-complementarity-and-rationale-002",
+      "type": "knowhow",
+      "title": "当前策略矩阵",
+      "summary": "| 策略 | 类型 | 市场状态 | 相关性 | |------|------|----------|--------| | Trend Following | 趋势（时间序列动量） | 趋势市 | 基线 | | Mean Reversion | 均值回归 | 震荡市 | 低 | | Elliott Wave | 波浪 | 全状态 | 中 | | Momentum Rotation | 横截面动量 | 趋势市（牛市轮动） | 与趋势跟踪低相关——TS 动量 vs 横截面动量 ",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T10:12:45.267Z",
+      "updated": "2026-07-20T10:12:45.268Z",
+      "scope": null,
+      "category": "strategy",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "brainstorm-20260602-new-strategies",
+      "parent": "knowhow-doc-strategy-matrix-complementarity-and-rationale",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-strategy-matrix-complementarity-and-rationale.md"
+      }
+    },
+    {
+      "id": "knowhow-DOC-strategy-matrix-complementarity-and-rationale-003",
+      "type": "knowhow",
+      "title": "互补性设计原则",
+      "summary": "策略组合以低/负相关为优先：时间序列动量（Trend）+ 横截面动量（Rotation）+ 均值回归（MR/Funding）+ 波动率转换（VolBreak）+ 非线性组合（ML）+ 市场中性（Arb，待实现）覆盖不同市场状态与信号维度，降低组合回撤。",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T10:12:45.267Z",
+      "updated": "2026-07-20T10:12:45.268Z",
+      "scope": null,
+      "category": "strategy",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "brainstorm-20260602-new-strategies",
+      "parent": "knowhow-doc-strategy-matrix-complementarity-and-rationale",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-strategy-matrix-complementarity-and-rationale.md"
+      }
+    },
+    {
+      "id": "knowhow-DOC-strategy-matrix-complementarity-and-rationale-004",
+      "type": "knowhow",
+      "title": "学术依据",
+      "summary": "- Momentum Rotation: Jegadeesh & Titman (1993) 动量效应 - Volatility Breakout: TTM Squeeze (Carter), BB Squeeze - Cross-Exchange Arbitrage: Avellaneda & Lee (2010) 统计套利 - ML Ensemble: de Prado (2018) Advances in Financial ML（Meta-Labeling 过滤、Pu",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T10:12:45.267Z",
+      "updated": "2026-07-20T10:12:45.268Z",
+      "scope": null,
+      "category": "strategy",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "brainstorm-20260602-new-strategies",
+      "parent": "knowhow-doc-strategy-matrix-complementarity-and-rationale",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-strategy-matrix-complementarity-and-rationale.md"
+      }
+    },
+    {
+      "id": "knowhow-DOC-strategy-matrix-complementarity-and-rationale-005",
+      "type": "knowhow",
+      "title": "实施状态（2026-07-20）",
+      "summary": "P1 波动率突破 ✅ / P2 资金费率 ✅ / P3 动量轮动 ✅ / P4 ML集成 ✅ / P5 跨交易所套利 ☐（架构改动大，优先级最低，未实现）。实施顺序详见 spec architecture-constraints.md「新增策略实施顺序」。",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T10:12:45.267Z",
+      "updated": "2026-07-20T10:12:45.268Z",
+      "scope": null,
+      "category": "strategy",
+      "specCategory": null,
+      "createdBy": "manage-harvest",
+      "sourceRef": "brainstorm-20260602-new-strategies",
+      "parent": "knowhow-doc-strategy-matrix-complementarity-and-rationale",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "knowhow/DOC-strategy-matrix-complementarity-and-rationale.md"
+      }
+    },
     {
       "id": "project-project",
       "type": "project",
@@ -9,10 +1196,11 @@
       "summary": "# Project: QuantFlow",
       "tags": [],
       "status": "active",
-      "created": "2026-06-01T20:24:03.909Z",
-      "updated": "2026-06-02T15:45:59.364Z",
+      "created": "2026-07-16T01:13:22.258Z",
+      "updated": "2026-07-16T01:13:22.258Z",
       "scope": null,
       "category": null,
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": null,
@@ -26,13 +1214,14 @@
       "id": "roadmap-roadmap",
       "type": "roadmap",
       "title": "Roadmap: QuantFlow 策略扩展与发布准备",
-      "summary": "## Overview",
+      "summary": "# Roadmap: QuantFlow 策略扩展与发布准备",
       "tags": [],
       "status": "active",
-      "created": "2026-06-01T20:28:31.430Z",
-      "updated": "2026-06-07T01:37:51.912Z",
+      "created": "2026-07-20T10:35:26.494Z",
+      "updated": "2026-07-20T10:35:26.494Z",
       "scope": null,
       "category": null,
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": null,
@@ -40,6 +1229,417 @@
       "source": {
         "kind": "file",
         "path": "roadmap.md"
+      }
+    },
+    {
+      "id": "scratch-20260601-plan-elliott-wave-plan",
+      "type": "note",
+      "title": "执行计划 — 柳玉东波浪理论交易系统",
+      "summary": "> 来源: brainstorm-elliott-wave-20260601 > 覆盖: F-001 ~ F-008, 共 12 个任务, 3 个波次",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-05-31T21:11:02.282Z",
+      "updated": "2026-05-31T21:11:02.287Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260601-plan-elliott-wave/plan.md"
+      }
+    },
+    {
+      "id": "scratch-20260602-brainstorm-new-strategies-brainstorm-output",
+      "type": "note",
+      "title": "QuantFlow 新策略方向 — Brainstorm 结果",
+      "summary": "## 当前策略矩阵",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-06-01T19:21:36.369Z",
+      "updated": "2026-06-01T19:21:36.373Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260602-brainstorm-new-strategies/brainstorm-output.md"
+      }
+    },
+    {
+      "id": "scratch-20260606-analyze-intelligent-trading-performance-analysis",
+      "type": "note",
+      "title": "Intelligent Trading System Performance Analysis",
+      "summary": "**Date**: 2026-06-06 **Scope**: QuantFlow / Intelligent-Trading-System 全方位性能研究 **Mode**: Maestro analyze, macro scope **Recommendation**: CONDITIONAL GO，先修复性能基线可复现性，再按 P0/P1 分批优化",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-06-06T12:51:08.520Z",
+      "updated": "2026-06-06T12:51:08.520Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260606-analyze-intelligent-trading-performance/analysis.md"
+      }
+    },
+    {
+      "id": "scratch-20260606-analyze-intelligent-trading-performance-context",
+      "type": "note",
+      "title": "Context: Intelligent Trading System Performance",
+      "summary": "**Date**: 2026-06-06 **Source**: Maestro analyze **Scope verdict**: large",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-06-06T12:51:08.520Z",
+      "updated": "2026-06-06T12:51:08.521Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260606-analyze-intelligent-trading-performance/context.md"
+      }
+    },
+    {
+      "id": "scratch-20260704-review-odyssey-deepfix-understanding",
+      "type": "note",
+      "title": "Odyssey Review-Test-Fix — Deep Fix (20260704)",
+      "summary": "## 1. Target & Scope",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-04T17:21:25.031Z",
+      "updated": "2026-07-04T17:21:25.040Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260704-review-odyssey-deepfix/understanding.md"
+      }
+    },
+    {
+      "id": "scratch-20260705-debug-odyssey-ci-ruff-breakage-understanding",
+      "type": "note",
+      "title": "Debug Odyssey — CI ruff gate breakage",
+      "summary": "## 1. Issue & Scope",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-05T01:57:23.268Z",
+      "updated": "2026-07-05T01:57:23.273Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260705-debug-odyssey-ci-ruff-breakage/understanding.md"
+      }
+    },
+    {
+      "id": "scratch-20260705-debug-odyssey-position-sizing-regression-understanding",
+      "type": "note",
+      "title": "Odyssey Debug — Position Sizing Regression Investigation (20260705)",
+      "summary": "## 1. Issue & Scope",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-04T18:23:47.988Z",
+      "updated": "2026-07-04T18:23:47.993Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260705-debug-odyssey-position-sizing-regression/understanding.md"
+      }
+    },
+    {
+      "id": "scratch-20260705-review-odyssey-security-fixes-understanding",
+      "type": "note",
+      "title": "Review Odyssey — Security Fixes (SEC-001/002/003/004)",
+      "summary": "# Review Odyssey — Security Fixes (SEC-001/002/003/004)",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-05T08:52:34.562Z",
+      "updated": "2026-07-05T08:52:34.568Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260705-review-odyssey-security-fixes/understanding.md"
+      }
+    },
+    {
+      "id": "scratch-20260705-security-audit-deep-quantflow-findings",
+      "type": "note",
+      "title": "Security Audit — QuantFlow (deep)",
+      "summary": "**Date:** 2026-07-05 **Tier:** deep (OWASP + dependencies + secrets + CI/CD + STRIDE + git history) **Scope:** project root (`quantflow/`, `tests/`, `docker/`, `.github/`, config) **Stack:** Python 3.11+, CCXT (OKX), aiohttp, pydantic, Duck",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-05T00:30:20.320Z",
+      "updated": "2026-07-05T00:30:20.331Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260705-security-audit-deep-quantflow/findings.md"
+      }
+    },
+    {
+      "id": "scratch-20260705-security-audit-deep-quantflow-verify-findings",
+      "type": "note",
+      "title": "Security Audit — QuantFlow (deep, verification re-run)",
+      "summary": "**Date:** 2026-07-05 **Tier:** deep (verification re-run after SEC-001/002/003/004 fixes) **Scope:** verification of the 1 critical + 3 high findings from [`20260705-security-audit-deep-quantflow/findings.md`](findings.md). **Commit verifie",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-05T01:27:10.715Z",
+      "updated": "2026-07-05T01:27:10.722Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260705-security-audit-deep-quantflow-verify/findings.md"
+      }
+    },
+    {
+      "id": "scratch-20260718-analyze-deepresearch-p0p1p2-macro-analysis",
+      "type": "note",
+      "title": "Analysis: 按 deep-research 研究文档分批里程碑实施 P0/P1/P2",
+      "summary": "## Executive Summary",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T13:14:17.477Z",
+      "updated": "2026-07-18T13:14:17.490Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260718-analyze-deepresearch-p0p1p2-macro/analysis.md"
+      }
+    },
+    {
+      "id": "scratch-20260718-analyze-deepresearch-p0p1p2-macro-context",
+      "type": "note",
+      "title": "Context: deep-research P0/P1/P2 分批里程碑实施 (macro)",
+      "summary": "**Date**: 2026-07-18 **Mode**: macro (adhoc, topic-driven) **Upstream**: grill:GRL-001 **Areas discussed**: Data Model / Edge Cases / Integration / Scale (补完 grill 未走 4 分支) + 3 处矛盾核实",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T13:18:02.044Z",
+      "updated": "2026-07-18T13:18:02.055Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260718-analyze-deepresearch-p0p1p2-macro/context.md"
+      }
+    },
+    {
+      "id": "scratch-20260718-analyze-deepresearch-p0p1p2-macro-discussion",
+      "type": "note",
+      "title": "Analysis: 按 deep-research 研究文档分批里程碑实施 P0/P1/P2 (macro)",
+      "summary": "## Session Metadata - **Session ID**: ANL-deepresearch-p0p1p2-macro-2026-07-18 - **Topic**: 按 deep-research 研究文档分批里程碑实施 P0/P1/P2 - **Mode**: macro (topic text, non-numeric → macro mode) - **Scope**: adhoc (topic + milestone M2 exists → adho",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T13:11:48.346Z",
+      "updated": "2026-07-18T13:23:47.651Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260718-analyze-deepresearch-p0p1p2-macro/discussion.md"
+      }
+    },
+    {
+      "id": "scratch-20260718-grill-deepresearch-implementation-plan-grill-report",
+      "type": "note",
+      "title": "Grill Report: 根据 deep-research 研究文档讨论实施方案",
+      "summary": "**Session**: 20260718-grill-deepresearch-implementation-plan **Depth**: standard (5 branches) **Date**: 2026-07-18 **Upstream**: deep-research-20260718（harvest 报告，15 条 findings → 5 issue + 4 spec + 6 wiki）",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T12:43:54.956Z",
+      "updated": "2026-07-18T12:43:54.957Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260718-grill-deepresearch-implementation-plan/grill-report.md"
+      }
+    },
+    {
+      "id": "scratch-20260718-grill-deepresearch-implementation-plan-terminology",
+      "type": "note",
+      "title": "Terminology",
+      "summary": "候选术语 + 代码碰撞检查（Step 3）。",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-18T11:24:38.551Z",
+      "updated": "2026-07-18T11:24:38.551Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260718-grill-deepresearch-implementation-plan/terminology.md"
+      }
+    },
+    {
+      "id": "scratch-20260720-review-odyssey-p1-parity-paths-understanding",
+      "type": "note",
+      "title": "Review Odyssey — P1 parity/paper/replay 路径全仓检查",
+      "summary": "## 1. Target & Scope",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-07-20T13:48:58.442Z",
+      "updated": "2026-07-20T13:48:58.442Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/20260720-review-odyssey-p1-parity-paths/understanding.md"
+      }
+    },
+    {
+      "id": "scratch-brainstorm-elliott-wave-20260601-cross-role-review",
+      "type": "note",
+      "title": "Cross-Role Review — 柳玉东波浪理论交易系统",
+      "summary": "## Conflicts (3)",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-05-31T21:08:08.374Z",
+      "updated": "2026-05-31T21:08:08.379Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/brainstorm-elliott-wave-20260601/cross-role-review.md"
+      }
+    },
+    {
+      "id": "scratch-brainstorm-elliott-wave-20260601-guidance-specification",
+      "type": "note",
+      "title": "Brainstorm Guidance Specification — 柳玉东波浪理论交易系统",
+      "summary": "## §1 核心决策",
+      "tags": [],
+      "status": "draft",
+      "created": "2026-05-31T21:07:46.114Z",
+      "updated": "2026-05-31T21:07:46.121Z",
+      "scope": null,
+      "category": "scratch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "scratch/brainstorm-elliott-wave-20260601/guidance-specification.md"
+      }
+    },
+    {
+      "id": "session-grill-grl-001",
+      "type": "knowhow",
+      "title": "grill GRL-001",
+      "summary": "将 deep-research 报告的 15 条改进 findings 转化为可执行的分批实施方案，需先核实 finding 与代码现状的偏差（F4/F7/F8 至少 3 条未核实），剔除已实现/已矛盾项，对真正缺口按 P0 数据层→P1 风控→P2 AI 分批里程碑实施 | 3 insights / 3 constraints / 2 open questions",
+      "tags": [
+        "session",
+        "sealed",
+        "grill",
+        "data-layer",
+        "process",
+        "research-layer"
+      ],
+      "status": "completed",
+      "created": "2026-07-18T00:00:00+08:00",
+      "updated": "2026-07-18T00:00:00+08:00",
+      "scope": null,
+      "category": null,
+      "specCategory": null,
+      "createdBy": "grill",
+      "sourceRef": "GRL-001",
+      "parent": null,
+      "related": [
+        "milestone-M2",
+        "session-ref-grill-report-md",
+        "session-ref-terminology-md",
+        "session-ref-context-package-json"
+      ],
+      "source": {
+        "kind": "virtual",
+        "path": "scratch/20260718-grill-deepresearch-implementation-plan/archive.json"
       }
     },
     {
@@ -56,13 +1656,309 @@
         "structure"
       ],
       "status": "active",
-      "created": "2026-06-02T08:42:34.330Z",
-      "updated": "2026-06-02T08:42:34.330Z",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
       "scope": "project",
       "category": "arch",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/architecture-constraints.md"
+      }
+    },
+    {
+      "id": "spec:project:architecture-constraints-001",
+      "type": "spec",
+      "title": "保持 generate_signals(df) 为研究 API，增量 live/paper 用 on_bar",
+      "summary": "策略双模式 API 设计决策",
+      "tags": [
+        "generate_signals",
+        "on_bar",
+        "增量",
+        "向量化",
+        "双模式api"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
+      "scope": "project",
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:architecture-constraints",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/architecture-constraints.md"
+      }
+    },
+    {
+      "id": "spec:project:architecture-constraints-002",
+      "type": "spec",
+      "title": "新增策略实施顺序",
+      "summary": "从 brainstorm 收敛的四策略优先级",
+      "tags": [
+        "策略顺序",
+        "波动率突破",
+        "资金费率",
+        "动量轮动",
+        "ml集成",
+        "实施优先级"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
+      "scope": "project",
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:architecture-constraints",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/architecture-constraints.md"
+      }
+    },
+    {
+      "id": "spec:project:architecture-constraints-003",
+      "type": "spec",
+      "title": "W3 铁律双模式",
+      "summary": "浪3不能最短铁律的实时处理方案",
+      "tags": [
+        "w3铁律",
+        "双模式",
+        "回顾模式",
+        "渐进模式",
+        "波浪理论"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
+      "scope": "project",
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:architecture-constraints",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/architecture-constraints.md"
+      }
+    },
+    {
+      "id": "spec:project:architecture-constraints-004",
+      "type": "spec",
+      "title": "DivergenceDetector 强制浪级比较",
+      "summary": "背离检测接口必须基于 WaveCount",
+      "tags": [
+        "背离检测",
+        "浪级比较",
+        "wavecount",
+        "divergencedetector"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
+      "scope": "project",
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:architecture-constraints",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/architecture-constraints.md"
+      }
+    },
+    {
+      "id": "spec:project:architecture-constraints-005",
+      "type": "spec",
+      "title": "ScalingPosition → RiskEngine: PositionRequest 权限控制",
+      "summary": "分批建仓与风控引擎的交互协议",
+      "tags": [
+        "仓位管理",
+        "riskengine",
+        "positionrequest",
+        "风控权限"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
+      "scope": "project",
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:architecture-constraints",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/architecture-constraints.md"
+      }
+    },
+    {
+      "id": "spec:project:architecture-constraints-006",
+      "type": "spec",
+      "title": "波浪理论集成到 QuantFlow 六层架构",
+      "summary": "波浪理论系统设计决策",
+      "tags": [
+        "波浪理论",
+        "六层架构",
+        "规则引擎",
+        "集成方式"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
+      "scope": "project",
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:architecture-constraints",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/architecture-constraints.md"
+      }
+    },
+    {
+      "id": "spec:project:architecture-constraints-007",
+      "type": "spec",
+      "title": "Cross-cutting security primitives are public API in quantflow/common/, never private borrow-ins",
+      "summary": "Validation/auth choke points imported across layers must be public, not underscored module-private helpers",
+      "tags": [
+        "security-primitive",
+        "private-helper",
+        "common-module",
+        "public-api",
+        "choke-point"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
+      "scope": "project",
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:architecture-constraints",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/architecture-constraints.md"
+      }
+    },
+    {
+      "id": "spec:project:architecture-constraints-008",
+      "type": "spec",
+      "title": "Launch-time safety guards live at the bind boundary, documented in the constructor docstring",
+      "summary": "When a fail-closed guard depends on a bind-time param, keep it at the launcher; document the contract in the app-constructor docstring",
+      "tags": [
+        "launch-guard",
+        "bind-boundary",
+        "create-app",
+        "run-station",
+        "fail-closed"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
+      "scope": "project",
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:architecture-constraints",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/architecture-constraints.md"
+      }
+    },
+    {
+      "id": "spec:project:architecture-constraints-009",
+      "type": "spec",
+      "title": "LLM 因子挖掘须采纳 schema-only 数据中心设计防泄漏",
+      "summary": "LLM 因子挖掘只接触 schema 级信息,不接触原始数据与时间分割,防未来数据泄漏",
+      "tags": [
+        "llm因子挖掘",
+        "schema-only",
+        "防泄漏",
+        "rd-agent",
+        "时间点安全"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
+      "scope": "project",
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:architecture-constraints",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/architecture-constraints.md"
+      }
+    },
+    {
+      "id": "spec:project:architecture-constraints-010",
+      "type": "spec",
+      "title": "回测-实盘 parity 范式:同语义执行+同确定性时钟,策略研究到生产不改代码",
+      "summary": "回测与实盘共用同语义执行+同确定性时钟,策略研究到生产不改代码",
+      "tags": [
+        "回测实盘一致",
+        "parity",
+        "tradingsession",
+        "事件驱动",
+        "确定性时钟"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
+      "scope": "project",
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:architecture-constraints",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/architecture-constraints.md"
+      }
+    },
+    {
+      "id": "spec:project:architecture-constraints-011",
+      "type": "spec",
+      "title": "跨交易所套利策略候选（P5，未实现）——brainstorm 20260602 收敛的 5 候选中唯一未落地项。核心逻辑：同一交易对在不同交易所的价差 → 统计套利。指标：价差 Z-Score、Half-Life、Hedge Ratio（OLS/Kalman）。互补性：市场中性，不依赖方向，与所有方向性策略负相关。复杂度：高（需多交易所数据源 + 低延迟执行）。适用：全状态。学术依据：Avellaneda &amp; Lee (2010) 统计套利。优先级最低因架构改动大（需多 Gateway 数据源 + 低延迟执行路径），暂未实现。设计依据详见 knowhow DOC-strategy-matrix-complementarity-and-rationale。",
+      "summary": "brainstorm 5 候选中唯一未落地项——市场中性统计套利",
+      "tags": [
+        "跨交易所套利",
+        "统计套利",
+        "价差z-score",
+        "half-life",
+        "市场中性"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:27.025Z",
+      "updated": "2026-07-20T10:14:12.329Z",
+      "scope": "project",
+      "category": "arch",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:architecture-constraints",
       "related": [],
       "source": {
         "kind": "file",
@@ -76,10 +1972,11 @@
       "summary": "# Coding Conventions",
       "tags": [],
       "status": "active",
-      "created": "2026-06-02T08:42:34.330Z",
-      "updated": "2026-06-02T08:42:34.330Z",
+      "created": "2026-06-13T15:36:31.690Z",
+      "updated": "2026-07-20T13:48:11.388Z",
       "scope": "project",
       "category": "coding",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": null,
@@ -92,6 +1989,33 @@
     {
       "id": "spec:project:coding-conventions-001",
       "type": "spec",
+      "title": "策略双模式: generate_signals 向量化 + on_bar 事件驱动",
+      "summary": "策略模板标准双 API 模式",
+      "tags": [
+        "策略双模式",
+        "generate_signals",
+        "on_bar",
+        "向量化",
+        "事件驱动"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:31.690Z",
+      "updated": "2026-07-20T13:48:11.388Z",
+      "scope": "project",
+      "category": "coding",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:coding-conventions",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/coding-conventions.md"
+      }
+    },
+    {
+      "id": "spec:project:coding-conventions-002",
+      "type": "spec",
       "title": "mcp-semantic-search",
       "summary": "### mcp-semantic-search 代码搜索优先使用 CodeGraph MCP（`mcp__codegraph__codegraph_context`），精确符号查找用 `codegraph_search`/`codegraph_callers`，简单文本匹配用 Grep",
       "tags": [
@@ -100,10 +2024,147 @@
         "代码搜索"
       ],
       "status": "active",
-      "created": "2026-06-02T08:42:34.330Z",
-      "updated": "2026-06-02T08:42:34.330Z",
+      "created": "2026-06-13T15:36:31.690Z",
+      "updated": "2026-07-20T13:48:11.388Z",
       "scope": "project",
       "category": "coding",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:coding-conventions",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/coding-conventions.md"
+      }
+    },
+    {
+      "id": "spec:project:coding-conventions-003",
+      "type": "spec",
+      "title": "Validate symbol at EVERY symbol→path/glob site — read, write, AND in-place transform",
+      "summary": "Write/transform paths must call validate_symbol symmetric with reads; a direct Path construction bypasses the DataStore choke point",
+      "tags": [
+        "validate-symbol",
+        "write-path",
+        "path-traversal",
+        "choke-point",
+        "symmetric-validation"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:31.690Z",
+      "updated": "2026-07-20T13:48:11.388Z",
+      "scope": "project",
+      "category": "coding",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:coding-conventions",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/coding-conventions.md"
+      }
+    },
+    {
+      "id": "spec:project:coding-conventions-004",
+      "type": "spec",
+      "title": "Run ruff check --fix && ruff format before every auto-commit (lint-before-commit gate)",
+      "summary": "Workflow phase auto-commits must lint/format first or CI's ruff gate goes red; defense-in-depth via .pre-commit-config.yaml",
+      "tags": [
+        "auto-commit",
+        "ruff",
+        "lint-gate",
+        "pre-commit",
+        "workflow-discipline"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:31.690Z",
+      "updated": "2026-07-20T13:48:11.388Z",
+      "scope": "project",
+      "category": "coding",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:coding-conventions",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/coding-conventions.md"
+      }
+    },
+    {
+      "id": "spec:project:coding-conventions-005",
+      "type": "spec",
+      "title": "No look-ahead in vectorized signal generators — never aggregate over entries[bool_mask]",
+      "summary": "series[entries].mean() uses future bar data at the entry bar; capture value at entry + forward-fill for position lifetime",
+      "tags": [
+        "look-ahead",
+        "vectorized",
+        "signal-generator",
+        "entries-mask",
+        "forward-fill"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:31.690Z",
+      "updated": "2026-07-20T13:48:11.388Z",
+      "scope": "project",
+      "category": "coding",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:coding-conventions",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/coding-conventions.md"
+      }
+    },
+    {
+      "id": "spec:project:coding-conventions-006",
+      "type": "spec",
+      "title": "研究层大规模参数扫描用 vectorbt run_combs/Portfolio.from_signals 多资产 broadcasting",
+      "summary": "用 run_combs/Portfolio.from_signals 多资产 broadcasting 替代 Python 循环做大规模参数扫描",
+      "tags": [
+        "vectorbt",
+        "参数扫描",
+        "向量化",
+        "multi-asset",
+        "broadcasting"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:31.690Z",
+      "updated": "2026-07-20T13:48:11.388Z",
+      "scope": "project",
+      "category": "coding",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:coding-conventions",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/coding-conventions.md"
+      }
+    },
+    {
+      "id": "spec:project:coding-conventions-007",
+      "type": "spec",
+      "title": "Compound strategy_id 精确查找静默失效",
+      "summary": "compound strategy_id 精确查找静默失效范式——consolidated signal 的 joined key 永远 miss，返回 0.0 致信号丢弃/预算 bypass",
+      "tags": [
+        "compound",
+        "strategy_id",
+        "allocation",
+        "consolidated-signal",
+        "exact-lookup",
+        "silent-drop"
+      ],
+      "status": "active",
+      "created": "2026-06-13T15:36:31.690Z",
+      "updated": "2026-07-20T13:48:11.388Z",
+      "scope": "project",
+      "category": "coding",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": "spec:project:coding-conventions",
@@ -127,9 +2188,10 @@
       ],
       "status": "active",
       "created": "2026-06-02T08:42:34.331Z",
-      "updated": "2026-06-02T08:42:34.331Z",
+      "updated": "2026-07-19T10:20:49.419Z",
       "scope": "project",
       "category": "debug",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": null,
@@ -153,9 +2215,10 @@
       ],
       "status": "active",
       "created": "2026-06-02T08:42:34.331Z",
-      "updated": "2026-06-02T08:42:34.331Z",
+      "updated": "2026-07-19T10:20:49.419Z",
       "scope": "project",
       "category": "debug",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": "spec:project:debug-notes",
@@ -171,16 +2234,72 @@
       "title": "VectorBTEngine → BacktestEngine 重命名",
       "summary": "### VectorBTEngine → BacktestEngine 重命名 `backtest.py` 中的 `VectorBTEngine` 已重命名为 `BacktestEngine`（纯 pandas/numpy 实现，不依赖 VectorBT）。所有引用（`__init__.py`、`optimizer.py`、`cli/main.py`、`validation/cpcv.py`、`validation/pbo.py`、`validation/wfo.py`、`",
       "tags": [
-        "VectorBTEngine",
-        "BacktestEngine",
+        "vectorbtengine",
+        "backtestengine",
         "重命名",
         "import-error"
       ],
       "status": "active",
       "created": "2026-06-02T08:42:34.331Z",
-      "updated": "2026-06-02T08:42:34.331Z",
+      "updated": "2026-07-19T10:20:49.419Z",
       "scope": "project",
       "category": "debug",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:debug-notes",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/debug-notes.md"
+      }
+    },
+    {
+      "id": "spec:project:debug-notes-003",
+      "type": "spec",
+      "title": "E712 on pandas/numpy bools: use bool(x), never accept the `is True` autofix",
+      "summary": "ruff E712 unsafe autofix rewrites ==True to is True, which is False for np.bool_ — silently weakens assertions",
+      "tags": [
+        "e712",
+        "ruff",
+        "autofix",
+        "pandas",
+        "numpy",
+        "bool"
+      ],
+      "status": "active",
+      "created": "2026-06-02T08:42:34.331Z",
+      "updated": "2026-07-19T10:20:49.419Z",
+      "scope": "project",
+      "category": "debug",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:debug-notes",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/debug-notes.md"
+      }
+    },
+    {
+      "id": "spec:project:debug-notes-004",
+      "type": "spec",
+      "title": "YAML key without a matching pydantic field is silently dropped at load time",
+      "summary": "A default.yaml key with no model field is decorative; consumer hardcodes the same default so tests pass — config changes have zero effect",
+      "tags": [
+        "yaml",
+        "pydantic",
+        "schema-drift",
+        "config-dropped",
+        "silently-ignored"
+      ],
+      "status": "active",
+      "created": "2026-06-02T08:42:34.331Z",
+      "updated": "2026-07-19T10:20:49.419Z",
+      "scope": "project",
+      "category": "debug",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": "spec:project:debug-notes",
@@ -206,6 +2325,7 @@
       "updated": "2026-06-02T08:42:34.331Z",
       "scope": "project",
       "category": "learning",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": null,
@@ -213,6 +2333,615 @@
       "source": {
         "kind": "file",
         "path": "specs/learnings.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist",
+      "type": "spec",
+      "title": "P1 风控层实盘验证 Checklist",
+      "summary": "> **作用**：P1（F3 vol-target / F4 bootstrap CVaR / F5 MC 压力）上线后，在实盘验证周期结束时逐项对照判定 GO/NO-GO。每项给「观察什么 → 怎么看 → 判定标准」三段式，阈值全部对齐代码实际值。 > > **串行约束**：本 checklist 全部 PASS（或 Blocker 全部修复并复验）后，方可启动 P2 AI 层（F6/F11/F12）。任何一项 NO-GO 都禁止进入 P2。",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-001",
+      "type": "spec",
+      "title": "P1.0-B1 `add_return` 零调用方 —— vol-target 与 CVaR gate 历史永不填充",
+      "summary": "**观察**：`PositionSizer.add_return()` 与 `RiskEngine.add_return()` 在全项目无任何调用方（`grep '\\.add_return(' quantflow/` 返回空）。 **后果**： - F3 vol-target：`_returns_history` 永远为空 → `_realized_vol()` 永远返回 None → vol-target 永不绑定（即使 `vol_target_pct` 已开启，opt-",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-002",
+      "type": "spec",
+      "title": "P1.1 F3 vol-target opt-in 缩仓行为验证",
+      "summary": "> **配置开启**：在 `quantflow/config/default.yaml` 的 `risk:` 段加 `vol_target_pct: 0.15`（15% 年化目标）。`vol_annualization: 365`、`vol_window: 30` 为默认值，crypto 24/7 无需改。 > **前提**：~~P1.0-B1 已修复~~ ✅ 已修复，`_returns_history` 真实累积。",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-003",
+      "type": "spec",
+      "title": "P1.1-V1 高波动区间 vol-target 是否真的缩仓",
+      "summary": "**观察**：实盘运行 ≥30 根 bar 后，取一段 realized vol 高于历史中位数的区间（例如年化 vol ≥ 60%），记录该区间内触发的订单 notional。 **怎么看**：对比同一信号在「vol-target OFF（对照组，`vol_target_pct: null`）」与「vol-target ON」下的 `PositionSizer.size()` 返回值。可用 paper 模式双跑，或对历史 bar 离线复算。 **判定标准**： - ✅ ",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-004",
+      "type": "spec",
+      "title": "P1.1-V2 低波动区间不绑定（Kelly 主导）",
+      "summary": "**观察**：取一段 realized vol 低于 5% 年化的区间。 **判定标准**： - ✅ GO：ON 组 notional == OFF 组（vol-target notional 远高于 Kelly/单名上限，不绑定，Kelly 行为完整保留）。 - 对应单元测试 `test_opt_in_low_vol_does_not_bind` 在实盘数据上复现。",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-005",
+      "type": "spec",
+      "title": "P1.1-V3 默认 off 的 byte-for-byte 守护",
+      "summary": "**观察**：`vol_target_pct` 不设置时，全量回测结果与 P0 commit `99795b2` 的基线完全一致。 **判定标准**： - ✅ GO：4 策略（trend_following / mean_reversion / momentum_rotation / elliott_wave）回测的 `final_capital`、`max_drawdown`、`num_trades`、`equity_curve` 逐位相等。 - 回归测试 `test_d",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-006",
+      "type": "spec",
+      "title": "P1.2 F5 路径级 MC 压力 —— 路径运气红旗是否在实盘重现",
+      "summary": "> **运行**：`quantflow validate --method stress --strategy <name> --symbol BTC/USDT`（n_paths=1000, seed=0 固定）。",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-007",
+      "type": "spec",
+      "title": "P1.2-V1 trade-shuffle 顺序风险",
+      "summary": "**观察**：实盘积累 ≥20 笔已平仓交易后，跑 trade-shuffle。关注 `prob_worse_drawdown`（重排后比观测路径回撤更深的路径占比）。 **判定标准**： - ✅ GO（健康）：`prob_worse_drawdown` ≤ 0.5，观测路径处于重排分布的中段或偏好侧——回撤对交易顺序不敏感。 - ⚠️ 黄旗：0.5 < `prob_worse_drawdown` ≤ 0.7，观测路径偏幸运，回撤有顺序依赖——可继续运行但需监控是否恶化。 ",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-008",
+      "type": "spec",
+      "title": "P1.2-V2 returns-bootstrap 抽样分布",
+      "summary": "**观察**：同一数据跑 returns-bootstrap，关注 terminal return 的 `[P5, P95]` 带宽。 **判定标准**： - ✅ GO：带宽合理（P5 与 P95 同号，且 P5 不跌破 `-1` 即不爆仓）——策略收益在抽样扰动下符号稳定。 - ❌ NO-GO：P5 terminal return ≤ -0.5（半数以上本金）——单条回测路径的盈利是抽样偶然，实盘极可能重现大幅亏损。 - **对比基线**：回测期 P5/P95 带宽应作为",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-009",
+      "type": "spec",
+      "title": "P1.2-V3 诊断非 gate 契约",
+      "summary": "**判定标准**： - ✅ GO：MC 结果仅展示，`validation_gate` 的 GO/NO-GO 决策不引用 MC 任何字段——`grep -n \"monte_carlo\\|prob_worse\" quantflow/strategy/validation/gate.py` 返回空。 - ❌ NO-GO：gate.py 出现对 MC 字段的引用 → 诊断被偷偷升级为 gate，违反 claude delegate 反模式裁定，立即回滚。 ---",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-010",
+      "type": "spec",
+      "title": "P1.3 F4 辅助诊断 bootstrap CVaR —— CI 是否随样本收窄",
+      "summary": "> **运行**：对 `risk_engine._returns_history`（≥30 根后）调 `bootstrap_cvar(returns, confidence=0.95, n_bootstrap=1000, seed=0)`。返回 `{point, ci_low, ci_high, n, n_bootstrap}`，值遵循 `conditional_var` 的正损失幅度约定（如 0.05 = 5% 尾部期望损失）。",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-011",
+      "type": "spec",
+      "title": "P1.3-V1 CI 宽度随样本收窄",
+      "summary": "**观察**：分别在 n=30 / n=100 / n=300 / n=500（实盘累积里程碑）记录 `ci_width = ci_high - ci_low`。 **判定标准**： - ✅ GO：`ci_width` 随 n 单调下降（n=500 的 width 显著小于 n=30）——点估计随样本收敛，gate 判定趋于可信。 - ❌ NO-GO：`ci_width` 不随 n 下降或反升——收益分布非平稳（regime shift），historical CVaR 点",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-012",
+      "type": "spec",
+      "title": "P1.3-V2 CI 与 cvar_limit 的关系（gate 可信度）",
+      "summary": "**观察**：`cvar_limit` 当前为 `-0.05`（config.py:60）。符号澄清：`risk_engine._check_var` 的 CVaR 用**负收益约定**（`returns[returns<=var].mean()`，负数），与 `cvar_limit=-0.05` 同号比较，gate 逻辑正确且现已在历史填满后生效（P1.0-B1 已修复）。而 F4 `bootstrap_cvar` 包装的 `risk_metrics.conditional",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-013",
+      "type": "spec",
+      "title": "P1.3-V3 辅助非 gate 契约",
+      "summary": "**判定标准**： - ✅ GO：`bootstrap_cvar` 仅在诊断/CLI 路径调用——`grep -n \"bootstrap_cvar\" quantflow/signal/risk_engine.py` 返回空。historical CVaR 仍是 `_check_var` 唯一数据源。 - ❌ NO-GO：risk_engine 引用 `bootstrap_cvar` 作为 gate 输入 → 诊断被升级为 gate，违反反模式裁定，立即回滚。 ---",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-014",
+      "type": "spec",
+      "title": "汇总判定",
+      "summary": "| 项 | 类型 | 判定 | |----|------|------| | P1.0-B1 add_return 接线 | Blocker | ✅ 已修复 + 8 单测（ISS-20260719-001） | | P1.0-B1 端到端确认（事件流） | Blocker | ✅ 3 单测经 on_bar 链确认 gate 阻断下单 / vol-target 缩仓 / 历史填充 | | P1.1-V1 高波动缩仓 | GO/NO-GO | ☐ | | P1.1-V2 低波动不",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-015",
+      "type": "spec",
+      "title": "离线/模拟实盘可执行性（2026-07-19 增补）",
+      "summary": "回答「能否用历史实盘历史模拟实盘跑 F4/F5」——三步前置工作结论：",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-016",
+      "type": "spec",
+      "title": "1. parity 守卫（commit `4c2dbd0` 初版 → `0dbee17` exit 根因修复）——P1-verify F3 地基",
+      "summary": "逐 bar 比对 trend_following 增量路径 `_latest_signal()` vs 向量化 `generate_signals`，5 seed × 全序列（`TestSignalParityGuard`）： - ✅ **ENTRY 信号 0 漂移**（5/5 seed 全绿）——F3 用 paper-on_bar 跑、F5 用 BacktestEngine 跑，两路径入场信号完全一致，F3 缩仓结论可信。 - ✅ **EXIT 条件漂移根因已修**（`0d",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-017",
+      "type": "spec",
+      "title": "2. F5 输入源确认（commit `4f5e218`）——数据流已通",
+      "summary": "`validate --method stress` 当前完全绑死 `BacktestEngine`（`trade_returns`/`bar_returns` 都来自 `bt`）。但 `bootstrap_cvar`/`monte_carlo_stress` 是纯 list 接口——paper session 的 `_risk_engine._returns_history`（on_bar 接线填充）可直接喂入。`TestPaperReplayFeedsF4F5Diagno",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-live-verification-checklist-018",
+      "type": "spec",
+      "title": "3. paper 历史回放脚本（commit `ce4d9b4`）——工具就绪",
+      "summary": "`scripts/replay_paper_f4f5.py`：回放本地 parquet 经 `TradingSession.on_bar`（手动注入 PaperGateway 绕过 start() 副作用），取 returns 历史喂 F4/F5。烟测试端到端通。 **信号密度约束**：trend_following `required_regime=\"trending\"`，真实 BTC/USDT 1h parquet（2024-12..2025-06）仅 ~21/676 ",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-19T14:14:23.998Z",
+      "updated": "2026-07-19T14:14:23.998Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-live-verification-checklist",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-live-verification-checklist.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-verify-link-validation-20260720",
+      "type": "spec",
+      "title": "P1-verify 链路验证报告",
+      "summary": "**日期**：2026-07-20 **状态**：链路验证 PASS / 实盘诊断待数据策略问题解决（进行中） **执行人**：claude（goal 第 2 步）",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T12:20:23.107Z",
+      "updated": "2026-07-20T12:20:23.107Z",
+      "scope": "project",
+      "category": null,
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-verify-link-validation-20260720.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-verify-link-validation-20260720-001",
+      "type": "spec",
+      "title": "前置条件（全部就绪）",
+      "summary": "| 前置 | 状态 | 证据 | |------|------|------| | parity 地基（ISS-006 exit 修复） | ✅ | commit `0dbee17`，守卫 `TestSignalParityGuard` 5/5 seed ENTRY 0 漂移 | | regime 缺口裁决（ISS-20260720-001） | ✅ design-property | commit `98d36f0`，两层设计文档标注 + `TestRegimeParity",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T12:20:23.107Z",
+      "updated": "2026-07-20T12:20:23.107Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-verify-link-validation-20260720",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-verify-link-validation-20260720.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-verify-link-validation-20260720-002",
+      "type": "spec",
+      "title": "链路验证（PASS）",
+      "summary": "用 `scripts/replay_paper_f4f5.py` 回放真实 BTC/USDT 1h（676 bar）经 `TradingSession.on_bar`（实盘忠实路径，含 regime gate）： - ✅ 676 bar 回放完成，无异常 - ✅ returns 累积 500（首 bar 跳过，无 look-ahead，ISS-20260719-001 接线生效） - ✅ F4 `bootstrap_cvar` 诊断产出（point/CI/ci_width/",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T12:20:23.107Z",
+      "updated": "2026-07-20T12:20:23.107Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-verify-link-validation-20260720",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-verify-link-validation-20260720.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-verify-link-validation-20260720-003",
+      "type": "spec",
+      "title": "实盘诊断受阻（待解决）",
+      "summary": "~~F4/F5 诊断值全 0~~（**已解除 2026-07-20，见更新段**）——原 returns 全 0 因策略未开仓。两个阻塞：",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T12:20:23.107Z",
+      "updated": "2026-07-20T12:20:23.107Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-verify-link-validation-20260720",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-verify-link-validation-20260720.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-verify-link-validation-20260720-004",
+      "type": "spec",
+      "title": "阻塞 1：trend_following 被 regime gate（ISS-20260720-001，已裁决 design-property）",
+      "summary": "- trend_following `required_regime=\"trending\"`，真实 BTC/USDT 1h 仅 21/676 bar trending - 84 个 generate_signals entries 全落在非 trending bar → on_bar 全 gate → 零交易 - 已裁决为两层设计特性（regime 宏观门控 vs entry 微观信号），非 bug - **缓解**：P1-verify 实盘诊断用 mean_reversio",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T12:20:23.107Z",
+      "updated": "2026-07-20T12:20:23.107Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-verify-link-validation-20260720",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-verify-link-validation-20260720.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-verify-link-validation-20260720-005",
+      "type": "spec",
+      "title": "~~阻塞 2：mean_reversion on_bar 不发信号（ISS-20260720-002）~~ —— 已修复",
+      "summary": "- **根因修正**：非 on_bar 信号 bug——on_bar 实际 emit 16 信号，`_latest_signal` 与 generate_signals entry 0 漂移（parity 守卫已隐含验证） - 真因是 replay 脚本 `build_session` bypass `start()` 时未调 `portfolio.set_allocation` → allocation=0 → size×0=0 → 信号在 engine.py:313 被丢",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T12:20:23.107Z",
+      "updated": "2026-07-20T12:20:23.107Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-verify-link-validation-20260720",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-verify-link-validation-20260720.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-verify-link-validation-20260720-006",
+      "type": "spec",
+      "title": "更新：P1-verify 实盘诊断解锁（2026-07-20）",
+      "summary": "修复 ISS-20260720-002 后，mean_reversion 在真实 BTC/USDT 1h（676 bar）产出**有意义的非零 F4/F5 诊断**： ``` F4 bootstrap CVaR: point=0.00053, 95% CI=[0.00035, 0.00069], ci_width=0.00034, n=500 F5 returns-bootstrap: observed terminal=-0.00314, P5/P95=[-0.00978",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T12:20:23.107Z",
+      "updated": "2026-07-20T12:20:23.107Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-verify-link-validation-20260720",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-verify-link-validation-20260720.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-verify-link-validation-20260720-007",
+      "type": "spec",
+      "title": "checklist 项状态（更新）",
+      "summary": "| 项 | 状态 | 说明 | |----|------|------| | P1.0-B1 add_return 接线 | ✅ PASS | ISS-20260719-001 修复 + 8 单测 | | P1.1-V1 高波动缩仓 | ⏳ 待数据 | 需非零 returns，受阻塞 1+2 | | P1.1-V2 低波动不绑定 | ⏳ 待数据 | 同上 | | P1.1-V3 off byte-for-byte | ✅ PASS | `test_default_off_is",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T12:20:23.107Z",
+      "updated": "2026-07-20T12:20:23.107Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-verify-link-validation-20260720",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-verify-link-validation-20260720.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-verify-link-validation-20260720-008",
+      "type": "spec",
+      "title": "进 P2 条件评估（更新）",
+      "summary": "- ✅ P1.0-B1 已修复复验 - ✅ 两个「诊断非 gate」契约项 PASS（P1.2-V3, P1.3-V3） - ✅ off byte-for-byte PASS（P1.1-V3） - ✅ F5 returns-bootstrap 带宽 PASS（P1.2-V2，mean_reversion 符号稳定） - ⚠️ F5 trade-shuffle mean_reversion 触发 NO-GO 旗（P1.2-V1，诊断非 gate，策略调优信号，不阻 P2） - ",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T12:20:23.107Z",
+      "updated": "2026-07-20T12:20:23.107Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-verify-link-validation-20260720",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-verify-link-validation-20260720.md"
+      }
+    },
+    {
+      "id": "spec:project:p1-verify-link-validation-20260720-009",
+      "type": "spec",
+      "title": "下一步（更新）",
+      "summary": "1. ~~修 ISS-20260720-002~~ ✅ 已修复（replay set_allocation） 2. ✅ mean_reversion 回放产出非零 F4/F5 诊断，F5 NO-GO 旗触发 3. 排查 mean_reversion 交易顺序依赖根因（prob_worse_dd=0.775）——策略调优，非 P1-verify 阻塞 4. 补 F5 trade-shuffle 的 per-trade returns 收集（paper session 配对开仓/",
+      "tags": [],
+      "status": "active",
+      "created": "2026-07-20T12:20:23.107Z",
+      "updated": "2026-07-20T12:20:23.107Z",
+      "scope": "project",
+      "category": "general",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:p1-verify-link-validation-20260720",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/p1-verify-link-validation-20260720.md"
       }
     },
     {
@@ -231,6 +2960,7 @@
       "updated": "2026-06-02T08:42:34.332Z",
       "scope": "project",
       "category": "review",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": null,
@@ -253,13 +2983,68 @@
         "standard"
       ],
       "status": "active",
-      "created": "2026-06-02T08:42:34.332Z",
-      "updated": "2026-06-02T08:42:34.332Z",
+      "created": "2026-07-05T12:11:22.055Z",
+      "updated": "2026-07-19T10:20:49.421Z",
       "scope": "project",
       "category": "review",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": null,
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/review-standards.md"
+      }
+    },
+    {
+      "id": "spec:project:review-standards-001",
+      "type": "spec",
+      "title": "Layered security controls must all execute — no early-return past a passing control",
+      "summary": "Auth+CSRF middleware must run both controls per request; same-origin signal is Origin only, never X-Requested-With",
+      "tags": [
+        "csrf",
+        "layered-controls",
+        "early-return",
+        "origin",
+        "x-requested-with"
+      ],
+      "status": "active",
+      "created": "2026-07-05T12:11:22.055Z",
+      "updated": "2026-07-19T10:20:49.421Z",
+      "scope": "project",
+      "category": "review",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:review-standards",
+      "related": [],
+      "source": {
+        "kind": "file",
+        "path": "specs/review-standards.md"
+      }
+    },
+    {
+      "id": "spec:project:review-standards-002",
+      "type": "spec",
+      "title": "仓位绑定规则取三者下界 + ES_97.5 主风险指标 + fat-tail 警示",
+      "summary": "仓位取 min(half-Kelly,vol-target,单名上限);ES_97.5 主指标,parametric VaR 降级",
+      "tags": [
+        "仓位绑定",
+        "vol-target",
+        "es_97.5",
+        "fat-tail",
+        "半kelly"
+      ],
+      "status": "active",
+      "created": "2026-07-05T12:11:22.055Z",
+      "updated": "2026-07-19T10:20:49.421Z",
+      "scope": "project",
+      "category": "review",
+      "specCategory": null,
+      "createdBy": null,
+      "sourceRef": null,
+      "parent": "spec:project:review-standards",
       "related": [],
       "source": {
         "kind": "file",
@@ -284,6 +3069,7 @@
       "updated": "2026-06-02T08:42:34.332Z",
       "scope": "project",
       "category": "test",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": null,
@@ -310,6 +3096,7 @@
       "updated": "2026-06-02T08:42:34.332Z",
       "scope": "project",
       "category": "test",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": "spec:project:test-conventions",
@@ -338,6 +3125,7 @@
       "updated": "2026-06-02T08:42:34.333Z",
       "scope": "project",
       "category": "ui",
+      "specCategory": null,
       "createdBy": null,
       "sourceRef": null,
       "parent": null,

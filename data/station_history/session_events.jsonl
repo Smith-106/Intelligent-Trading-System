@@ -1183,3 +1183,102 @@
 {"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-dae073e44dae", "created_at": "2026-07-05T08:35:50.860585+00:00"}
 {"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-bc82a2dcb44e", "created_at": "2026-07-05T08:35:50.971960+00:00"}
 {"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-222d1949f160", "created_at": "2026-07-05T08:35:50.987550+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-47f065357161", "created_at": "2026-07-16T00:26:11.243288+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-6143d2c3ee09", "created_at": "2026-07-16T00:26:11.258374+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-5ef654694172", "created_at": "2026-07-19T04:20:58.194942+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-672c496223b4", "created_at": "2026-07-19T04:20:58.206336+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-5084bb587bbb", "created_at": "2026-07-19T04:20:58.207072+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-0105fe83abbd", "created_at": "2026-07-19T04:20:58.320238+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-80c7905d04ed", "created_at": "2026-07-19T04:20:58.333935+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-8da5436052d6", "created_at": "2026-07-19T04:23:46.732691+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-221b2cb03daf", "created_at": "2026-07-19T04:23:46.747012+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-790a5ea21c35", "created_at": "2026-07-19T04:23:46.747478+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-37e3a019cbad", "created_at": "2026-07-19T04:23:46.824345+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-85dea13bcb7a", "created_at": "2026-07-19T04:23:46.840506+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-66fec4f2d3b7", "created_at": "2026-07-19T08:23:25.176737+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-110676a547f5", "created_at": "2026-07-19T08:23:25.188389+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-aa7358727d50", "created_at": "2026-07-19T08:23:25.188924+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-dc003897dba4", "created_at": "2026-07-19T08:23:25.266859+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-707586b3fabd", "created_at": "2026-07-19T08:23:25.282756+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-e57a48087d20", "created_at": "2026-07-19T10:20:16.188092+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-e8b04792c895", "created_at": "2026-07-19T10:20:16.201270+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-23a018f7cde1", "created_at": "2026-07-19T10:20:16.201817+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-d26a92b93170", "created_at": "2026-07-19T10:20:16.280205+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-b74f0f4edc32", "created_at": "2026-07-19T10:20:16.293021+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-3f5a8dc37999", "created_at": "2026-07-19T10:32:51.348597+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-8715f9a85d7d", "created_at": "2026-07-19T10:32:51.360531+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-bbb21a8f042e", "created_at": "2026-07-19T10:32:51.361046+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-57d4d8208084", "created_at": "2026-07-19T10:32:51.435797+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-e97b2d82169f", "created_at": "2026-07-19T10:32:51.449695+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-5994d9bcde82", "created_at": "2026-07-19T10:38:08.998626+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-3d2e276de56d", "created_at": "2026-07-19T10:38:09.010821+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-b4ac39cb5317", "created_at": "2026-07-19T10:38:09.011404+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-201b53a9ecbf", "created_at": "2026-07-19T10:38:09.282493+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-f0b66e3c1ff1", "created_at": "2026-07-19T10:38:09.296742+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-9e75b02ed443", "created_at": "2026-07-19T11:06:45.635074+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-bc609ebc8fb0", "created_at": "2026-07-19T11:06:45.649384+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-a538d3aea86f", "created_at": "2026-07-19T11:06:45.649862+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-c2f8422ab0f5", "created_at": "2026-07-19T11:06:45.895312+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-ef6608572aa3", "created_at": "2026-07-19T11:06:45.912034+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-fb4d90a10764", "created_at": "2026-07-19T12:17:15.476092+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-89b733538c62", "created_at": "2026-07-19T12:17:15.487934+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-de28afb92f8e", "created_at": "2026-07-19T12:17:15.488483+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-917cb8de08a1", "created_at": "2026-07-19T12:17:15.731582+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-fed4218af5ef", "created_at": "2026-07-19T12:17:15.746654+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-83b36c96390d", "created_at": "2026-07-19T12:44:43.684779+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-f94669d77d8a", "created_at": "2026-07-19T12:44:43.696221+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-8aecc0101d19", "created_at": "2026-07-19T12:44:43.696741+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-0bd8e4064c3e", "created_at": "2026-07-19T12:44:43.897315+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-860f448c90d1", "created_at": "2026-07-19T12:44:43.908638+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-9175aa4db8a1", "created_at": "2026-07-19T13:23:53.652639+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-e6d5252077d4", "created_at": "2026-07-19T13:23:53.664790+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-9b363e2f5385", "created_at": "2026-07-19T13:23:53.665233+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-9efa951897d7", "created_at": "2026-07-19T13:23:53.877400+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-6ec29c6e3a6f", "created_at": "2026-07-19T13:23:53.889982+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-51da55fa6fba", "created_at": "2026-07-19T13:53:49.145047+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-92c4896ebe34", "created_at": "2026-07-19T13:53:49.156077+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-920f7e88fa00", "created_at": "2026-07-19T13:53:49.156667+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-3cae85a94adb", "created_at": "2026-07-19T13:53:49.380048+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-507c27129fd9", "created_at": "2026-07-19T13:53:49.394069+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-013763a2c093", "created_at": "2026-07-19T14:06:38.372970+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-231501f39f28", "created_at": "2026-07-19T14:06:38.383850+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-d040e869f3f2", "created_at": "2026-07-19T14:06:38.384305+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-1fede38390e3", "created_at": "2026-07-19T14:06:38.596674+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-014bc5b4fceb", "created_at": "2026-07-19T14:06:38.609317+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-e3f21f1eced5", "created_at": "2026-07-20T11:06:37.441316+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-2ddb9c669be0", "created_at": "2026-07-20T11:06:37.452626+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-d2f687c9f97f", "created_at": "2026-07-20T11:06:37.453082+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-035245709dd6", "created_at": "2026-07-20T11:06:37.666521+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-3e46472faa3a", "created_at": "2026-07-20T11:06:37.680802+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-d29f4064f8cb", "created_at": "2026-07-20T13:30:01.609827+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-c8964f98a8f9", "created_at": "2026-07-20T13:30:01.621547+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-0a34aca40554", "created_at": "2026-07-20T13:30:01.622070+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-f244b954fe52", "created_at": "2026-07-20T13:30:01.838434+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-98840bee17a1", "created_at": "2026-07-20T13:30:01.853324+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-bf7075869bde", "created_at": "2026-07-20T13:36:45.681896+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-d8c52cc77aee", "created_at": "2026-07-20T13:36:45.692584+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-e5b1c03ef49d", "created_at": "2026-07-20T13:36:45.693044+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-ca52f92348b1", "created_at": "2026-07-20T13:36:45.910045+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-252c8f4cb52a", "created_at": "2026-07-20T13:36:45.926260+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-ad258f811f38", "created_at": "2026-07-21T10:22:33.590934+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-70fb4fb34e9e", "created_at": "2026-07-21T10:22:33.602685+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-7c323159d4ac", "created_at": "2026-07-21T10:27:15.092543+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-8f55f7fb64d8", "created_at": "2026-07-21T10:27:15.105359+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-c8381c9e9623", "created_at": "2026-07-21T10:49:45.761729+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-aeb47ec73c9c", "created_at": "2026-07-21T10:49:45.772841+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-c2b64447b8a9", "created_at": "2026-07-21T10:49:45.773308+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-a2b4cc67b4bf", "created_at": "2026-07-21T10:49:46.012548+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-8e5f281a55c1", "created_at": "2026-07-21T10:49:46.026051+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-aacc19684475", "created_at": "2026-07-21T11:31:20.552576+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-3204510be9b5", "created_at": "2026-07-21T11:31:20.566784+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-a72a68433214", "created_at": "2026-07-21T11:38:21.769418+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-946f1c587f94", "created_at": "2026-07-21T11:38:21.783739+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-ef69a8c2e6e3", "created_at": "2026-07-21T12:05:37.955473+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-cabbff3c6c0a", "created_at": "2026-07-21T12:05:37.967120+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-9ba28dfb109b", "created_at": "2026-07-21T13:18:24.014634+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-4eeae6ad34a0", "created_at": "2026-07-21T13:18:24.027899+00:00"}
+{"session_id": "test-123", "event_type": "signal", "title": "Signal emitted", "level": "info", "message": "LONG signal on BTC/USDT", "record_id": "event-199a3011b2d6", "created_at": "2026-07-21T13:59:24.314117+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t1", "level": "info", "message": "m1", "record_id": "event-51109e031768", "created_at": "2026-07-21T13:59:24.327077+00:00"}
+{"session_id": "s2", "event_type": "test", "title": "t2", "level": "info", "message": "m2", "record_id": "event-463cd3789d70", "created_at": "2026-07-21T13:59:24.327658+00:00"}
+{"session_id": "s1", "event_type": "test", "title": "t", "level": "info", "message": "m", "record_id": "event-49e60564a37b", "created_at": "2026-07-21T13:59:24.561712+00:00"}
+{"session_id": "active-session", "event_type": "signal", "title": "t", "level": "info", "message": "m", "record_id": "event-115122cf075b", "created_at": "2026-07-21T13:59:24.577787+00:00"}
