@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from quantflow.common.models import Order, OrderStatus, Position
+from quantflow.common.validators import POSITION_EPSILON
 from quantflow.execution.gateway_base import GatewayBase
 
 logger = logging.getLogger(__name__)
@@ -146,7 +147,7 @@ class PaperGateway(GatewayBase):
     ) -> None:
         existing = self._positions.get(symbol)
         if existing is None:
-            if abs(quantity) < 1e-10:
+            if abs(quantity) < POSITION_EPSILON:
                 return
             self._positions[symbol] = Position(
                 symbol=symbol,
@@ -159,7 +160,7 @@ class PaperGateway(GatewayBase):
             return
 
         new_qty = existing.quantity + quantity
-        if abs(new_qty) < 1e-10:
+        if abs(new_qty) < POSITION_EPSILON:
             del self._positions[symbol]
             return
 

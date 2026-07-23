@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from quantflow.common.models import Portfolio, Position, strategy_id_constituents
+from quantflow.common.validators import POSITION_EPSILON
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ class PortfolioManager:
     def has_position(self, symbol: str) -> bool:
         """Check if a position exists for the symbol."""
         pos = self._positions.get(symbol)
-        return pos is not None and abs(pos.quantity) > 1e-10
+        return pos is not None and abs(pos.quantity) > POSITION_EPSILON
 
     def update_position(
         self,
@@ -81,7 +82,7 @@ class PortfolioManager:
     ) -> None:
         """Update or create a position after a fill."""
         existing = self._positions.get(symbol)
-        if abs(quantity_delta) < 1e-10:
+        if abs(quantity_delta) < POSITION_EPSILON:
             if existing is None:
                 self._refresh_drawdown()
                 return
@@ -114,7 +115,7 @@ class PortfolioManager:
             return
 
         new_qty = existing.quantity + quantity_delta
-        if abs(new_qty) < 1e-10:
+        if abs(new_qty) < POSITION_EPSILON:
             del self._positions[symbol]
             self._refresh_drawdown()
             return

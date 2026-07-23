@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from collections import deque
+from collections.abc import Callable
 
 import numpy as np
 
@@ -26,7 +28,10 @@ class RiskEngine:
         self._config = config
         self._strategy_risk_budgets = strategy_risk_budgets or {}
         self._weekly_pnl_pct: float = 0.0
-        self._returns_history: list[float] = []
+        # deque(maxlen=500) makes add_return O(1) with automatic eviction,
+        # replacing the list + [-500:] slice (O(n) copy each overflow).
+        # (odyssey-improve PERF-L5)
+        self._returns_history: deque[float] = deque(maxlen=500)
         # Cache of the last-computed VaR/CVaR percentiles. _check_var runs once
         # per signal; recomputing np.percentile over the full history on every
         # signal is wasteful when the history has not changed since the last
@@ -34,6 +39,18 @@ class RiskEngine:
         self._var_cache_len: int = -1
         self._var_cache_var: float = 0.0
         self._var_cache_cvar: float = 0.0
+        # Build the check tuple once (odyssey-improve PERF-L1): previously
+        # check() allocated a fresh 7-element list of bound methods per signal.
+        # A tuple built in __init__ is iterated with zero per-call allocation.
+        self._checks: tuple[Callable[[Signal, Portfolio], RiskDecision], ...] = (
+            self._check_position_limit,
+            self._check_portfolio_limit,
+            self._check_strategy_budget,
+            self._check_daily_loss,
+            self._check_weekly_loss,
+            self._check_drawdown,
+            self._check_var,
+        )
 
     def set_weekly_pnl(self, pnl_pct: float) -> None:
         """Update weekly PnL percentage (called by portfolio manager)."""
@@ -41,9 +58,7 @@ class RiskEngine:
 
     def add_return(self, ret: float) -> None:
         """Add a return to history for VaR calculation."""
-        self._returns_history.append(ret)
-        if len(self._returns_history) > 500:
-            self._returns_history = self._returns_history[-500:]
+        self._returns_history.append(ret)  # deque(maxlen=500) evicts automatically
         # History changed — invalidate the percentile cache (PERF-M3).
         self._var_cache_len = -1
 
@@ -62,16 +77,7 @@ class RiskEngine:
 
     def check(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
         """Run all risk checks on a signal."""
-        checks = [
-            self._check_position_limit,
-            self._check_portfolio_limit,
-            self._check_strategy_budget,
-            self._check_daily_loss,
-            self._check_weekly_loss,
-            self._check_drawdown,
-            self._check_var,
-        ]
-        for check_fn in checks:
+        for check_fn in self._checks:
             result = check_fn(signal, portfolio)
             if not result.passed:
                 logger.warning("Risk check failed: %s", result.reason)

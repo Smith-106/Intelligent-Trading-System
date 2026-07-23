@@ -17,6 +17,7 @@ from typing import Any
 from quantflow.common.config import AppConfig
 from quantflow.common.event_bus import EVENT_BAR, EVENT_RISK, EVENT_SIGNAL, Event, EventBus
 from quantflow.common.models import Bar, Direction, OrderRequest, OrderSide, OrderStatus, Signal
+from quantflow.common.validators import POSITION_EPSILON
 from quantflow.execution.engine import ExecutionEngine
 from quantflow.execution.kill_switch import KillSwitch
 from quantflow.indicators.regime import MarketRegimeDetector
@@ -386,7 +387,7 @@ class TradingSession:
         flattens the position instead of opening a new short.
         """
         pos = self._portfolio.get_position(signal.symbol)
-        if pos is None or abs(pos.quantity) < 1e-10:
+        if pos is None or abs(pos.quantity) < POSITION_EPSILON:
             return
         side = OrderSide.SELL if pos.quantity > 0 else OrderSide.BUY
         quantity = abs(pos.quantity)
@@ -410,7 +411,9 @@ class TradingSession:
             filled_quantity = order.filled_quantity or quantity
             fill_price = order.filled_price or order.price or signal.price
             # Reduce-only: opposite sign of the held position.
-            signed_quantity = -pos.quantity * (filled_quantity / max(abs(pos.quantity), 1e-10))
+            signed_quantity = -pos.quantity * (
+                filled_quantity / max(abs(pos.quantity), POSITION_EPSILON)
+            )
             self._portfolio.update_position(
                 order.symbol,
                 signed_quantity,
@@ -740,6 +743,6 @@ class TradingSession:
     def adjust_capital(self, capital: float) -> None:
         """Set the portfolio capital atomically (initial capital + peak)."""
         cash_delta = capital - self._portfolio.cash
-        if abs(cash_delta) > 1e-10:
+        if abs(cash_delta) > POSITION_EPSILON:
             self._portfolio.update_cash(cash_delta)
         self._portfolio.set_capital_baseline(capital)

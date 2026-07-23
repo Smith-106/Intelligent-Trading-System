@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from quantflow.common.models import Position
+from quantflow.common.validators import POSITION_EPSILON
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class PositionManager:
         """Update position after a fill. Negative delta reduces position."""
         existing = self._positions.get(symbol)
         if existing is None:
-            if abs(quantity_delta) < 1e-10:
+            if abs(quantity_delta) < POSITION_EPSILON:
                 return
             self._positions[symbol] = Position(
                 symbol=symbol,
@@ -53,7 +54,7 @@ class PositionManager:
             return
 
         new_qty = existing.quantity + quantity_delta
-        if abs(new_qty) < 1e-10:
+        if abs(new_qty) < POSITION_EPSILON:
             # Position closed
             del self._positions[symbol]
             logger.info("Position closed: %s", symbol)
@@ -91,7 +92,9 @@ class PositionManager:
         return list(self._positions.values())
 
     def has_position(self, symbol: str) -> bool:
-        return symbol in self._positions and abs(self._positions[symbol].quantity) > 1e-10
+        return (
+            symbol in self._positions and abs(self._positions[symbol].quantity) > POSITION_EPSILON
+        )
 
     def close_position(self, symbol: str) -> Position | None:
         """Remove and return a position (used when fully closed)."""
