@@ -80,7 +80,7 @@ class KillSwitch:
         # than falsely reporting closed_positions=[]. Any exception (GatewayError
         # from a typed failure, or a legacy RuntimeError from a mock/test
         # gateway) is treated as "cannot verify positions" — the safe posture.
-        positions: list = []
+        positions: list[Any] = []
         try:
             positions = await self._gateway.query_positions()
         except Exception as e:
