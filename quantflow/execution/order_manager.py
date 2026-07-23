@@ -64,6 +64,38 @@ class OrderManager:
             logger.warning("Unknown order update: %s", order_id)
             return
 
+        # Terminal-state guard (odyssey-improve REL-H5): once an order reaches a
+        # terminal state (including the new TIMED_OUT/CANCELLED set by
+        # check_timeouts) reject late callbacks so a fill cannot resurrect a
+        # dead order into a second inconsistent truth.
+        if order.status in (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED):
+            logger.warning(
+                "Ignoring update for terminal order %s (was %s, got %s)",
+                order_id,
+                order.status.value,
+                status.value,
+            )
+            return
+
+        # Partial fill (odyssey-improve REL-H6): distinguish partial from full
+        # so position_manager is updated with the partial signed qty and the
+        # order stays non-terminal until the rest fills or is cancelled.
+        if filled_quantity > 0 and filled_quantity < order.quantity:
+            order.status = OrderStatus.PARTIAL
+            order.filled_quantity = filled_quantity
+            order.filled_price = filled_price
+            order.fee = fee
+            logger.info(
+                "Order %s → %s (filled=%.6f@%.2f of %.6f)",
+                order_id,
+                OrderStatus.PARTIAL.value,
+                filled_quantity,
+                filled_price,
+                order.quantity,
+            )
+            # Partial stays pending — more may fill. Do not pop _pending.
+            return
+
         order.status = status
         if filled_quantity > 0:
             order.filled_quantity = filled_quantity
@@ -81,13 +113,27 @@ class OrderManager:
             filled_price,
         )
 
-    def check_timeouts(self) -> list[str]:
-        """Return order IDs that have exceeded the timeout."""
+    def check_timeouts(self) -> list[tuple[str, str]]:
+        """Return (order_id, symbol) pairs that have exceeded the timeout.
+
+        Marks each timed-out order CANCELLED in ``_orders`` (not just a
+        ``_pending`` pop) so a late fill callback is rejected by the
+        terminal-state guard instead of resurrecting a dead order
+        (odyssey-improve REL-H4/H5). Returns (id, symbol) pairs so callers
+        can cancel on the exchange — cancel needs the symbol.
+        """
         now = time.time()
-        timed_out = [oid for oid, ts in self._pending.items() if now - ts > self._timeout]
-        for oid in timed_out:
+        timed_out: list[tuple[str, str]] = []
+        for oid, ts in list(self._pending.items()):
+            if now - ts <= self._timeout:
+                continue
+            order = self._orders.get(oid)
+            symbol = order.symbol if order else ""
             logger.warning("Order timeout: %s (%ds)", oid, self._timeout)
+            if order is not None:
+                order.status = OrderStatus.CANCELLED
             self._pending.pop(oid, None)
+            timed_out.append((oid, symbol))
         return timed_out
 
     def get_order(self, order_id: str) -> Order | None:

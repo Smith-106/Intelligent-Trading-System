@@ -76,7 +76,7 @@ class TestPaperGatewayExtra:
         )
         await gateway.send_order(order)
 
-        gateway.update_price("BTC/USDT", 130.0)
+        gateway.update_market_price("BTC/USDT", 130.0)
         positions = await gateway.query_positions()
 
         assert positions[0].current_price == 130.0

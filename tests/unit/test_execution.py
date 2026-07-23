@@ -266,7 +266,11 @@ class TestKillSwitch:
         ks = KillSwitch(cast(GatewayBase, FaultyGateway()))
         result = await ks.activate("faulty")
 
-        assert result["status"] == "activated"
+        # Fail-closed (odyssey-improve SEC-H5): a query_positions failure means
+        # the kill switch cannot verify positions are flat — it must NOT report
+        # a clean "activated". Both errors are collected and status reflects
+        # the inability to close.
+        assert result["status"] == "failed"
         assert "cancel_orders: cancel failed" in result["errors"]
         assert "query_positions: query failed" in result["errors"]
 

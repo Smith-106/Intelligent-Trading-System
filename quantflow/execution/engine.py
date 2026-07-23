@@ -14,7 +14,9 @@ from quantflow.common.models import (
     OrderSide,
     OrderStatus,
 )
-from quantflow.execution.gateway_base import GatewayBase
+from quantflow.common.validators import POSITION_EPSILON
+from quantflow.execution.gateway_base import GatewayBase, GatewayError
+from quantflow.execution.kill_switch import KillSwitch
 from quantflow.execution.okx_gateway import OKXGateway
 from quantflow.execution.order_manager import OrderManager
 from quantflow.execution.paper_gateway import PaperGateway
@@ -38,12 +40,27 @@ class ExecutionEngine:
         gateway: GatewayBase | None = None,
         event_bus: EventBus | None = None,
         timeout: float = 30.0,
+        kill_switch: KillSwitch | None = None,
     ) -> None:
         self._gateway = gateway
         self._event_bus = event_bus
         self._timeout = timeout
         self._order_mgr = OrderManager(timeout=int(timeout))
         self._position_mgr = PositionManager()
+        # Kill switch enforcement (odyssey-improve SEC-H4): when present, submit
+        # refuses new orders while the kill switch is active. TradingSession
+        # injects the same KillSwitch instance it owns so the engine-level gate
+        # and the on_bar gate share one source of truth.
+        self._kill_switch = kill_switch
+
+    def set_kill_switch(self, kill_switch: KillSwitch | None) -> None:
+        """Inject (or clear) the kill switch after construction.
+
+        TradingSession builds the KillSwitch after the engine exists (it needs
+        the gateway), then wires it here so submit() can enforce it.
+        (odyssey-improve SEC-H4)
+        """
+        self._kill_switch = kill_switch
 
     async def start(
         self, mode: str = "paper", gateway_config: dict[str, Any] | None = None
@@ -96,12 +113,55 @@ class ExecutionEngine:
             raise RuntimeError("Gateway not initialized — call start() first")
 
         started_at = perf_counter()
+
+        # Kill switch enforcement (odyssey-improve SEC-H4): block new submissions
+        # the moment the switch is active, regardless of which caller path
+        # reaches submit (on_bar, web, close_position). This closes the race
+        # where an in-flight signal submits after activate() begins.
+        if self._kill_switch is not None and self._kill_switch.is_active:
+            order.status = OrderStatus.REJECTED
+            logger.warning(
+                "Order rejected — kill switch active (reason=%s): symbol=%s side=%s strategy=%s",
+                self._kill_switch.reason,
+                order.symbol,
+                order.side.value,
+                order.strategy_id,
+            )
+            self._record_order_latency(order.symbol, started_at)
+            return order
+
         try:
             exchange_id = await self._gateway.send_order(order)
         except Exception as e:
             order.status = OrderStatus.REJECTED
-            logger.error("Order rejected by gateway: %s", e)
+            logger.error(
+                "Order rejected by gateway: symbol=%s side=%s strategy=%s err=%s",
+                order.symbol,
+                order.side.value,
+                order.strategy_id,
+                e,
+            )
             self._record_order_latency(order.symbol, started_at)
+            # Count and publish the rejection too (odyssey-improve OBS-H1):
+            # previously the REJECTED branch skipped ORDERS_TOTAL + EVENT_ORDER,
+            # so rejections were invisible in dashboards and the event stream.
+            ORDERS_TOTAL.labels(
+                symbol=order.symbol,
+                side=order.side.value,
+                strategy_id=order.strategy_id,
+            ).inc()
+            if self._event_bus:
+                self._event_bus.publish(
+                    Event(
+                        type=EVENT_ORDER,
+                        data={
+                            "order_id": order.order_id,
+                            "symbol": order.symbol,
+                            "side": order.side.value,
+                            "status": OrderStatus.REJECTED.value,
+                        },
+                    )
+                )
             return order
         order.order_id = exchange_id
 
@@ -189,9 +249,13 @@ class ExecutionEngine:
     def update_market_price(self, symbol: str, price: float) -> None:
         """Update local mark price and propagate it to gateways that need a reference price."""
         self._position_mgr.update_market_price(symbol, price)
-        gateway_update = getattr(self._gateway, "update_price", None)
-        if callable(gateway_update):
-            gateway_update(symbol, price)
+        # Call the declared base method directly (odyssey-improve ARCH-M2):
+        # previously getattr/callable duck-typed past the interface into
+        # PaperGateway, so OKXGateway silently dropped mark updates. Now both
+        # gateways honor the contract — OKX via the base no-op. Guard for the
+        # not-yet-started case (no gateway) to match the old getattr fallback.
+        if self._gateway is not None:
+            self._gateway.update_market_price(symbol, price)
 
     @staticmethod
     def _record_order_latency(symbol: str, started_at: float) -> None:
@@ -232,7 +296,7 @@ class ExecutionEngine:
     async def close_position(self, symbol: str) -> Order | None:
         """Close an existing position by placing an opposing order."""
         pos = self._position_mgr.get_position(symbol)
-        if pos is None or abs(pos.quantity) < 1e-10:
+        if pos is None or abs(pos.quantity) < POSITION_EPSILON:
             return None
 
         side = OrderSide.SELL if pos.quantity > 0 else OrderSide.BUY
@@ -243,18 +307,35 @@ class ExecutionEngine:
             order_type="market",
             quantity=qty,
             strategy_id="close_position",
+            # reduceOnly (odyssey-improve SEC-H2): a flatten order must not
+            # flip into a new opposite-side position if the held quantity has
+            # already decreased between sizing and submit.
+            params={"reduceOnly": True},
         )
         return await self.submit_order(request)
 
-    def check_timeouts(self) -> list[str]:
-        """Check and return timed-out order IDs."""
+    def check_timeouts(self) -> list[tuple[str, str]]:
+        """Check and return timed-out (order_id, symbol) pairs.
+
+        Pairs (not bare ids) so callers can cancel on the exchange — cancel
+        needs the symbol. (odyssey-improve REL-H4)
+        """
         return self._order_mgr.check_timeouts()
 
     async def sync_positions(self) -> None:
-        """Sync positions from the exchange."""
+        """Sync positions from the exchange.
+
+        Fail-closed (odyssey-improve SEC-H5): on GatewayError do NOT zero out
+        the local book — a failed query previously overwrote real positions
+        with an empty list. Keep last-known state and log for manual sync.
+        """
         if not self._gateway:
             return
-        positions = await self._gateway.query_positions()
+        try:
+            positions = await self._gateway.query_positions()
+        except GatewayError as e:
+            logger.error("sync_positions skipped — query failed, keeping last-known: %s", e)
+            return
         for pos in positions:
             self._position_mgr._positions[pos.symbol] = pos
         logger.info("Synced %d positions from exchange", len(positions))

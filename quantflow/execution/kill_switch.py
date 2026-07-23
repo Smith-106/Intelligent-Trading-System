@@ -7,8 +7,15 @@ from typing import Any
 
 from quantflow.common.models import Order, OrderSide
 from quantflow.execution.gateway_base import GatewayBase
+from quantflow.monitoring.metrics import KILL_SWITCH_ACTIVATIONS, KILL_SWITCH_STEP_FAILURES
 
 logger = logging.getLogger(__name__)
+
+# reduceOnly is CCXT's canonical camelCase param (SIG spec S-20260722-z4dr).
+# Setting it on every flatten order prevents a SELL sized to a stale long
+# quantity from opening a new short on the live exchange (odyssey-improve
+# SEC-H2). PaperGateway honors it symmetrically.
+_REDUCE_ONLY_PARAMS = {"reduceOnly": True}
 
 
 class KillSwitch:
@@ -16,8 +23,13 @@ class KillSwitch:
 
     When activated:
     1. Cancel all pending orders
-    2. Close all open positions with market orders
+    2. Close all open positions with market orders (reduceOnly)
     3. Block any new order submissions
+
+    Fail-closed posture (odyssey-improve SEC-H5/REL-H8): if query_positions
+    raises ``GatewayError`` we do NOT report success with an empty close list
+    — the emergency stop reports ``status="failed"`` so the operator knows
+    real positions may still be open and must intervene manually.
     """
 
     def __init__(self, gateway: GatewayBase) -> None:
@@ -41,6 +53,7 @@ class KillSwitch:
 
         self._active = True
         self._reason = reason
+        KILL_SWITCH_ACTIVATIONS.labels(reason=reason).inc()
         logger.critical("KILL SWITCH ACTIVATED: %s", reason)
 
         results: dict[str, Any] = {
@@ -57,39 +70,66 @@ class KillSwitch:
             results["cancelled_orders"] = cancelled
             logger.info("Cancelled %d orders", len(cancelled))
         except Exception as e:
+            KILL_SWITCH_STEP_FAILURES.labels(step="cancel_orders").inc()
             results["errors"].append(f"cancel_orders: {e}")
             logger.error("Failed to cancel orders: %s", e)
 
-        # Step 2: Close all open positions with market orders
+        # Step 2: Close all open positions with market orders.
+        # Fail-closed (odyssey-improve SEC-H5): a failure from query_positions
+        # means we CANNOT enumerate positions to close — report failure rather
+        # than falsely reporting closed_positions=[]. Any exception (GatewayError
+        # from a typed failure, or a legacy RuntimeError from a mock/test
+        # gateway) is treated as "cannot verify positions" — the safe posture.
+        positions: list = []
         try:
             positions = await self._gateway.query_positions()
-            for pos in positions:
-                if abs(pos.quantity) > 0:
-                    try:
-                        side = OrderSide.SELL if pos.quantity > 0 else OrderSide.BUY
-                        close_qty = abs(pos.quantity)
-                        order = Order(
-                            order_id="",
-                            symbol=pos.symbol,
-                            side=side,
-                            order_type="market",
-                            quantity=close_qty,
-                        )
-                        order_id = await self._gateway.send_order(order)
-                        results["closed_positions"].append(
-                            {
-                                "symbol": pos.symbol,
-                                "quantity": close_qty,
-                                "order_id": order_id,
-                            }
-                        )
-                        logger.info("Closing %s %s: order %s", pos.symbol, close_qty, order_id)
-                    except Exception as e:
-                        results["errors"].append(f"close_{pos.symbol}: {e}")
-                        logger.error("Failed to close %s: %s", pos.symbol, e)
         except Exception as e:
+            KILL_SWITCH_STEP_FAILURES.labels(step="query_positions").inc()
             results["errors"].append(f"query_positions: {e}")
-            logger.error("Failed to query positions: %s", e)
+            results["status"] = "failed"
+            logger.error(
+                "Kill switch query_positions failed — positions may still be "
+                "open; manual intervention required: %s",
+                e,
+            )
+            return results
+
+        for pos in positions:
+            if abs(pos.quantity) > 0:
+                try:
+                    side = OrderSide.SELL if pos.quantity > 0 else OrderSide.BUY
+                    close_qty = abs(pos.quantity)
+                    order = Order(
+                        order_id="",
+                        symbol=pos.symbol,
+                        side=side,
+                        order_type="market",
+                        quantity=close_qty,
+                        params=dict(_REDUCE_ONLY_PARAMS),
+                    )
+                    order_id = await self._gateway.send_order(order)
+                    results["closed_positions"].append(
+                        {
+                            "symbol": pos.symbol,
+                            "quantity": close_qty,
+                            "order_id": order_id,
+                        }
+                    )
+                    logger.info("Closing %s %s: order %s", pos.symbol, close_qty, order_id)
+                except Exception as e:
+                    KILL_SWITCH_STEP_FAILURES.labels(step=f"close_{pos.symbol}").inc()
+                    results["errors"].append(f"close_{pos.symbol}: {e}")
+                    logger.error("Failed to close %s: %s", pos.symbol, e)
+
+        # If any close failed, the system is in a partial/half-state — surface
+        # it so the operator does not believe the stop completed cleanly.
+        if results["errors"]:
+            results["status"] = "partial"
+            logger.error(
+                "Kill switch activated with %d error(s) — residual positions "
+                "may remain open; manual intervention required",
+                len(results["errors"]),
+            )
 
         return results
 

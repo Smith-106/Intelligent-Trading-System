@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from quantflow.common.models import Order, OrderSide
+from quantflow.execution.gateway_base import GatewayError
 from quantflow.execution.okx_gateway import OKXGateway
 
 
@@ -160,7 +161,11 @@ async def test_ensure_connected_stops_after_max_attempts(
     gateway.connect = fake_connect
     monkeypatch.setattr("quantflow.execution.okx_gateway.asyncio.sleep", fake_sleep)
 
-    await gateway.ensure_connected()
+    # Fail-closed (odyssey-improve SEC-H5/REL-H3): after exhausting reconnects
+    # the gateway raises GatewayError instead of silently returning, so
+    # callers cannot proceed against a dead exchange.
+    with pytest.raises(GatewayError):
+        await gateway.ensure_connected()
 
     assert attempts["count"] == 2
     assert gateway.is_connected is False
@@ -300,7 +305,10 @@ async def test_cancel_all_orders_handles_success_failure_and_missing_exchange() 
 @pytest.mark.asyncio
 async def test_query_positions_filters_zero_contracts_and_handles_failures() -> None:
     gateway = OKXGateway()
-    assert await gateway.query_positions() == []
+    # Fail-closed (odyssey-improve SEC-H5): a not-connected gateway raises
+    # rather than returning [] (which is indistinguishable from "no positions").
+    with pytest.raises(GatewayError):
+        await gateway.query_positions()
 
     exchange = _FakeExchange()
     gateway._exchange = exchange
@@ -314,7 +322,9 @@ async def test_query_positions_filters_zero_contracts_and_handles_failures() -> 
     assert positions[0].current_price == 52000.0
     assert positions[0].unrealized_pnl == 4000.0
 
+    # Fail-closed: a fetch_positions failure raises GatewayError (not []),
+    # so KillSwitch cannot mistake a failed query for "no positions to close".
     exchange.fail_positions = True
-    failed = await gateway.query_positions()
-    assert failed == []
+    with pytest.raises(GatewayError):
+        await gateway.query_positions()
     assert gateway.is_connected is False

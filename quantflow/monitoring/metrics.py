@@ -38,6 +38,20 @@ RISK_EVENTS = Counter(
     ["event_type", "severity"],
 )
 
+# Kill switch (odyssey-improve OBS-H2): every activation — manual web trigger,
+# drawdown breach, or emergency alert — increments this so a Grafana panel /
+# alert can surface the emergency stop independently of log lines.
+KILL_SWITCH_ACTIVATIONS = Counter(
+    "quantflow_kill_switch_activations_total",
+    "Kill switch activations by trigger reason",
+    ["reason"],
+)
+KILL_SWITCH_STEP_FAILURES = Counter(
+    "quantflow_kill_switch_step_failures_total",
+    "Kill switch sub-step failures (cancel/close/query) during activation",
+    ["step"],
+)
+
 # Gauges
 PORTFOLIO_VALUE = Gauge(
     "quantflow_portfolio_value",

@@ -12,6 +12,7 @@ contract for a security primitive imported across layers.
 
 from __future__ import annotations
 
+import math
 import re
 
 # Trading-pair symbols: alphanumerics plus / _ -, max 20 chars. The / is the
@@ -23,6 +24,11 @@ SYMBOL_PATTERN = re.compile(r"^[A-Za-z0-9/_-]{1,20}$")
 # SQL column names: identifier-first char + alnum/underscore. Used to validate
 # dynamically composed SELECT lists before interpolation.
 COLUMN_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+# Absolute magnitude below which a position is treated as flat. Centralized
+# (previously 1e-10 was inlined across 4 files) so the "what counts as zero"
+# policy has one source of truth. See odyssey-improve(trade-main-path) §5.
+POSITION_EPSILON = 1e-10
 
 
 def validate_symbol(symbol: str) -> str:
@@ -54,3 +60,22 @@ def validate_columns(columns: list[str] | tuple[str, ...] | None) -> list[str] |
     if invalid:
         raise ValueError(f"Invalid column name(s): {invalid!r}")
     return list(dict.fromkeys(columns))
+
+
+def validate_quantity(quantity: float) -> float:
+    """Validate an order/position quantity before it reaches the exchange.
+
+    Rejects NaN, +/-inf, zero, and negative values. NaN/inf previously slipped
+    through the live order path (okx_gateway used an opaque ``x == x`` NaN
+    trick that did not catch +inf), and close-position orders built from
+    exchange-reported positions inherited whatever ``float(p.get('contracts'))``
+    returned — including non-finite values from a malformed response. This is
+    the symmetric choke point to ``validate_symbol``: every Order construction
+    on the live path (send_order, close_position, KillSwitch) MUST pass its
+    quantity through here.
+
+    Returns the quantity unchanged on success.
+    """
+    if not math.isfinite(quantity) or quantity <= 0:
+        raise ValueError(f"Invalid quantity (must be finite and > 0): {quantity!r}")
+    return quantity

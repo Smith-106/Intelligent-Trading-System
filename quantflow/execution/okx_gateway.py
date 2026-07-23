@@ -4,16 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from typing import Any
 
 from quantflow.common.models import Order, OrderSide, Position
-from quantflow.common.validators import validate_symbol
-from quantflow.execution.gateway_base import GatewayBase
+from quantflow.common.validators import validate_quantity, validate_symbol
+from quantflow.execution.gateway_base import GatewayBase, GatewayError
 
 logger = logging.getLogger(__name__)
 
 RECONNECT_INTERVAL = 5
 MAX_RECONNECT_ATTEMPTS = 5
+
+# Per-call CCXT timeout (odyssey-improve REL-C1). The OrderManager 30s watchdog
+# is a separate, higher-level concern; this bounds each network call so a
+# stalled exchange response cannot hang the trading loop indefinitely.
+CALL_TIMEOUT = 10.0
 
 
 def _safe_error(e: BaseException) -> str:
@@ -70,38 +76,53 @@ class OKXGateway(GatewayBase):
         logger.info("OKX Gateway connected: %d markets", len(self._exchange.markets))
 
     async def disconnect(self) -> None:
-        if self._exchange:
-            await self._exchange.close()
+        # try/finally: close() can raise on a half-torn aiohttp session; we must
+        # still clear state so a later is_connected check cannot lie. (REL-M1)
+        try:
+            if self._exchange:
+                await self._exchange.close()
+        except Exception as e:
+            logger.warning("OKX disconnect close failed: %s", _safe_error(e))
+        finally:
             self._exchange = None
-        self._connected = False
+            self._connected = False
 
     async def ensure_connected(self) -> None:
-        """Check connection and attempt reconnect if needed."""
+        """Check connection and attempt reconnect if needed.
+
+        Fail-closed (odyssey-improve SEC-H5/REL-H3): on total reconnect failure
+        raise ``GatewayError`` so callers (send_order, KillSwitch) cannot
+        proceed against a dead exchange and must degrade deliberately.
+        """
         if self._connected and self._exchange:
             return
 
         logger.warning("OKX Gateway disconnected — attempting reconnect")
+        last_err: BaseException | None = None
         for attempt in range(1, self._max_reconnect_attempts + 1):
             try:
                 await self.connect()
                 logger.info("Reconnected on attempt %d", attempt)
                 return
             except Exception as e:
+                last_err = e
                 logger.error("Reconnect attempt %d failed: %s", attempt, _safe_error(e))
                 if attempt < self._max_reconnect_attempts:
                     await asyncio.sleep(self._reconnect_interval)
 
-        logger.critical("Failed to reconnect after %d attempts", self._max_reconnect_attempts)
+        raise GatewayError(
+            f"Failed to reconnect after {self._max_reconnect_attempts} attempts"
+        ) from last_err
 
     async def send_order(self, order: Order) -> str:
         """Submit an order to OKX."""
         if not self._exchange:
             raise RuntimeError("Not connected")
 
-        # Numeric safety: reject NaN / non-positive quantity before the exchange
-        # rejects it with a message that may echo request details into logs.
-        if not (order.quantity > 0 and order.quantity == order.quantity):  # x==x is the NaN check
-            raise ValueError(f"Invalid order quantity: {order.quantity!r}")
+        # Numeric safety (validate_quantity rejects NaN/inf/<=0, replacing the
+        # opaque ``x == x`` NaN trick that did not catch +inf). A bad quantity
+        # is rejected here before create_order can echo request details. (MAIN-M)
+        validate_quantity(order.quantity)
         # ISS-020: validate symbol at the execution choke point. order.symbol
         # can originate from a web-influenced signal path; reject a malformed
         # symbol before it reaches create_order (whose error body may echo it).
@@ -111,23 +132,51 @@ class OKXGateway(GatewayBase):
         side = "buy" if order.side == OrderSide.BUY else "sell"
         # Forward exchange-specific params (e.g. reduceOnly for FLAT/close orders)
         # so a SELL that flattens a long cannot accidentally open a new short on
-        # the live exchange. PaperGateway ignores params (its SELL is already
-        # reduce-only by construction via _close_position_for_signal sizing).
+        # the live exchange. PaperGateway honors reduceOnly symmetrically now.
         params: dict[str, Any] = dict(order.params) if order.params else {}
+        # Idempotency (odyssey-improve REL-C2/SEC-H3): inject a clientOrderId so
+        # a retried submit after a network ambiguity is deduped by the exchange
+        # rather than producing a second live order. order_id is the local id.
+        if order.order_id and "clientOrderId" not in params:
+            params["clientOrderId"] = order.order_id
         try:
-            result = await self._exchange.create_order(
-                symbol=order.symbol,
-                type=order.order_type,
-                side=side,
-                amount=order.quantity,
-                price=order.price,
-                params=params,
+            result = await asyncio.wait_for(
+                self._exchange.create_order(
+                    symbol=order.symbol,
+                    type=order.order_type,
+                    side=side,
+                    amount=order.quantity,
+                    price=order.price,
+                    params=params,
+                ),
+                timeout=CALL_TIMEOUT,
             )
             order_id = str(result.get("id", ""))
-            logger.info("OKX order placed: %s %s %.6f", side, order.symbol, order.quantity)
+            logger.info(
+                "OKX order placed: oid=%s side=%s %s %.6f",
+                order_id,
+                side,
+                order.symbol,
+                order.quantity,
+            )
             return order_id
+        except TimeoutError as e:
+            logger.error(
+                "OKX order timed out: symbol=%s side=%s qty=%.6f",
+                order.symbol,
+                side,
+                order.quantity,
+            )
+            self._connected = False
+            raise GatewayError("create_order timed out") from e
         except Exception as e:
-            logger.error("OKX order failed: %s", _safe_error(e))
+            logger.error(
+                "OKX order failed: %s symbol=%s side=%s qty=%.6f",
+                _safe_error(e),
+                order.symbol,
+                side,
+                order.quantity,
+            )
             self._connected = False
             raise
 
@@ -137,11 +186,16 @@ class OKXGateway(GatewayBase):
         # ISS-020: validate symbol at the execution choke point.
         validate_symbol(symbol)
         try:
-            await self._exchange.cancel_order(order_id, symbol)
+            await asyncio.wait_for(
+                self._exchange.cancel_order(order_id, symbol), timeout=CALL_TIMEOUT
+            )
             logger.info("OKX cancel: %s", order_id)
             return True
+        except TimeoutError as e:
+            logger.error("OKX cancel timed out: oid=%s symbol=%s", order_id, symbol)
+            raise GatewayError("cancel_order timed out") from e
         except Exception as e:
-            logger.error("OKX cancel failed: %s", _safe_error(e))
+            logger.error("OKX cancel failed: %s oid=%s", _safe_error(e), order_id)
             return False
 
     async def cancel_all_orders(self, symbol: str | None = None) -> list[bool]:
@@ -152,37 +206,71 @@ class OKXGateway(GatewayBase):
             validate_symbol(symbol)
         try:
             params = {"symbol": symbol} if symbol else {}
-            result = await self._exchange.cancel_all_orders(params)
+            result = await asyncio.wait_for(
+                self._exchange.cancel_all_orders(params), timeout=CALL_TIMEOUT
+            )
             ids = [o.get("id", "") for o in result] if isinstance(result, list) else []
             logger.info("OKX cancel all: %d orders", len(ids))
             return [True] * len(ids)
+        except TimeoutError as e:
+            logger.error("OKX cancel all timed out")
+            raise GatewayError("cancel_all_orders timed out") from e
         except Exception as e:
             logger.error("OKX cancel all failed: %s", _safe_error(e))
             return []
 
     async def query_positions(self) -> list[Position]:
+        """Query open positions from the exchange.
+
+        Fail-closed (odyssey-improve SEC-H5/REL-H2): on failure raise
+        ``GatewayError`` instead of returning ``[]`` — an empty list is
+        indistinguishable from "no positions" and caused KillSwitch to report
+        a successful activation while real positions stayed open. Genuine
+        empty results still return ``[]``.
+        """
         if not self._exchange:
-            return []
+            raise GatewayError("query_positions: gateway not connected")
         try:
-            raw = await self._exchange.fetch_positions()
-            positions = []
-            for p in raw:
-                qty = float(p.get("contracts", 0))
-                if qty > 0:
-                    positions.append(
-                        Position(
-                            symbol=p["symbol"],
-                            quantity=qty,
-                            entry_price=float(p.get("entryPrice", 0)),
-                            current_price=float(p.get("markPrice", 0)),
-                            unrealized_pnl=float(p.get("unrealizedPnl", 0)),
-                        )
-                    )
-            return positions
-        except Exception as e:
-            logger.error("OKX query positions failed: %s", _safe_error(e))
+            raw = await asyncio.wait_for(self._exchange.fetch_positions(), timeout=CALL_TIMEOUT)
+        except TimeoutError as e:
             self._connected = False
-            return []
+            logger.error("OKX query positions timed out")
+            raise GatewayError("fetch_positions timed out") from e
+        except Exception as e:
+            self._connected = False
+            logger.error("OKX query positions failed: %s", _safe_error(e))
+            raise GatewayError("fetch_positions failed") from e
+
+        positions: list[Position] = []
+        for p in raw:
+            try:
+                qty = float(p.get("contracts", 0) or 0)
+                entry = float(p.get("entryPrice", 0) or 0)
+                mark = float(p.get("markPrice", 0) or 0)
+                upnl = float(p.get("unrealizedPnl", 0) or 0)
+            except (TypeError, ValueError) as e:
+                # Schema drift on one row must not collapse the whole query to
+                # "no positions" — surface it and skip the bad row. (REL-H7)
+                logger.warning("OKX skipping malformed position row: %s", _safe_error(e))
+                continue
+            # Validate the parsed values: reject NaN/inf (which float() does not).
+            if not all(math.isfinite(v) for v in (qty, entry, mark, upnl)):
+                logger.warning("OKX skipping non-finite position row: %s", p.get("symbol"))
+                continue
+            # abs() preserves short positions (qty<0) instead of dropping them.
+            # The sign carries direction; Position.quantity is magnitude and
+            # direction is encoded in OrderSide at the close path. (REL-H7)
+            if abs(qty) > 0:
+                positions.append(
+                    Position(
+                        symbol=p["symbol"],
+                        quantity=abs(qty),
+                        entry_price=entry,
+                        current_price=mark,
+                        unrealized_pnl=upnl,
+                    )
+                )
+        return positions
 
     @property
     def is_connected(self) -> bool:

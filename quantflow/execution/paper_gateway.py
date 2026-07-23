@@ -122,8 +122,13 @@ class PaperGateway(GatewayBase):
     async def query_positions(self) -> list[Position]:
         return list(self._positions.values())
 
-    def update_price(self, symbol: str, price: float) -> None:
-        """Update last known price for a symbol (called by data feed)."""
+    def update_market_price(self, symbol: str, price: float) -> None:
+        """Update last known price for a symbol (called by data feed).
+
+        Overrides the GatewayBase no-op (odyssey-improve ARCH-M2) so
+        ExecutionEngine.update_market_price calls a declared method instead
+        of duck-typing ``update_price`` past the interface.
+        """
         self._prices[symbol] = price
         pos = self._positions.get(symbol)
         if pos is not None:

@@ -118,6 +118,10 @@ class TradingSession:
         # Initialize kill switch if enabled
         if self._config.risk.kill_switch_enabled and self._execution.gateway:
             self._kill_switch = KillSwitch(self._execution.gateway)
+            # Wire the kill switch into the engine so submit() blocks new
+            # orders the moment the switch is active, not only at on_bar entry
+            # (odyssey-improve SEC-H4).
+            self._execution.set_kill_switch(self._kill_switch)
             self._event_bus.subscribe(EVENT_RISK, self._on_risk_event)
 
         # Reset per-session state so a restarted session does not gate on the
@@ -543,8 +547,16 @@ class TradingSession:
                 # Health check
                 self.check_health()
 
-                # Order timeout check
-                self._execution.check_timeouts()
+                # Order timeout check — cancel timed-out orders on the exchange
+                # (odyssey-improve REL-H4): previously the returned ids were
+                # discarded, so an exchange-still-open order could fill later
+                # against a locally-dead id with no position update.
+                for oid, sym in self._execution.check_timeouts():
+                    if sym:
+                        try:
+                            await self._execution.cancel(oid, sym)
+                        except Exception as exc:
+                            logger.warning("Timeout cancel failed for %s: %s", oid, exc)
 
                 await asyncio.sleep(interval_seconds)
 

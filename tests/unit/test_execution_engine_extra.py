@@ -279,7 +279,7 @@ class TestExecutionEngineExtra:
                 super().__init__()
                 self.price_updates: list[tuple[str, float]] = []
 
-            def update_price(self, symbol: str, price: float) -> None:
+            def update_market_price(self, symbol: str, price: float) -> None:
                 self.price_updates.append((symbol, price))
 
         gateway = _PriceAwareGateway()
