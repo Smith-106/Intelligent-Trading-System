@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import math
 import os
 import secrets
 from collections import Counter
@@ -20,6 +19,7 @@ from pydantic import BaseModel, Field
 from quantflow.common.config import load_config, resolve_config_path_safe
 from quantflow.common.event_bus import Event, EventBus
 from quantflow.common.models import EVENT_FILL, EVENT_ORDER, EVENT_RISK, EVENT_SIGNAL
+from quantflow.common.numeric import safe_number
 from quantflow.common.redaction import redact_secrets
 from quantflow.monitoring.metrics import update_portfolio_metrics
 from quantflow.strategy.catalog import get_strategy_factories
@@ -87,18 +87,15 @@ class SessionRuntime:
 def _safe_number(value: Any) -> Any:
     """Coerce a value to a JSON-safe number, dropping non-finite floats.
 
-    Uses ``math.isfinite`` (odyssey-improve GP3) instead of the opaque
-    ``value == value`` NaN trick + ad-hoc inf list — the same centralized
-    primitive ``common.validators.validate_quantity`` relies on. The sibling
-    ``web/service._safe_number`` already uses this primitive; this keeps the
-    two web-layer coercers on a single NaN/inf policy instead of shadow
-    implementations that drift.
+    Delegates to the single source of truth in ``common.numeric.safe_number``
+    (odyssey-review ARCH+SEC finding). Previously this inlined a 3-branch
+    version (bool/int/float) using ``math.isfinite`` while the sibling
+    ``web/service._safe_number`` carried 5 branches incl. ``np.floating`` —
+    a ``np.float64`` NaN fell through here to ``json.dumps`` and emitted a
+    bare ``NaN`` token into the persisted JSONL audit trail. Both coercers
+    now share one NaN/inf policy via the centralized primitive.
     """
-    if isinstance(value, bool | int):
-        return value
-    if isinstance(value, float):
-        return value if math.isfinite(value) else None
-    return value
+    return safe_number(value)
 
 
 def _redact_secrets(text: str) -> str:

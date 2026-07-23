@@ -79,14 +79,32 @@ def _expected_max_sharpe(n_trials: int) -> float:
     """Approximate expected maximum Sharpe from N independent trials.
 
     Uses the approximation: E[max_N] ≈ Φ^{-1}(1 - 1/N) for large N.
+
+    Fail-closed (odyssey-review CORR-H6): a failure here MUST NOT let the
+    multiple-testing penalty collapse to 0. expected_max=0.0 makes
+    ``dsr = Φ((observed - 0)/std)`` trivially exceed 0.95 for any positive
+    Sharpe — silently dropping the entire point of DSR. Instead return
+    ``+inf`` on the degenerate/numerical-failure path so DSR computes to 0.0
+    (NO-GO), and log the exception so a scipy upgrade or pathological input
+    is visible rather than silently disabling the penalty for all strategies.
     """
     if n_trials <= 1:
-        return 0.0
+        # Single trial → no multiple-testing adjustment is meaningful, but
+        # returning 0.0 would make the gate trivially pass. +inf ⇒ DSR=0.0.
+        return float("inf")
     # More accurate: (1 - euler_gamma) * Z(1-1/N) + euler_gamma * Z(1-1/(N*e))
     try:
         z1 = float(stats.norm.ppf(1 - 1 / n_trials))
         z2 = float(stats.norm.ppf(1 - 1 / (n_trials * np.e)))
         euler_gamma = 0.5772
         return (1 - euler_gamma) * z1 + euler_gamma * z2
-    except Exception:
-        return 0.0
+    except (ValueError, OverflowError) as e:
+        # Numerical edge case (pathological n_trials, domain error in ppf).
+        # +inf ⇒ DSR=0.0 (NO-GO) so the penalty is never silently dropped.
+        logger.warning(
+            "_expected_max_sharpe numerical failure for n_trials=%d: %s — "
+            "returning +inf (DSR will fail-closed to 0.0)",
+            n_trials,
+            e,
+        )
+        return float("inf")

@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from quantflow.common.models import Order, OrderStatus, Position
-from quantflow.common.validators import POSITION_EPSILON
+from quantflow.common.validators import POSITION_EPSILON, validate_quantity, validate_symbol
 from quantflow.execution.gateway_base import GatewayBase
 
 logger = logging.getLogger(__name__)
@@ -49,6 +49,12 @@ class PaperGateway(GatewayBase):
 
     async def send_order(self, order: Order) -> str:
         """Simulate order fill with slippage and fees."""
+        # Symmetric choke point with OKXGateway (odyssey-review SEC finding):
+        # validate quantity/symbol here too so a NaN/malformed value from the
+        # paper signal path cannot reach fill math (notional = price * quantity)
+        # and propagate NaN equity into the snapshot/JSONL persistence path.
+        validate_quantity(order.quantity)
+        validate_symbol(order.symbol)
         self._order_counter += 1
         order_id = f"paper-{self._order_counter}"
 

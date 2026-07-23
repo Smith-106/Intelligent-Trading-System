@@ -29,6 +29,7 @@ from quantflow.common.config import (  # noqa: F401
     resolve_config_path,
     resolve_config_path_safe,
 )
+from quantflow.common.numeric import safe_number
 from quantflow.common.validators import validate_symbol
 from quantflow.data.store import DataStore
 from quantflow.monitoring.metrics import metrics_registry_snapshot, metrics_server_status
@@ -227,19 +228,14 @@ def _timestamp_to_iso(value: Any) -> str | None:
 
 
 def _safe_number(value: Any) -> Any:
-    """Convert non-finite numeric values to None for JSON-safe payloads."""
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, int):
-        return value
-    if isinstance(value, float):
-        return value if math.isfinite(value) else None
-    if isinstance(value, np.floating):
-        cast = float(value)
-        return cast if math.isfinite(cast) else None
-    if isinstance(value, np.integer):
-        return int(value)
-    return value
+    """Convert non-finite numeric values to None for JSON-safe payloads.
+
+    Delegates to the single source of truth in ``common.numeric``
+    (odyssey-review ARCH+SEC finding: this and ``session_manager._safe_number``
+    had diverged — session_manager lacked the numpy branches, letting
+    ``np.float64`` NaN reach JSONL persistence).
+    """
+    return safe_number(value)
 
 
 def _latency_average(total: Any, count: Any) -> float | None:

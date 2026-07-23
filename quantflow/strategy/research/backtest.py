@@ -290,6 +290,18 @@ class BacktestEngine:
                         return float(pd.Timedelta(days=365) / median_delta)
         except (TypeError, ValueError):
             pass
+        # Fallback (odyssey-review CORR finding): falling back to 365 (daily)
+        # here understates annualization for intraday bars by ~24x for hourly
+        # data, silently inflating annualized Sharpe/return. Warn so an
+        # operator sees the cadence could not be inferred — previously this
+        # path fired with no log at all.
+        logger.warning(
+            "Could not infer bar frequency from index (len=%d, type=%s); "
+            "defaulting periods_per_year=365 (daily). If bars are intraday, "
+            "annualized Sharpe/return will be understated.",
+            len(index),
+            type(index).__name__,
+        )
         return 365.0
 
     @staticmethod

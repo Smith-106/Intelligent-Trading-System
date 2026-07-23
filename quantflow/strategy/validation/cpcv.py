@@ -9,12 +9,13 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from itertools import combinations
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from quantflow.strategy.validation._common import sanitize_metric_array
 from quantflow.strategy.validation.signal_quality import (
     aggregate_signal_quality,
     signal_quality_metrics,
@@ -25,10 +26,8 @@ SignalFunction = Callable[..., tuple[pd.Series, pd.Series]]
 
 
 def _sanitize_metric_array(values: list[float]) -> npt.NDArray[np.float64]:
-    """Normalize validation metrics to finite floats to avoid numeric warnings."""
-    arr = np.asarray(values, dtype=float)
-    sanitized = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
-    return cast(npt.NDArray[np.float64], sanitized.astype(np.float64, copy=False))
+    """Normalize validation metrics to finite floats (delegates to _common)."""
+    return sanitize_metric_array(values)
 
 
 def _cpcv_failure_result(

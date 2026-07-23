@@ -125,13 +125,18 @@ class TestDSR:
     def test_expected_max_sharpe(self):
         ems = _expected_max_sharpe(100)
         assert ems > 0  # With many trials, expected max > 0
+        # n_trials<=1 is degenerate: fail-closed returns +inf so DSR=0.0
+        # (NO-GO) rather than 0.0 which would trivially pass the gate.
         ems_1 = _expected_max_sharpe(1)
-        assert ems_1 == 0.0
+        assert ems_1 == float("inf")
 
     def test_dsr_handles_expected_max_failure_and_near_zero_variance(self, monkeypatch):
+        # scipy ppf failures raise ValueError/OverflowError on bad input;
+        # the fail-closed path returns +inf (DSR→0.0, NO-GO) instead of 0.0
+        # which would have dropped the multiple-testing penalty entirely.
         monkeypatch.setattr(
             "quantflow.strategy.validation.dsr.stats.norm.ppf",
-            lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("bad stats")),
+            lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("bad stats")),
         )
 
         result = deflated_sharpe_ratio(
@@ -142,9 +147,11 @@ class TestDSR:
             sample_length=2,
         )
 
-        assert result["expected_max_sharpe"] == 0.0
+        assert result["expected_max_sharpe"] == float("inf")
         assert result["sr_variance"] < 0
-        assert 0.0 <= result["dsr"] <= 1.0
+        # Fail-closed: expected_max=+inf ⇒ DSR=Φ(-inf)=0.0 (NO-GO), not >0.95.
+        assert result["dsr"] == 0.0
+        assert result["passed"] is False
 
 
 class TestPBO:

@@ -9,9 +9,25 @@ from typing import Any
 
 import aiohttp
 
+from quantflow.common.redaction import redact_secrets
 from quantflow.common.url_safety import UnsafeUrlError, validate_outbound_url
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_alert_error(exc: BaseException) -> str:
+    """Redact secrets from an alert-send exception before logging.
+
+    aiohttp connection/ClientConnectorError exceptions embed the request URL in
+    ``str(e)``, and the Telegram URL is
+    ``https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage`` — so a
+    failed send would otherwise write the bot token to the server log. The LINE
+    path can echo the ``Authorization: Bearer {token}`` header. Route every
+    alert error through the centralized scrubber (ISS-002 single audit face)
+    so the token shape is stripped, matching okx_gateway._safe_error
+    (odyssey-review SEC finding, CWE-532).
+    """
+    return redact_secrets(str(exc))
 
 
 class AlertLevel(StrEnum):
@@ -88,7 +104,7 @@ class AlertManager:
                 ) as resp:
                     return resp.status == 200
         except Exception as e:
-            logger.error("Telegram alert failed: %s", e)
+            logger.error("Telegram alert failed: %s", _safe_alert_error(e))
             return False
 
     async def _send_line(self, message: str, level: AlertLevel) -> bool:
@@ -108,7 +124,7 @@ class AlertManager:
                 ) as resp:
                     return resp.status == 200
         except Exception as e:
-            logger.error("LINE alert failed: %s", e)
+            logger.error("LINE alert failed: %s", _safe_alert_error(e))
             return False
 
     async def _send_webhook(
@@ -135,5 +151,5 @@ class AlertManager:
                 ) as resp:
                     return resp.status < 400
         except Exception as e:
-            logger.error("Webhook alert failed: %s", e)
+            logger.error("Webhook alert failed: %s", _safe_alert_error(e))
             return False

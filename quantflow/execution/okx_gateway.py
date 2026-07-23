@@ -132,7 +132,10 @@ class OKXGateway(GatewayBase):
         side = "buy" if order.side == OrderSide.BUY else "sell"
         # Forward exchange-specific params (e.g. reduceOnly for FLAT/close orders)
         # so a SELL that flattens a long cannot accidentally open a new short on
-        # the live exchange. PaperGateway honors reduceOnly symmetrically now.
+        # the live exchange. NOTE: PaperGateway does NOT yet consume order.params
+        # (reduceOnly is silently ignored in paper mode) — a paper/live parity
+        # gap tracked as an issue; the comment here previously claimed symmetry
+        # which was false (odyssey-review ARCH finding).
         params: dict[str, Any] = dict(order.params) if order.params else {}
         # Idempotency (odyssey-improve REL-C2/SEC-H3): inject a clientOrderId so
         # a retried submit after a network ambiguity is deduped by the exchange
