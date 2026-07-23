@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import math
 import os
 import secrets
 from collections import Counter
@@ -84,10 +85,19 @@ class SessionRuntime:
 
 
 def _safe_number(value: Any) -> Any:
+    """Coerce a value to a JSON-safe number, dropping non-finite floats.
+
+    Uses ``math.isfinite`` (odyssey-improve GP3) instead of the opaque
+    ``value == value`` NaN trick + ad-hoc inf list — the same centralized
+    primitive ``common.validators.validate_quantity`` relies on. The sibling
+    ``web/service._safe_number`` already uses this primitive; this keeps the
+    two web-layer coercers on a single NaN/inf policy instead of shadow
+    implementations that drift.
+    """
     if isinstance(value, bool | int):
         return value
     if isinstance(value, float):
-        return value if value == value and value not in (float("inf"), float("-inf")) else None
+        return value if math.isfinite(value) else None
     return value
 
 

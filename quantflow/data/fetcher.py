@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
@@ -22,6 +23,32 @@ from quantflow.common.validators import validate_symbol
 logger = logging.getLogger(__name__)
 
 TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"]
+
+# Per-call timeout for every CCXT network call (odyssey-improve GP2).
+# A bare ``await exchange.<method>`` has no timeout floor, so a TCP stall /
+# network partition hangs the data loop indefinitely — the same unbounded-hang
+# class fixed in okx_gateway. load_markets / fetch_ohlcv / fetch_ticker / ws
+# watch / close are all bounded by this value.
+CALL_TIMEOUT = 30.0
+
+
+def _bar_is_finite(bar: list[Any]) -> bool:
+    """Return True if every numeric OHLCV field of a CCXT bar is finite.
+
+    A CCXT bar is ``[timestamp, open, high, low, close, volume]``. The
+    timestamp must be a non-null int and each price/volume must be a finite
+    float (odyssey-improve GP3) — null/NaN/inf values from a partial kline
+    are rejected at the parse boundary instead of propagating downstream.
+    """
+    if len(bar) < 6:
+        return False
+    try:
+        for field in (bar[1], bar[2], bar[3], bar[4], bar[5]):
+            if field is None or not math.isfinite(float(field)):
+                return False
+    except (TypeError, ValueError):
+        return False
+    return True
 
 
 class DataFetcher:
@@ -48,7 +75,7 @@ class DataFetcher:
             )
             if self._config.sandbox:
                 self._exchange.set_sandbox_mode(True)
-            await self._exchange.load_markets()
+            await asyncio.wait_for(self._exchange.load_markets(), timeout=CALL_TIMEOUT)
             logger.info("Connected to OKX, %d markets loaded", len(self._exchange.markets))
         except Exception as e:
             if self._exchange is not None:
@@ -80,13 +107,26 @@ class DataFetcher:
 
         all_bars: list[list[Any]] = []
         while True:
-            bars = await self._exchange.fetch_ohlcv(
-                symbol,
-                timeframe,
-                since=since,
-                limit=limit,
+            bars = await asyncio.wait_for(
+                self._exchange.fetch_ohlcv(
+                    symbol,
+                    timeframe,
+                    since=since,
+                    limit=limit,
+                ),
+                timeout=CALL_TIMEOUT,
             )
             if not bars:
+                break
+            # Reject non-finite OHLCV at the parse boundary (odyssey-improve GP3).
+            # A malformed OKX response (null/NaN/inf from a partial kline) would
+            # otherwise flow straight into store.save → cleaner → backtest/live
+            # bars; cleaner fills NaN gaps but does NOT reject non-finite values.
+            bars = [b for b in bars if _bar_is_finite(b)]
+            if not bars:
+                logger.warning(
+                    "All fetched bars for %s/%s were non-finite; skipped", symbol, timeframe
+                )
                 break
             all_bars.extend(bars)
             last_ts = bars[-1][0]
@@ -113,7 +153,10 @@ class DataFetcher:
         """Fetch current ticker for a symbol."""
         if not self._exchange:
             raise GatewayConnectionError("Not connected")
-        return cast(dict[str, Any], await self._exchange.fetch_ticker(symbol))
+        return cast(
+            dict[str, Any],
+            await asyncio.wait_for(self._exchange.fetch_ticker(symbol), timeout=CALL_TIMEOUT),
+        )
 
     def get_last_timestamp(self, symbol: str, timeframe: str, parquet_dir: Path) -> int | None:
         """Get the last stored timestamp for incremental updates.
@@ -154,7 +197,7 @@ class DataFetcher:
     async def disconnect(self) -> None:
         self.stop_stream()
         if self._exchange:
-            await self._exchange.close()
+            await asyncio.wait_for(self._exchange.close(), timeout=CALL_TIMEOUT)
             self._exchange = None
             logger.info("Disconnected from OKX")
 
@@ -206,8 +249,12 @@ class DataFetcher:
         last_ts = 0
         while self._ws_running:
             try:
-                bars = await exchange.watch_ohlcv(symbol, timeframe)
+                bars = await asyncio.wait_for(
+                    exchange.watch_ohlcv(symbol, timeframe), timeout=CALL_TIMEOUT
+                )
                 for bar in bars:
+                    if not _bar_is_finite(bar):
+                        continue
                     ts = bar[0]
                     if ts > last_ts:
                         last_ts = ts
@@ -241,9 +288,16 @@ class DataFetcher:
         last_ts = 0
         while self._ws_running:
             try:
-                bars = await exchange.fetch_ohlcv(symbol, timeframe, limit=1)
+                bars = await asyncio.wait_for(
+                    exchange.fetch_ohlcv(symbol, timeframe, limit=1), timeout=CALL_TIMEOUT
+                )
                 if bars:
                     bar = bars[-1]
+                    if not _bar_is_finite(bar):
+                        bar = None
+                else:
+                    bar = None
+                if bar is not None:
                     ts = bar[0]
                     if ts > last_ts:
                         last_ts = ts
