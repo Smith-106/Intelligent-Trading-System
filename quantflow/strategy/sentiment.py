@@ -12,6 +12,14 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# ISS-040: a genuinely-neutral sentence yields ~{0.33, 0.33, 0.34}. The prior
+# error / no-model path returned this SAME distribution, so the daily-mean
+# factor could not tell "model failed" from "genuinely ambivalent text" —
+# failures injected a neutral bias. Both error paths now return NaN scores;
+# aggregators skip non-finite rows (pandas mean skips NaN by default),
+# reserving the neutral distribution for real model output only.
+_ERROR_SENTINEL = {"positive": float("nan"), "negative": float("nan"), "neutral": float("nan")}
+
 
 class SentimentAnalyzer:
     """Analyze news/sentiment for trading signals using FinBERT."""
@@ -48,7 +56,7 @@ class SentimentAnalyzer:
         Returns dict with positive, negative, neutral scores.
         """
         if not self._model or not self._tokenizer:
-            return {"positive": 0.33, "negative": 0.33, "neutral": 0.34}
+            return _ERROR_SENTINEL
 
         try:
             import torch
@@ -67,7 +75,7 @@ class SentimentAnalyzer:
             return result
         except Exception as e:
             logger.error("Sentiment analysis failed: %s", e)
-            return {"positive": 0.33, "negative": 0.33, "neutral": 0.34}
+            return _ERROR_SENTINEL
 
     def analyze_batch(self, texts: list[str]) -> list[dict[str, float]]:
         """Analyze sentiment for a batch of texts."""

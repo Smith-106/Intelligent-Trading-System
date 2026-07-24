@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import sys
 from contextlib import contextmanager
 from types import ModuleType, SimpleNamespace
@@ -22,18 +23,22 @@ class TestSentimentAnalyzer:
         assert sa._tokenizer is None
 
     def test_analyze_text_without_model(self):
+        # ISS-040: no model → NaN sentinel (NOT the neutral {0.33,0.33,0.34}
+        # distribution, which collides with genuine neutral). Aggregators skip NaN.
         sa = SentimentAnalyzer()
         result = sa.analyze_text("Bitcoin is going up")
         assert "positive" in result
         assert "negative" in result
         assert "neutral" in result
-        assert abs(sum(result.values()) - 1.0) < 0.01
+        assert all(math.isnan(v) for v in result.values())
 
     def test_sentiment_score_without_model(self):
+        # ISS-040: NaN - NaN = NaN (not a neutral 0.0) — distinguishable from
+        # genuine neutral so the daily-mean factor skips model-failure rows.
         sa = SentimentAnalyzer()
         score = sa.sentiment_score("Bitcoin is going up")
         assert isinstance(score, float)
-        assert -1.0 <= score <= 1.0
+        assert math.isnan(score)
 
     def test_analyze_batch_without_model(self):
         sa = SentimentAnalyzer()
@@ -189,7 +194,8 @@ class TestSentimentAnalyzer:
 
         result = sa.analyze_text("bad input")
 
-        assert result == {"positive": 0.33, "negative": 0.33, "neutral": 0.34}
+        # ISS-040: inference failure → NaN sentinel, not the neutral distribution.
+        assert all(math.isnan(v) for v in result.values())
 
     def test_compute_sentiment_factor_uses_text_column_without_dates(
         self, monkeypatch: pytest.MonkeyPatch
