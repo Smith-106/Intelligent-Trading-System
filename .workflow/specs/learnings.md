@@ -212,3 +212,16 @@ ISS-20260724-044 修复期间（execution/engine.py 移除 ORDER_LATENCY import 
 - **Routed to**: note (—)
 
 </spec-entry>
+
+
+<spec-entry category="learning" keywords="metrics-server,幂等,测试顺序依赖,端口状态隔离" date="2026-07-24" sid="S-20260724-3jyz" title="幂等状态下沉到模块全局致测试顺序依赖 — 测试须显式重置全局" description="把去重状态从调用方 set 下沉到模块级全局字典后，断言该状态从'未尝试'开始的测试变成顺序依赖 flaky，须显式 pop 重置">
+
+### 幂等状态下沉到模块全局致测试顺序依赖 — 测试须显式重置全局
+
+`start_metrics_server` 改为 per-port 幂等后（ISS-019，commit 1bf8e2b），`test_metrics_extra::test_start_metrics_server` 变成顺序依赖 flaky：若先前测试已把该 port 标记为 attempted（`_METRICS_SERVER_STATE[port]["attempted"]=True`），则 mock `start_http_server` 后该 port 的调用会 no-op 返回，断言 "called once" 失败（Called 0 times）。修复：测试开头 `metrics._METRICS_SERVER_STATE.pop(port, None)` 隔离端口状态。
+
+根因：幂等性把"是否已尝试"状态从调用方（engine 的 `_ATTEMPTED_METRICS_PORTS` set，每实例/测试独立）下沉到 metrics 模块全局字典（跨测试共享）。ISS-044 同型 sink 路径沿用同一 `start_metrics_server`。
+
+**教训**：把去重/缓存状态下沉到模块级全局时，任何断言该状态从"未尝试/空"开始的测试必须显式重置该全局（pop/clear），否则受测试执行顺序污染。这是"状态下沉"重构的固有测试代价——检测：grep 测试里 `assert_called_once` + 被测函数有模块级状态字典 → 加 pop 隔离。
+
+</spec-entry>
