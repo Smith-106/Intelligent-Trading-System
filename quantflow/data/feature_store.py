@@ -112,7 +112,7 @@ class FeatureStore:
         try:
             return self._db.query(
                 f"""
-                SELECT * FROM read_parquet({source}){where}
+                SELECT * FROM read_parquet({source}, union_by_name=true){where}
                 ORDER BY timestamp
                 """,
                 params=params,

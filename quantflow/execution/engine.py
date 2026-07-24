@@ -14,6 +14,7 @@ from quantflow.common.models import (
     OrderSide,
     OrderStatus,
 )
+from quantflow.common.redaction import redact_secrets
 from quantflow.common.validators import POSITION_EPSILON
 from quantflow.execution.gateway_base import GatewayBase, GatewayError
 from quantflow.execution.kill_switch import KillSwitch
@@ -134,12 +135,15 @@ class ExecutionEngine:
             exchange_id = await self._gateway.send_order(order)
         except Exception as e:
             order.status = OrderStatus.REJECTED
+            # odyssey-review RP2 (SEC, CWE-532): gateway re-raises raw CCXT
+            # exceptions whose message may embed OKX apiKey/URL. Scrub before
+            # logging so credentials never reach the server log.
             logger.error(
                 "Order rejected by gateway: symbol=%s side=%s strategy=%s err=%s",
                 order.symbol,
                 order.side.value,
                 order.strategy_id,
-                e,
+                redact_secrets(str(e)),
             )
             self._record_order_latency(order.symbol, started_at)
             # Count and publish the rejection too (odyssey-improve OBS-H1):
@@ -334,7 +338,10 @@ class ExecutionEngine:
         try:
             positions = await self._gateway.query_positions()
         except GatewayError as e:
-            logger.error("sync_positions skipped — query failed, keeping last-known: %s", e)
+            logger.error(
+                "sync_positions skipped — query failed, keeping last-known: %s",
+                redact_secrets(str(e)),
+            )
             return
         for pos in positions:
             self._position_mgr._positions[pos.symbol] = pos

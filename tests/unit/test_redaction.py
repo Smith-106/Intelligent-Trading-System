@@ -9,6 +9,7 @@ reaches a snapshot or a client response.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -133,3 +134,46 @@ def test_last_error_fallback_is_redacted(clean_secret_env, monkeypatch):
     assert REDACTED_PLACEHOLDER in redacted
     # And the manager exposes redact_secrets via its module wrapper
     assert hasattr(StationSessionManager, "_build_snapshot")
+
+
+# ---------------------------------------------------------------------------
+# odyssey-review RP2 choke-point guard (CWE-532):
+# Modules on a credential-bearing path — where an exception's str(e) may carry
+# OKX apiKey/URL / Telegram bot token — MUST route that exception text through
+# a redaction choke point before logging/printing/responding. If a future commit
+# adds a raw ``logger.error("...: %s", e)`` / ``f"...: {e}"`` / ``print(e)`` on
+# one of these modules without scrubbing, this static grep catches it at CI
+# time. A module complies by referencing EITHER redact_secrets (the centralized
+# scrubber, ISS-002 single audit face) OR _safe_error (okx_gateway's stricter
+# type-only renderer, ISS-20260613-004) — both are accepted redaction signals.
+# ---------------------------------------------------------------------------
+
+_CREDENTIAL_BEARING_MODULES = (
+    "quantflow/execution/kill_switch.py",
+    "quantflow/execution/engine.py",
+    "quantflow/execution/okx_gateway.py",
+    "quantflow/strategy/engine.py",
+    "quantflow/monitoring/alerts.py",
+    "quantflow/cli/main.py",
+)
+
+
+def test_credential_bearing_modules_have_redaction_choke_point() -> None:
+    """Every module on a credential-bearing path references a redaction helper.
+
+    A raw-exception log on these modules can leak OKX creds / alert tokens.
+    Referencing redact_secrets (centralized) or _safe_error (gateway-internal)
+    is the static signal that the module scrubs; the absence of BOTH means a
+    future raw-log regression has no choke point to catch it.
+    """
+    root = Path(__file__).resolve().parents[2]
+    missing: list[str] = []
+    for rel in _CREDENTIAL_BEARING_MODULES:
+        text = (root / rel).read_text(encoding="utf-8")
+        if "redact_secrets" not in text and "_safe_error" not in text:
+            missing.append(rel)
+    assert not missing, (
+        "Credential-bearing modules must reference redact_secrets (or "
+        "_safe_error) and route exception text through it (odyssey-review "
+        "RP2, CWE-532). Missing: " + ", ".join(missing)
+    )

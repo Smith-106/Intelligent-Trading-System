@@ -16,6 +16,7 @@ from rich.table import Table
 
 from quantflow import __version__
 from quantflow.common.config import AppConfig, load_config, resolve_config_path
+from quantflow.common.redaction import redact_secrets
 from quantflow.monitoring.logger import setup_logging
 from quantflow.strategy.catalog import (
     get_strategy_factories as _catalog_strategy_factories,
@@ -141,7 +142,9 @@ def download(
                 e = datetime.fromtimestamp(date_range[1] / 1000).strftime("%Y-%m-%d")
                 console.print(f"  Range: {s} → {e}")
         except Exception as e:
-            console.print(f"[red]✗ Error: {e}[/]")
+            # odyssey-review RP2 (ISS-037): fetcher/gateway exceptions may embed
+            # OKX apiKey/URL — scrub before printing to the operator's terminal.
+            console.print(f"[red]✗ Error: {redact_secrets(str(e))}[/]")
             console.print("  Check your internet connection and symbol name.")
         finally:
             await fetcher.disconnect()

@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from quantflow.common.models import Order, OrderSide
+from quantflow.common.redaction import redact_secrets
 from quantflow.execution.gateway_base import GatewayBase
 from quantflow.monitoring.metrics import KILL_SWITCH_ACTIVATIONS, KILL_SWITCH_STEP_FAILURES
 
@@ -14,7 +15,8 @@ logger = logging.getLogger(__name__)
 # reduceOnly is CCXT's canonical camelCase param (SIG spec S-20260722-z4dr).
 # Setting it on every flatten order prevents a SELL sized to a stale long
 # quantity from opening a new short on the live exchange (odyssey-improve
-# SEC-H2). PaperGateway honors it symmetrically.
+# SEC-H2). PaperGateway ignores order.params (parity gap, ISS-021) — reduceOnly
+# is only enforced by the live OKX gateway today.
 _REDUCE_ONLY_PARAMS = {"reduceOnly": True}
 
 
@@ -71,8 +73,12 @@ class KillSwitch:
             logger.info("Cancelled %d orders", len(cancelled))
         except Exception as e:
             KILL_SWITCH_STEP_FAILURES.labels(step="cancel_orders").inc()
-            results["errors"].append(f"cancel_orders: {e}")
-            logger.error("Failed to cancel orders: %s", e)
+            # odyssey-review RP2 (SEC, CWE-532): the gateway re-raises raw CCXT
+            # exceptions whose message may embed OKX apiKey/URL. This errors
+            # list is returned through web/app.py json_response(result) to the
+            # HTTP client, so scrub before it reaches log AND response.
+            results["errors"].append(f"cancel_orders: {redact_secrets(str(e))}")
+            logger.error("Failed to cancel orders: %s", redact_secrets(str(e)))
 
         # Step 2: Close all open positions with market orders.
         # Fail-closed (odyssey-improve SEC-H5): a failure from query_positions
@@ -85,12 +91,12 @@ class KillSwitch:
             positions = await self._gateway.query_positions()
         except Exception as e:
             KILL_SWITCH_STEP_FAILURES.labels(step="query_positions").inc()
-            results["errors"].append(f"query_positions: {e}")
+            results["errors"].append(f"query_positions: {redact_secrets(str(e))}")
             results["status"] = "failed"
             logger.error(
                 "Kill switch query_positions failed — positions may still be "
                 "open; manual intervention required: %s",
-                e,
+                redact_secrets(str(e)),
             )
             return results
 
@@ -118,8 +124,8 @@ class KillSwitch:
                     logger.info("Closing %s %s: order %s", pos.symbol, close_qty, order_id)
                 except Exception as e:
                     KILL_SWITCH_STEP_FAILURES.labels(step=f"close_{pos.symbol}").inc()
-                    results["errors"].append(f"close_{pos.symbol}: {e}")
-                    logger.error("Failed to close %s: %s", pos.symbol, e)
+                    results["errors"].append(f"close_{pos.symbol}: {redact_secrets(str(e))}")
+                    logger.error("Failed to close %s: %s", pos.symbol, redact_secrets(str(e)))
 
         # If any close failed, the system is in a partial/half-state — surface
         # it so the operator does not believe the stop completed cleanly.

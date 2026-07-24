@@ -17,6 +17,7 @@ from typing import Any
 from quantflow.common.config import AppConfig
 from quantflow.common.event_bus import EVENT_BAR, EVENT_RISK, EVENT_SIGNAL, Event, EventBus
 from quantflow.common.models import Bar, Direction, OrderRequest, OrderSide, OrderStatus, Signal
+from quantflow.common.redaction import redact_secrets
 from quantflow.common.validators import POSITION_EPSILON
 from quantflow.execution.engine import ExecutionEngine
 from quantflow.execution.kill_switch import KillSwitch
@@ -507,7 +508,7 @@ class TradingSession:
                         connected = True
                         self._last_error = None
                     except Exception as e:
-                        self._last_error = f"Data feed connection error: {e}"
+                        self._last_error = f"Data feed connection error: {redact_secrets(str(e))}"
                         logger.error("%s", self._last_error)
                         await fetcher.disconnect()
                         self.check_health()
@@ -542,7 +543,7 @@ class TradingSession:
                                 last_timestamp = ts
 
                 except Exception as e:
-                    self._last_error = f"Data feed error: {e}"
+                    self._last_error = f"Data feed error: {redact_secrets(str(e))}"
                     logger.error("%s", self._last_error)
                     connected = False
                     await fetcher.disconnect()
@@ -618,7 +619,7 @@ class TradingSession:
                                 last_timestamp = ts
 
                 except Exception as e:
-                    self._last_error = f"Local data replay error: {e}"
+                    self._last_error = f"Local data replay error: {redact_secrets(str(e))}"
                     logger.error("%s", self._last_error)
 
                 self.check_health()
