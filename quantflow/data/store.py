@@ -80,16 +80,36 @@ class DataStore:
             existing = self._load_existing(month_path)
             if existing is not None:
                 existing_group = existing[DataStore.group_cols(existing)]
-                group_data = pd.concat(
-                    [existing_group, group[data_cols]],
-                    ignore_index=True,
-                    sort=False,
-                )
-                group_data = (
-                    group_data.drop_duplicates(subset=["timestamp"], keep="last")
-                    .sort_values("timestamp")
-                    .reset_index(drop=True)
-                )
+                new_group = group[data_cols]
+                # ISS-034: append-only fast path. The common live/incremental
+                # case appends bars whose timestamps are all newer than the
+                # stored max — no overlap, both sides already timestamp-sorted,
+                # so concat is already sorted and dedup is a no-op. Skip the
+                # O(n) drop_duplicates + sort_values + reset_index on the full
+                # month (the prior code rewrote + resorted the entire partition
+                # for every save, even a 1-bar append to a 720-row month).
+                # Fall back to the full merge only when timestamps overlap (a
+                # backfill/replay re-saving existing bars), where keep="last"
+                # (newer wins) must actually run.
+                existing_max = existing_group["timestamp"].max()
+                new_min = new_group["timestamp"].min()
+                if new_min > existing_max:
+                    group_data = pd.concat(
+                        [existing_group, new_group],
+                        ignore_index=True,
+                        sort=False,
+                    )
+                else:
+                    group_data = pd.concat(
+                        [existing_group, new_group],
+                        ignore_index=True,
+                        sort=False,
+                    )
+                    group_data = (
+                        group_data.drop_duplicates(subset=["timestamp"], keep="last")
+                        .sort_values("timestamp")
+                        .reset_index(drop=True)
+                    )
             else:
                 year_dir.mkdir(parents=True, exist_ok=True)
                 group_data = group[data_cols]

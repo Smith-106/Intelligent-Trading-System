@@ -235,3 +235,59 @@ class TestDataStoreHelpers:
             assert grouped == ["timestamp", "close"]
             assert store.get_date_range("ETH/USDT") is None
             store.close()
+
+    def test_save_append_only_fast_path_skips_resort_on_non_overlapping_append(self):
+        # ISS-034: when appended bars are all newer than the stored max, save
+        # skips drop_duplicates + sort_values + reset_index on the full month
+        # (both sides already sorted, no overlap). Assert the fast path still
+        # produces a correctly-ordered, dedup-free partition identical to the
+        # slow path's output.
+        with tempfile.TemporaryDirectory() as tmp:
+            store = DataStore(str(Path(tmp) / "pq"), str(Path(tmp) / "db.duckdb"))
+            base = _make_ohlcv_frame()  # 4 daily bars 2024-01-01..04
+            store.save(base, "BTC/USDT")
+
+            # Append 2 NEW bars strictly newer than the stored max (Jan 5, 6).
+            new_dates = pd.date_range("2024-01-05", periods=2, freq="D", tz="UTC")
+            append = pd.DataFrame(
+                {
+                    "timestamp": [int(d.timestamp() * 1000) for d in new_dates],
+                    "datetime": new_dates,
+                    "open": [104.0, 105.0],
+                    "high": [105.0, 106.0],
+                    "low": [103.0, 104.0],
+                    "close": [104.5, 105.5],
+                    "volume": [14.0, 15.0],
+                    "timeframe": ["1d", "1d"],
+                }
+            )
+            store.save(append, "BTC/USDT")
+            merged = store.query("BTC/USDT", columns=["timestamp", "close"])
+
+            assert len(merged) == 6
+            # Strictly ascending — fast-path concat preserved order.
+            ts = merged["timestamp"].tolist()
+            assert ts == sorted(ts)
+            assert ts == list(base["timestamp"]) + list(append["timestamp"])
+            assert merged["close"].tolist() == [100.5, 101.5, 102.5, 103.5, 104.5, 105.5]
+            store.close()
+
+    def test_save_falls_back_to_full_merge_on_overlapping_timestamps(self):
+        # ISS-034: overlapping append (re-saving an existing bar) must still
+        # run drop_duplicates(keep="last") so the newer row wins — the fast
+        # path is skipped because new_min <= existing_max.
+        with tempfile.TemporaryDirectory() as tmp:
+            store = DataStore(str(Path(tmp) / "pq"), str(Path(tmp) / "db.duckdb"))
+            base = _make_ohlcv_frame()
+            store.save(base, "BTC/USDT")
+
+            # Re-save bars 2..4 with updated closes (overlap on Jan 2,3,4).
+            overlap = base.iloc[1:4].copy()
+            overlap.loc[:, "close"] = [999.0, 998.0, 997.0]
+            store.save(overlap, "BTC/USDT")
+            merged = store.query("BTC/USDT", columns=["timestamp", "close"])
+
+            assert len(merged) == 4  # no duplicate rows
+            # keep="last": updated closes win for the overlapped bars.
+            assert merged["close"].tolist() == [100.5, 999.0, 998.0, 997.0]
+            store.close()
