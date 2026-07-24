@@ -11,7 +11,6 @@ from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -114,13 +113,17 @@ def _redact_secrets(text: str) -> str:
 
 
 def _jsonable(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(key): _jsonable(item) for key, item in value.items()}
-    if isinstance(value, list | tuple | set):
-        return [_jsonable(item) for item in value]
-    if isinstance(value, Path):
-        return str(value)
-    return _safe_number(value)
+    """Recursively coerce ``value`` to JSON-safe form (ISS-041).
+
+    Thin wrapper over ``quantflow.common.jsonable.to_jsonable`` so the
+    serialization policy has a single owner. The prior 4-branch local copy
+    lacked ``np.generic`` / ``pd.Series`` / ``pd.Timestamp`` handling, so a
+    pandas value reaching the JSONL persistence path (e.g. a metric that
+    was a numpy scalar at construction) leaked as a non-JSON-safe repr.
+    """
+    from quantflow.common.jsonable import to_jsonable
+
+    return to_jsonable(value)
 
 
 def _now_utc() -> datetime:

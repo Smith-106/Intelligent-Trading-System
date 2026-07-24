@@ -300,37 +300,29 @@ def _build_demo_frame(
 
 
 def _to_jsonable(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {key: _to_jsonable(item) for key, item in value.items()}
-    if isinstance(value, list | tuple):
-        return [_to_jsonable(item) for item in value]
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, np.generic):
-        return _safe_number(value.item())
-    if isinstance(value, pd.Series):
-        return _series_payload(value)
-    if isinstance(value, pd.Timestamp):
-        return value.isoformat()
-    return _safe_number(value)
+    """Recursively coerce ``value`` to JSON-safe form (ISS-041).
+
+    Thin wrapper over ``quantflow.common.jsonable.to_jsonable`` so the
+    serialization policy (dict / list / Path / numpy / pandas Series /
+    pandas Timestamp / non-finite float) has a single owner. Previously
+    this 7-branch copy diverged from ``session_manager._jsonable`` (4
+    branches), leaking pandas values to JSONL. Kept as an underscored
+    module name for back-compat (tests patch ``_series_payload`` etc.).
+    """
+    from quantflow.common.jsonable import to_jsonable
+
+    return to_jsonable(value)
 
 
-def _series_payload(series: pd.Series, *, max_points: int = 300) -> dict[str, list[float | str]]:
-    if len(series) <= max_points:
-        sampled = series
-    else:
-        step = max(1, len(series) // max_points)
-        indexes = list(range(0, len(series), step))
-        if indexes[-1] != len(series) - 1:
-            indexes.append(len(series) - 1)
-        sampled = series.iloc[indexes]
+def _series_payload(series: pd.Series, *, max_points: int = 300) -> dict[str, list[Any]]:
+    """Down-sample a pandas Series to a {labels, values} JSON payload.
 
-    labels = [str(index) for index in sampled.index]
-    values = []
-    for value in sampled.tolist():
-        number = _safe_number(float(value))
-        values.append(None if number is None else round(float(number), 6))
-    return {"labels": labels, "values": values}
+    Thin wrapper over ``quantflow.common.jsonable.series_payload`` so the
+    sampling policy lives in one place. Kept underscored for back-compat.
+    """
+    from quantflow.common.jsonable import series_payload as _series_payload_impl
+
+    return _series_payload_impl(series, max_points=max_points)
 
 
 def _label_for_index(value: Any) -> str:

@@ -1862,3 +1862,81 @@ class TestStationServiceValidate:
             request = ValidationRequest(method="cpcv", strategy="trend_following")
             result = service.validate(request)
             assert result["method"] == "cpcv"
+
+
+# ---------------------------------------------------------------------------
+# ISS-041: JSON-safe serialization parity (common.jsonable single owner)
+# ---------------------------------------------------------------------------
+
+
+class TestJsonableParity:
+    """Both web modules delegate to common.jsonable.to_jsonable — assert the
+    two copies no longer diverge and that pandas/numpy values round-trip
+    through json.dumps without leaking non-JSON tokens (NaN/Infinity/np.*)."""
+
+    def test_service_and_session_manager_share_one_serializer(self):
+        import json
+
+        from quantflow.web.service import _to_jsonable
+        from quantflow.web.session_manager import _jsonable
+
+        ts = pd.Timestamp("2024-01-03T08:00:00Z")
+        payload = {
+            "scalar": np.float64(1.5),
+            "series": pd.Series([1.0, float("nan"), 3.0], index=["a", "b", "c"]),
+            "timestamp": ts,
+            "path": Path("/tmp/x"),
+            "nested": [np.int64(7), {"k": np.float32(2.5)}],
+        }
+
+        from_service = _to_jsonable(payload)
+        from_session = _jsonable(payload)
+
+        # Both must produce identical JSON-serializable output (one owner).
+        assert from_service == from_session
+        # Must round-trip through json.dumps without raising.
+        assert json.loads(json.dumps(from_service)) == from_service
+
+    def test_nan_and_inf_become_none_not_bare_tokens(self):
+        import json
+
+        from quantflow.web.service import _to_jsonable
+
+        payload = {"x": float("nan"), "y": float("inf"), "z": float("-inf")}
+        result = _to_jsonable(payload)
+        # NaN/Inf must NOT survive as bare NaN/Infinity JSON tokens.
+        serialized = json.dumps(result)
+        assert "NaN" not in serialized
+        assert "Infinity" not in serialized
+        assert result["x"] is None
+        assert result["y"] is None
+        assert result["z"] is None
+
+    def test_pandas_series_downsamples_and_round_trips(self):
+        import json
+
+        from quantflow.web.service import _series_payload
+
+        big = pd.Series(np.arange(1000.0), index=pd.RangeIndex(1000))
+        payload = _series_payload(big)
+        # Sampling step = ceil(1000/300)=3 → ~333 points + tail ≈ 334. The
+        # contract is "bounded, last point always included", not a strict
+        # ==max_points cap, so assert well below the raw 1000 and the last
+        # index survives.
+        assert len(payload["labels"]) < 1000
+        assert payload["labels"][-1] == "999"  # last point always included
+        # Round-trips through json.
+        json.dumps(payload)
+
+    def test_numpy_generic_does_not_leak_to_jsonl(self):
+        """A numpy scalar reaching the JSONL path must serialize as a plain
+        float, not ``np.float64(...)`` — the divergence that motivated ISS-041."""
+        import json
+
+        from quantflow.web.session_manager import _jsonable
+
+        event_data = {"sharpe": np.float64(1.23), "count": np.int32(5)}
+        result = _jsonable(event_data)
+        serialized = json.dumps(result)
+        assert "np." not in serialized
+        assert result == {"sharpe": 1.23, "count": 5}
