@@ -136,3 +136,11 @@ consolidated signal 携带逗号拼接的 compound strategy_id（如 "momentum_r
 except Exception 路径不可返回与合法结果不可区分的值（0.0/True/neutral/{0.33,0.33,0.34}/365/-10.0）。这种 fail-silent/fail-open 碰撞会：(1) 偏置聚合指标（DSR _expected_max_sharpe 返 0.0 使多重检验惩罚失效；PBO/WFO per-path 返 0.0 低估过拟合；backtest _periods_per_year 返 365 使 intraday 年化低估 ~24x）；(2) 静默禁用安全门（ml_ensemble._apply_meta_filter 返 pd.Series(True) approve-all 使 meta-model 失败时 meta-labeling 风险过滤失效；sentiment.analyze_text 返 neutral 使失败注入中性偏差）。修复模式：错误路径返回值 NO 合法结果会产出——NaN sentinel + 聚合时排除，或 fail-closed sentinel（+inf/False）强制 NO-GO。绝不复用结果值作错误路径返回。
 
 </spec-entry>
+
+<spec-entry category="coding" keywords="monitoring,layering,protocol,sink,l6,injection" date="2026-07-24" sid="S-20260724-3i37" title="L6 可观测性跨层契约走 common/ Protocol 注入，lower layer 不 import monitoring/" description="L6 可观测性跨层契约：common/ Protocol + Null 默认 + 高层注入，lower layer 不 import monitoring/" source="main@98b217e">
+
+### L6 可观测性跨层契约走 common/ Protocol 注入，lower layer 不 import monitoring/
+
+L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需要 push 指标/发告警时，禁止直接 import quantflow.monitoring.* 具体类（top-level 或 in-function lazy，后者额外违反 arch-013 audit-evasion）。固定模式：在 common/monitoring_sink.py 定义 runtime_checkable Protocol（MonitoringSink：start/record_signal/record_bar_latency/record_signal_latency/record_portfolio/send_alert）+ NullMonitoringSink（零开销默认，backtest/tests 用）；monitoring/sink.py 实现 DefaultMonitoringSink（owns AlertManager 生命周期 + idempotent per-port metrics-server start）；调用方（cli/main、web/session_manager 高层）注入 create_default_sink()，lower layer 构造函数接受 monitoring_sink: MonitoringSink | None = None 默认 Null。EventBus 保留给 control flow（BAR/SIGNAL/RISK/ORDER/FILL），observability side-effect 走 sink Protocol——避免为 telemetry 膨胀 event 契约。ISS-019 落地此模式（commit 1bf8e2b）；3 个 sibling 站点（risk_engine:90 lazy-import / kill_switch:11 / execution/engine:25）仍违反，追踪于 ISS-20260724-044。
+
+</spec-entry>
