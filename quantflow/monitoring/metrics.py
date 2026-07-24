@@ -197,7 +197,13 @@ def metrics_registry_snapshot() -> dict[str, Any]:
                 continue
             counter_key = counter_map.get(sample.name)
             if counter_key:
-                values[counter_key] += value
+                # counter_key is a str (truthy); values[counter_key] is a float
+                # (counter_map only maps to counter keys, all initialized to 0.0,
+                # never the positions_count None placeholder). Assert to narrow
+                # for mypy — the dict's declared value type is float | None.
+                current = values[counter_key]
+                assert current is not None
+                values[counter_key] = current + value
 
     return {
         "available": True,

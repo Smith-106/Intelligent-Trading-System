@@ -422,11 +422,14 @@ def validate(
         from quantflow.strategy.research.backtest import BacktestEngine
         from quantflow.strategy.validation.dsr import deflated_sharpe_ratio
 
-        bt = BacktestEngine()
-        res = bt.run_backtest(close, entries, exits, initial_capital=capital)
+        # Chain run_backtest directly — reusing the `bt`/`res` names (bound to
+        # BacktestResult/MonteCarloResult by the monte_carlo branch above) for a
+        # BacktestEngine confused mypy into narrowing them, flagging run_backtest
+        # / sharpe_ratio as missing attributes. Use a branch-local name.
+        dsr_res = BacktestEngine().run_backtest(close, entries, exits, initial_capital=capital)
         console.print("[bold blue]Running DSR validation...[/]")
         result = deflated_sharpe_ratio(
-            res.sharpe_ratio, n_trials=n_trials, sample_length=len(close)
+            dsr_res.sharpe_ratio, n_trials=n_trials, sample_length=len(close)
         )
         _display_dsr(result)
 
