@@ -9,6 +9,8 @@ from typing import Any
 
 from prometheus_client import REGISTRY, Counter, Gauge, Histogram, start_http_server
 
+from quantflow.common.redaction import redact_secrets
+
 logger = logging.getLogger(__name__)
 _METRICS_SERVER_LOCK = Lock()
 _METRICS_SERVER_STATE: dict[int, dict[str, Any]] = {}
@@ -118,8 +120,12 @@ def start_metrics_server(port: int = 9090) -> None:
     except Exception as e:
         with _METRICS_SERVER_LOCK:
             state["started"] = False
-            state["last_error"] = str(e)
-        logger.warning("Failed to start metrics server: %s", e)
+            # ISS-035 (SEC, CWE-209): metrics_server_status() is surfaced via
+            # web/service.py → HTTP response. A start failure (e.g. a redis://
+            # URL or infra credential in the bind error) must be scrubbed before
+            # it reaches state["last_error"] AND the log.
+            state["last_error"] = redact_secrets(str(e))
+        logger.warning("Failed to start metrics server: %s", redact_secrets(str(e)))
 
 
 def metrics_server_status(port: int | None = None) -> dict[str, Any]:

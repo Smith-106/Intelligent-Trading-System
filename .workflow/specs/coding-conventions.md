@@ -128,3 +128,11 @@ Source: odyssey-review deepfix session (Pattern 1, CRITICAL fixes 1-3).
 consolidated signal 携带逗号拼接的 compound strategy_id（如 "momentum_rotation,trend_following"）。任何以 strategy_id 为 key 的 dict.get(exact_key, default) / exact-match 查找（allocation、win_rate、hit_rate、risk_budget、order 查询）对 compound key 永远 miss，静默返回 default（通常 0.0）——信号被 size*0 丢弃在 engine.py:313，或 risk budget 被静默 bypass。修复模板：(1) 用 strategy_id_constituents(id) 展开为 constituents list；(2) 对每个 constituent 查找并求和/聚合（allocation 求和、win_rate 加权平均、risk budget 逐 constituent 强制）；(3) 非 compound 时回退原始 raw id 查找。所有消费 compound-key signal 的 dict 必须用此展开。已知修复点：portfolio.get_strategy_allocation (CORR-H1, ISS-20260720 odyssey)、risk_engine._check_strategy_budget (ISS-20260613-006 family)、position_sizer.size win-rate blending。守卫：新写任何 dict[str,X] keyed by strategy_id 的消费者前，grep 确认是否处理 compound。
 
 </spec-entry>
+
+<spec-entry category="coding" keywords="fail-silent,fail-open,error-path,sentinel,no-go,fail-closed" date="2026-07-24" sid="S-20260724-elsu" title="fail-silent fallback 不可复用合法结果值" description="except 路径不可返回与合法结果不可区分的值；用 NaN+排除 或 fail-closed sentinel" source="main@bb3c6cd">
+
+### fail-silent fallback 不可复用合法结果值
+
+except Exception 路径不可返回与合法结果不可区分的值（0.0/True/neutral/{0.33,0.33,0.34}/365/-10.0）。这种 fail-silent/fail-open 碰撞会：(1) 偏置聚合指标（DSR _expected_max_sharpe 返 0.0 使多重检验惩罚失效；PBO/WFO per-path 返 0.0 低估过拟合；backtest _periods_per_year 返 365 使 intraday 年化低估 ~24x）；(2) 静默禁用安全门（ml_ensemble._apply_meta_filter 返 pd.Series(True) approve-all 使 meta-model 失败时 meta-labeling 风险过滤失效；sentiment.analyze_text 返 neutral 使失败注入中性偏差）。修复模式：错误路径返回值 NO 合法结果会产出——NaN sentinel + 聚合时排除，或 fail-closed sentinel（+inf/False）强制 NO-GO。绝不复用结果值作错误路径返回。
+
+</spec-entry>

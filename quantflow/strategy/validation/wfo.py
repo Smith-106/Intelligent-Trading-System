@@ -111,6 +111,7 @@ class WalkForwardOptimization:
         test_size = int(fold_size * self.test_ratio)
 
         folds = []
+        skipped_folds = 0
         for i in range(self.n_folds):
             # Train/test boundaries
             test_start = (i + 1) * fold_size
@@ -121,6 +122,10 @@ class WalkForwardOptimization:
             train_end = test_start - self.purge_delta
 
             if train_end <= train_start or test_end <= test_start:
+                # ISS-028: a skipped fold previously reduced the effective fold
+                # count silently — n_folds configured vs actual could diverge
+                # with no signal. Count and warn so an operator sees the gap.
+                skipped_folds += 1
                 continue
 
             # Get train/test data
@@ -160,6 +165,13 @@ class WalkForwardOptimization:
             )
 
         if not folds:
+            if skipped_folds:
+                logger.warning(
+                    "WFO: all %d folds skipped (train_end<=train_start or "
+                    "test_end<=test_start) — data too short for n_folds=%d",
+                    skipped_folds,
+                    self.n_folds,
+                )
             return WFOResult(
                 folds=[],
                 mean_train_sharpe=0.0,
@@ -169,7 +181,19 @@ class WalkForwardOptimization:
                 passed=False,
                 degradation_threshold=self.degradation_threshold,
                 total_test_return=0.0,
-                details={"error": "no valid folds produced"},
+                details={
+                    "error": "no valid folds produced",
+                    "skipped_folds": skipped_folds,
+                    "configured_n_folds": self.n_folds,
+                },
+            )
+
+        if skipped_folds:
+            logger.warning(
+                "WFO: %d of %d folds skipped — effective fold count is %d",
+                skipped_folds,
+                self.n_folds,
+                len(folds),
             )
 
         train_sharpes = [f.train_sharpe for f in folds]
@@ -194,6 +218,11 @@ class WalkForwardOptimization:
             passed=passed,
             degradation_threshold=self.degradation_threshold,
             total_test_return=total_test_return,
+            details={
+                "skipped_folds": skipped_folds,
+                "configured_n_folds": self.n_folds,
+                "effective_n_folds": len(folds),
+            },
         )
 
     @staticmethod

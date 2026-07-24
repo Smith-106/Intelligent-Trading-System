@@ -331,7 +331,11 @@ class TestMLEnsembleExtra:
 
         strategy._meta_model = _BrokenMetaModel()
         approved = strategy._apply_meta_labeling(pd.DataFrame(), proba)
-        assert approved.all()
+        # ISS-039 fail-closed (odyssey-review RP1): a meta-model that exists but
+        # raises on predict must NOT approve-all (that would silently disable the
+        # meta-labeling risk filter). Reject-all instead — no entries until the
+        # operator resolves the meta-model failure.
+        assert not approved.any()
 
         loaded_paths: list[str] = []
         monkeypatch.setattr(

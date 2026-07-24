@@ -374,8 +374,20 @@ class MLEnsembleStrategy(StrategyBase):
             )
             meta_labels = self._meta_model.predict(meta_features)
             return pd.Series(meta_labels.astype(bool), index=primary_proba.index)
-        except Exception:
-            return pd.Series(True, index=primary_proba.index)
+        except Exception as e:
+            # ISS-039 fail-closed (odyssey-review RP1): a meta-model that EXISTS
+            # but raises on predict is a configured risk filter that just failed.
+            # Returning True (approve-all) here would silently disable meta-
+            # labeling — every primary signal would pass unfiltered. Reject-all
+            # (False) instead: no entries until the operator sees zero trades and
+            # investigates. This is distinct from the `_meta_model is None` branch
+            # above, where no filter was configured and approve-all is by design.
+            logger.error(
+                "Meta-model predict failed — fail-closed reject-all (no entries "
+                "will be generated until resolved): %s",
+                e,
+            )
+            return pd.Series(False, index=primary_proba.index)
 
     def _load_model(self) -> None:
         """Load pre-trained model from disk."""

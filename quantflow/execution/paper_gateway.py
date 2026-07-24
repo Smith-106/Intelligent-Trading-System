@@ -119,11 +119,20 @@ class PaperGateway(GatewayBase):
         return order_id
 
     async def cancel_order(self, order_id: str, symbol: str = "") -> bool:
+        # ISS-042 (RP4): validate at every gateway entry, symmetric with
+        # send_order — even though paper cancel is a no-op, keeping the choke
+        # point on every method prevents a future regression if cancel grows
+        # logic. Mirror okx_gateway.cancel_order.
+        if symbol:
+            validate_symbol(symbol)
         # Paper orders fill instantly — nothing to cancel
         logger.debug("Paper cancel: %s (orders fill instantly, nothing to cancel)", order_id)
         return True
 
     async def cancel_all_orders(self, symbol: str | None = None) -> list[bool]:
+        # ISS-042 (RP4): symmetric validate_symbol on the cancel path.
+        if symbol is not None:
+            validate_symbol(symbol)
         return []
 
     async def query_positions(self) -> list[Position]:

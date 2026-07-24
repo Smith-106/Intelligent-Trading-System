@@ -50,3 +50,12 @@ Durable guard: `tests/unit/test_config.py::TestConfigSchemaDrift::test_default_y
 
 Source: odyssey-debug position-sizing-regression session (L1) + odyssey-review deepfix session (Pattern 4, I15).
 </spec-entry>
+
+
+<spec-entry category="debug" keywords="cwe-532,cwe-209,gateway,re-raise,credential-exposure,redaction" date="2026-07-24" sid="S-20260724-ne4k" title="CWE-532 gateway re-raise 致下游 unguarded" description="gateway scrub 自己日志但 re-raise raw 异常；下游 sink（含 HTTP response）unguarded；choke point 缺失" source="main@bb3c6cd">
+
+### CWE-532 gateway re-raise 致下游 unguarded
+
+网关（okx_gateway）用 _safe_error scrub 自己的日志，但 re-raise raw CCXT 异常——异常对象本身仍带 apiKey/URL，下游 caller 接住后若直接 logger.error('%s', e) / f'...: {e}' / print(e) 即泄漏。最隐蔽 sink 是 kill_switch.results['errors'] 追加 raw f-string，该 dict 经 SessionManager.trigger_kill_switch -> web/app.py json_response(result) 进 HTTP response（不是 log，易被忽略），OKX creds 直达客户端。root cause 不是单个 sink 缺 scrub，是 choke point 缺失：修复必须 gate 在 choke point，每个消费 sink 都 scrub（redact_secrets(str(e))），不能只靠 gateway 内部。静态 guard test_credential_bearing_modules_have_redaction_choke_point 守护。
+
+</spec-entry>

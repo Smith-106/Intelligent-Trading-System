@@ -49,3 +49,12 @@ CCXT 作为统一交易所抽象层，其  等方法的参数名遵循 CCXT 自�
 
 发现来源：odyssey-review p1-parity-paths session (SEC dimension inline lesson)——零残留 review 捕到  注释/值不一致。该 finding 未单独成 spec，本次 harvest 收割固化。
 </spec-entry>
+
+
+<spec-entry category="review" keywords="redaction,choke-point,cwe-532,credential,security" date="2026-07-24" sid="S-20260724-9smk" title="credential 异常 choke point 静态守护" description="凭证路径异常必须过 redact_secrets；静态 guard 守护 choke point 防 raw-log 回归" source="main@bb3c6cd">
+
+### credential 异常 choke point 静态守护
+
+凭证路径模块（kill_switch/execution-engine/strategy-engine/cli/alerts/okx-gateway）的 exception str 必须经 redact_secrets(str(e)) 或 _safe_error 再 log/print/response。gateway 自己 scrub 日志但 re-raise raw CCXT 异常时，下游 caller（kill_switch results['errors']->web json_response HTTP response、engine logger、cli print）是 unguarded sink——OKX apiKey/URL 会泄漏到 log + HTTP response。静态 guard test_credential_bearing_modules_have_redaction_choke_point 扫源码确认这些模块引用 redact_secrets 或 _safe_error，防未来 raw-log 回归。root cause 不是单 sink 而是 choke point 缺失，修复必须 gate 在 choke point（每消费 sink scrub，不只 gateway 内部）。
+
+</spec-entry>

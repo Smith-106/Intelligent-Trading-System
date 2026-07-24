@@ -154,6 +154,7 @@ _CREDENTIAL_BEARING_MODULES = (
     "quantflow/execution/okx_gateway.py",
     "quantflow/strategy/engine.py",
     "quantflow/monitoring/alerts.py",
+    "quantflow/monitoring/metrics.py",
     "quantflow/cli/main.py",
 )
 

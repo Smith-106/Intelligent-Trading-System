@@ -172,3 +172,12 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 
 发现来源：deep-research-20260718 insight F7（grill 矛盾经源码核实成立）——backtest.py:1-4 注释 + engine.py:46 vs research session 独立路径。本次 harvest 收割为 arch constraint。
 </spec-entry>
+
+
+<spec-entry category="arch" keywords="layer-violation,lazy-import,monitoring-coupling,l6,audit-evasion,architecture" date="2026-07-24" sid="S-20260724-02ek" title="L6 跨层耦合禁用 in-function import 规避审计" description="L6 跨层耦合禁用；in-function import 规避静态审计是反模式；guard 须扫两层" source="main@bb3c6cd">
+
+### L6 跨层耦合禁用 in-function import 规避审计
+
+低下层（L3 strategy/engine、L4 signal/risk_engine:90、L5 execution/kill_switch+engine、web/session_manager）不得 import monitoring/（L6）具体类——违反事件驱动 L6 契约（L6 应订阅 EventBus，低下层只 publish）。特别禁止用 in-function 延迟 import（risk_engine.py:90 把 monitoring import 放函数体内）来躲过 top-level grep 'import monitoring' 静态扫描——这是 audit-evasion 反模式，lazy import 只可用于打破循环依赖，不可用于规避分层审计。修复：全部 monitoring 调用移到 L6 EventBus subscriber；若必须同步推指标，在 common/ 暴露 thin Protocol 并注入。L6 耦合的静态 guard 必须同时扫 top-level + in-function import。
+
+</spec-entry>

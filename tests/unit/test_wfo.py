@@ -36,7 +36,11 @@ class TestWalkForwardOptimizationClass:
 
         assert result.folds == []
         assert result.passed is False
-        assert result.details == {"error": "no valid folds produced"}
+        # ISS-028: details now reports skipped fold count so the effective fold
+        # count is visible, not silently reduced.
+        assert result.details["error"] == "no valid folds produced"
+        assert result.details["skipped_folds"] == 5
+        assert result.details["configured_n_folds"] == 5
 
     def test_run_uses_optimize_fn_and_aggregates_fold_metrics(
         self, monkeypatch: pytest.MonkeyPatch

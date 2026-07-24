@@ -207,6 +207,23 @@ class TestPaperGateway:
         assert order.status == OrderStatus.REJECTED
         await pg.disconnect()
 
+    @pytest.mark.asyncio
+    async def test_cancel_validates_symbol(self):
+        """ISS-042 (RP4): cancel path validates symbol, symmetric with send_order."""
+        pg = PaperGateway()
+        await pg.connect()
+        # cancel_order with a path-traversal symbol must raise, not no-op past it.
+        with pytest.raises(ValueError):
+            await pg.cancel_order("oid-1", "../../etc/passwd")
+        # cancel_all_orders with an invalid symbol must raise too.
+        with pytest.raises(ValueError):
+            await pg.cancel_all_orders("BTC' OR '1'='1")
+        # No symbol (None / empty) is the documented "cancel everything" path —
+        # must not raise (no symbol to validate).
+        assert await pg.cancel_all_orders() == []
+        assert await pg.cancel_order("oid-1", "") is True
+        await pg.disconnect()
+
 
 class TestKillSwitch:
     @pytest.mark.asyncio
@@ -323,3 +340,64 @@ class TestKillSwitch:
         result = await ks.activate("flat")
 
         assert result["closed_positions"] == []
+
+
+class TestOrderManagerBoundedRetention:
+    """ISS-020: _orders must not grow unbounded on terminal orders."""
+
+    def _track_terminal(self, om: OrderManager, oid: str) -> None:
+        req = OrderRequest(
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=0.1,
+            strategy_id="test",
+        )
+        res = OrderResult(order_id=oid, status=OrderStatus.SUBMITTED)
+        om.track(req, res)
+        om.update(oid, OrderStatus.FILLED, filled_quantity=0.1, filled_price=50000)
+
+    def test_recent_terminal_order_still_queryable_after_track(self) -> None:
+        """The common case — check an order right after it fills — must work."""
+        om = OrderManager()
+        self._track_terminal(om, "oid-recent")
+        assert om.get_order("oid-recent") is not None
+        assert om.get_order("oid-recent").status == OrderStatus.FILLED
+
+    def test_evicts_oldest_terminal_when_cap_exceeded(self, monkeypatch) -> None:
+        """When _orders exceeds MAX_TRACKED_ORDERS, oldest terminal orders drop."""
+        om = OrderManager()
+        # Lower the cap so the test is fast and deterministic.
+        monkeypatch.setattr("quantflow.execution.order_manager.MAX_TRACKED_ORDERS", 5)
+        # Track 5 terminal orders (at cap, no eviction yet).
+        for i in range(5):
+            self._track_terminal(om, f"oid-{i}")
+        assert om.total_orders == 5
+        # First order is still queryable while at cap.
+        assert om.get_order("oid-0") is not None
+        # One more terminal order pushes past cap → oldest terminal (oid-0) evicted.
+        self._track_terminal(om, "oid-5")
+        assert om.total_orders == 5  # evicted one, added one
+        assert om.get_order("oid-0") is None  # oldest terminal evicted
+        assert om.get_order("oid-5") is not None  # newest retained
+
+    def test_active_orders_never_evicted(self, monkeypatch) -> None:
+        """Non-terminal orders must survive eviction — they may still receive callbacks."""
+        om = OrderManager()
+        monkeypatch.setattr("quantflow.execution.order_manager.MAX_TRACKED_ORDERS", 3)
+        # An active (SUBMITTED, non-terminal) order sitting in _orders.
+        active_req = OrderRequest(
+            symbol="ETH/USDT",
+            side=OrderSide.BUY,
+            order_type="limit",
+            quantity=0.2,
+            strategy_id="active",
+        )
+        om.track(active_req, OrderResult(order_id="active-1", status=OrderStatus.SUBMITTED))
+        # Fill the cap with terminal orders.
+        for i in range(3):
+            self._track_terminal(om, f"term-{i}")
+        # Eviction triggered on each track; active-1 must never be dropped.
+        assert om.get_order("active-1") is not None
+        assert om.get_order("active-1").status == OrderStatus.SUBMITTED
+        assert "active-1" in [o.order_id for o in om.get_open_orders()]

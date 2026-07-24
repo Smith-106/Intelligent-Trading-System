@@ -10,6 +10,15 @@ from quantflow.common.models import Order, OrderRequest, OrderResult, OrderStatu
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 30  # seconds
+# Bounded retention for terminal orders (ISS-020). _orders previously grew
+# unbounded — a live session tracking tens of thousands of FILLED/CANCELLED/
+# REJECTED orders leaked memory and made get_open_orders' full scan slower
+# over time. Once _orders exceeds this cap, the oldest terminal orders are
+# evicted; active (non-terminal) orders are never evicted. Recent terminal
+# orders stay queryable (get_order / get_orders_by_strategy) so the common
+# case — checking an order right after it fills — still works.
+MAX_TRACKED_ORDERS = 10_000
+_TERMINAL_STATES = (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED)
 
 
 class OrderManager:
@@ -19,6 +28,30 @@ class OrderManager:
         self._timeout = timeout
         self._orders: dict[str, Order] = {}
         self._pending: dict[str, float] = {}  # order_id → submit_timestamp
+
+    def _evict_terminal_if_needed(self) -> None:
+        """Evict oldest terminal orders when _orders exceeds the retention cap.
+
+        Active (non-terminal) orders are never evicted — they may still receive
+        callbacks. Only terminal orders beyond MAX_TRACKED_ORDERS are dropped,
+        oldest first (by submit timestamp from _pending, else track-time order
+        of insertion which Python dicts preserve).
+        """
+        if len(self._orders) <= MAX_TRACKED_ORDERS:
+            return
+        # Terminal candidates, oldest-submit-first. _pending only holds
+        # non-terminal ids, so terminal orders are ordered by insertion order
+        # (dict preserves it) — evict from the front.
+        evicted = 0
+        for oid in list(self._orders.keys()):
+            if len(self._orders) <= MAX_TRACKED_ORDERS:
+                break
+            order = self._orders[oid]
+            if order.status in _TERMINAL_STATES:
+                del self._orders[oid]
+                evicted += 1
+        if evicted:
+            logger.info("Evicted %d terminal orders (cap=%d)", evicted, MAX_TRACKED_ORDERS)
 
     def track(self, request: OrderRequest, result: OrderResult | None = None) -> Order:
         """Register a new order from a request and optional result."""
@@ -47,6 +80,7 @@ class OrderManager:
             self._pending[order_id] = time.time()
 
         self._orders[order_id] = order
+        self._evict_terminal_if_needed()
         logger.info("Order tracked: %s %s %s", order_id, order.symbol, order.status.value)
         return order
 
