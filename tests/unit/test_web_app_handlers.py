@@ -157,6 +157,46 @@ class TestAppHandlers(AioHTTPTestCase):
         data = await resp.json()
         assert "method" in data
 
+    async def test_overview_response_does_not_leak_internal_paths(self):
+        # ISS-036 (CWE-200): overview must not expose parquet_dir /
+        # duckdb_path / config_path / redis_url to any authenticated viewer.
+        # They reveal the install prefix + user directory. Recursively check
+        # the whole response tree (paths can nest under data/).
+        leaked = {"parquet_dir", "duckdb_path", "config_path", "redis_url"}
+
+        def _walk(value):
+            if isinstance(value, dict):
+                assert not (set(value) & leaked), f"leaked keys: {set(value) & leaked}"
+                for v in value.values():
+                    _walk(v)
+            elif isinstance(value, list):
+                for item in value:
+                    _walk(item)
+
+        resp = await self.client.get("/api/overview")
+        assert resp.status == 200
+        _walk(await resp.json())
+
+    async def test_data_snapshot_and_monitoring_do_not_leak_internal_paths(self):
+        # ISS-036: the same fields were also leaked by data_snapshot (which
+        # re-emits overview's paths in a storage block) and monitoring (which
+        # copies config_path into its platform block).
+        leaked = {"parquet_dir", "duckdb_path", "config_path", "redis_url"}
+
+        def _walk(value):
+            if isinstance(value, dict):
+                assert not (set(value) & leaked), f"leaked keys: {set(value) & leaked}"
+                for v in value.values():
+                    _walk(v)
+            elif isinstance(value, list):
+                for item in value:
+                    _walk(item)
+
+        for endpoint in ("/api/data", "/api/monitoring"):
+            resp = await self.client.get(endpoint)
+            assert resp.status == 200
+            _walk(await resp.json())
+
 
 class TestAppCreate:
     def test_create_app_default(self):

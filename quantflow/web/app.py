@@ -81,13 +81,40 @@ def _static_dir() -> Path:
     return Path(str(resources.files(STATIC_PACKAGE)))
 
 
+# ISS-036 (CWE-200): internal filesystem paths (parquet_dir, duckdb_path,
+# config_path, redis_url) leak the install prefix + user directory to any
+# authenticated viewer. They are needed INTERNALLY (data_snapshot and
+# monitoring_snapshot consume overview()'s real Path objects for .exists()
+# checks), so redaction happens only at the HTTP response boundary here —
+# never inside overview()'s dict. Recursive so nested config_summary/storage
+# blocks are covered. Booleans derived from the paths (parquet_root_exists,
+# duckdb_exists) are a softer indirect leak and kept — they reveal only
+# existence, not locations.
+_INTERNAL_PATH_FIELDS = frozenset({"parquet_dir", "duckdb_path", "config_path", "redis_url"})
+
+
+def _redact_paths(value: object) -> object:
+    """Strip internal filesystem / connection fields from an API payload.
+
+    Recursively walks dicts and lists, deleting any key in
+    ``_INTERNAL_PATH_FIELDS``. Returns a new structure; the input is not
+    mutated. Applied at the HTTP boundary so internal service consumers
+    still see real values.
+    """
+    if isinstance(value, dict):
+        return {k: _redact_paths(v) for k, v in value.items() if k not in _INTERNAL_PATH_FIELDS}
+    if isinstance(value, list | tuple):
+        return [_redact_paths(item) for item in value]
+    return value
+
+
 async def _index(_: web.Request) -> web.FileResponse:
     return web.FileResponse(_static_dir() / "index.html")
 
 
 async def _overview(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    return web.json_response(service.overview())
+    return web.json_response(_redact_paths(service.overview()))
 
 
 async def _strategies(request: web.Request) -> web.Response:
@@ -97,7 +124,7 @@ async def _strategies(request: web.Request) -> web.Response:
 
 async def _data_snapshot(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    return web.json_response(service.data_snapshot())
+    return web.json_response(_redact_paths(service.data_snapshot()))
 
 
 async def _data_download(request: web.Request) -> web.Response:
@@ -107,7 +134,7 @@ async def _data_download(request: web.Request) -> web.Response:
         result = await service.download_data(DataDownloadRequest.model_validate(payload))
     except (ValueError, DataError, GatewayConnectionError) as exc:
         return _error_response(exc)
-    return web.json_response(result)
+    return web.json_response(_redact_paths(result))
 
 
 async def _data_seed_demo(request: web.Request) -> web.Response:
@@ -117,7 +144,7 @@ async def _data_seed_demo(request: web.Request) -> web.Response:
         result = service.seed_demo_data(DataDownloadRequest.model_validate(payload))
     except ValueError as exc:
         return _error_response(exc)
-    return web.json_response(result)
+    return web.json_response(_redact_paths(result))
 
 
 async def _data_tag_source(request: web.Request) -> web.Response:
@@ -127,7 +154,7 @@ async def _data_tag_source(request: web.Request) -> web.Response:
         result = service.tag_data_source(DataSourceTagRequest.model_validate(payload))
     except ValueError as exc:
         return _error_response(exc)
-    return web.json_response(result)
+    return web.json_response(_redact_paths(result))
 
 
 async def _research(request: web.Request) -> web.Response:
@@ -137,7 +164,7 @@ async def _research(request: web.Request) -> web.Response:
         result = service.research(ResearchRequest.model_validate(payload))
     except ValueError as exc:
         return _error_response(exc)
-    return web.json_response(result)
+    return web.json_response(_redact_paths(result))
 
 
 async def _research_history(request: web.Request) -> web.Response:
@@ -184,10 +211,12 @@ async def _monitoring(request: web.Request) -> web.Response:
     session_history_payload = await manager.session_history(limit=6)
     session_events_payload = await manager.events(limit=24, session_id=session_id)
     return web.json_response(
-        service.monitoring_snapshot(
-            session_snapshot=session_snapshot,
-            session_history=session_history_payload.get("items", []),
-            session_events=session_events_payload.get("items", []),
+        _redact_paths(
+            service.monitoring_snapshot(
+                session_snapshot=session_snapshot,
+                session_history=session_history_payload.get("items", []),
+                session_events=session_events_payload.get("items", []),
+            )
         )
     )
 
