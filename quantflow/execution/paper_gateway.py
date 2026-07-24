@@ -75,6 +75,32 @@ class PaperGateway(GatewayBase):
             order.order_id = order_id
             return order_id
 
+        # ISS-021 (parity): honor reduceOnly so paper matches live exchange
+        # semantics. A reduceOnly SELL may only flatten an existing long (never
+        # flip into a new short); a reduceOnly BUY may only flatten a short.
+        # Without this, paper _update_position would flip the position while a
+        # live OKX reduceOnly order is rejected at the exchange — paper showed a
+        # phantom short that live never opened. Cap the fill to |held|; if there
+        # is no position to reduce, reject (the exchange would).
+        if order.params.get("reduceOnly"):
+            held = self._positions.get(symbol)
+            held_qty = held.quantity if held is not None else 0.0
+            if abs(held_qty) < POSITION_EPSILON:
+                logger.warning(
+                    "Paper reduceOnly order REJECTED: no position to reduce for %s (order_id=%s)",
+                    symbol,
+                    order_id,
+                )
+                order.status = OrderStatus.REJECTED
+                order.order_id = order_id
+                return order_id
+            if side == "buy" and held_qty < 0:
+                quantity = min(quantity, abs(held_qty))
+            elif side == "sell" and held_qty > 0:
+                quantity = min(quantity, held_qty)
+            # else: same-direction reduceOnly is a no-op-ish case (e.g. SELL on a
+            # short); leave quantity unchanged — _update_position handles it.
+
         # Apply slippage
         slip_mult = 1 + self._slippage if side == "buy" else 1 - self._slippage
         fill_price *= slip_mult

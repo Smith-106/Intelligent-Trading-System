@@ -208,7 +208,87 @@ class TestPaperGateway:
         await pg.disconnect()
 
     @pytest.mark.asyncio
-    async def test_cancel_validates_symbol(self):
+    async def test_reduce_only_caps_to_held_quantity(self):
+        """ISS-021: reduceOnly SELL that would flip a long into a new short is
+        capped to the held long quantity (matches live exchange semantics) —
+        paper must not show a phantom short that live never opens."""
+        pg = PaperGateway()
+        await pg.connect()
+        # Open a long of 1.0 BTC.
+        buy = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=1.0,
+            price=50000,
+        )
+        await pg.send_order(buy)
+        # reduceOnly SELL of 3.0 — should be capped to 1.0 (the held long), not flip into a 2.0 short.
+        sell = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.SELL,
+            order_type="market",
+            quantity=3.0,
+            price=50000,
+            params={"reduceOnly": True},
+        )
+        await pg.send_order(sell)
+        assert sell.status == OrderStatus.FILLED
+        assert sell.filled_quantity == 1.0  # capped, not 3.0
+        positions = await pg.query_positions()
+        assert len(positions) == 0  # long fully flattened, no phantom short
+        await pg.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_reduce_only_rejected_when_no_position(self):
+        """ISS-021: reduceOnly with no position to reduce is rejected (exchange would)."""
+        pg = PaperGateway()
+        await pg.connect()
+        sell = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.SELL,
+            order_type="market",
+            quantity=1.0,
+            price=50000,
+            params={"reduceOnly": True},
+        )
+        await pg.send_order(sell)
+        assert sell.status == OrderStatus.REJECTED
+        await pg.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_reduce_only_buy_caps_to_held_short(self):
+        """ISS-021: symmetric — reduceOnly BUY caps to a held short."""
+        pg = PaperGateway()
+        await pg.connect()
+        short = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.SELL,
+            order_type="market",
+            quantity=2.0,
+            price=50000,
+        )
+        await pg.send_order(short)
+        cover = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=5.0,
+            price=50000,
+            params={"reduceOnly": True},
+        )
+        await pg.send_order(cover)
+        assert cover.status == OrderStatus.FILLED
+        assert cover.filled_quantity == 2.0  # capped to |held short|
+        positions = await pg.query_positions()
+        assert len(positions) == 0
+        await pg.disconnect()
+
         """ISS-042 (RP4): cancel path validates symbol, symmetric with send_order."""
         pg = PaperGateway()
         await pg.connect()
