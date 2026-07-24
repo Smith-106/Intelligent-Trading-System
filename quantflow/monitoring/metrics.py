@@ -99,7 +99,14 @@ SIGNAL_PROCESSING_LATENCY = Histogram(
 
 
 def start_metrics_server(port: int = 9090) -> None:
-    """Start Prometheus metrics HTTP server."""
+    """Start Prometheus metrics HTTP server (idempotent per port).
+
+    A repeated call on a port that already started is a no-op rather than
+    raising "address in use" — callers (e.g. TradingSession.start across
+    restarts, sink.start) can invoke this without tracking their own
+    attempt set. The per-port state under ``_METRICS_SERVER_STATE`` makes
+    the decision; ``state["started"]`` True means the server is live.
+    """
     with _METRICS_SERVER_LOCK:
         state = _METRICS_SERVER_STATE.setdefault(
             int(port),
@@ -110,6 +117,11 @@ def start_metrics_server(port: int = 9090) -> None:
                 "last_error": None,
             },
         )
+        # Idempotent: already started (or already attempted and failed) on this
+        # port — do not call start_http_server again, which would raise
+        # "address in use" on a live port and overwrite last_error.
+        if state["attempted"]:
+            return
         state["attempted"] = True
     try:
         start_http_server(port)

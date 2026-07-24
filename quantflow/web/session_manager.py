@@ -22,6 +22,7 @@ from quantflow.common.models import EVENT_FILL, EVENT_ORDER, EVENT_RISK, EVENT_S
 from quantflow.common.numeric import safe_number
 from quantflow.common.redaction import redact_secrets
 from quantflow.monitoring.metrics import update_portfolio_metrics
+from quantflow.monitoring.sink import create_default_sink
 from quantflow.strategy.catalog import get_strategy_factories
 from quantflow.strategy.engine import TradingSession
 from quantflow.web.history import StationHistoryStore
@@ -170,7 +171,7 @@ class StationSessionManager:
                     raise ValueError(f"Unknown strategy: {strategy_name}")
                 strategies.append(factory(None))
 
-            session = TradingSession(config, strategies)
+            session = TradingSession(config, strategies, monitoring_sink=create_default_sink())
             session.adjust_capital(request.capital)
             gateway_config = _gateway_config_from_env(
                 request.mode,

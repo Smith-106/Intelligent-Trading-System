@@ -17,19 +17,12 @@ from typing import Any
 from quantflow.common.config import AppConfig
 from quantflow.common.event_bus import EVENT_BAR, EVENT_RISK, EVENT_SIGNAL, Event, EventBus
 from quantflow.common.models import Bar, Direction, OrderRequest, OrderSide, OrderStatus, Signal
+from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
 from quantflow.common.redaction import redact_secrets
 from quantflow.common.validators import POSITION_EPSILON
 from quantflow.execution.engine import ExecutionEngine
 from quantflow.execution.kill_switch import KillSwitch
 from quantflow.indicators.regime import MarketRegimeDetector
-from quantflow.monitoring.alerts import AlertLevel, AlertManager
-from quantflow.monitoring.metrics import (
-    BAR_PROCESSING_LATENCY,
-    SIGNAL_PROCESSING_LATENCY,
-    SIGNALS_GENERATED,
-    start_metrics_server,
-    update_portfolio_metrics,
-)
 from quantflow.signal.generator import SignalGenerator
 from quantflow.signal.portfolio import PortfolioManager
 from quantflow.signal.position_sizer import PositionSizer
@@ -37,14 +30,20 @@ from quantflow.signal.risk_engine import RiskEngine
 from quantflow.strategy.base import StrategyBase, StrategyContext
 
 logger = logging.getLogger(__name__)
+
+# Backward-compat shim (ISS-019): the metrics-server dedup moved into
+# monitoring.metrics.start_metrics_server (idempotent per port) and the live
+# start path now goes through ``self._sink.start(config)``. Several tests
+# monkeypatch ``engine._ensure_metrics_server_started`` /
+# ``_ATTEMPTED_METRICS_PORTS``; keep the names importable so those patches
+# still resolve. The shim is intentionally a no-op — it must not re-introduce a
+# top-level ``monitoring`` import (the L3->L6 coupling this refactor removes).
 _ATTEMPTED_METRICS_PORTS: set[int] = set()
 
 
 def _ensure_metrics_server_started(port: int) -> None:
-    if port in _ATTEMPTED_METRICS_PORTS:
-        return
-    _ATTEMPTED_METRICS_PORTS.add(port)
-    start_metrics_server(port)
+    """Deprecated no-op — metrics start moved to MonitoringSink.start (ISS-019)."""
+    return
 
 
 class TradingSession:
@@ -58,6 +57,7 @@ class TradingSession:
         strategy_risk_budgets: dict[str, float] | None = None,
         strategy_win_rates: dict[str, float] | None = None,
         strategy_hit_rates: dict[str, float] | None = None,
+        monitoring_sink: MonitoringSink | None = None,
     ) -> None:
         self._config = config
         self._strategies = list(strategies)
@@ -88,7 +88,12 @@ class TradingSession:
         self._contexts: dict[str, StrategyContext] = {}
         self._kill_switch: KillSwitch | None = None
         self._running = False
-        self._alert_mgr: AlertManager | None = None
+        # L3->L6 seam (ISS-019): TradingSession depends on the MonitoringSink
+        # Protocol (common/) only. The concrete sink (DefaultMonitoringSink
+        # from monitoring/) is injected by the caller (cli / session_manager);
+        # defaulting to Null keeps backtest/tests zero-observability with no L6
+        # import on this path.
+        self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
         self._last_error: str | None = None
         # Equity snapshot from the previous bar's close, used to derive the
         # realized per-bar return fed to PositionSizer.add_return and
@@ -133,17 +138,11 @@ class TradingSession:
         self._prev_equity = float("nan")
         self._equity_history.clear()
 
-        # Initialize alert manager from config
-        channels = self._config.monitoring.alert_channels
-        if channels:
-            ch = channels[0]
-            self._alert_mgr = AlertManager(
-                telegram_token=ch.token,
-                telegram_chat_id=ch.chat_id,
-            )
-
-        # Start Prometheus metrics server once per process/port to avoid noisy retries.
-        _ensure_metrics_server_started(self._config.monitoring.prometheus_port)
+        # Start observability via the injected sink (ISS-019): the sink owns
+        # both the metrics-server start (idempotent per port) and the
+        # AlertManager wiring — L3 no longer touches monitoring/ concrete
+        # classes directly.
+        self._sink.start(self._config)
 
         if self._strategies:
             if self._strategy_win_rates:
@@ -232,12 +231,11 @@ class TradingSession:
         if not dd_ok and self._config.risk.kill_switch_enabled and self._kill_switch:
             logger.critical("Drawdown breach — activating kill switch")
             await self._kill_switch.activate("drawdown_breach")
-            if self._alert_mgr:
-                await self._alert_mgr.send(
-                    "KILL SWITCH ACTIVATED: drawdown breach",
-                    AlertLevel.CRITICAL,
-                    extra={"drawdown": pf.current_drawdown},
-                )
+            await self._sink.send_alert(
+                "KILL SWITCH ACTIVATED: drawdown breach",
+                level="critical",
+                extra={"drawdown": pf.current_drawdown},
+            )
             self._running = False
             self._record_bar_latency(bar.symbol, started_at)
             return
@@ -312,12 +310,11 @@ class TradingSession:
                     },
                 )
             )
-            if self._alert_mgr:
-                await self._alert_mgr.send(
-                    f"Signal blocked: {risk_decision.reason}",
-                    AlertLevel.WARNING,
-                    extra={"strategy_id": signal.strategy_id, "symbol": signal.symbol},
-                )
+            await self._sink.send_alert(
+                f"Signal blocked: {risk_decision.reason}",
+                level="warning",
+                extra={"strategy_id": signal.strategy_id, "symbol": signal.symbol},
+            )
             self._record_signal_latency(signal.strategy_id, started_at)
             return
 
@@ -333,11 +330,8 @@ class TradingSession:
             )
         )
 
-        # Prometheus: track signal
-        SIGNALS_GENERATED.labels(
-            strategy_id=signal.strategy_id,
-            direction=str(signal.direction.value),
-        ).inc()
+        # Observability: track signal via the sink (ISS-019).
+        self._sink.record_signal(signal.strategy_id, str(signal.direction.value))
 
         # Position sizing (uses signal strength + per-strategy win rate)
         allocation = self._portfolio.get_strategy_allocation(signal.strategy_id)
@@ -426,22 +420,18 @@ class TradingSession:
 
     def _update_portfolio_observability(self) -> None:
         snapshot = self._portfolio.snapshot()
-        update_portfolio_metrics(
+        self._sink.record_portfolio(
             total_value=float(snapshot["total_value"]),
             cash=float(snapshot["cash"]),
             drawdown=float(snapshot["drawdown"]),
             n_positions=int(snapshot["positions"]),
         )
 
-    @staticmethod
-    def _record_bar_latency(symbol: str, started_at: float) -> None:
-        BAR_PROCESSING_LATENCY.labels(symbol=symbol).observe(perf_counter() - started_at)
+    def _record_bar_latency(self, symbol: str, started_at: float) -> None:
+        self._sink.record_bar_latency(symbol, perf_counter() - started_at)
 
-    @staticmethod
-    def _record_signal_latency(strategy_id: str, started_at: float) -> None:
-        SIGNAL_PROCESSING_LATENCY.labels(strategy_id=strategy_id).observe(
-            perf_counter() - started_at
-        )
+    def _record_signal_latency(self, strategy_id: str, started_at: float) -> None:
+        self._sink.record_signal_latency(strategy_id, perf_counter() - started_at)
 
     def _on_risk_event(self, event: Event) -> None:
         """Handle risk events — trigger kill switch on emergencies."""

@@ -13,24 +13,28 @@ from quantflow.strategy.engine import TradingSession
 
 
 class TestEnsureMetricsServerStarted:
+    """start_metrics_server is idempotent per port (ISS-019 moved the dedup
+    out of engine._ensure_metrics_server_started into metrics.py)."""
+
     def test_first_call_starts_server(self):
-        with patch("quantflow.strategy.engine.start_metrics_server") as mock_start:
-            _ATTEMPTED = set()
-            port = 9091
-            if port in _ATTEMPTED:
-                return
-            _ATTEMPTED.add(port)
-            mock_start(port)
+        from quantflow.monitoring import metrics
+
+        port = 9091
+        # Isolate state for this port so the test is order-independent.
+        metrics._METRICS_SERVER_STATE.pop(port, None)
+        with patch("quantflow.monitoring.metrics.start_http_server") as mock_start:
+            metrics.start_metrics_server(port)
             mock_start.assert_called_once_with(port)
 
     def test_second_call_skips(self):
-        with patch("quantflow.strategy.engine.start_metrics_server") as mock_start:
-            _ATTEMPTED = {9092}
-            port = 9092
-            if port in _ATTEMPTED:
-                return
-            mock_start(port)
-            mock_start.assert_not_called()
+        from quantflow.monitoring import metrics
+
+        port = 9092
+        metrics._METRICS_SERVER_STATE.pop(port, None)
+        with patch("quantflow.monitoring.metrics.start_http_server") as mock_start:
+            metrics.start_metrics_server(port)
+            metrics.start_metrics_server(port)  # second call is a no-op
+            mock_start.assert_called_once_with(port)
 
 
 class TestTradingSessionStartWinRate:

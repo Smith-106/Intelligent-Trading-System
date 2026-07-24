@@ -219,7 +219,7 @@ class _FakeKillSwitch:
 
 
 class _FakeTradingSession:
-    def __init__(self, config, strategies) -> None:
+    def __init__(self, config, strategies, monitoring_sink=None) -> None:
         self.config = config
         self.strategies = strategies
         self._event_bus = EventBus()

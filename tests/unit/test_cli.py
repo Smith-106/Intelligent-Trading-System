@@ -110,7 +110,7 @@ class TestCLIBasics:
         events: list[tuple[object, ...]] = []
 
         class FakeSession:
-            def __init__(self, config, strategies) -> None:
+            def __init__(self, config, strategies, monitoring_sink=None) -> None:
                 self._running = True
                 events.append(("init", len(strategies)))
 
@@ -173,7 +173,7 @@ class TestCLIBasics:
         events: list[tuple[object, ...]] = []
 
         class FakeSession:
-            def __init__(self, config, strategies) -> None:
+            def __init__(self, config, strategies, monitoring_sink=None) -> None:
                 self._running = True
                 events.append(("init", len(strategies)))
 

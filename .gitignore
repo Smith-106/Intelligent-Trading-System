@@ -79,4 +79,6 @@ docker/grafana_data/
 # Machine-specific, large, and fully rebuildable — never track.
 .workflow/kg/
 .workflow/embedding-index.bin
+.workflow/embedding.zvec/
 .workflow/search-cache.json
+.workflow/search-daemon.json

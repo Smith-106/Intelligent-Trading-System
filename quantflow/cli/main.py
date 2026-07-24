@@ -526,6 +526,7 @@ def run(
         quantflow run --mode paper --strategy trend_following
         quantflow run --mode paper --strategy trend_following,mean_reversion
     """
+    from quantflow.monitoring.sink import create_default_sink
     from quantflow.strategy.engine import TradingSession
 
     cfg = load_config(config)
@@ -550,7 +551,7 @@ def run(
 
     console.print(f"[bold blue]Starting {mode} trading with {len(strategies)} strategy(ies)[/]")
 
-    session = TradingSession(cfg, strategies)
+    session = TradingSession(cfg, strategies, monitoring_sink=create_default_sink())
 
     async def _run_session() -> None:
         try:
@@ -799,6 +800,7 @@ def benchmark(
     from quantflow.data.store import DataStore
     from quantflow.execution.engine import ExecutionEngine
     from quantflow.indicators.engine import IndicatorEngine
+    from quantflow.monitoring.sink import create_default_sink
     from quantflow.strategy.base import StrategyBase, StrategyContext
     from quantflow.strategy.engine import TradingSession
     from quantflow.strategy.research.backtest import BacktestEngine
@@ -972,7 +974,7 @@ def benchmark(
             )
 
         strategy = NoSignalStrategy()
-        session = TradingSession(AppConfig(), [strategy])
+        session = TradingSession(AppConfig(), [strategy], monitoring_sink=create_default_sink())
         await session.start(mode="paper")
         try:
             bar_slice = frame.tail(min(bars, 200))

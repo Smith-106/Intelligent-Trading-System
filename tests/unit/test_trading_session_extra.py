@@ -79,10 +79,64 @@ class _FakeKillSwitch:
 
 
 class _FakeAlertManager:
+    """Deprecated: tests now inject _FakeSink directly (ISS-019). Kept only for
+    callers that still reference it via module state; the sink path is canonical."""
+
     def __init__(self) -> None:
         self.sent: list[tuple[str, object, object]] = []
 
     async def send(self, message: str, level: object, extra: object = None) -> dict[str, bool]:
+        self.sent.append((message, level, extra))
+        return {"ok": True}
+
+
+class _FakeSink:
+    """Recording MonitoringSink for tests (ISS-019): replaces both the patched
+    module-level metrics functions and the AlertManager. send_alert args are
+    captured in ``sent`` as (message, level, extra); record_* calls are captured
+    in the matching lists."""
+
+    def __init__(self) -> None:
+        self.sent: list[tuple[str, str, object]] = []
+        self.portfolio_updates: list[dict[str, float | int]] = []
+        self.signals: list[tuple[str, str]] = []
+        self.bar_observations: list[tuple[str, float]] = []
+        self.signal_observations: list[tuple[str, float]] = []
+
+    def start(self, config: object) -> None:
+        return
+
+    def record_signal(self, strategy_id: str, direction: str) -> None:
+        self.signals.append((strategy_id, direction))
+
+    def record_bar_latency(self, symbol: str, duration_seconds: float) -> None:
+        self.bar_observations.append((symbol, duration_seconds))
+
+    def record_signal_latency(self, strategy_id: str, duration_seconds: float) -> None:
+        self.signal_observations.append((strategy_id, duration_seconds))
+
+    def record_portfolio(
+        self,
+        total_value: float,
+        cash: float,
+        drawdown: float,
+        n_positions: int,
+    ) -> None:
+        self.portfolio_updates.append(
+            {
+                "total_value": total_value,
+                "cash": cash,
+                "drawdown": drawdown,
+                "n_positions": n_positions,
+            }
+        )
+
+    async def send_alert(
+        self,
+        message: str,
+        level: str = "warning",
+        extra: dict[str, object] | None = None,
+    ) -> dict[str, bool]:
         self.sent.append((message, level, extra))
         return {"ok": True}
 
@@ -110,13 +164,13 @@ class TestTradingSessionExtra:
             )
         )
         strategies = [_Strategy("alpha"), _Strategy("beta")]
-        session = TradingSession(config, strategies)
+        sink = _FakeSink()
+        session = TradingSession(config, strategies, monitoring_sink=sink)
 
         async def fake_start(mode: str = "paper", gateway_config=None) -> None:
             session.execution._gateway = _FakeGateway()
 
         monkeypatch.setattr(session.execution, "start", fake_start)
-        monkeypatch.setattr("quantflow.strategy.engine.start_metrics_server", lambda port: None)
         allocation_calls: list[dict[str, float]] = []
         original_set_allocation = session.portfolio.set_allocation
 
@@ -129,7 +183,9 @@ class TestTradingSessionExtra:
         await session.start(mode="paper")
 
         assert session.kill_switch is not None
-        assert session._alert_mgr is not None
+        # ISS-019: sink.start() ran (no metrics-server crash); the alert channel
+        # is now wired inside the sink, not as session._alert_mgr.
+        assert session._sink is sink
         assert strategies[0].init_calls == 1
         assert strategies[1].init_calls == 1
         assert session.portfolio.get_strategy_allocation("alpha") == 0.5
@@ -140,9 +196,26 @@ class TestTradingSessionExtra:
     async def test_start_only_attempts_metrics_server_once_per_port(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        strategies = [_Strategy("alpha")]
-        first = TradingSession(AppConfig(), strategies)
-        second = TradingSession(AppConfig(), strategies)
+        # ISS-019: per-port idempotency now lives in metrics.start_metrics_server
+        # (called via DefaultMonitoringSink.start). Two sessions on the same port
+        # must start the HTTP server exactly once.
+        from quantflow.monitoring import metrics
+        from quantflow.monitoring.sink import create_default_sink
+
+        port = AppConfig().monitoring.prometheus_port
+        metrics._METRICS_SERVER_STATE.pop(port, None)
+
+        calls: list[int] = []
+        monkeypatch.setattr(
+            "quantflow.monitoring.metrics.start_http_server", lambda p: calls.append(p)
+        )
+
+        first = TradingSession(
+            AppConfig(), [_Strategy("alpha")], monitoring_sink=create_default_sink()
+        )
+        second = TradingSession(
+            AppConfig(), [_Strategy("alpha")], monitoring_sink=create_default_sink()
+        )
 
         async def fake_start(mode: str = "paper", gateway_config=None) -> None:
             return None
@@ -150,16 +223,10 @@ class TestTradingSessionExtra:
         monkeypatch.setattr(first.execution, "start", fake_start)
         monkeypatch.setattr(second.execution, "start", fake_start)
 
-        calls: list[int] = []
-        monkeypatch.setattr(
-            "quantflow.strategy.engine.start_metrics_server", lambda port: calls.append(port)
-        )
-        monkeypatch.setattr("quantflow.strategy.engine._ATTEMPTED_METRICS_PORTS", set())
-
         await first.start(mode="paper")
         await second.start(mode="paper")
 
-        assert calls == [first._config.monitoring.prometheus_port]
+        assert calls == [port]
 
     @pytest.mark.asyncio
     async def test_on_bar_returns_early_when_not_running_or_kill_switch_active(self) -> None:
@@ -188,22 +255,20 @@ class TestTradingSessionExtra:
         session = TradingSession(AppConfig(), [_Strategy()])
         session._running = True
         session._kill_switch = _FakeKillSwitch()
-        session._alert_mgr = _FakeAlertManager()
+        sink = _FakeSink()
+        session._sink = sink
 
         monkeypatch.setattr(
             session.execution.position_manager, "update_market_price", lambda symbol, price: None
         )
         monkeypatch.setattr(session.portfolio, "update_position", lambda symbol, qty, price: None)
-        monkeypatch.setattr(
-            "quantflow.strategy.engine.update_portfolio_metrics", lambda **kwargs: None
-        )
         monkeypatch.setattr(session.portfolio, "check_drawdown", lambda limit: False)
 
         await session.on_bar(_bar())
 
         assert session.kill_switch.calls == ["drawdown_breach"]
         assert session._running is False
-        assert session._alert_mgr.sent[0][0] == "KILL SWITCH ACTIVATED: drawdown breach"
+        assert sink.sent[0][0] == "KILL SWITCH ACTIVATED: drawdown breach"
 
     @pytest.mark.asyncio
     async def test_on_bar_skips_strategy_when_context_is_missing(
@@ -218,9 +283,6 @@ class TestTradingSessionExtra:
             session.execution.position_manager, "update_market_price", lambda symbol, price: None
         )
         monkeypatch.setattr(session.portfolio, "update_position", lambda symbol, qty, price: None)
-        monkeypatch.setattr(
-            "quantflow.strategy.engine.update_portfolio_metrics", lambda **kwargs: None
-        )
         monkeypatch.setattr(session.portfolio, "check_drawdown", lambda limit: True)
 
         await session.on_bar(_bar())
@@ -231,7 +293,8 @@ class TestTradingSessionExtra:
     async def test_process_signal_blocks_on_risk_and_sends_alert(self) -> None:
         session = TradingSession(AppConfig(), [_Strategy()])
         session._running = True
-        session._alert_mgr = _FakeAlertManager()
+        sink = _FakeSink()
+        session._sink = sink
         events: list[str] = []
         session._event_bus.subscribe(EVENT_RISK, lambda e: events.append(e.data["reason"]))
         session._risk_engine.check = lambda signal, portfolio: RiskDecision(
@@ -248,7 +311,7 @@ class TestTradingSessionExtra:
         await session._process_signal(signal)
 
         assert events == ["max_drawdown"]
-        assert session._alert_mgr.sent[0][0] == "Signal blocked: max_drawdown"
+        assert sink.sent[0][0] == "Signal blocked: max_drawdown"
 
     @pytest.mark.asyncio
     async def test_process_signal_skips_zero_size_and_submits_long_and_short_orders(self) -> None:
@@ -302,12 +365,8 @@ class TestTradingSessionExtra:
         session.portfolio.set_allocation({"filled": 1.0})
         session._risk_engine.check = lambda signal, portfolio: RiskDecision(passed=True)
         session._position_sizer.size = lambda signal, portfolio, **kw: 25.0
-
-        metric_updates: list[dict[str, float | int]] = []
-        monkeypatch.setattr(
-            "quantflow.strategy.engine.update_portfolio_metrics",
-            lambda **kwargs: metric_updates.append(kwargs),
-        )
+        sink = _FakeSink()
+        session._sink = sink
 
         async def fake_submit_order(request: OrderRequest) -> Order:
             return Order(
@@ -335,24 +394,14 @@ class TestTradingSessionExtra:
         assert position.quantity == pytest.approx(0.25)
         assert position.entry_price == pytest.approx(110.0)
         assert session.portfolio.cash == pytest.approx(99970.0)
-        assert metric_updates[-1]["cash"] == pytest.approx(99970.0)
-        assert metric_updates[-1]["total_value"] == pytest.approx(99997.5)
-        assert metric_updates[-1]["n_positions"] == 1
+        assert sink.portfolio_updates[-1]["cash"] == pytest.approx(99970.0)
+        assert sink.portfolio_updates[-1]["total_value"] == pytest.approx(99997.5)
+        assert sink.portfolio_updates[-1]["n_positions"] == 1
 
     @pytest.mark.asyncio
     async def test_on_bar_records_bar_and_signal_latency_metrics(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        observations: list[tuple[dict[str, str], float]] = []
-
-        class FakeHistogram:
-            def labels(self, **labels: str) -> object:
-                class Child:
-                    def observe(self, value: float) -> None:
-                        observations.append((labels, value))
-
-                return Child()
-
         signal = Signal(
             symbol="BTC/USDT",
             direction=Direction.LONG,
@@ -361,7 +410,8 @@ class TestTradingSessionExtra:
             strategy_id="latency",
         )
         strategy = _Strategy("latency", signal=signal)
-        session = TradingSession(AppConfig(), [strategy])
+        sink = _FakeSink()
+        session = TradingSession(AppConfig(), [strategy], monitoring_sink=sink)
         session._running = True
         session._contexts = {"latency": StrategyContext()}
         session.portfolio.set_allocation({"latency": 1.0})
@@ -372,18 +422,15 @@ class TestTradingSessionExtra:
             session.execution.position_manager, "update_market_price", lambda symbol, price: None
         )
         monkeypatch.setattr(session.portfolio, "update_position", lambda symbol, qty, price: None)
-        monkeypatch.setattr(
-            "quantflow.strategy.engine.update_portfolio_metrics", lambda **kwargs: None
-        )
         monkeypatch.setattr(session.portfolio, "check_drawdown", lambda limit: True)
-        monkeypatch.setattr("quantflow.strategy.engine.BAR_PROCESSING_LATENCY", FakeHistogram())
-        monkeypatch.setattr("quantflow.strategy.engine.SIGNAL_PROCESSING_LATENCY", FakeHistogram())
 
         await session.on_bar(_bar())
 
-        assert any(labels == {"symbol": "BTC/USDT"} for labels, _ in observations)
-        assert any(labels == {"strategy_id": "latency"} for labels, _ in observations)
-        assert all(value >= 0 for _, value in observations)
+        # ISS-019: latency now flows through the sink, not module-level histograms.
+        assert any(symbol == "BTC/USDT" for symbol, _ in sink.bar_observations)
+        assert any(sid == "latency" for sid, _ in sink.signal_observations)
+        assert all(value >= 0 for _, value in sink.bar_observations)
+        assert all(value >= 0 for _, value in sink.signal_observations)
 
     def test_on_risk_event_and_check_health_cover_remaining_branches(self) -> None:
         session = TradingSession(AppConfig(), [_Strategy()])

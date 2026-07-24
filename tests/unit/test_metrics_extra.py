@@ -8,10 +8,14 @@ from unittest.mock import MagicMock, patch
 class TestMetricsServerStart:
     def test_start_metrics_server(self):
         """start_metrics_server starts a Prometheus HTTP server."""
-        from quantflow.monitoring.metrics import start_metrics_server
+        from quantflow.monitoring import metrics
 
+        # start_metrics_server is idempotent per port (ISS-019): a prior test
+        # may have marked 9092 as attempted. Isolate this port so the assertion
+        # holds regardless of test order.
+        metrics._METRICS_SERVER_STATE.pop(9092, None)
         with patch("quantflow.monitoring.metrics.start_http_server") as mock_start:
-            start_metrics_server(9092)
+            metrics.start_metrics_server(9092)
             mock_start.assert_called_once_with(9092)
 
     def test_metrics_server_status_unstarted(self):
