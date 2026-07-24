@@ -6,9 +6,9 @@ import logging
 from typing import Any
 
 from quantflow.common.models import Order, OrderSide
+from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
 from quantflow.common.redaction import redact_secrets
 from quantflow.execution.gateway_base import GatewayBase
-from quantflow.monitoring.metrics import KILL_SWITCH_ACTIVATIONS, KILL_SWITCH_STEP_FAILURES
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +34,13 @@ class KillSwitch:
     real positions may still be open and must intervene manually.
     """
 
-    def __init__(self, gateway: GatewayBase) -> None:
+    def __init__(self, gateway: GatewayBase, monitoring_sink: MonitoringSink | None = None) -> None:
         self._gateway = gateway
+        # L5→L6 seam (ISS-20260724-044): KillSwitch depends on the MonitoringSink
+        # Protocol only; the concrete sink is injected by TradingSession
+        # (shared with ExecutionEngine/RiskEngine). Default Null = no-op.
+        # Removed the top-level KILL_SWITCH_ACTIVATIONS/STEP_FAILURES import.
+        self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
         self._active = False
         self._reason: str | None = None
 
@@ -55,7 +60,7 @@ class KillSwitch:
 
         self._active = True
         self._reason = reason
-        KILL_SWITCH_ACTIVATIONS.labels(reason=reason).inc()
+        self._sink.record_kill_switch_activation(reason)
         logger.critical("KILL SWITCH ACTIVATED: %s", reason)
 
         results: dict[str, Any] = {
@@ -72,7 +77,7 @@ class KillSwitch:
             results["cancelled_orders"] = cancelled
             logger.info("Cancelled %d orders", len(cancelled))
         except Exception as e:
-            KILL_SWITCH_STEP_FAILURES.labels(step="cancel_orders").inc()
+            self._sink.record_kill_switch_step_failure("cancel_orders")
             # odyssey-review RP2 (SEC, CWE-532): the gateway re-raises raw CCXT
             # exceptions whose message may embed OKX apiKey/URL. This errors
             # list is returned through web/app.py json_response(result) to the
@@ -90,7 +95,7 @@ class KillSwitch:
         try:
             positions = await self._gateway.query_positions()
         except Exception as e:
-            KILL_SWITCH_STEP_FAILURES.labels(step="query_positions").inc()
+            self._sink.record_kill_switch_step_failure("query_positions")
             results["errors"].append(f"query_positions: {redact_secrets(str(e))}")
             results["status"] = "failed"
             logger.error(
@@ -123,7 +128,7 @@ class KillSwitch:
                     )
                     logger.info("Closing %s %s: order %s", pos.symbol, close_qty, order_id)
                 except Exception as e:
-                    KILL_SWITCH_STEP_FAILURES.labels(step=f"close_{pos.symbol}").inc()
+                    self._sink.record_kill_switch_step_failure(f"close_{pos.symbol}")
                     results["errors"].append(f"close_{pos.symbol}: {redact_secrets(str(e))}")
                     logger.error("Failed to close %s: %s", pos.symbol, redact_secrets(str(e)))
 

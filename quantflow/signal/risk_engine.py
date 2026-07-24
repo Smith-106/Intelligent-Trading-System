@@ -10,6 +10,7 @@ import numpy as np
 
 from quantflow.common.config import RiskConfig
 from quantflow.common.models import Portfolio, RiskDecision, Signal, strategy_id_constituents
+from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,16 @@ class RiskEngine:
         self,
         config: RiskConfig,
         strategy_risk_budgets: dict[str, float] | None = None,
+        monitoring_sink: MonitoringSink | None = None,
     ) -> None:
         self._config = config
         self._strategy_risk_budgets = strategy_risk_budgets or {}
+        # L4→L6 seam (ISS-20260724-044): RiskEngine depends on the MonitoringSink
+        # Protocol only. The concrete sink (DefaultMonitoringSink from L6) is
+        # injected by TradingSession; defaulting to Null keeps tests/backtest
+        # zero-observability — and removes the in-function `RISK_EVENTS` import
+        # that hid the L6 coupling from top-level grep (audit-evasion).
+        self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
         self._weekly_pnl_pct: float = 0.0
         # deque(maxlen=500) makes add_return O(1) with automatic eviction,
         # replacing the list + [-500:] slice (O(n) copy each overflow).
@@ -86,10 +94,14 @@ class RiskEngine:
         return RiskDecision(passed=True)
 
     def _record_risk_event(self, event_type: str, severity: str) -> None:
-        """Record risk event to Prometheus."""
-        from quantflow.monitoring.metrics import RISK_EVENTS
+        """Record risk event via the injected sink (ISS-20260724-044).
 
-        RISK_EVENTS.labels(event_type=event_type, severity=severity).inc()
+        Previously an in-function ``from quantflow.monitoring.metrics import
+        RISK_EVENTS`` — an audit-evasion lazy-import that hid the L4→L6
+        coupling from top-level grep. Now routes through the MonitoringSink
+        Protocol (default Null = no-op).
+        """
+        self._sink.record_risk_event(event_type, severity)
 
     def _check_position_limit(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
         symbol = signal.symbol

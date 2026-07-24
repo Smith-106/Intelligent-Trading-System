@@ -68,6 +68,51 @@ class MonitoringSink(Protocol):
         """Push a portfolio snapshot (value/cash/drawdown/positions) to metrics."""
         ...
 
+    def record_risk_event(self, event_type: str, severity: str) -> None:
+        """Increment the risk-events counter for (event_type, severity).
+
+        Used by L4 RiskEngine — the L4→L6 seam (ISS-20260724-044) that
+        replaced ``risk_engine``'s in-function ``RISK_EVENTS`` import.
+        """
+        ...
+
+    def record_kill_switch_activation(self, reason: str) -> None:
+        """Increment the kill-switch-activations counter for ``reason``.
+
+        Used by L5 KillSwitch — replaced the top-level
+        ``KILL_SWITCH_ACTIVATIONS`` import (ISS-20260724-044).
+        """
+        ...
+
+    def record_kill_switch_step_failure(self, step: str) -> None:
+        """Increment the kill-switch-step-failures counter for ``step``.
+
+        Used by L5 KillSwitch for each failed emergency-stop step (cancel /
+        query / close) — replaced ``KILL_SWITCH_STEP_FAILURES`` import.
+        """
+        ...
+
+    def record_order_total(self, symbol: str, side: str, strategy_id: str) -> None:
+        """Increment the orders-total counter (every submitted/rejected order).
+
+        Used by L5 ExecutionEngine — replaced ``ORDERS_TOTAL`` import.
+        """
+        ...
+
+    def record_order_filled(self, symbol: str, side: str, strategy_id: str) -> None:
+        """Increment the orders-filled counter (orders that reached FILLED).
+
+        Used by L5 ExecutionEngine — replaced ``ORDERS_FILLED`` import.
+        """
+        ...
+
+    def record_order_latency(self, symbol: str, duration_seconds: float) -> None:
+        """Observe order-submission latency for ``symbol``.
+
+        Used by L5 ExecutionEngine — replaced ``ORDER_LATENCY`` import.
+        """
+        ...
+
     async def send_alert(
         self,
         message: str,
@@ -109,6 +154,24 @@ class NullMonitoringSink:
         drawdown: float,
         n_positions: int,
     ) -> None:
+        """No-op."""
+
+    def record_risk_event(self, event_type: str, severity: str) -> None:
+        """No-op."""
+
+    def record_kill_switch_activation(self, reason: str) -> None:
+        """No-op."""
+
+    def record_kill_switch_step_failure(self, step: str) -> None:
+        """No-op."""
+
+    def record_order_total(self, symbol: str, side: str, strategy_id: str) -> None:
+        """No-op."""
+
+    def record_order_filled(self, symbol: str, side: str, strategy_id: str) -> None:
+        """No-op."""
+
+    def record_order_latency(self, symbol: str, duration_seconds: float) -> None:
         """No-op."""
 
     async def send_alert(

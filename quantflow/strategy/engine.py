@@ -62,10 +62,24 @@ class TradingSession:
         self._config = config
         self._strategies = list(strategies)
         self._event_bus = EventBus()
+        # L3->L6 seam (ISS-019 + ISS-20260724-044): TradingSession depends on
+        # the MonitoringSink Protocol (common/) only. The concrete sink
+        # (DefaultMonitoringSink from monitoring/) is injected by the caller
+        # (cli / session_manager); defaulting to Null keeps backtest/tests
+        # zero-observability with no L6 import on this path. Set BEFORE
+        # constructing ExecutionEngine/RiskEngine so it can be threaded down
+        # to the L4/L5 siblings (ISS-20260724-044).
+        self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
         self._execution = ExecutionEngine(
-            event_bus=self._event_bus, timeout=config.execution.order_timeout
+            event_bus=self._event_bus,
+            timeout=config.execution.order_timeout,
+            monitoring_sink=self._sink,
         )
-        self._risk_engine = RiskEngine(config.risk, strategy_risk_budgets=strategy_risk_budgets)
+        self._risk_engine = RiskEngine(
+            config.risk,
+            strategy_risk_budgets=strategy_risk_budgets,
+            monitoring_sink=self._sink,
+        )
         self._position_sizer = PositionSizer(
             method="kelly",
             kelly_fraction=config.risk.kelly_fraction,
@@ -88,12 +102,6 @@ class TradingSession:
         self._contexts: dict[str, StrategyContext] = {}
         self._kill_switch: KillSwitch | None = None
         self._running = False
-        # L3->L6 seam (ISS-019): TradingSession depends on the MonitoringSink
-        # Protocol (common/) only. The concrete sink (DefaultMonitoringSink
-        # from monitoring/) is injected by the caller (cli / session_manager);
-        # defaulting to Null keeps backtest/tests zero-observability with no L6
-        # import on this path.
-        self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
         self._last_error: str | None = None
         # Equity snapshot from the previous bar's close, used to derive the
         # realized per-bar return fed to PositionSizer.add_return and
@@ -124,7 +132,7 @@ class TradingSession:
 
         # Initialize kill switch if enabled
         if self._config.risk.kill_switch_enabled and self._execution.gateway:
-            self._kill_switch = KillSwitch(self._execution.gateway)
+            self._kill_switch = KillSwitch(self._execution.gateway, monitoring_sink=self._sink)
             # Wire the kill switch into the engine so submit() blocks new
             # orders the moment the switch is active, not only at on_bar entry
             # (odyssey-improve SEC-H4).

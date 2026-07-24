@@ -20,6 +20,12 @@ from typing import Any
 from quantflow.monitoring.alerts import AlertLevel, AlertManager
 from quantflow.monitoring.metrics import (
     BAR_PROCESSING_LATENCY,
+    KILL_SWITCH_ACTIVATIONS,
+    KILL_SWITCH_STEP_FAILURES,
+    ORDER_LATENCY,
+    ORDERS_FILLED,
+    ORDERS_TOTAL,
+    RISK_EVENTS,
     SIGNAL_PROCESSING_LATENCY,
     SIGNALS_GENERATED,
     start_metrics_server,
@@ -88,6 +94,33 @@ class DefaultMonitoringSink:
             drawdown=drawdown,
             n_positions=n_positions,
         )
+
+    def record_risk_event(self, event_type: str, severity: str) -> None:
+        # L4 risk_engine seam (ISS-20260724-044): replaced the in-function
+        # `from quantflow.monitoring.metrics import RISK_EVENTS` lazy-import.
+        RISK_EVENTS.labels(event_type=event_type, severity=severity).inc()
+
+    def record_kill_switch_activation(self, reason: str) -> None:
+        # L5 kill_switch seam (ISS-20260724-044): replaced the top-level
+        # KILL_SWITCH_ACTIVATIONS import.
+        KILL_SWITCH_ACTIVATIONS.labels(reason=reason).inc()
+
+    def record_kill_switch_step_failure(self, step: str) -> None:
+        # L5 kill_switch seam (ISS-20260724-044): per-step failure counter.
+        KILL_SWITCH_STEP_FAILURES.labels(step=step).inc()
+
+    def record_order_total(self, symbol: str, side: str, strategy_id: str) -> None:
+        # L5 execution/engine seam (ISS-20260724-044): replaced the top-level
+        # ORDERS_TOTAL import.
+        ORDERS_TOTAL.labels(symbol=symbol, side=side, strategy_id=strategy_id).inc()
+
+    def record_order_filled(self, symbol: str, side: str, strategy_id: str) -> None:
+        # L5 execution/engine seam (ISS-20260724-044): replaced ORDERS_FILLED.
+        ORDERS_FILLED.labels(symbol=symbol, side=side, strategy_id=strategy_id).inc()
+
+    def record_order_latency(self, symbol: str, duration_seconds: float) -> None:
+        # L5 execution/engine seam (ISS-20260724-044): replaced ORDER_LATENCY.
+        ORDER_LATENCY.labels(symbol=symbol).observe(duration_seconds)
 
     async def send_alert(
         self,

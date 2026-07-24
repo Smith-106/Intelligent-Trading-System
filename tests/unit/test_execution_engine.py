@@ -4,6 +4,7 @@ import pytest
 
 from quantflow.common.event_bus import EventBus
 from quantflow.common.models import Order, OrderRequest, OrderSide, OrderStatus
+from quantflow.common.monitoring_sink import NullMonitoringSink
 from quantflow.execution.engine import ExecutionEngine
 from quantflow.execution.paper_gateway import PaperGateway
 
@@ -37,20 +38,22 @@ class TestExecutionEngine:
         await engine.stop()
 
     @pytest.mark.asyncio
-    async def test_submit_records_order_latency_metric(self, monkeypatch):
-        observations: list[tuple[dict[str, str], float]] = []
+    async def test_submit_records_order_latency_metric(self):
+        # ISS-20260724-044: order latency now flows through the injected
+        # MonitoringSink (was a module-level ORDER_LATENCY histogram patched
+        # at quantflow.execution.engine.ORDER_LATENCY, which no longer exists).
+        # Subclass NullMonitoringSink so the other record_* calls submit() makes
+        # (record_order_total/filled) are no-ops; only record_order_latency is
+        # captured.
+        class _LatencySink(NullMonitoringSink):
+            def __init__(self) -> None:
+                self.observations: list[tuple[str, float]] = []
 
-        class FakeHistogram:
-            def labels(self, **labels: str) -> object:
-                class Child:
-                    def observe(self, value: float) -> None:
-                        observations.append((labels, value))
+            def record_order_latency(self, symbol: str, duration_seconds: float) -> None:
+                self.observations.append((symbol, duration_seconds))
 
-                return Child()
-
-        monkeypatch.setattr("quantflow.execution.engine.ORDER_LATENCY", FakeHistogram())
-
-        engine = ExecutionEngine()
+        sink = _LatencySink()
+        engine = ExecutionEngine(monitoring_sink=sink)
         await engine.start(mode="paper")
         order = Order(
             order_id="",
@@ -64,9 +67,9 @@ class TestExecutionEngine:
 
         await engine.submit(order)
 
-        assert len(observations) == 1
-        assert observations[0][0] == {"symbol": "BTC/USDT"}
-        assert observations[0][1] >= 0
+        assert len(sink.observations) == 1
+        assert sink.observations[0][0] == "BTC/USDT"
+        assert sink.observations[0][1] >= 0
         await engine.stop()
 
     @pytest.mark.asyncio

@@ -1022,7 +1022,7 @@ def benchmark(
         _record("runtime", "three strategy on_bar batch", elapsed_ms, "ms")
         _throughput("runtime", "three strategy bars/sec", len(hot_frame), elapsed_ms)
 
-        execution = ExecutionEngine()
+        execution = ExecutionEngine(monitoring_sink=create_default_sink())
         await execution.start(mode="paper")
         try:
             started = perf_counter()

@@ -14,6 +14,7 @@ from quantflow.common.models import (
     OrderSide,
     OrderStatus,
 )
+from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
 from quantflow.common.redaction import redact_secrets
 from quantflow.common.validators import POSITION_EPSILON
 from quantflow.execution.gateway_base import GatewayBase, GatewayError
@@ -22,7 +23,6 @@ from quantflow.execution.okx_gateway import OKXGateway
 from quantflow.execution.order_manager import OrderManager
 from quantflow.execution.paper_gateway import PaperGateway
 from quantflow.execution.position_manager import PositionManager
-from quantflow.monitoring.metrics import ORDER_LATENCY, ORDERS_FILLED, ORDERS_TOTAL
 
 EVENT_ORDER = "order"
 EVENT_FILL = "fill"
@@ -42,12 +42,19 @@ class ExecutionEngine:
         event_bus: EventBus | None = None,
         timeout: float = 30.0,
         kill_switch: KillSwitch | None = None,
+        monitoring_sink: MonitoringSink | None = None,
     ) -> None:
         self._gateway = gateway
         self._event_bus = event_bus
         self._timeout = timeout
         self._order_mgr = OrderManager(timeout=int(timeout))
         self._position_mgr = PositionManager()
+        # L5→L6 seam (ISS-20260724-044): ExecutionEngine depends on the
+        # MonitoringSink Protocol only; the concrete sink is injected by
+        # TradingSession (shared with KillSwitch/RiskEngine). Default Null =
+        # no-op. Removed the top-level ORDER_LATENCY/ORDERS_FILLED/ORDERS_TOTAL
+        # import that coupled L5 to L6.
+        self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
         # Kill switch enforcement (odyssey-improve SEC-H4): when present, submit
         # refuses new orders while the kill switch is active. TradingSession
         # injects the same KillSwitch instance it owns so the engine-level gate
@@ -149,11 +156,11 @@ class ExecutionEngine:
             # Count and publish the rejection too (odyssey-improve OBS-H1):
             # previously the REJECTED branch skipped ORDERS_TOTAL + EVENT_ORDER,
             # so rejections were invisible in dashboards and the event stream.
-            ORDERS_TOTAL.labels(
+            self._sink.record_order_total(
                 symbol=order.symbol,
                 side=order.side.value,
                 strategy_id=order.strategy_id,
-            ).inc()
+            )
             if self._event_bus:
                 self._event_bus.publish(
                     Event(
@@ -193,11 +200,11 @@ class ExecutionEngine:
             ),
         )
 
-        ORDERS_TOTAL.labels(
+        self._sink.record_order_total(
             symbol=order.symbol,
             side=order.side.value,
             strategy_id=order.strategy_id,
-        ).inc()
+        )
 
         if self._event_bus:
             self._event_bus.publish(
@@ -227,11 +234,11 @@ class ExecutionEngine:
                 order.symbol, qty_signed, order.filled_price, strategy_id=order.strategy_id
             )
 
-            ORDERS_FILLED.labels(
+            self._sink.record_order_filled(
                 symbol=order.symbol,
                 side=order.side.value,
                 strategy_id=order.strategy_id,
-            ).inc()
+            )
 
             if self._event_bus:
                 self._event_bus.publish(
@@ -261,9 +268,8 @@ class ExecutionEngine:
         if self._gateway is not None:
             self._gateway.update_market_price(symbol, price)
 
-    @staticmethod
-    def _record_order_latency(symbol: str, started_at: float) -> None:
-        ORDER_LATENCY.labels(symbol=symbol).observe(perf_counter() - started_at)
+    def _record_order_latency(self, symbol: str, started_at: float) -> None:
+        self._sink.record_order_latency(symbol, perf_counter() - started_at)
 
     async def submit_order(self, request: OrderRequest) -> Order:
         """Submit an OrderRequest through the gateway.
