@@ -76,7 +76,12 @@ def probability_of_overfitting(
             )
             is_returns.append(is_res.total_return)
         except Exception:
-            is_returns.append(0.0)
+            # ISS-030: NaN sentinel for failed paths (excluded from PBO via the
+            # finite mask). The prior 0.0 made is_positive=False, so a path that
+            # genuinely overfit (real IS>0, real OOS<0) but whose IS backtest
+            # THREW was silently counted as not-overfit, lowering the PBO and
+            # passing bad strategies.
+            is_returns.append(float("nan"))
 
         try:
             oos_res = engine.run_backtest(
@@ -88,34 +93,41 @@ def probability_of_overfitting(
             )
             oos_returns.append(oos_res.total_return)
         except Exception:
-            oos_returns.append(0.0)
+            oos_returns.append(float("nan"))
 
-    is_returns_arr = _sanitize_metric_array(is_returns)
-    oos_returns_arr = _sanitize_metric_array(oos_returns)
+    is_raw = np.asarray(is_returns, dtype=float)
+    oos_raw = np.asarray(oos_returns, dtype=float)
+    finite = np.isfinite(is_raw) & np.isfinite(oos_raw)
+    n_valid_paths = int(finite.sum())
 
-    # PBO: fraction of paths where IS is positive but OOS is negative
-    is_positive = is_returns_arr > 0
-    oos_negative = oos_returns_arr <= 0
-    overfit_paths = np.sum(is_positive & oos_negative)
+    # PBO: fraction of FINITE paths where IS is positive but OOS is negative.
+    # No finite paths → fail-closed pbo=1.0 (forces NO-GO) rather than 0.0.
+    if n_valid_paths > 0:
+        is_positive = is_raw[finite] > 0
+        oos_negative = oos_raw[finite] <= 0
+        overfit_paths = int(np.sum(is_positive & oos_negative))
+        pbo = overfit_paths / n_valid_paths
+    else:
+        overfit_paths = 0
+        pbo = 1.0
     total_paths = len(splits)
 
-    pbo = overfit_paths / total_paths if total_paths > 0 else 1.0
-
-    if len(is_returns_arr) > 1 and np.std(is_returns_arr) > 0 and np.std(oos_returns_arr) > 0:
+    if n_valid_paths > 1 and np.nanstd(is_raw) > 0 and np.nanstd(oos_raw) > 0:
         rank_correlation = float(
-            pd.Series(is_returns_arr)
+            pd.Series(is_raw[finite])
             .rank()
-            .corr(pd.Series(oos_returns_arr).rank(), method="pearson")
+            .corr(pd.Series(oos_raw[finite]).rank(), method="pearson")
         )
     else:
         rank_correlation = 0.0
 
     result = {
         "pbo": float(pbo),
-        "overfit_paths": int(overfit_paths),
+        "overfit_paths": overfit_paths,
         "total_paths": total_paths,
-        "is_return_mean": float(np.mean(is_returns_arr)),
-        "oos_return_mean": float(np.mean(oos_returns_arr)),
+        "n_valid_paths": n_valid_paths,
+        "is_return_mean": float(np.nanmean(is_raw)) if n_valid_paths > 0 else 0.0,
+        "oos_return_mean": float(np.nanmean(oos_raw)) if n_valid_paths > 0 else 0.0,
         "rank_correlation": rank_correlation,
         "passed": pbo < 0.5,
     }

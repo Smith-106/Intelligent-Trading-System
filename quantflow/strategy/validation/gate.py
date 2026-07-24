@@ -13,6 +13,7 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from quantflow.strategy.validation.cpcv import cpcv_backtest
@@ -77,7 +78,21 @@ def validation_gate(
 
     # Step 2: DSR
     logger.info("=== Step 2: DSR Validation ===")
-    best_oos_sharpe = max(p["oos_sharpe"] for p in cpcv_result["path_results"])
+    # ISS-029: best OOS Sharpe ignores failed paths (NaN sentinels). The prior
+    # max() took the largest *finite* value even when some paths failed to 0.0,
+    # which could pair with a DSR exception fallback to pass a fragile strategy.
+    # nanmax skips NaN; if ALL paths failed (no finite Sharpe), fail-closed NO-GO
+    # rather than feeding 0.0 to DSR (0.0 is a plausible legitimate Sharpe).
+    oos_sharpes = np.asarray(
+        [p.get("oos_sharpe", float("nan")) for p in cpcv_result["path_results"]],
+        dtype=float,
+    )
+    if not np.any(np.isfinite(oos_sharpes)):
+        results["decision"] = "NO-GO"
+        results["reason"] = "CPCV: all paths failed (no finite OOS Sharpe)"
+        results["checks"]["dsr"] = {"passed": False, "reason": "no finite oos_sharpe"}
+        return results
+    best_oos_sharpe = float(np.nanmax(oos_sharpes))
     dsr_result = deflated_sharpe_ratio(
         observed_sharpe=best_oos_sharpe,
         n_trials=n_trials,

@@ -237,7 +237,12 @@ def cpcv_backtest(
             )
             is_sharpes.append(is_result.sharpe_ratio)
         except Exception:
-            is_sharpes.append(0.0)
+            # ISS-030: failure path returns a value NO legitimate result produces
+            # — NaN, excluded from PBO via the finite mask below. The prior 0.0
+            # was a fail-silent sentinel that biased aggregates (a 0.0 IS never
+            # exceeds OOS, silently lowering the overfitting estimate; a 0.0 OOS
+            # always loses, raising it). See memory antipattern #13.
+            is_sharpes.append(float("nan"))
 
         # Out-of-sample backtest
         try:
@@ -268,46 +273,70 @@ def cpcv_backtest(
                     "optimized": optimized,
                     "oos_recomputed": uses_oos_signal_generation,
                     "signal_quality": signal_quality,
+                    "failed": False,
                 }
             )
         except Exception:
-            oos_sharpes.append(0.0)
+            # ISS-030: NaN sentinel (excluded from PBO) instead of 0.0.
+            oos_sharpes.append(float("nan"))
             signal_quality = signal_quality_metrics(
-                test_close, test_entries, test_exits, oos_sharpe=0.0
+                test_close, test_entries, test_exits, oos_sharpe=float("nan")
             )
             quality_rows.append(signal_quality)
-            if uses_oos_signal_generation:
-                path_results.append(
-                    {
-                        "path": i,
-                        "oos_sharpe": 0.0,
-                        "best_params": best_params,
-                        "optimized": optimized,
-                        "oos_recomputed": True,
-                        "signal_quality": signal_quality,
-                    }
-                )
-            else:
-                path_results.append({"path": i, "oos_sharpe": 0.0})
+            # ISS-029: unified path_result schema — failure paths carry the
+            # same keys (oos_return/oos_max_dd/oos_trades) as success paths so
+            # downstream consumers (gate best_oos_sharpe, reports) don't hit
+            # KeyError. NaN/0 mark "this path failed".
+            path_results.append(
+                {
+                    "path": i,
+                    "oos_sharpe": float("nan"),
+                    "oos_return": float("nan"),
+                    "oos_max_dd": float("nan"),
+                    "oos_trades": 0,
+                    "best_params": best_params,
+                    "optimized": optimized,
+                    "oos_recomputed": uses_oos_signal_generation,
+                    "signal_quality": signal_quality,
+                    "failed": True,
+                }
+            )
 
-    is_sharpes_arr = _sanitize_metric_array(is_sharpes)
-    oos_sharpes_arr = _sanitize_metric_array(oos_sharpes)
+    # ISS-030: PBO is computed over FINITE paths only (NaN failure sentinels
+    # excluded via the finite mask) so a failed path neither inflates nor
+    # deflates the overfitting estimate. nanmean/nanstd/nanmin report only paths
+    # that ran. (sanitize_metric_array is no longer called here — it NaN→0.0's,
+    # which would re-introduce the bias; raw arrays preserve the sentinel.)
+    is_raw = np.asarray(is_sharpes, dtype=float)
+    oos_raw = np.asarray(oos_sharpes, dtype=float)
+    finite = np.isfinite(is_raw) & np.isfinite(oos_raw)
+    n_valid_paths = int(finite.sum())
 
-    # PBO: fraction of paths where IS > OOS (overfitting indicator)
-    pbo = float(np.mean(is_sharpes_arr > oos_sharpes_arr))
+    # PBO: fraction of FINITE paths where IS > OOS (overfitting indicator).
+    # If no path produced finite sharpes, PBO is undefined → fail-closed 1.0
+    # (forces NO-GO) rather than 0.0 (would pass a strategy that never ran).
+    pbo = (
+        float(np.mean(is_raw[finite] > oos_raw[finite]))
+        if n_valid_paths > 0
+        else 1.0
+    )
 
-    # OOS efficiency
-    oos_efficiency = float(np.mean(oos_sharpes_arr) / max(float(np.mean(is_sharpes_arr)), 1e-6))
+    # OOS efficiency (finite paths only)
+    if n_valid_paths > 0:
+        oos_efficiency = float(np.mean(oos_raw[finite]) / max(float(np.mean(is_raw[finite])), 1e-6))
+    else:
+        oos_efficiency = 0.0
 
     result = {
         "n_paths": len(splits),
+        "n_valid_paths": n_valid_paths,
         "pbo": pbo,
         "oos_efficiency": oos_efficiency,
-        "is_sharpe_mean": float(np.mean(is_sharpes_arr)),
-        "is_sharpe_std": float(np.std(is_sharpes_arr)),
-        "oos_sharpe_mean": float(np.mean(oos_sharpes_arr)),
-        "oos_sharpe_std": float(np.std(oos_sharpes_arr)),
-        "oos_sharpe_min": float(np.min(oos_sharpes_arr)),
+        "is_sharpe_mean": float(np.nanmean(is_raw)) if n_valid_paths > 0 else 0.0,
+        "is_sharpe_std": float(np.nanstd(is_raw)) if n_valid_paths > 0 else 0.0,
+        "oos_sharpe_mean": float(np.nanmean(oos_raw)) if n_valid_paths > 0 else 0.0,
+        "oos_sharpe_std": float(np.nanstd(oos_raw)) if n_valid_paths > 0 else 0.0,
+        "oos_sharpe_min": float(np.nanmin(oos_raw)) if n_valid_paths > 0 else 0.0,
         "path_results": path_results,
         "optimized": optimized,
         "oos_recomputed": uses_oos_signal_generation,

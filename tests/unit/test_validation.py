@@ -66,7 +66,13 @@ class TestCPCV:
         assert len(splits) == 3
         assert max(splits[-1][1]) == 9
 
-    def test_cpcv_backtest_falls_back_to_zero_on_is_and_oos_errors(self, monkeypatch):
+    def test_cpcv_backtest_falls_back_to_nan_on_is_and_oos_errors(self, monkeypatch):
+        # ISS-029/030: failed paths now carry NaN oos_sharpe (not 0.0) in a
+        # unified path_result schema, and PBO is fail-closed 1.0 when no path
+        # produced a finite Sharpe (forces NO-GO instead of passing a strategy
+        # that never ran).
+        import math
+
         close = _make_price_series(60)
         entries, exits = _make_signals(60)
 
@@ -78,13 +84,21 @@ class TestCPCV:
 
         result = cpcv_backtest(close, entries, exits, n_groups=3, n_test_groups=1)
 
+        # All paths failed → no finite Sharpe → reported means are fail-closed 0.0.
         assert result["is_sharpe_mean"] == 0.0
         assert result["oos_sharpe_mean"] == 0.0
         assert result["oos_sharpe_min"] == 0.0
-        assert all(
-            path == {"path": idx, "oos_sharpe": 0.0}
-            for idx, path in enumerate(result["path_results"])
-        )
+        assert result["n_valid_paths"] == 0
+        assert result["pbo"] == 1.0  # fail-closed: forces NO-GO
+        # Each failed path: NaN oos_sharpe + unified schema keys (no KeyError).
+        assert len(result["path_results"]) > 0
+        for idx, path in enumerate(result["path_results"]):
+            assert path["path"] == idx
+            assert math.isnan(path["oos_sharpe"])
+            assert path["failed"] is True
+            # Unified schema: downstream readers (gate, reports) get these keys.
+            for key in ("oos_return", "oos_max_dd", "oos_trades"):
+                assert key in path
 
     def test_split_cpcv_rejects_insufficient_bars(self):
         with pytest.raises(ValueError, match="requires at least 4 bars"):
@@ -193,10 +207,14 @@ class TestPBO:
 
         result = probability_of_overfitting(close, entries, exits, n_groups=3)
 
+        # ISS-030: all paths failed → NaN sentinels excluded → n_valid_paths=0,
+        # pbo fail-closed 1.0 (forces NO-GO), means fail-closed 0.0.
         assert result["is_return_mean"] == 0.0
         assert result["oos_return_mean"] == 0.0
         assert result["rank_correlation"] == 0.0
         assert result["overfit_paths"] == 0
+        assert result["n_valid_paths"] == 0
+        assert result["pbo"] == 1.0
 
     def test_pbo_returns_structured_failure_for_insufficient_bars(self):
         close = _make_price_series(3)
