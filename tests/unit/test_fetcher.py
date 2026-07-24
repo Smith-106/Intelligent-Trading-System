@@ -235,40 +235,79 @@ async def test_fetch_ticker_requires_connection(data_config: DataConfig) -> None
 def test_get_last_timestamp_success_and_failures(
     monkeypatch: pytest.MonkeyPatch, data_config: DataConfig
 ) -> None:
+    # ISS-027: fetcher.get_last_timestamp now delegates to DataStore (the
+    # layer-correct owner of parquet reads), so we exercise it against a real
+    # tmp parquet store instead of monkeypatching the DuckDB query — the
+    # duplicated glob query is gone, and the store owns the read path.
+    import pandas as pd
+
+    from quantflow.data.store import DataStore
+
     fetcher = DataFetcher(data_config)
+    parquet_dir = Path(data_config.parquet_dir)
 
-    class _QueryResult:
-        def __init__(self, row):
-            self._row = row
+    # No data stored yet → None.
+    assert fetcher.get_last_timestamp("BTC/USDT", "1d", parquet_dir) is None
 
-        def fetchone(self):
-            return self._row
+    # Save two bars (different timeframes) and assert the max for "1d" wins.
+    store = DataStore(str(parquet_dir))
+    rows = pd.DataFrame(
+        [
+            {
+                "timestamp": 1_000,
+                "open": 1.0,
+                "high": 1.0,
+                "low": 1.0,
+                "close": 1.0,
+                "volume": 1.0,
+                "symbol": "BTC/USDT",
+                "timeframe": "1d",
+            },
+            {
+                "timestamp": 2_000,
+                "open": 2.0,
+                "high": 2.0,
+                "low": 2.0,
+                "close": 2.0,
+                "volume": 2.0,
+                "symbol": "BTC/USDT",
+                "timeframe": "1d",
+            },
+            {
+                "timestamp": 9_999,
+                "open": 9.0,
+                "high": 9.0,
+                "low": 9.0,
+                "close": 9.0,
+                "volume": 9.0,
+                "symbol": "BTC/USDT",
+                "timeframe": "1h",
+            },
+        ]
+    )
+    store.save(rows, "BTC/USDT")
+    store.close()
 
-    # duckdb.query is called with the timeframe as a params= keyword arg
-    # (parameterized to prevent SQL injection via the timeframe literal).
-    monkeypatch.setattr("duckdb.query", lambda sql, params=None: _QueryResult((1_234_567_890,)))
-    assert fetcher.get_last_timestamp("BTC/USDT", "1d", Path("data")) == 1_234_567_890
+    # 1d max is 2000 (not the 1h row's 9999 — timeframe filter works).
+    assert fetcher.get_last_timestamp("BTC/USDT", "1d", parquet_dir) == 2_000
+    assert fetcher.get_last_timestamp("BTC/USDT", "1h", parquet_dir) == 9_999
 
-    monkeypatch.setattr("duckdb.query", lambda sql, params=None: _QueryResult((None,)))
-    assert fetcher.get_last_timestamp("BTC/USDT", "1d", Path("data")) is None
-
-    def raise_query(sql: str, params=None):
-        raise RuntimeError("bad parquet")
-
-    monkeypatch.setattr("duckdb.query", raise_query)
-    assert fetcher.get_last_timestamp("BTC/USDT", "1d", Path("data")) is None
+    # A storage error (nonexistent store root) is swallowed → None.
+    assert fetcher.get_last_timestamp("BTC/USDT", "1d", Path("no/such/dir")) is None
 
 
 def test_get_last_timestamp_rejects_injection_inputs(data_config: DataConfig) -> None:
     """SEC-001/SEC-014: get_last_timestamp must validate symbol + timeframe
-    before SQL interpolation, rejecting crafted injection payloads."""
+    before SQL interpolation, rejecting crafted injection payloads. Validation
+    now lives in DataStore (ISS-027) but the fetcher entry point surfaces it."""
     fetcher = DataFetcher(data_config)
+    parquet_dir = Path(data_config.parquet_dir)
     # Symbol with a single quote (would break out of the glob literal).
     with pytest.raises(ValueError, match="Invalid symbol"):
-        fetcher.get_last_timestamp("BTC' OR '1'='1", "1d", Path("data"))
+        fetcher.get_last_timestamp("BTC' OR '1'='1", "1d", parquet_dir)
     # Timeframe not in the allowlist.
     with pytest.raises(ValueError, match="Invalid timeframe"):
-        fetcher.get_last_timestamp("BTC/USDT", "1d' OR '1'='1", Path("data"))
+        fetcher.get_last_timestamp("BTC/USDT", "1d' OR '1'='1", parquet_dir)
 
 
 @pytest.mark.asyncio

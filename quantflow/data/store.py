@@ -172,6 +172,42 @@ class DataStore:
             logger.warning("get_date_range failed for %s: %s", symbol, e)
         return None
 
+    def get_last_timestamp(self, symbol: str, timeframe: str) -> int | None:
+        """Get the last stored timestamp for a symbol+timeframe.
+
+        ISS-027: the layer-correct owner of parquet reads. Previously
+        ``DataFetcher.get_last_timestamp`` hand-rolled an equivalent DuckDB
+        ``read_parquet`` glob query against this store's on-disk layout,
+        duplicating the glob construction + symbol validation (drift risk:
+        the two globs used different depth — ``/*/*/*.parquet`` vs
+        ``/*/*.parquet`` — and could silently diverge). The fetcher now
+        delegates here so the read path has one owner.
+
+        ``timeframe`` is parameterized (not interpolated) so a crafted value
+        cannot inject SQL; it is also allowlisted via TIMEFRAMES so a typo
+        cannot silently return None (mimicking "no data").
+        """
+        from quantflow.data.fetcher import TIMEFRAMES
+
+        symbol_name = _validate_symbol(symbol)
+        if timeframe not in TIMEFRAMES:
+            raise ValueError(f"Invalid timeframe: {timeframe!r}. Allowed: {TIMEFRAMES}")
+        pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/*/*.parquet".replace("'", "''")
+        try:
+            result = self._db.query(
+                f"""
+                SELECT MAX(timestamp) as max_ts
+                FROM read_parquet('{pattern}', union_by_name=true)
+                WHERE timeframe = ?
+                """,
+                params=[timeframe],
+            ).fetchone()
+            if result and result[0] is not None:
+                return int(result[0])
+        except Exception as e:
+            logger.warning("get_last_timestamp failed for %s %s: %s", symbol, timeframe, e)
+        return None
+
     def close(self) -> None:
         self._db.close()
 
