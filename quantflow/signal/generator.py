@@ -77,7 +77,13 @@ class SignalGenerator:
             return None  # Conflicting signals cancel out
 
         total_weight = sum(weights)
-        avg_strength = total_weight / len(signals) if total_weight > 0 else 0.0
+        # ISS-022 (CORR): the prior avg_strength = total_weight / n_signals
+        # underestimated agreement. Two strategies each at strength=1.0 /
+        # hit_rate=0.5 yielded total_weight=1.0 / 2 = 0.5, halving size for
+        # unanimous signals. Use a strength-weighted mean: Σ(strength_i·w_i)/Σ(w_i),
+        # so unanimous strength=1.0 → 1.0. w_i = strength_i·hit_rate_i.
+        weighted_strength = sum(s.strength * w for s, w in zip(signals, weights, strict=True))
+        avg_strength = weighted_strength / total_weight if total_weight > 0 else 0.0
 
         return Signal(
             symbol=signals[0].symbol,

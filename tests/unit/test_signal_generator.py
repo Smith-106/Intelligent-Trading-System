@@ -36,15 +36,29 @@ class TestSignalGenerator:
             Signal("BTC/USDT", Direction.LONG, 0.6, 50000, "s1"),
             Signal("BTC/USDT", Direction.LONG, 0.8, 50000, "s2"),
         ]
-        # With hit_rates=1.0, strength = weighted avg = (0.6+0.8)/2 = 0.7
+        # ISS-022: strength-weighted mean Σ(strength_i·w_i)/Σ(w_i), w_i=strength·hit.
+        # hit_rate=1.0 → w=strength → Σ(strength²)/Σ(strength) = (0.36+0.64)/1.4 = 0.7143
         result = gen.consolidate_signals(sigs, strategy_hit_rates={"s1": 1.0, "s2": 1.0})
         assert result is not None
         assert result.direction == Direction.LONG
-        assert result.strength == pytest.approx(0.7)
+        assert result.strength == pytest.approx(0.7143, abs=1e-3)
 
-        # Without hit_rates, default 0.5 scaling: (0.6*0.5 + 0.8*0.5) / 2 = 0.35
+        # Constant hit_rate scaling cancels in the ratio (numerator & denominator
+        # both scale by hit_rate), so default 0.5 == hit_rate=1.0 here.
         result_default = gen.consolidate_signals(sigs)
-        assert result_default.strength == pytest.approx(0.35)
+        assert result_default.strength == pytest.approx(0.7143, abs=1e-3)
+
+    def test_consolidate_unanimous_strength_one(self):
+        """ISS-022 regression: two unanimous strength=1.0 signals must NOT be
+        halved to 0.5 (the old total_weight/n formula did). Weighted mean → 1.0."""
+        gen = SignalGenerator()
+        sigs = [
+            Signal("BTC/USDT", Direction.LONG, 1.0, 50000, "s1"),
+            Signal("BTC/USDT", Direction.LONG, 1.0, 50000, "s2"),
+        ]
+        result = gen.consolidate_signals(sigs, strategy_hit_rates={"s1": 0.5, "s2": 0.5})
+        assert result is not None
+        assert result.strength == pytest.approx(1.0)
 
     def test_consolidate_conflicting(self):
         gen = SignalGenerator()
@@ -66,13 +80,13 @@ class TestSignalGenerator:
             Signal("BTC/USDT", Direction.SHORT, 0.8, 49000, "s2"),
         ]
 
-        # With hit_rates=1.0: strength = (0.4+0.8)/2 = 0.6
+        # ISS-022 weighted mean: Σ(strength²)/Σ(strength) = (0.16+0.64)/1.2 = 0.6667
         result = gen.consolidate_signals(sigs, strategy_hit_rates={"s1": 1.0, "s2": 1.0})
 
         assert result is not None
         assert result.direction == Direction.SHORT
         assert result.price == 49000
-        assert result.strength == pytest.approx(0.6)
+        assert result.strength == pytest.approx(0.6667, abs=1e-3)
         assert set(result.strategy_id.split(",")) == {"s1", "s2"}
 
     def test_consolidate_strategy_id_is_deterministic_sorted(self):
