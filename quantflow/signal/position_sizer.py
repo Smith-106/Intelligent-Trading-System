@@ -107,6 +107,7 @@ class PositionSizer:
         win_rate: float = 0.5,
         win_loss_ratio: float = 2.0,
         strategy_win_rates: dict[str, float] | None = None,
+        allocation: float = 1.0,
     ) -> float:
         """Return order notional value (quote currency).
 
@@ -114,6 +115,14 @@ class PositionSizer:
         When vol-targeting is enabled, additionally clamps by the
         vol-target notional (min of half-Kelly, vol-target, single-name cap).
         Deducts existing position and estimated fees.
+
+        ``allocation`` is the strategy's portfolio weight (summed across
+        compound strategy_id constituents). It is applied BEFORE the cap and
+        deduction so the cap always clamps the FINAL notional — a compound
+        signal whose constituents sum > 1 cannot inflate the order past
+        max_position_pct (ISS-038). The prior call site multiplied by
+        allocation AFTER size() returned, re-inflating an already-capped
+        target.
         """
         total_value = portfolio.total_value
         if total_value <= 0:
@@ -140,9 +149,12 @@ class PositionSizer:
                 return 0.0
             base = total_value * self._kelly_fraction * raw_kelly
 
-        # Scale by signal strength [0, 1]
+        # Scale by signal strength [0, 1] and strategy allocation weight.
+        # Allocation is applied here (before the cap + deduction) so the cap
+        # clamps the final notional even when a compound strategy_id sums > 1.
         strength = max(0.0, min(signal.strength, 1.0))
-        target = base * strength
+        allocation = max(0.0, allocation)
+        target = base * strength * allocation
 
         # Vol-target cap (opt-in): min(half-Kelly, vol-target, single-name cap).
         # When OFF or insufficient history, this is a no-op (None).

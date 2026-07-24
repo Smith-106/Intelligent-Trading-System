@@ -48,12 +48,43 @@ class TestPositionSizer:
         assert size > 0
 
     def test_existing_position_deduction(self):
+        # ISS-038: same-direction existing position is deducted from the cap
+        # so the incremental add does not push gross past max_position_pct.
+        # Pin the exact deduction, not just >= 0 (the prior weak assertion
+        # would pass even if the deduction were silently removed).
         sizer = PositionSizer(kelly_fraction=0.5, max_position_pct=0.20)
+        # 0.5 BTC @ 50000 = 25000 notional existing long. total_value=100000.
         pos = Position("BTC/USDT", 0.5, 50000, 50000)
         pf = Portfolio(cash=50000, positions={"BTC/USDT": pos})
         sig = Signal("BTC/USDT", Direction.LONG, 0.5, 50000)
         size = sizer.size(sig, pf, 0.55, 2.0)
-        assert size >= 0
+        # The cap is 20% * 100000 = 20000. Existing long is 25000, which is
+        # already above the cap → the deduction clamps the incremental add
+        # to max(0, 20000 - 25000) = 0, so no new order is sized.
+        assert size == 0.0
+
+    def test_allocation_greater_than_one_cannot_inflate_past_cap(self):
+        # ISS-038: a compound strategy_id can sum constituents to allocation
+        # > 1. Previously the * allocation multiplier ran AFTER size() returned
+        # (past the cap), re-inflating the order past max_position_pct. Now
+        # allocation is applied INSIDE size() before the cap, so the cap
+        # always clamps the final notional.
+        sizer = PositionSizer(kelly_fraction=0.5, max_position_pct=0.20)
+        sig = Signal("BTC/USDT", Direction.LONG, 1.0, 50000)
+        pf = Portfolio(cash=100000)
+        # Allocation 3.0 (compound summing to 3) would 3x the raw Kelly — but
+        # the 20% cap (20000) must still bind.
+        size = sizer.size(sig, pf, win_rate=0.99, win_loss_ratio=10.0, allocation=3.0)
+        assert size <= 20000  # cap = 20% of 100k
+        assert size > 0
+
+    def test_allocation_below_one_scales_down_and_still_capped(self):
+        sizer = PositionSizer(kelly_fraction=0.5, max_position_pct=0.20)
+        sig = Signal("BTC/USDT", Direction.LONG, 1.0, 50000)
+        pf = Portfolio(cash=100000)
+        full = sizer.size(sig, pf, win_rate=0.55, win_loss_ratio=2.0, allocation=1.0)
+        half = sizer.size(sig, pf, win_rate=0.55, win_loss_ratio=2.0, allocation=0.5)
+        assert 0 < half < full
 
 
 class TestVolTargeting:

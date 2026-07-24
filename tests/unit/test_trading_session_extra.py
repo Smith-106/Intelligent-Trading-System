@@ -338,6 +338,10 @@ class TestTradingSessionExtra:
 
         session.execution.submit_order = fake_submit_order
 
+        # ISS-038: allocation is now passed INTO size() (not multiplied
+        # externally), so quantity = size / price. The mock ignores allocation
+        # (allocation semantics are pinned in test_position_sizer.py); this
+        # test focuses on _process_signal's submit + quantity conversion.
         size_iter = iter([0.0, 20.0, 15.0])
         session._position_sizer.size = lambda signal, portfolio, **kw: next(size_iter)
 
@@ -352,7 +356,7 @@ class TestTradingSessionExtra:
         )
 
         assert submitted == [
-            ("long", "buy", 0.1),
+            ("long", "buy", 0.2),
             ("short", "sell", 0.3),
         ]
 

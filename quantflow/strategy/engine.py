@@ -390,13 +390,17 @@ class TradingSession:
         # Observability: track signal via the sink (ISS-019).
         self._sink.record_signal(signal.strategy_id, str(signal.direction.value))
 
-        # Position sizing (uses signal strength + per-strategy win rate)
+        # Position sizing (uses signal strength + per-strategy win rate).
+        # ISS-038: allocation is passed INTO size() so the max_position_pct
+        # cap clamps the final notional even when a compound strategy_id sums
+        # to > 1 — the prior * allocation here re-inflated an already-capped
+        # target past the cap.
         allocation = self._portfolio.get_strategy_allocation(signal.strategy_id)
-        size = (
-            self._position_sizer.size(
-                signal, portfolio, strategy_win_rates=self._strategy_win_rates
-            )
-            * allocation
+        size = self._position_sizer.size(
+            signal,
+            portfolio,
+            strategy_win_rates=self._strategy_win_rates,
+            allocation=allocation,
         )
 
         if size <= 0:
