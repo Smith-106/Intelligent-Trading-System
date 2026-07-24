@@ -194,3 +194,21 @@ Batch F 发现 feature_store SQL 已参数化并 pivot 到 JSONL——happy outc
 - **Routed to**: note (—)
 
 </spec-entry>
+
+<spec-entry category="technique" keywords="grep-cache,tool-lag,edit-verification,python-open" date="2026-07-24" id="INS-ca90827c" source="odyssey-debug">
+
+### Grep 工具在 Edit 后返回陈旧缓存——用 python open()/Read 交叉验证
+
+ISS-20260724-044 修复期间（execution/engine.py 移除 ORDER_LATENCY import + 4 call sites 改 self._sink），Edit 工具调用全部报告成功，但随后 `grep` 命令仍返回**旧内容**（显示 line 25 还有 `from quantflow.monitoring.metrics import ORDER_LATENCY`、line 152/196 仍是 `ORDERS_TOTAL.labels(...)`）——一度误判 Edit 未持久化、文件被回退。用 `python -c "open(file).read()"` 或 Read 工具直接读磁盘，确认实际状态正确（改动全在）。
+
+**Why:** Grep 工具基于 ripgrep 索引，Edit 写入磁盘后索引未即时刷新（Grep-after-Edit cache lag）。这不是代码问题、不是文件回退——是工具索引滞后。本会话遇到 2 次（execution/engine.py 中途 + risk_engine.py generalize 扫描），各浪费一次排查。
+
+**How to apply:** 当一次 Grep 结果与刚应用的 Edit 矛盾时，**不要立即重做 Edit 或 panic**。先用 `python -c "f=open(p,encoding='utf-8').read(); [print(i,l) for i,l in enumerate(f.splitlines(),1) if '<pattern>' in l]"` 或 Read 工具直接读磁盘交叉验证。磁盘读对工具索引缓存免疫。只在 python-read 也确认旧内容时，才认为 Edit 真的失败/被回退。
+
+- **Phase**: ISS-20260724-044 (l6-sibling-sinks)
+- **Lens**: tooling
+- **Confidence**: high
+- **Evidence**: ['quantflow/execution/engine.py:17,45,159,272', 'b2a4cf8']
+- **Routed to**: note (—)
+
+</spec-entry>
