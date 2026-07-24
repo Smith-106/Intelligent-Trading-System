@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
-from collections import deque
 from collections.abc import Sequence
 from time import perf_counter
 from typing import Any
@@ -44,6 +43,40 @@ _ATTEMPTED_METRICS_PORTS: set[int] = set()
 def _ensure_metrics_server_started(port: int) -> None:
     """Deprecated no-op — metrics start moved to MonitoringSink.start (ISS-019)."""
     return
+
+
+_WEEK_MS = 7 * 24 * 3600 * 1000
+
+
+def _weekly_base_equity(
+    history: list[tuple[int, float]],
+    base_idx: int,
+    now_ms: int,
+) -> tuple[float, int, int]:
+    """Find the equity snapshot anchoring the 7-day weekly-loss window.
+
+    ISS-033: replaces an O(n) per-bar linear scan with an O(1) amortized
+    monotone-forward pointer. ``history`` holds ``(timestamp_ms, equity)``
+    pairs with monotonically non-decreasing timestamps; ``base_idx`` is the
+    pointer carried across bars. Because ``now_ms - WEEK_MS`` is monotone,
+    the first snapshot with ``ts >= week_ago`` only moves forward, so the
+    pointer advances but never retreats (except by one on left-eviction,
+    handled by the caller).
+
+    Returns ``(base_equity, new_base_idx)``-ish triple: the anchor equity
+    (falling back to the newest snapshot during warmup / empty history), the
+    advanced pointer, and the week-ago cutoff (exposed for assertions).
+    """
+    week_ago_ms = now_ms - _WEEK_MS
+    while base_idx < len(history) and history[base_idx][0] < week_ago_ms:
+        base_idx += 1
+    if base_idx < len(history):
+        base_equity = history[base_idx][1]
+    elif history:
+        base_equity = history[-1][1]
+    else:
+        base_equity = 0.0
+    return base_equity, base_idx, week_ago_ms
 
 
 class TradingSession:
@@ -113,7 +146,14 @@ class TradingSession:
         # so it is correct across any timeframe (1h/4h/1d). Without this the
         # weekly_loss_limit in default.yaml is silently unenforced because
         # set_weekly_pnl is never called (ARCH-H1).
-        self._equity_history: deque[tuple[int, float]] = deque(maxlen=100_000)
+        # ISS-033: list (not deque) so timestamps are O(1)-indexable for the
+        # bisect-based weekly-base lookup below. Manual maxlen eviction keeps
+        # memory bounded; the amortized weekly-base pointer advances forward
+        # only (week_ago_ms is monotonic in the bar clock), so each bar pays
+        # O(1) amortized instead of the prior O(n) linear scan.
+        self._equity_history: list[tuple[int, float]] = []
+        self._equity_history_maxlen = 100_000
+        self._weekly_base_idx = 0
 
     async def start(
         self, mode: str = "paper", gateway_config: dict[str, Any] | None = None
@@ -145,6 +185,7 @@ class TradingSession:
         self._position_sizer.reset()
         self._prev_equity = float("nan")
         self._equity_history.clear()
+        self._weekly_base_idx = 0
 
         # Start observability via the injected sink (ISS-019): the sink owns
         # both the metrics-server start (idempotent per port) and the
@@ -219,13 +260,21 @@ class TradingSession:
         # any timeframe. The 7-day cutoff falls back to the oldest snapshot
         # when the session is younger than 7 days — a conservative (less
         # negative) measure during warmup.
+        #
+        # ISS-033: O(n) linear scan → O(1) amortized via a monotone forward
+        # pointer. bar.timestamp is monotonically non-decreasing, so
+        # week_ago_ms is too, and the first snapshot with ts >= week_ago_ms
+        # only moves forward across bars. Eviction (pop(0)) shifts indices by
+        # one, so the pointer is decremented to stay aligned to the same
+        # snapshot; clamp at 0 to stay correct during warmup/empty history.
         self._equity_history.append((bar.timestamp, curr_equity))
-        week_ago_ms = bar.timestamp - 7 * 24 * 3600 * 1000
-        base_equity = curr_equity
-        for ts, eq in self._equity_history:
-            if ts >= week_ago_ms:
-                base_equity = eq
-                break
+        if len(self._equity_history) > self._equity_history_maxlen:
+            self._equity_history.pop(0)
+            if self._weekly_base_idx > 0:
+                self._weekly_base_idx -= 1
+        base_equity, self._weekly_base_idx, _ = _weekly_base_equity(
+            self._equity_history, self._weekly_base_idx, bar.timestamp
+        )
         if base_equity > 0:
             weekly_pnl_pct = (curr_equity - base_equity) / base_equity
             self._risk_engine.set_weekly_pnl(weekly_pnl_pct)
