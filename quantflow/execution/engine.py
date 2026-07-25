@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from time import perf_counter
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from quantflow.common.event_bus import Event, EventBus
 from quantflow.common.models import (
@@ -23,6 +23,9 @@ from quantflow.execution.okx_gateway import OKXGateway
 from quantflow.execution.order_manager import OrderManager
 from quantflow.execution.paper_gateway import PaperGateway
 from quantflow.execution.position_manager import PositionManager
+
+if TYPE_CHECKING:
+    from quantflow.signal.portfolio import PortfolioManager
 
 EVENT_ORDER = "order"
 EVENT_FILL = "fill"
@@ -43,12 +46,19 @@ class ExecutionEngine:
         timeout: float = 30.0,
         kill_switch: KillSwitch | None = None,
         monitoring_sink: MonitoringSink | None = None,
+        portfolio: PortfolioManager | None = None,
     ) -> None:
         self._gateway = gateway
         self._event_bus = event_bus
         self._timeout = timeout
         self._order_mgr = OrderManager(timeout=int(timeout))
-        self._position_mgr = PositionManager()
+        # L5 PositionManager is a thin delegate over L4 (ISS-20260720-004 Wave 2).
+        # When TradingSession constructs the engine before PortfolioManager
+        # exists, pass None here and call set_portfolio() after; the
+        # PositionManager creates a private default L4 so submit() works in
+        # standalone/test usage too.
+        self._position_mgr = PositionManager(portfolio=portfolio)
+        self._portfolio: PortfolioManager | None = portfolio
         # L5→L6 seam (ISS-20260724-044): ExecutionEngine depends on the
         # MonitoringSink Protocol only; the concrete sink is injected by
         # TradingSession (shared with KillSwitch/RiskEngine). Default Null =
@@ -69,6 +79,16 @@ class ExecutionEngine:
         (odyssey-improve SEC-H4)
         """
         self._kill_switch = kill_switch
+
+    def set_portfolio(self, portfolio: PortfolioManager) -> None:
+        """Inject the shared L4 portfolio after construction (ISS-20260720-004 Wave 2).
+
+        TradingSession constructs ExecutionEngine before PortfolioManager; this
+        rebinds PositionManager to the shared L4 so submit()'s fill updates land
+        on the same book _process_signal reads. Idempotent.
+        """
+        self._portfolio = portfolio
+        self._position_mgr.bind_portfolio(portfolio)
 
     async def start(
         self, mode: str = "paper", gateway_config: dict[str, Any] | None = None
@@ -230,8 +250,15 @@ class ExecutionEngine:
             qty_signed = (
                 order.filled_quantity if order.side == OrderSide.BUY else -order.filled_quantity
             )
+            # ISS-20260720-004 Wave 2: L4 fill update is owned by engine.submit
+            # (single source). PositionManager delegates to L4, fee included so
+            # cash is debited once. _process_signal no longer re-updates L4.
             self._position_mgr.update_position(
-                order.symbol, qty_signed, order.filled_price, strategy_id=order.strategy_id
+                order.symbol,
+                qty_signed,
+                order.filled_price,
+                fee=order.fee,
+                strategy_id=order.strategy_id,
             )
 
             self._sink.record_order_filled(
@@ -350,5 +377,8 @@ class ExecutionEngine:
             )
             return
         for pos in positions:
-            self._position_mgr._positions[pos.symbol] = pos
+            # Delegate to L4 (ISS-20260720-004 Wave 2): exchange is the source
+            # of truth on live sync, so overwrite the local book rather than
+            # the prior private-attribute write that left L4 stale.
+            self._position_mgr.set_position(pos.symbol, pos)
         logger.info("Synced %d positions from exchange", len(positions))

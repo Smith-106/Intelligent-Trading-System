@@ -81,7 +81,10 @@ class TestPaperGatewayExtra:
 
         assert positions[0].current_price == 130.0
         assert positions[0].unrealized_pnl > 0
-        assert gateway._equity() > 0
+        # ISS-20260720-004 Wave 2: PaperGateway no longer owns a cash ledger, so
+        # there is no _equity() to call — the local position view's market value
+        # is the gateway-side observable (cash/equity live on L4 PortfolioManager).
+        assert positions[0].market_value > 0
 
     def test_update_position_covers_zero_open_close_and_average_paths(self) -> None:
         gateway = PaperGateway()

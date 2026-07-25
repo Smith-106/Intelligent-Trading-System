@@ -88,6 +88,17 @@ class PortfolioManager:
         pos = self._positions.get(symbol)
         return pos is not None and abs(pos.quantity) > POSITION_EPSILON
 
+    def set_position(self, symbol: str, position: Position) -> None:
+        """Overwrite a position from an exchange sync (ISS-20260720-004 Wave 2).
+
+        Live sync_positions semantics: the exchange is the source of truth, so
+        the local book is overwritten rather than accumulated. This is distinct
+        from update_position (which accumulates fills). Used by
+        ExecutionEngine.sync_positions via PositionManager.
+        """
+        self._positions[symbol] = position
+        self._refresh_drawdown()
+
     def update_position(
         self,
         symbol: str,

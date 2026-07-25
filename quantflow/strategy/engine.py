@@ -128,6 +128,10 @@ class TradingSession:
             vol_window=config.risk.vol_window,
         )
         self._portfolio = PortfolioManager(initial_capital=100000.0)
+        # ISS-20260720-004 Wave 2: ExecutionEngine was constructed before
+        # PortfolioManager existed; rebind its PositionManager to the shared L4
+        # so submit()'s fill updates land on the same book the signal path reads.
+        self._execution.set_portfolio(self._portfolio)
         self._signal_gen = SignalGenerator()
         self._regime_detector = MarketRegimeDetector()
         self._strategy_win_rates = strategy_win_rates or {}
@@ -423,16 +427,10 @@ class TradingSession:
             )
         )
         if order.status == OrderStatus.FILLED:
-            filled_quantity = order.filled_quantity or quantity
-            fill_price = order.filled_price or order.price or signal.price
-            signed_quantity = filled_quantity if order.side == OrderSide.BUY else -filled_quantity
-            self._portfolio.update_position(
-                order.symbol,
-                signed_quantity,
-                fill_price,
-                fee=order.fee,
-                strategy_id=order.strategy_id,
-            )
+            # ISS-20260720-004 Wave 2: L4 fill update is owned by
+            # ExecutionEngine.submit (single source, fee included). _process_signal
+            # no longer re-updates L4 — that was the double-count path once L5
+            # delegated to L4. Just refresh observability from the now-current L4.
             self._update_portfolio_observability()
         self._record_signal_latency(signal.strategy_id, started_at)
 
@@ -464,19 +462,9 @@ class TradingSession:
             )
         )
         if order.status == OrderStatus.FILLED:
-            filled_quantity = order.filled_quantity or quantity
-            fill_price = order.filled_price or order.price or signal.price
-            # Reduce-only: opposite sign of the held position.
-            signed_quantity = -pos.quantity * (
-                filled_quantity / max(abs(pos.quantity), POSITION_EPSILON)
-            )
-            self._portfolio.update_position(
-                order.symbol,
-                signed_quantity,
-                fill_price,
-                fee=order.fee,
-                strategy_id=order.strategy_id,
-            )
+            # ISS-20260720-004 Wave 2: L4 fill update is owned by
+            # ExecutionEngine.submit (reduce-only close included). Refresh
+            # observability from the now-current L4 book.
             self._update_portfolio_observability()
 
     def _update_portfolio_observability(self) -> None:

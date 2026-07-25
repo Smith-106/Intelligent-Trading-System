@@ -29,23 +29,23 @@ class PaperGateway(GatewayBase):
         self._maker_fee = max(0.0, float(cfg.get("maker_fee", 0.0008)))
         self._taker_fee = max(0.0, float(cfg.get("taker_fee", 0.001)))
         self._initial_capital = float(cfg.get("initial_capital", 1_000_000.0))
-        self._cash = self._initial_capital
+        # ISS-20260720-004 Wave 2: PaperGateway no longer keeps a cash ledger.
+        # _positions remains as the gateway's local exchange view (query_positions
+        # / reduceOnly caps); cash is owned solely by L4 PortfolioManager.
         self._positions: dict[str, Position] = {}
         self._order_counter = 0
         self._prices: dict[str, float] = {}  # symbol → last known price
 
     async def connect(self, config: dict[str, Any] | None = None) -> None:
-        self._cash = self._initial_capital
         self._positions.clear()
         logger.info(
-            "PaperGateway connected: capital=$%.2f, slippage=%.4f, taker_fee=%.4f",
-            self._cash,
+            "PaperGateway connected: slippage=%.4f, taker_fee=%.4f",
             self._slippage,
             self._taker_fee,
         )
 
     async def disconnect(self) -> None:
-        logger.info("PaperGateway disconnected. Final equity: $%.2f", self._equity())
+        logger.info("PaperGateway disconnected. Open positions: %d", len(self._positions))
 
     async def send_order(self, order: Order) -> str:
         """Simulate order fill with slippage and fees."""
@@ -109,22 +109,15 @@ class PaperGateway(GatewayBase):
         notional = fill_price * quantity
         fee = notional * self._taker_fee
 
-        # Update cash
-        # NOTE: PaperGateway maintains its own cash/position book for the gateway
-        # contract (query_positions, _equity for kill-switch). This is a THIRD
-        # source of truth alongside L4 PortfolioManager and L5 PositionManager.
-        # The SELL branch (notional - fee) is numerically equivalent to L4's
-        # (_cash += notional; _cash -= fee), so the fee-credit formula does not
-        # drift in value — but the structural divergence (no reconcile between
-        # the three books) is tracked as ARCH-H2/ARCH-M5 (issue: L4/L5/gateway
-        # position-state reconciliation). PaperGateway is intentionally a pure
-        # fill simulator here; L4 remains authoritative for risk decisions.
-        if side == "buy":
-            self._cash -= notional + fee
-        else:
-            self._cash += notional - fee
+        # ISS-20260720-004 Wave 2: PaperGateway no longer maintains a cash book.
+        # L4 PortfolioManager (the authoritative book) is updated once by
+        # ExecutionEngine.submit (fee included), so fee is not double-counted and
+        # there is no third cash ledger to drift. PaperGateway retains a local
+        # _positions view only for the gateway contract (query_positions /
+        # reduceOnly caps) — mirroring how OKXGateway exposes the exchange's
+        # position view without owning the L4 book.
 
-        # Update position
+        # Update the gateway's local position view (reduceOnly caps + query_positions).
         self._update_position(
             symbol,
             quantity if side == "buy" else -quantity,
@@ -224,10 +217,6 @@ class PaperGateway(GatewayBase):
             unrealized_pnl=(price - avg_price) * new_qty,
             strategy_id=existing.strategy_id or strategy_id,
         )
-
-    def _equity(self) -> float:
-        pos_value = sum(p.quantity * p.current_price for p in self._positions.values())
-        return float(self._cash + pos_value)
 
     @property
     def is_connected(self) -> bool:

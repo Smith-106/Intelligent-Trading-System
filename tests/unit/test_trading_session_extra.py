@@ -373,7 +373,7 @@ class TestTradingSessionExtra:
         session._sink = sink
 
         async def fake_submit_order(request: OrderRequest) -> Order:
-            return Order(
+            order = Order(
                 order_id="filled-1",
                 symbol=request.symbol,
                 side=request.side,
@@ -386,6 +386,19 @@ class TestTradingSessionExtra:
                 fee=2.5,
                 strategy_id=request.strategy_id,
             )
+            # ISS-20260720-004 Wave 2: L4 fill update is owned by
+            # ExecutionEngine.submit. This mock replaces submit_order wholesale,
+            # so it must mirror that single L4 update (fee included) — otherwise
+            # the signal path's observability read sees a stale book.
+            signed = request.quantity if request.side == OrderSide.BUY else -request.quantity
+            session.portfolio.update_position(
+                order.symbol,
+                signed,
+                110.0,
+                fee=order.fee,
+                strategy_id=order.strategy_id,
+            )
+            return order
 
         session.execution.submit_order = fake_submit_order
 

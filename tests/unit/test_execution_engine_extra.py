@@ -292,3 +292,82 @@ class TestExecutionEngineExtra:
         assert position is not None
         assert position.current_price == 123.0
         assert gateway.price_updates == [("BTC/USDT", 123.0)]
+
+    @pytest.mark.asyncio
+    async def test_paper_gateway_no_longer_owns_cash_ledger(self) -> None:
+        """ISS-20260720-004 Wave 2: PaperGateway retired its third cash ledger.
+        _cash is gone (L4 is the single cash authority); _positions remains as
+        the gateway's local exchange view for query_positions/reduceOnly."""
+        from quantflow.execution.paper_gateway import PaperGateway
+
+        pg = PaperGateway({"taker_fee": 0.001, "slippage": 0.0})
+        await pg.connect()
+        # The third cash ledger is gone.
+        assert not hasattr(pg, "_cash")
+        # The local position view remains (gateway contract).
+        assert hasattr(pg, "_positions")
+        order = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=1.0,
+            price=50000.0,
+            strategy_id="paper",
+        )
+        await pg.send_order(order)
+        # Fee is computed and stamped on the order (L4 debits it once on submit).
+        assert order.fee == pytest.approx(50.0)
+        assert order.filled_quantity == 1.0
+        await pg.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_paper_fill_debits_l4_cash_once_for_fee(self) -> None:
+        """ISS-20260720-004 Wave 2: a paper fill routed through ExecutionEngine
+        debits L4 cash exactly once for fee + notional. Previously PaperGateway
+        and L4 both debited cash (double count); now PaperGateway holds no cash
+        and engine.submit is the single L4 update point."""
+        from quantflow.execution.paper_gateway import PaperGateway
+        from quantflow.signal.portfolio import PortfolioManager
+
+        portfolio = PortfolioManager(initial_capital=100000.0)
+        engine = ExecutionEngine(
+            gateway=PaperGateway({"taker_fee": 0.001, "slippage": 0.0}),
+            portfolio=portfolio,
+        )
+        await engine.start()
+        order = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=1.0,
+            price=50000.0,
+            strategy_id="paper",
+        )
+        await engine.submit(order)
+        # L4 cash: 100000 - 1.0*50000 (notional) - 50 (fee) = 49950 — debited once.
+        assert portfolio.cash == pytest.approx(49950.0)
+        # Position landed on the shared L4 (PositionManager delegates to it).
+        pos = portfolio.get_position("BTC/USDT")
+        assert pos is not None
+        assert pos.quantity == pytest.approx(1.0)
+        await engine.stop()
+
+    @pytest.mark.asyncio
+    async def test_position_manager_delegates_to_l4(self) -> None:
+        """ISS-20260720-004 Wave 2: PositionManager is a thin delegate — reads
+        and writes land on the injected L4 PortfolioManager, not a second book."""
+        from quantflow.signal.portfolio import PortfolioManager
+
+        portfolio = PortfolioManager(initial_capital=100000.0)
+        engine = ExecutionEngine(portfolio=portfolio)
+        engine.position_manager.update_position("BTC/USDT", 1.0, 50000.0)
+        # Read via PositionManager → returns the L4 position (same instance).
+        assert engine.position_manager.get_position("BTC/USDT") is portfolio.get_position(
+            "BTC/USDT"
+        )
+        assert engine.position_manager.position_count == 1
+        assert engine.position_manager.has_position("BTC/USDT") is True
+        # The L4 book itself reflects the update (single source of truth).
+        assert portfolio.get_position("BTC/USDT").quantity == pytest.approx(1.0)
