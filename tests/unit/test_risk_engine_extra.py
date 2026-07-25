@@ -75,6 +75,36 @@ class TestRiskEngineExtra:
 
     def test_daily_loss_limit_failure_returns_reason_and_details(self) -> None:
         engine = RiskEngine(RiskConfig(daily_loss_limit=-0.03, position_limit_pct=1.0))
+        # ISS-20260720-004 Wave 3: daily_loss = (total - baseline)/baseline.
+        # total_value = 47000 + 48000 = 95000; baseline=100000 → pnl_pct = -0.05.
+        portfolio = Portfolio(
+            cash=47000.0,
+            positions={
+                "BTC/USDT": Position(
+                    "BTC/USDT",
+                    quantity=1.0,
+                    entry_price=50000.0,
+                    current_price=48000.0,
+                    unrealized_pnl=-3000.0,
+                )
+            },
+            daily_baseline=100000.0,
+        )
+
+        result = engine.check(_signal(), portfolio)
+
+        assert result.passed is False
+        assert result.reason == "daily_loss_limit"
+        assert result.details["limit"] == -0.03
+        assert result.details["pnl_pct"] == -0.05
+
+    def test_daily_loss_passes_when_no_baseline(self) -> None:
+        """ISS-20260720-004 Wave 3: warmup guard — baseline<=0 (not yet anchored)
+        skips the daily_loss gate so the session's first signals of the day are
+        not blocked on a baseline that does not exist yet."""
+        engine = RiskEngine(RiskConfig(daily_loss_limit=-0.03, position_limit_pct=1.0))
+        # No daily_baseline → defaults to 0.0 → guard returns passed=True even
+        # though the position is deeply underwater.
         portfolio = Portfolio(
             cash=47000.0,
             positions={
@@ -90,6 +120,14 @@ class TestRiskEngineExtra:
 
         result = engine.check(_signal(), portfolio)
 
-        assert result.passed is False
-        assert result.reason == "daily_loss_limit"
-        assert result.details["limit"] == -0.03
+        assert result.passed is True
+
+    def test_daily_loss_passes_when_within_baseline(self) -> None:
+        """ISS-20260720-004 Wave 3: total above baseline does not block."""
+        engine = RiskEngine(RiskConfig(daily_loss_limit=-0.03, position_limit_pct=1.0))
+        # total_value = 105000; baseline=100000 → pnl_pct = +0.05 (gain, no block).
+        portfolio = Portfolio(cash=105000.0, daily_baseline=100000.0)
+
+        result = engine.check(_signal(), portfolio)
+
+        assert result.passed is True

@@ -158,6 +158,13 @@ class TradingSession:
         self._equity_history: list[tuple[int, float]] = []
         self._equity_history_maxlen = 100_000
         self._weekly_base_idx = 0
+        # ISS-20260720-004 Wave 3: daily-loss baseline anchor. Anchored to the
+        # first bar's equity of each calendar day (UTC day index); NaN/None
+        # means "not yet anchored today" so _check_daily_loss skips the gate
+        # (warmup). Mirrors the _equity_history pattern but keyed on calendar
+        # day rather than a 7-day window.
+        self._daily_baseline: float = float("nan")
+        self._daily_baseline_day: int | None = None
 
     async def start(
         self, mode: str = "paper", gateway_config: dict[str, Any] | None = None
@@ -190,6 +197,11 @@ class TradingSession:
         self._prev_equity = float("nan")
         self._equity_history.clear()
         self._weekly_base_idx = 0
+        # ISS-20260720-004 Wave 3: reset daily baseline so a restarted session
+        # does not gate on the prior run's day anchor.
+        self._daily_baseline = float("nan")
+        self._daily_baseline_day = None
+        self._portfolio.set_daily_baseline(float("nan"))
 
         # Start observability via the injected sink (ISS-019): the sink owns
         # both the metrics-server start (idempotent per port) and the
@@ -251,6 +263,17 @@ class TradingSession:
         # the previous bar's close equity, captured before this bar's price
         # mark — no look-ahead. Skipped on the first bar (NaN sentinel).
         curr_equity = self._portfolio.total_value
+        # ISS-20260720-004 Wave 3: daily-loss baseline anchor. On the first bar
+        # of a calendar day (UTC day index from bar.timestamp in ms), anchor the
+        # day's baseline to that bar's equity. _check_daily_loss reads
+        # portfolio.daily_baseline (set here via the L4 method so the Portfolio
+        # snapshot carries it to the pure-function RiskEngine). NaN baseline
+        # means "not anchored" → warmup skip in the risk gate.
+        current_day = bar.timestamp // 86_400_000
+        if self._daily_baseline_day is None or current_day != self._daily_baseline_day:
+            self._daily_baseline = curr_equity
+            self._daily_baseline_day = current_day
+            self._portfolio.set_daily_baseline(curr_equity)
         prev_equity = self._prev_equity
         if not math.isnan(prev_equity) and prev_equity > 0:
             bar_ret = (curr_equity - prev_equity) / prev_equity

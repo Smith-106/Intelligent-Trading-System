@@ -192,9 +192,19 @@ class RiskEngine:
         return RiskDecision(passed=True)
 
     def _check_daily_loss(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
-        total_pnl = sum(p.unrealized_pnl for p in portfolio.positions.values())
+        # ISS-20260720-004 Wave 3: daily_loss now measures total equity vs the
+        # day's opening baseline (anchored by TradingSession.on_bar at the first
+        # bar of each calendar day). This includes realized PnL (cash reflects
+        # closed-leg attribution from Wave 1) and resets on day rollover — the
+        # prior sum(unrealized_pnl)/total gate omitted realized PnL and never
+        # reset, so a flip that realized a loss could pass while unrealized was
+        # flat. baseline <= 0 means "not yet anchored" (warmup / first bar) —
+        # skip to avoid blocking on the session's first signal of the day.
+        baseline = portfolio.daily_baseline
         total = portfolio.total_value
-        pnl_pct = total_pnl / total if total > 0 else 0
+        if baseline <= 0:
+            return RiskDecision(passed=True)
+        pnl_pct = (total - baseline) / baseline
         if pnl_pct < self._config.daily_loss_limit:
             return RiskDecision(
                 passed=False,

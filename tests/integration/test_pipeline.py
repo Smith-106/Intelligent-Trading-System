@@ -110,6 +110,10 @@ class TestFullPipeline:
         # Create a position with large unrealized loss
         portfolio.update_position("BTC/USDT", 1.0, 50000.0)
         portfolio.update_market_prices({"BTC/USDT": 46000.0})  # -4000 unrealized
+        # ISS-20260720-004 Wave 3: daily_loss measures total vs the day's opening
+        # baseline (anchored by TradingSession.on_bar). Anchor it here so the
+        # gate is live; total_value=96000 vs baseline=100000 → pnl_pct=-0.04.
+        portfolio.set_daily_baseline(100000.0)
 
         sig = Signal("BTC/USDT", Direction.LONG, 0.7, 46000, "test")
         decision = risk.check(sig, portfolio.portfolio)

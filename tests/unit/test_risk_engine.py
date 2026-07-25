@@ -31,12 +31,15 @@ class TestRiskEngine:
         assert result.passed
 
     def test_daily_loss_limit(self):
-        engine = RiskEngine(RiskConfig(daily_loss_limit=-0.03))
+        engine = RiskEngine(RiskConfig(daily_loss_limit=-0.03, position_limit_pct=1.0))
         pos = Position("BTC/USDT", 1.0, 50000, 48000, unrealized_pnl=-3000)
-        pf = Portfolio(cash=47000, positions={"BTC/USDT": pos})
+        # ISS-20260720-004 Wave 3: daily_loss measures total_value vs daily_baseline.
+        # total_value = 47000 + 48000 = 95000; baseline=100000 → pnl_pct = -0.05.
+        pf = Portfolio(cash=47000, positions={"BTC/USDT": pos}, daily_baseline=100000)
         sig = Signal("BTC/USDT", Direction.LONG, 0.8, 48000)
         result = engine.check(sig, pf)
-        assert isinstance(result.passed, bool)
+        assert not result.passed
+        assert result.reason == "daily_loss_limit"
 
     def test_max_drawdown(self):
         engine = RiskEngine(RiskConfig(max_drawdown=-0.10))
