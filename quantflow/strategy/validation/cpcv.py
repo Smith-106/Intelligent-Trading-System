@@ -315,11 +315,7 @@ def cpcv_backtest(
     # PBO: fraction of FINITE paths where IS > OOS (overfitting indicator).
     # If no path produced finite sharpes, PBO is undefined → fail-closed 1.0
     # (forces NO-GO) rather than 0.0 (would pass a strategy that never ran).
-    pbo = (
-        float(np.mean(is_raw[finite] > oos_raw[finite]))
-        if n_valid_paths > 0
-        else 1.0
-    )
+    pbo = float(np.mean(is_raw[finite] > oos_raw[finite])) if n_valid_paths > 0 else 1.0
 
     # OOS efficiency (finite paths only)
     if n_valid_paths > 0:
