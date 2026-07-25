@@ -154,20 +154,29 @@ class RiskEngine:
         if total_value <= 0:
             return RiskDecision(passed=True)
 
-        # Block if exposure attributed to any constituent strategy exceeds that
-        # strategy's budget. A position is attributed to a constituent when its
-        # strategy_id matches or is itself a compound key containing it.
+        # Single-pass exposure attribution: each position's constituents are
+        # computed once (strategy_id_constituents is a string split), then
+        # exposure is accumulated per constituent. The prior nested loop
+        # recomputed every position's constituents for each budgeted key —
+        # O(budgeted × positions × split) per signal; this is O(positions ×
+        # split + budgeted). Positions whose value can't be attributed to any
+        # budgeted key are skipped.
+        budgeted_set = set(budgeted)
+        exposure_by_key: dict[str, float] = {key: 0.0 for key in budgeted}
+        for pos in portfolio.positions.values():
+            if pos.current_price <= 0:
+                continue
+            pos_constituents = strategy_id_constituents(pos.strategy_id) or [pos.strategy_id]
+            if not any(c in budgeted_set for c in pos_constituents):
+                continue
+            pos_value = abs(pos.quantity) * pos.current_price
+            for c in pos_constituents:
+                if c in budgeted_set:
+                    exposure_by_key[c] += pos_value
+
         for key in budgeted:
             budget_pct = self._strategy_risk_budgets[key]
-            strategy_exposure = 0.0
-            for pos in portfolio.positions.values():
-                pos_constituents = strategy_id_constituents(pos.strategy_id) or [pos.strategy_id]
-                if key in pos_constituents:
-                    pos_value = (
-                        abs(pos.quantity) * pos.current_price if pos.current_price > 0 else 0
-                    )
-                    strategy_exposure += pos_value
-
+            strategy_exposure = exposure_by_key[key]
             budget_limit = total_value * budget_pct
             if strategy_exposure >= budget_limit:
                 return RiskDecision(
