@@ -7,8 +7,8 @@ import logging
 import math
 from typing import Any
 
-from quantflow.common.models import Order, OrderSide, Position
-from quantflow.common.validators import validate_quantity, validate_symbol
+from quantflow.common.models import Order, OrderSide, OrderStatus, Position
+from quantflow.common.validators import POSITION_EPSILON, validate_quantity, validate_symbol
 from quantflow.execution.gateway_base import GatewayBase, GatewayError
 
 logger = logging.getLogger(__name__)
@@ -155,6 +155,26 @@ class OKXGateway(GatewayBase):
                 timeout=CALL_TIMEOUT,
             )
             order_id = str(result.get("id", ""))
+            # ISS-20260720-004 Wave 4: cumulative-fill contract. ccxt's unified
+            # ``filled``/``average``/``fee.cost`` are cumulative (filled is the
+            # total filled so far, not a per-call delta). Stamp them on the order
+            # so ExecutionEngine.submit applies the incremental delta to L4
+            # (filled - applied_filled_qty) without double-counting. OKX REST
+            # create_order returns the final state for market orders; limit
+            # orders may return 0/partial. Live partial-fill *auto*-sensing via
+            # ws (watch_orders) is NOT implemented — this only captures what the
+            # create_order response carries.
+            filled_qty = float(result.get("filled", 0.0) or 0.0)
+            avg_price = float(result.get("average", 0.0) or 0.0)
+            fee_cost = float((result.get("fee", {}) or {}).get("cost", 0.0) or 0.0)
+            if filled_qty > 0:
+                order.filled_quantity = filled_qty
+                order.filled_price = avg_price
+                order.fee = fee_cost
+                if filled_qty >= order.quantity - POSITION_EPSILON:
+                    order.status = OrderStatus.FILLED
+                else:
+                    order.status = OrderStatus.PARTIAL
             logger.info(
                 "OKX order placed: oid=%s side=%s %s %.6f",
                 order_id,

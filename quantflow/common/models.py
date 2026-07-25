@@ -134,6 +134,12 @@ class Order:
     fee: float = 0.0
     strategy_id: str = ""
     created_at: float = 0.0
+    # ISS-20260720-004 Wave 4: cumulative-fill contract. ccxt/OKX report
+    # ``filled`` as a cumulative total, not a per-callback delta. To update L4
+    # incrementally without double-counting, OrderManager tracks how much of
+    # the cumulative fill has already been applied to the book here; the next
+    # delta = filled_quantity - applied_filled_qty.
+    applied_filled_qty: float = 0.0
     # Exchange-specific params forwarded to the gateway (e.g.
     # {"reduceOnly": True} — CCXT's canonical camelCase param — for FLAT close
     # orders). Opaque to the engine.

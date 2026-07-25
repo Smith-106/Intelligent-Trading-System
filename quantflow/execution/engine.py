@@ -196,8 +196,12 @@ class ExecutionEngine:
             return order
         order.order_id = exchange_id
 
-        # Gateway may set status directly (FILLED for paper, REJECTED for errors)
-        if order.status not in (OrderStatus.FILLED, OrderStatus.REJECTED):
+        # Gateway may set status directly (FILLED/PARTIAL for paper+OKX market,
+        # REJECTED for errors). ISS-20260720-004 Wave 4: PARTIAL is now a
+        # terminal-enough state to drive an L4 incremental update, so preserve
+        # it (previously only FILLED/REJECTED survived this branch and PARTIAL
+        # was silently downgraded to SUBMITTED, dropping the partial fill).
+        if order.status not in (OrderStatus.FILLED, OrderStatus.PARTIAL, OrderStatus.REJECTED):
             order.status = OrderStatus.SUBMITTED
 
         self._order_mgr.track(
@@ -239,47 +243,60 @@ class ExecutionEngine:
                 )
             )
 
-        # For paper/market orders, gateway fills immediately
-        if order.status == OrderStatus.FILLED:
+        # For paper/market orders, gateway fills immediately; OKX REST returns
+        # final state for market orders. PARTIAL is reachable when a future ws
+        # fill-callback (or an OKX limit that partially fills) reports a
+        # cumulative filled_quantity below the requested qty.
+        if order.status in (OrderStatus.FILLED, OrderStatus.PARTIAL):
             self._order_mgr.update(
                 exchange_id,
-                OrderStatus.FILLED,
+                order.status,
                 filled_quantity=order.filled_quantity,
                 filled_price=order.filled_price,
-            )
-            qty_signed = (
-                order.filled_quantity if order.side == OrderSide.BUY else -order.filled_quantity
-            )
-            # ISS-20260720-004 Wave 2: L4 fill update is owned by engine.submit
-            # (single source). PositionManager delegates to L4, fee included so
-            # cash is debited once. _process_signal no longer re-updates L4.
-            self._position_mgr.update_position(
-                order.symbol,
-                qty_signed,
-                order.filled_price,
                 fee=order.fee,
-                strategy_id=order.strategy_id,
             )
-
-            self._sink.record_order_filled(
-                symbol=order.symbol,
-                side=order.side.value,
-                strategy_id=order.strategy_id,
-            )
-
-            if self._event_bus:
-                self._event_bus.publish(
-                    Event(
-                        type=EVENT_FILL,
-                        data={
-                            "order_id": exchange_id,
-                            "symbol": order.symbol,
-                            "side": order.side.value,
-                            "quantity": order.filled_quantity,
-                            "price": order.filled_price,
-                        },
-                    )
+            # ISS-20260720-004 Wave 4: cumulative-fill contract. ccxt/OKX report
+            # ``filled`` as a cumulative total; apply only the incremental delta
+            # (cumulative - already-applied) to L4 so repeated partial fills do
+            # not double-count. POSITION_EPSILON guards a zero delta (e.g. a
+            # repeated callback with no new fill).
+            delta_filled = order.filled_quantity - order.applied_filled_qty
+            if delta_filled > POSITION_EPSILON:
+                qty_signed = delta_filled if order.side == OrderSide.BUY else -delta_filled
+                # Wave 2: PositionManager delegates to L4; fee is the cumulative
+                # fee reported with this fill. Cash is debited once per delta.
+                self._position_mgr.update_position(
+                    order.symbol,
+                    qty_signed,
+                    order.filled_price,
+                    fee=order.fee,
+                    strategy_id=order.strategy_id,
                 )
+                order.applied_filled_qty = order.filled_quantity
+
+            # FILLED emits the fill event + records the metric; PARTIAL stays
+            # non-terminal (OrderManager keeps it pending) so downstream does
+            # not mistake a partial for a complete fill.
+            if order.status == OrderStatus.FILLED:
+                self._sink.record_order_filled(
+                    symbol=order.symbol,
+                    side=order.side.value,
+                    strategy_id=order.strategy_id,
+                )
+
+                if self._event_bus:
+                    self._event_bus.publish(
+                        Event(
+                            type=EVENT_FILL,
+                            data={
+                                "order_id": exchange_id,
+                                "symbol": order.symbol,
+                                "side": order.side.value,
+                                "quantity": order.filled_quantity,
+                                "price": order.filled_price,
+                            },
+                        )
+                    )
 
         self._record_order_latency(order.symbol, started_at)
         return order

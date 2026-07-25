@@ -92,7 +92,18 @@ class OrderManager:
         filled_price: float = 0.0,
         fee: float = 0.0,
     ) -> None:
-        """Update order status from exchange callback."""
+        """Update order status from an exchange callback.
+
+        Cumulative-fill contract (ISS-20260720-004 Wave 4): ``filled_quantity``
+        is the cumulative total reported by the exchange (ccxt ``order['filled']``
+        for OKX), NOT a per-callback delta. OrderManager records it on the order;
+        ExecutionEngine.submit derives the incremental L4 delta as
+        ``filled_quantity - order.applied_filled_qty`` and updates
+        ``applied_filled_qty`` after applying it, so repeated partial fills do
+        not double-count. OKXGateway has no ws fill-callback, so live partial
+        fills are only sensed from the create_order response — continuous
+        partial-fill tracking needs future ws (watch_orders) integration.
+        """
         order = self._orders.get(order_id)
         if not order:
             logger.warning("Unknown order update: %s", order_id)

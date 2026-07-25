@@ -481,3 +481,123 @@ class TestOrderManagerBoundedRetention:
         assert om.get_order("active-1") is not None
         assert om.get_order("active-1").status == OrderStatus.SUBMITTED
         assert "active-1" in [o.order_id for o in om.get_open_orders()]
+
+
+class _PartialFillGateway(GatewayBase):
+    """Gateway that fills a configured cumulative quantity on send_order.
+
+    Used to exercise the cumulative-fill contract (ISS-20260720-004 Wave 4):
+    the same order instance can be re-submitted with a larger cumulative
+    ``filled_quantity`` to simulate a second fill callback.
+    """
+
+    def __init__(self, filled_quantity: float, filled_price: float, fee: float = 0.0) -> None:
+        self._filled_quantity = filled_quantity
+        self._filled_price = filled_price
+        self._fee = fee
+
+    async def connect(self, config=None) -> None:
+        return None
+
+    async def disconnect(self) -> None:
+        return None
+
+    async def send_order(self, order: Order) -> str:
+        order.filled_quantity = self._filled_quantity
+        order.filled_price = self._filled_price
+        order.fee = self._fee
+        order.status = (
+            OrderStatus.FILLED
+            if self._filled_quantity >= order.quantity - 1e-9
+            else OrderStatus.PARTIAL
+        )
+        return "partial-oid"
+
+    async def cancel_order(self, order_id: str, symbol: str = "") -> bool:
+        return False
+
+    async def query_positions(self) -> list:
+        return []
+
+
+class TestCumulativeFillContract:
+    """ISS-20260720-004 Wave 4 — partial-fill cumulative delta + no double-count."""
+
+    @pytest.mark.asyncio
+    async def test_partial_fill_increments_l4_cumulative(self) -> None:
+        """A PARTIAL fill applies only the incremental delta to L4; a follow-up
+        FILLED fill applies the remaining delta. Total L4 position == requested
+        qty, with no double-counting across the two callbacks."""
+        from quantflow.execution.engine import ExecutionEngine
+        from quantflow.signal.portfolio import PortfolioManager
+
+        portfolio = PortfolioManager(initial_capital=100000.0)
+        # First callback: PARTIAL, cumulative filled = 1.0 of 2.0 requested.
+        engine = ExecutionEngine(
+            gateway=_PartialFillGateway(filled_quantity=1.0, filled_price=100.0, fee=0.0),
+            portfolio=portfolio,
+        )
+        await engine.start()
+        order = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=2.0,
+            price=100.0,
+            strategy_id="partial",
+        )
+        await engine.submit(order)
+        # Delta applied = 1.0 (cumulative 1.0 - applied 0.0).
+        assert portfolio.get_position("BTC/USDT").quantity == pytest.approx(1.0)
+        assert order.applied_filled_qty == pytest.approx(1.0)
+        await engine.stop()
+
+        # Second callback on the SAME order: FILLED, cumulative filled = 2.0.
+        # Re-submit through a gateway that reports the new cumulative total.
+        engine2 = ExecutionEngine(
+            gateway=_PartialFillGateway(filled_quantity=2.0, filled_price=100.0, fee=0.0),
+            portfolio=portfolio,
+        )
+        await engine2.start()
+        # Simulate the order already having applied 1.0 from the first callback.
+        order.applied_filled_qty = 1.0
+        order.filled_quantity = 2.0
+        await engine2.submit(order)
+        # Delta applied = 1.0 (cumulative 2.0 - applied 1.0) → total L4 = 2.0.
+        assert portfolio.get_position("BTC/USDT").quantity == pytest.approx(2.0)
+        assert order.applied_filled_qty == pytest.approx(2.0)
+        await engine2.stop()
+
+    @pytest.mark.asyncio
+    async def test_cumulative_fill_no_double_count(self) -> None:
+        """A repeated FILLED callback with no new fill (cumulative == applied)
+        applies a zero delta — POSITION_EPSILON guards it, so L4 is not touched
+        again and the position does not double."""
+        from quantflow.execution.engine import ExecutionEngine
+        from quantflow.signal.portfolio import PortfolioManager
+
+        portfolio = PortfolioManager(initial_capital=100000.0)
+        engine = ExecutionEngine(
+            gateway=_PartialFillGateway(filled_quantity=1.0, filled_price=100.0, fee=1.0),
+            portfolio=portfolio,
+        )
+        await engine.start()
+        order = Order(
+            order_id="",
+            symbol="ETH/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=1.0,
+            price=100.0,
+            strategy_id="filled",
+        )
+        await engine.submit(order)
+        assert portfolio.get_position("ETH/USDT").quantity == pytest.approx(1.0)
+        cash_after_first = portfolio.cash
+        # Re-submit the same order with the SAME cumulative fill (no new fill).
+        # applied_filled_qty already == filled_quantity → delta = 0 → no L4 update.
+        await engine.submit(order)
+        assert portfolio.get_position("ETH/USDT").quantity == pytest.approx(1.0)
+        assert portfolio.cash == pytest.approx(cash_after_first)
+        await engine.stop()
