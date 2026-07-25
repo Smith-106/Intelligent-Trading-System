@@ -23,6 +23,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from aiohttp import web
+from aiohttp.typedefs import Middleware
 
 # Endpoints that do real work (backtest / validation / OKX fetch / live-trading
 # control) and therefore must be rate-limited. Cheap GETs (overview, snapshot,
@@ -118,10 +119,7 @@ def _client_key(request: web.Request) -> str:
 
 def rate_limit_middleware(
     limiter: RateLimiter | None = None,
-) -> Callable[
-    [web.Request, Callable[[web.Request], Awaitable[web.StreamResponse]]],
-    Awaitable[web.StreamResponse],
-]:
+) -> Middleware:
     """Build an aiohttp middleware applying ``limiter`` to expensive endpoints.
 
     Only mutation/compute paths in :data:`_LIMITED_PATHS` are throttled; all

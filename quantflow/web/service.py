@@ -12,7 +12,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -327,7 +327,7 @@ def _series_payload(series: pd.Series, *, max_points: int = 300) -> dict[str, li
 
 def _label_for_index(value: Any) -> str:
     if isinstance(value, pd.Timestamp):
-        return value.isoformat()
+        return str(value.isoformat())
     return str(value)
 
 
@@ -376,7 +376,10 @@ def _marker_payload(
     signal_positions = np.flatnonzero(signal_series.fillna(False).to_numpy())
     markers: list[dict[str, Any]] = []
     for signal_position in signal_positions:
-        execution_position = min(signal_position + 1, len(price_series) - 1)
+        # Coerce np.intp → int so _nearest_chart_index + min() stay int-typed
+        # (mypy --strict flags the numpy scalar as SupportsDunderLT/GT).
+        sp = int(signal_position)
+        execution_position = min(sp + 1, len(price_series) - 1)
         chart_index = _nearest_chart_index(execution_position, positions)
         price = _safe_number(float(price_series.iloc[execution_position]))
         markers.append(
@@ -385,8 +388,8 @@ def _marker_payload(
                 "label": _label_for_index(price_series.index[execution_position]),
                 "price": None if price is None else round(float(price), 6),
                 "side": side,
-                "signal_index": int(signal_position),
-                "execution_index": int(execution_position),
+                "signal_index": sp,
+                "execution_index": execution_position,
             }
         )
     return markers
@@ -451,27 +454,30 @@ def _chart_payload(
 
 
 def _result_payload(result: BacktestResult) -> dict[str, Any]:
-    return _to_jsonable(
-        {
-            "strategy_id": result.strategy_id,
-            "symbol": result.symbol,
-            "start_date": result.start_date,
-            "end_date": result.end_date,
-            "initial_capital": result.initial_capital,
-            "final_capital": result.final_capital,
-            "total_return": result.total_return,
-            "annual_return": result.annual_return,
-            "sharpe_ratio": result.sharpe_ratio,
-            "sortino_ratio": result.sortino_ratio,
-            "calmar_ratio": result.calmar_ratio,
-            "max_drawdown": result.max_drawdown,
-            "win_rate": result.win_rate,
-            "profit_factor": result.profit_factor,
-            "num_trades": result.num_trades,
-            "report_markdown": generate_report(result, format="markdown"),
-            "equity_curve": _series_payload(result.equity_curve),
-            "drawdown_curve": _series_payload(result.drawdown_curve),
-        }
+    return cast(
+        "dict[str, Any]",
+        _to_jsonable(
+            {
+                "strategy_id": result.strategy_id,
+                "symbol": result.symbol,
+                "start_date": result.start_date,
+                "end_date": result.end_date,
+                "initial_capital": result.initial_capital,
+                "final_capital": result.final_capital,
+                "total_return": result.total_return,
+                "annual_return": result.annual_return,
+                "sharpe_ratio": result.sharpe_ratio,
+                "sortino_ratio": result.sortino_ratio,
+                "calmar_ratio": result.calmar_ratio,
+                "max_drawdown": result.max_drawdown,
+                "win_rate": result.win_rate,
+                "profit_factor": result.profit_factor,
+                "num_trades": result.num_trades,
+                "report_markdown": generate_report(result, format="markdown"),
+                "equity_curve": _series_payload(result.equity_curve),
+                "drawdown_curve": _series_payload(result.drawdown_curve),
+            }
+        ),
     )
 
 
@@ -1108,8 +1114,10 @@ class StationService:
                 f"当前已覆盖 {len(symbols)} 个交易对，共 {files_total} 个月度 parquet 分区文件。"
             )
             if latest_symbol and latest_symbol.get("range_end"):
+                range_end = latest_symbol.get("range_end")
+                range_end_str = range_end if isinstance(range_end, str) else ""
                 highlights.append(
-                    f"最新数据来自 {latest_symbol.get('symbol')}，最近 bar 时间为 {latest_symbol.get('range_end')[:10]}。"
+                    f"最新数据来自 {latest_symbol.get('symbol')}，最近 bar 时间为 {range_end_str[:10]}。"
                 )
             if mode == "market":
                 highlights.append(
@@ -1409,7 +1417,7 @@ class StationService:
             url = monitoring_cfg.get(f"{service_id}_url") or (
                 f"http://127.0.0.1:{port}" if port else None
             )
-            reachable = bool(port) and _port_reachable("127.0.0.1", port)
+            reachable = port is not None and _port_reachable("127.0.0.1", port)
             if reachable:
                 reachable_total += 1
             service_payload = {
@@ -1785,7 +1793,7 @@ class StationService:
         position_count = len(positions)
         order_count = len(open_orders)
 
-        def _finite_sum(items, key):
+        def _finite_sum(items: list[dict[str, Any]], key: str) -> float:
             total = 0.0
             for item in items:
                 value = _safe_number(item.get(key, 0.0))
@@ -1945,8 +1953,10 @@ class StationService:
             if isinstance(request_payload, dict):
                 return request_payload
             payload = item.get("payload")
-            if isinstance(payload, dict) and isinstance(payload.get("request"), dict):
-                return payload["request"]
+            if isinstance(payload, dict):
+                nested = payload.get("request")
+                if isinstance(nested, dict):
+                    return nested
             return {}
 
         def _pick_best_artifact(items: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -2138,23 +2148,26 @@ class StationService:
             symbol=request.symbol,
         )
 
-        payload = _to_jsonable(
-            {
-                "request": request.model_dump(),
-                "data_source": data_source,
-                "config_summary": {
-                    "exchange": config.data.exchange,
-                    "parquet_dir": config.data.parquet_dir,
-                    "duckdb_path": config.data.duckdb_path,
-                },
-                "result": _result_payload(result),
-                "chart": _chart_payload(frame, entries, exits, result),
-                "signals": {
-                    "entries": int(entries.fillna(False).sum()),
-                    "exits": int(exits.fillna(False).sum()),
-                    "bars": len(frame),
-                },
-            }
+        payload = cast(
+            "dict[str, Any]",
+            _to_jsonable(
+                {
+                    "request": request.model_dump(),
+                    "data_source": data_source,
+                    "config_summary": {
+                        "exchange": config.data.exchange,
+                        "parquet_dir": config.data.parquet_dir,
+                        "duckdb_path": config.data.duckdb_path,
+                    },
+                    "result": _result_payload(result),
+                    "chart": _chart_payload(frame, entries, exits, result),
+                    "signals": {
+                        "entries": int(entries.fillna(False).sum()),
+                        "exits": int(exits.fillna(False).sum()),
+                        "bars": len(frame),
+                    },
+                }
+            ),
         )
         history_record = self.history_store.append_research_run(payload)
         payload["history_record"] = {

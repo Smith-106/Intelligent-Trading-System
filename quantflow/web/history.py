@@ -142,7 +142,8 @@ class StationHistoryStore:
         path = self.base_dir / "workbench_state.json"
         if not path.exists():
             return None
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
 
     def _append(self, category: str, record: dict[str, Any]) -> None:
         # ISS-009: category builds the path; reject anything outside the
