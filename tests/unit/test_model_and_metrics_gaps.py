@@ -264,6 +264,10 @@ class TestPortfolioManagerGaps:
         assert pos.quantity == -1.0
         assert pm.cash == pytest.approx(103200.0)
         assert pos.unrealized_pnl == pytest.approx(400.0)
+        # ISS-20260720-004 Wave 1: partial close of a short leg attributes the
+        # closed portion's PnL to realized (cash movement unchanged).
+        # realized = (2800-3000)*1.0*(-1) = 200 (short leg closed at +200).
+        assert pm.realized_pnl == pytest.approx(200.0)
         assert pm.get_strategy_allocation("mean_rev") == 0.4
         assert pm.get_strategy_allocation("missing") == 0.0
         assert pm.allocation == {"mean_rev": 0.4}

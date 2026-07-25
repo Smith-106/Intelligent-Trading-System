@@ -157,6 +157,13 @@ class Portfolio:
     cash: float
     positions: dict[str, Position] = field(default_factory=dict)
     current_drawdown: float = 0.0
+    # Cumulative realized PnL from closed legs (ISS-20260720-004 Wave 1):
+    # flip/partial-close attributes the closing leg's PnL here instead of
+    # letting it stay implicit in cash. Defaults preserve backward compat.
+    realized_pnl: float = 0.0
+    # Daily-loss baseline (ISS-20260720-004 Wave 3): the equity anchored at the
+    # first bar of the calendar day. <=0 means "not anchored yet" (warmup).
+    daily_baseline: float = 0.0
 
     @property
     def total_value(self) -> float:

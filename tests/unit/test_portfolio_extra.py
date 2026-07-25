@@ -105,3 +105,77 @@ class TestPortfolioAllocation:
         assert pm.cash == pytest.approx(105000.0)
         pm.update_cash(-3000.0)
         assert pm.cash == pytest.approx(102000.0)
+
+
+class TestPortfolioRealizedAttribution:
+    """ISS-20260720-004 Wave 1 — realized PnL attribution on flip/partial-close.
+
+    Realized is attributed independently of cash. Cash movement follows the
+    prior single-line notional semantics (conservative path), so existing
+    cash assertions hold; the new ``realized_pnl`` accumulator makes the
+    closed leg's PnL observable.
+    """
+
+    def test_realized_pnl_on_flip_long_to_short(self):
+        """Flip long 1.0 → short 1.0 via sell 2.0 attributes the long leg's
+        close PnL to realized. New short leg entry is the fill price."""
+        pm = PortfolioManager(initial_capital=100000.0)
+        pm.update_position("BTC/USDT", 1.0, 50000.0)
+        # cash = 100000 - 50000 = 50000
+        assert pm.cash == pytest.approx(50000.0)
+        assert pm.realized_pnl == pytest.approx(0.0)
+
+        pm.update_position("BTC/USDT", -2.0, 51000.0)
+        # cash -= (-2.0)*51000 = +102000 → 152000 (notional semantics unchanged)
+        assert pm.cash == pytest.approx(152000.0)
+        # realized = (51000-50000)*1.0*1 = 1000 (long leg closed at +1000)
+        assert pm.realized_pnl == pytest.approx(1000.0)
+        pos = pm.get_position("BTC/USDT")
+        assert pos is not None
+        assert pos.quantity == pytest.approx(-1.0)  # new short 1.0
+        assert pos.entry_price == pytest.approx(51000.0)  # flip → fill price
+        # total_value = cash + short market_value = 152000 - 51000 = 101000
+        assert pm.total_value == pytest.approx(101000.0)
+
+    def test_realized_pnl_on_flip_short_to_long(self):
+        """Flip short 1.0 → long 1.0 via buy 2.0 attributes the short leg's
+        close PnL to realized (entry-price, short sign)."""
+        pm = PortfolioManager(initial_capital=100000.0)
+        pm.update_position("BTC/USDT", -1.0, 50000.0)
+        # cash += 50000 → 150000 (short open receives cash)
+        assert pm.cash == pytest.approx(150000.0)
+        assert pm.realized_pnl == pytest.approx(0.0)
+
+        pm.update_position("BTC/USDT", 2.0, 49000.0)
+        # cash -= 2.0*49000 = 98000 → 52000
+        assert pm.cash == pytest.approx(52000.0)
+        # realized = (49000-50000)*1.0*(-1) = 1000 (short leg closed at +1000)
+        assert pm.realized_pnl == pytest.approx(1000.0)
+        pos = pm.get_position("BTC/USDT")
+        assert pos is not None
+        assert pos.quantity == pytest.approx(1.0)  # new long 1.0
+        assert pos.entry_price == pytest.approx(49000.0)  # flip → fill price
+        # total_value = cash + long market_value = 52000 + 49000 = 101000
+        assert pm.total_value == pytest.approx(101000.0)
+
+    def test_snapshot_exposes_realized_pnl(self):
+        """snapshot() exposes realized_pnl for web/observability."""
+        pm = PortfolioManager(initial_capital=100000.0)
+        assert pm.snapshot()["realized_pnl"] == pytest.approx(0.0)
+        pm.update_position("BTC/USDT", 1.0, 50000.0)
+        pm.update_position("BTC/USDT", -1.0, 52000.0)
+        assert pm.snapshot()["realized_pnl"] == pytest.approx(2000.0)
+
+    def test_portfolio_snapshot_carries_realized_and_baseline(self):
+        """The Portfolio model snapshot carries realized_pnl + daily_baseline
+        so RiskEngine.check (pure function) reads them without holding an L4
+        reference."""
+        pm = PortfolioManager(initial_capital=100000.0)
+        pm.update_position("BTC/USDT", 1.0, 50000.0)
+        pm.update_position("BTC/USDT", -0.5, 51000.0)
+        snap = pm.portfolio
+        assert snap.realized_pnl == pytest.approx(500.0)
+        # daily_baseline defaults to NaN until Wave 3 anchors it.
+        import math
+
+        assert math.isnan(snap.daily_baseline)

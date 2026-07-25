@@ -25,12 +25,27 @@ class PortfolioManager:
         self._peak_equity = initial_capital
         self._current_drawdown = 0.0
         self._allocation: dict[str, float] = {}
+        # Cumulative realized PnL from closed legs (ISS-20260720-004 Wave 1).
+        # A flip or partial close attributes the closing leg's PnL here so it
+        # is observable independently of cash (which still follows trade
+        # notional — total cash movement is unchanged vs the prior single-line
+        # ``self._cash -= quantity_delta * price``).
+        self._realized_pnl: float = 0.0
+        # Daily-loss baseline anchor (ISS-20260720-004 Wave 3). Anchored to the
+        # first bar's equity of each calendar day by TradingSession.on_bar;
+        # NaN means "not yet anchored" (warmup). Wave 1 only declares the field.
+        self._daily_baseline: float = float("nan")
 
     # --- Core properties ---
 
     @property
     def cash(self) -> float:
         return self._cash
+
+    @property
+    def realized_pnl(self) -> float:
+        """Cumulative realized PnL from closed legs (ISS-20260720-004 Wave 1)."""
+        return self._realized_pnl
 
     @property
     def current_drawdown(self) -> float:
@@ -52,6 +67,8 @@ class PortfolioManager:
             cash=self._cash,
             positions=dict(self._positions),
             current_drawdown=self._current_drawdown,
+            realized_pnl=self._realized_pnl,
+            daily_baseline=self._daily_baseline,
         )
 
     @property
@@ -98,6 +115,10 @@ class PortfolioManager:
             return
 
         # Cash follows trade notional directly; fee always reduces equity.
+        # Total cash movement is identical to the prior single-line semantics
+        # (ISS-20260720-004 Wave 1 conservative path: realized is attributed
+        # independently without recomputing cash, so existing cash assertions
+        # hold).
         self._cash -= quantity_delta * price
         if fee:
             self._cash -= fee
@@ -113,6 +134,16 @@ class PortfolioManager:
             )
             self._refresh_drawdown()
             return
+
+        # Attribute realized PnL when this fill closes part of the existing
+        # leg (delta opposes existing quantity — partial close or flip). The
+        # closing qty is the portion of the existing leg that is liquidated;
+        # the sign flips for short closes so realized = (entry-price)*qty.
+        # Cash is NOT adjusted here — it already followed notional above.
+        if existing.quantity * quantity_delta < 0:
+            closing_qty = min(abs(quantity_delta), abs(existing.quantity))
+            sign = 1.0 if existing.quantity > 0 else -1.0
+            self._realized_pnl += (price - existing.entry_price) * closing_qty * sign
 
         new_qty = existing.quantity + quantity_delta
         if abs(new_qty) < POSITION_EPSILON:
@@ -183,6 +214,16 @@ class PortfolioManager:
         self._peak_equity = max(capital, self.total_value)
         self._current_drawdown = 0.0
 
+    def set_daily_baseline(self, baseline: float) -> None:
+        """Anchor the daily-loss baseline (ISS-20260720-004 Wave 3).
+
+        Called by TradingSession.on_bar on the first bar of each calendar
+        day. NaN means "not yet anchored" (warmup) and is the value RiskEngine
+        treats as ``<=0`` to skip the daily_loss gate. Does not touch
+        drawdown — baseline is a loss-gate anchor, not a peak.
+        """
+        self._daily_baseline = baseline
+
     def set_allocation(self, allocation: dict[str, float]) -> None:
         """Set target allocation weights per strategy."""
         self._allocation = allocation
@@ -231,6 +272,7 @@ class PortfolioManager:
             "positions": len(self._positions),
             "drawdown": self._current_drawdown,
             "peak_equity": self._peak_equity,
+            "realized_pnl": self._realized_pnl,
         }
 
     def _refresh_drawdown(self) -> None:
