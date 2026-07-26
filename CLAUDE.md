@@ -87,6 +87,8 @@ quantflow status
 - Phase 2 ✅：防过拟合验证(CPCV/DSR/WFO)+模拟盘+完整风控+监控
 - Phase 3 ✅：OKX实盘+AI因子+情绪分析+组合管理
 
+> 注：以上 Phase 1/2/3 为历史 MVP 完成轴。roadmap M3 的 deep-research 改进（P0 数据层防泄漏、P1 风控层补齐 [P1-verify PASS 2026-07-21]、P2 AI 层升级 [未启动]）+ 2026-07-25 Wave 1-5 多 book reconcile 一致性收口为进行中的工程化迭代，详见 `.workflow/roadmap.md`。（drift-realign DFT-7a9e6b0c 修正，避免 Phase 3 ✅ 误读为 P2 AI 升级已完成——Qlib RD-Agent 仍未集成，见 `strategy/ai_factors.py`。）
+
 ## 核心接口
 - `StrategyBase`: `on_init(ctx)`, `on_bar(ctx, bar)`, `on_tick(ctx, tick)`, `generate_signals(df) -> (entries, exits)`
 - `GatewayBase`: `connect(config)`, `send_order(order) -> str`, `cancel_order(id, symbol) -> bool`, `query_positions() -> list[Position]`

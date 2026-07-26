@@ -59,3 +59,11 @@ Source: odyssey-debug position-sizing-regression session (L1) + odyssey-review d
 网关（okx_gateway）用 _safe_error scrub 自己的日志，但 re-raise raw CCXT 异常——异常对象本身仍带 apiKey/URL，下游 caller 接住后若直接 logger.error('%s', e) / f'...: {e}' / print(e) 即泄漏。最隐蔽 sink 是 kill_switch.results['errors'] 追加 raw f-string，该 dict 经 SessionManager.trigger_kill_switch -> web/app.py json_response(result) 进 HTTP response（不是 log，易被忽略），OKX creds 直达客户端。root cause 不是单个 sink 缺 scrub，是 choke point 缺失：修复必须 gate 在 choke point，每个消费 sink 都 scrub（redact_secrets(str(e))），不能只靠 gateway 内部。静态 guard test_credential_bearing_modules_have_redaction_choke_point 守护。
 
 </spec-entry>
+
+<spec-entry category="debug" keywords="partial,降级,submitted,状态白名单,partial-fill" date="2026-07-25" sid="S-20260725-33y2" title="PARTIAL 状态静默降级 bug: ExecutionEngine.submit 原 line 200 'if order.status not in (FILLED, REJECTED): order.status = SUBMITTED' 把 PARTIAL 静默降级为 SUBMITTED, 丢弃 partial fill(不调 L4 增量更新)。修复: 改为 not in (FILLED, PARTIAL, REJECTED) 才降级 SUBMITTED — PARTIAL 保留为 terminal-enough 状态驱动 L4 incremental update。pre-Wave4 未触发因 PaperGateway 立即 FILLED, 但 OKX limit 部分成交会返回 PARTIAL 被吞。根因: 状态白名单漏 PARTIAL。验证: test_execution.py TestCumulativeFillContract 2 新测试 + _PartialFillGateway。" description="PARTIAL 静默降级 SUBMITTED bug 修复: 状态白名单补 PARTIAL" source="main@06a8d93">
+
+### PARTIAL 状态静默降级 bug: ExecutionEngine.submit 原 line 200 'if order.status not in (FILLED, REJECTED): order.status = SUBMITTED' 把 PARTIAL 静默降级为 SUBMITTED, 丢弃 partial fill(不调 L4 增量更新)。修复: 改为 not in (FILLED, PARTIAL, REJECTED) 才降级 SUBMITTED — PARTIAL 保留为 terminal-enough 状态驱动 L4 incremental update。pre-Wave4 未触发因 PaperGateway 立即 FILLED, 但 OKX limit 部分成交会返回 PARTIAL 被吞。根因: 状态白名单漏 PARTIAL。验证: test_execution.py TestCumulativeFillContract 2 新测试 + _PartialFillGateway。
+
+
+
+</spec-entry>

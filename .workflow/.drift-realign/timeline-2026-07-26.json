@@ -1,0 +1,1197 @@
+{
+  "window": {
+    "from": "2026-07-15T00:00:00.000Z",
+    "to": "2026-07-26T10:24:25.137Z",
+    "days": 11
+  },
+  "git_summary": {
+    "commits": 90,
+    "files_changed": 172,
+    "insertions": 18711,
+    "deletions": 2301
+  },
+  "session_summary": {
+    "total": 0,
+    "with_edits": 0,
+    "last_session": null,
+    "by_platform": {}
+  },
+  "events": [
+    {
+      "type": "commit",
+      "hash": "06a8d939023493255d0b48dabcce19307aae2201",
+      "at": "2026-07-25T21:51:28+08:00",
+      "message": "test: Wave 5 — 多 book reconcile 全套验证通过 (lint + mypy + test + parity)",
+      "files": [
+        "quantflow/strategy/validation/cpcv.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "b0177e01e6f655eaacf02d76775e7b700b455919",
+      "at": "2026-07-25T21:40:27+08:00",
+      "message": "fix(execution): Wave 4 — partial-fill cumulative 契约 + OKX cumulative fill 提取",
+      "files": [
+        "quantflow/common/models.py",
+        "quantflow/execution/engine.py",
+        "quantflow/execution/okx_gateway.py",
+        "quantflow/execution/order_manager.py",
+        "tests/unit/test_execution.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "90b3efff4cb9787b98d3e6d00d056e418444a431",
+      "at": "2026-07-25T21:21:25+08:00",
+      "message": "fix(risk): Wave 3 — daily_loss 改 total-vs-baseline 语义 + 日切锚定",
+      "files": [
+        "quantflow/signal/risk_engine.py",
+        "quantflow/strategy/engine.py",
+        "tests/integration/test_pipeline.py",
+        "tests/unit/test_risk_engine.py",
+        "tests/unit/test_risk_engine_extra.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "062a7b544a1461a18795a5d186f74bf12dcdf5dd",
+      "at": "2026-07-25T21:05:43+08:00",
+      "message": "refactor(execution): Wave 2 — L5 薄路由退化 + PaperGateway 第三套账本移除",
+      "files": [
+        "quantflow/execution/engine.py",
+        "quantflow/execution/paper_gateway.py",
+        "quantflow/execution/position_manager.py",
+        "quantflow/signal/portfolio.py",
+        "quantflow/strategy/engine.py",
+        "tests/unit/test_execution_engine_extra.py",
+        "tests/unit/test_execution_state_extra.py",
+        "tests/unit/test_trading_session_extra.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "7e781a80c10cf97bc7fe19824b12c826d3f6323b",
+      "at": "2026-07-25T20:24:45+08:00",
+      "message": "feat(portfolio): Wave 1 — realized_pnl 归因 + Portfolio daily_baseline 字段",
+      "files": [
+        "quantflow/common/models.py",
+        "quantflow/signal/portfolio.py",
+        "tests/unit/test_model_and_metrics_gaps.py",
+        "tests/unit/test_portfolio.py",
+        "tests/unit/test_portfolio_extra.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "47d6cc9813b7332054a2f40f745a0e7fd287ddf6",
+      "at": "2026-07-25T18:07:31+08:00",
+      "message": "perf(risk): ISS-031 — _check_strategy_budget 单遍扫描，O(B×P×split)→O(P×split+B)",
+      "files": [
+        "quantflow/signal/risk_engine.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "7246e821c5ce88554fef9482db9d86a7ec9d133f",
+      "at": "2026-07-25T18:02:36+08:00",
+      "message": "fix(web): ISS-043 — 清除 web 包 mypy --strict 类型债务 (16→0)",
+      "files": [
+        "quantflow/web/history.py",
+        "quantflow/web/rate_limit.py",
+        "quantflow/web/service.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "a47921b59118711fe3f1db8258c80d539cf52d2f",
+      "at": "2026-07-24T22:51:09+08:00",
+      "message": "fix(signal): ISS-038 — allocation 移入 size() cap 之前，compound >1 不再膨胀超 cap",
+      "files": [
+        "quantflow/signal/position_sizer.py",
+        "quantflow/strategy/engine.py",
+        "tests/unit/test_position_sizer.py",
+        "tests/unit/test_trading_session_extra.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "6648ccd5f790568ce5a0d2b8ab8350ef01cdb3a3",
+      "at": "2026-07-24T22:17:24+08:00",
+      "message": "fix(web): ISS-036 — Station API 不再泄漏内部文件系统路径 (CWE-200)",
+      "files": [
+        "quantflow/web/app.py",
+        "tests/unit/test_web_app_handlers.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "bde94ae05306fadcd83490195e2c72634e14bf76",
+      "at": "2026-07-24T21:39:44+08:00",
+      "message": "perf(data): ISS-034 — DataStore.save 纯追加快路径跳过 dedup+sort 重排",
+      "files": [
+        "quantflow/data/store.py",
+        "tests/unit/test_trend_and_store.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "91a57382d94193ce0862c1dd801cf06fc6d69428",
+      "at": "2026-07-24T21:30:56+08:00",
+      "message": "refactor(data): ISS-027 — fetcher.get_last_timestamp 委托 DataStore，消除重复 glob 查询",
+      "files": [
+        "quantflow/data/fetcher.py",
+        "quantflow/data/store.py",
+        "tests/unit/test_fetcher.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "d7d33b2cd2ab82f983d14b99c175d4d31c097fdd",
+      "at": "2026-07-24T21:15:39+08:00",
+      "message": "perf(strategy): ISS-033 — weekly-loss 基点 O(n) 扫描改 O(1) 摊还单调指针",
+      "files": [
+        "quantflow/strategy/engine.py",
+        "tests/unit/test_trading_session.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "92af3b30d070a98229d106d0b158c3cdd80b1ea5",
+      "at": "2026-07-24T20:46:34+08:00",
+      "message": "fix(web,common): ISS-041 — _jsonable 序列化策略单一所有者，消除 pandas 泄漏",
+      "files": [
+        "quantflow/common/jsonable.py",
+        "quantflow/web/service.py",
+        "quantflow/web/session_manager.py",
+        "tests/unit/test_web_service.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "0e5f21e40968855d661f9c6bcbd7d715cea0a60f",
+      "at": "2026-07-24T20:45:19+08:00",
+      "message": "chore(harvest): l6-sibling-sinks debug session — 2 新知识 (幂等测试顺序依赖 learning + 并发 agent 会话冲突 knowhow)，7 SKIP-DUP",
+      "files": [
+        ".workflow/harvest/harvest-log.jsonl",
+        ".workflow/harvest/harvest-report-2026-07-24.md",
+        ".workflow/knowhow/DOC-knowhow-concurrent-agent-session-collision.md",
+        ".workflow/specs/learnings.md"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "450b6fadae3984b831ed8a95b2af27c517e3a8f0",
+      "at": "2026-07-24T20:25:12+08:00",
+      "message": "fix(sentiment): ISS-040 — 错误路径 NaN 哨兵，不与 genuine neutral 碰撞",
+      "files": [
+        "quantflow/strategy/sentiment.py",
+        "tests/unit/test_sentiment.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "7b3b2796e8325add03cc3d57153b5121805c695a",
+      "at": "2026-07-24T19:53:02+08:00",
+      "message": "fix(validation): ISS-029+ISS-030 — 失败 path NaN 哨兵 + finite-mask PBO + 统一 path schema",
+      "files": [
+        "quantflow/strategy/validation/cpcv.py",
+        "quantflow/strategy/validation/gate.py",
+        "quantflow/strategy/validation/pbo.py",
+        "tests/unit/test_validation.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "5e18e0110b28df335c0d14093f760b44778f3749",
+      "at": "2026-07-24T19:36:31+08:00",
+      "message": "chore(spec): odyssey-debug(l6-sibling-sinks) RECORD — coding-conventions-009 状态修正 (3 sibling 已落地) + learnings Grep-after-Edit 缓存陷阱",
+      "files": [
+        ".workflow/specs/coding-conventions.md",
+        ".workflow/specs/learnings.md"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "b2a4cf80e0c2d3c1fa0010d016064965439539db",
+      "at": "2026-07-24T19:13:24+08:00",
+      "message": "fix(signal+exec): ISS-20260724-044 — 3 sibling L6 耦合站点改走 MonitoringSink Protocol",
+      "files": [
+        "quantflow/cli/main.py",
+        "quantflow/common/monitoring_sink.py",
+        "quantflow/execution/engine.py",
+        "quantflow/execution/kill_switch.py",
+        "quantflow/monitoring/sink.py",
+        "quantflow/signal/risk_engine.py",
+        "quantflow/strategy/engine.py",
+        "tests/unit/test_execution_engine.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "7aa713963f5923edb44e0b0f2f9a690115c3f684",
+      "at": "2026-07-24T19:10:19+08:00",
+      "message": "fix(execution): ISS-021 — PaperGateway 消费 reduceOnly，paper/live parity",
+      "files": [
+        "quantflow/execution/paper_gateway.py",
+        "tests/unit/test_execution.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "cc72b9e767d92bccec8e4ceb4cf92f6ed5e130e2",
+      "at": "2026-07-24T18:38:36+08:00",
+      "message": "fix(signal): ISS-022 — consolidate_signals avg_strength 改加权均值",
+      "files": [
+        "quantflow/signal/generator.py",
+        "tests/unit/test_signal_generator.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "a634758728e8dd0dfef73d1e849bf7ce5dacbf0b",
+      "at": "2026-07-24T17:44:11+08:00",
+      "message": "chore(spec+issue): ISS-019 RECORD — MonitoringSink Protocol 注入模式固化 + verify-audit",
+      "files": [
+        ".workflow/issues/issue-history.jsonl",
+        ".workflow/specs/coding-conventions.md"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "98b217e290c066b2fc5f58197f4b4f186ad3a8d8",
+      "at": "2026-07-24T17:36:15+08:00",
+      "message": "chore(issues): ISS-20260724-044 — 跟踪 sibling L6 耦合站点 (risk_engine/kill_switch/execution/engine)，ISS-019 只修了 engine",
+      "files": [
+        ".workflow/issues/issues.jsonl"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "882dfa6d7ea5ea043bf280cb0ff5ec87ad37f3d7",
+      "at": "2026-07-24T17:32:13+08:00",
+      "message": "chore(workflow): maestro 运行时状态同步 — wiki-index/hit-log/spec-analytics/station_history 会话累积",
+      "files": [
+        ".workflow/spec-analytics.jsonl",
+        ".workflow/specs/.hit-log.jsonl",
+        ".workflow/wiki-index.json",
+        "data/station_history/research_runs.jsonl",
+        "data/station_history/session_events.jsonl",
+        "data/station_history/session_snapshots.jsonl",
+        "data/station_history/validation_runs.jsonl",
+        "data/station_history/workbench_state.json"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "1bf8e2b5462c375274227c78e1efb6d9672209ec",
+      "at": "2026-07-24T17:31:43+08:00",
+      "message": "refactor(strategy+monitoring): ISS-019 — L3→L6 解耦，TradingSession 仅依赖 MonitoringSink Protocol",
+      "files": [
+        ".gitignore",
+        ".workflow/issues/issue-history.jsonl",
+        ".workflow/issues/issues.jsonl",
+        "quantflow/cli/main.py",
+        "quantflow/common/monitoring_sink.py",
+        "quantflow/monitoring/metrics.py",
+        "quantflow/monitoring/sink.py",
+        "quantflow/strategy/engine.py",
+        "quantflow/web/session_manager.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_engine_async.py",
+        "tests/unit/test_metrics_extra.py",
+        "tests/unit/test_trading_session_extra.py",
+        "tests/unit/test_web_history.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "487bd418fd01f7534d121d29c88cf82ef83b387a",
+      "at": "2026-07-24T15:55:26+08:00",
+      "message": "fix(cli,monitoring): mypy pre-existing errors — cli/main bt/res 变量复用 + metrics counter None",
+      "files": [
+        ".workflow/issues/issues.jsonl",
+        "quantflow/cli/main.py",
+        "quantflow/monitoring/metrics.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "4d3efb35299e127d96a1e6a1da10e8510bf68235",
+      "at": "2026-07-24T13:12:44+08:00",
+      "message": "fix(exec,strategy,monitoring): odyssey-review deferred-issue batch — 6 issues closed",
+      "files": [
+        ".workflow/issues/issue-history.jsonl",
+        ".workflow/issues/issues.jsonl",
+        ".workflow/specs/architecture-constraints.md",
+        ".workflow/specs/coding-conventions.md",
+        ".workflow/specs/debug-notes.md",
+        ".workflow/specs/review-standards.md",
+        "quantflow/execution/order_manager.py",
+        "quantflow/execution/paper_gateway.py",
+        "quantflow/monitoring/metrics.py",
+        "quantflow/strategy/templates/ml_ensemble.py",
+        "quantflow/strategy/validation/wfo.py",
+        "tests/unit/test_execution.py",
+        "tests/unit/test_ml_ensemble_extra.py",
+        "tests/unit/test_redaction.py",
+        "tests/unit/test_wfo.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "bb3c6cda8c354efab71f2a2dbaf83a98639ac1a7",
+      "at": "2026-07-24T12:01:17+08:00",
+      "message": "refactor(exec+web): odyssey-review DISCOVER — redact credential exceptions + union_by_name parity",
+      "files": [
+        ".workflow/issues/issues.jsonl",
+        "quantflow/cli/main.py",
+        "quantflow/data/feature_store.py",
+        "quantflow/execution/engine.py",
+        "quantflow/execution/kill_switch.py",
+        "quantflow/strategy/engine.py",
+        "tests/unit/test_redaction.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "ce5ce9856afb976b7103f430d1e7564049977a5c",
+      "at": "2026-07-23T22:24:11+08:00",
+      "message": "chore(issues): odyssey-review DISCOVER — 20 deferred findings (ISS-019~038)",
+      "files": [
+        ".workflow/issues/issues.jsonl"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "a9634acaebad2a17cd64ec796761d5402ae06408",
+      "at": "2026-07-23T22:13:44+08:00",
+      "message": "fix(validation,web,monitoring,execution): odyssey-review 批次1+2 — high+medium 直接修复",
+      "files": [
+        "quantflow/common/numeric.py",
+        "quantflow/execution/okx_gateway.py",
+        "quantflow/execution/paper_gateway.py",
+        "quantflow/monitoring/alerts.py",
+        "quantflow/strategy/research/backtest.py",
+        "quantflow/strategy/validation/_common.py",
+        "quantflow/strategy/validation/cpcv.py",
+        "quantflow/strategy/validation/dsr.py",
+        "quantflow/strategy/validation/pbo.py",
+        "quantflow/strategy/validation/wfo.py",
+        "quantflow/web/service.py",
+        "quantflow/web/session_manager.py",
+        "tests/unit/test_validation.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "6c6a859dff59ce36add354a3b28aadca14cb82ef",
+      "at": "2026-07-23T19:26:27+08:00",
+      "message": "chore(issues): odyssey-improve DISCOVER — 6 sibling 同型 hit (ISS-013~018)",
+      "files": [
+        ".workflow/issues/issues.jsonl"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "3cf42f93ddc9755fef2d317a9f94a86d20ad4ac8",
+      "at": "2026-07-23T19:18:00+08:00",
+      "message": "fix(data,web): odyssey-improve GP2/GP3 — fetcher 无界 await + isfinite guard，session_manager _safe_number 复用 isfinite",
+      "files": [
+        "quantflow/data/fetcher.py",
+        "quantflow/web/session_manager.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "47c5bb292e4263cc1bb19d515e3912730df664d6",
+      "at": "2026-07-23T18:51:36+08:00",
+      "message": "fix(kill_switch): mypy type-arg — positions: list[Any]",
+      "files": [
+        "quantflow/execution/kill_switch.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "14d4cd6a39eff6b23f33455b69a4db41791b5245",
+      "at": "2026-07-23T18:40:41+08:00",
+      "message": "chore(issues): odyssey-improve — 12 deferred findings (ISS-20260723-001..012)",
+      "files": [
+        ".workflow/issues/issues.jsonl"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "5b8c639327d0a6d7a635f915860b361356a571a4",
+      "at": "2026-07-23T18:37:17+08:00",
+      "message": "refactor(signal): odyssey-improve 批次2 — 性能热点 + POSITION_EPSILON 集中",
+      "files": [
+        "quantflow/execution/paper_gateway.py",
+        "quantflow/execution/position_manager.py",
+        "quantflow/signal/portfolio.py",
+        "quantflow/signal/risk_engine.py",
+        "quantflow/strategy/engine.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "a3bf12daab4fdaf7627910df103951a29ff7a385",
+      "at": "2026-07-23T18:28:43+08:00",
+      "message": "fix(execution): odyssey-improve 批次1 — 交易主路径 fail-closed + 幂等 + 状态机",
+      "files": [
+        "quantflow/common/validators.py",
+        "quantflow/execution/engine.py",
+        "quantflow/execution/gateway_base.py",
+        "quantflow/execution/kill_switch.py",
+        "quantflow/execution/okx_gateway.py",
+        "quantflow/execution/order_manager.py",
+        "quantflow/execution/paper_gateway.py",
+        "quantflow/monitoring/metrics.py",
+        "quantflow/strategy/engine.py",
+        "tests/unit/test_execution.py",
+        "tests/unit/test_execution_engine_extra.py",
+        "tests/unit/test_execution_state_extra.py",
+        "tests/unit/test_okx_gateway.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "857b7cfe4c4e963b2eb6b23c9709875f706d2fb6",
+      "at": "2026-07-22T22:37:48+08:00",
+      "message": "chore(issues): 关闭 ISS-20260722-008/009 (UI Odyssey generalize 收尾)",
+      "files": [
+        ".workflow/issues/issue-history.jsonl",
+        ".workflow/issues/issues.jsonl"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "ecd32c945c18c4dcb110a3381db8146b87680457",
+      "at": "2026-07-22T22:36:48+08:00",
+      "message": "refactor(web-ui): ISS-008 — styles.css font-size px + hex 安全迁移到 token",
+      "files": [
+        "quantflow/web/static/styles.css"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "38f31c560ef5393325356344def539049228e95a",
+      "at": "2026-07-22T22:14:20+08:00",
+      "message": "fix(web-ui): ISS-009 — segment-btn 选中态补 aria-pressed + 容器 role=group",
+      "files": [
+        "quantflow/web/static/app.js",
+        "quantflow/web/static/index.html"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "d2c00df70641602788966f4bdb2c7c579b8afcbb",
+      "at": "2026-07-22T20:26:13+08:00",
+      "message": "fix(web-ui): generalize 发现的数值 guard 残留修复 + 知识持久化",
+      "files": [
+        ".workflow/issues/issues.jsonl",
+        ".workflow/specs/ui-conventions.md",
+        "quantflow/web/static/app.js"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "05caa1773e09b436a2ce466669b980305e3d6817",
+      "at": "2026-07-22T19:58:27+08:00",
+      "message": "feat(web-ui): Station 前端 UI/UX 全面强化 — token 系统 + 动效 + a11y + 反馈",
+      "files": [
+        "quantflow/web/static/app.js",
+        "quantflow/web/static/index.html",
+        "quantflow/web/static/styles.css"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "fe64c5bc1da22fbdb70633432eca60d70d3d983b",
+      "at": "2026-07-22T18:43:47+08:00",
+      "message": "docs(knowhow): 补提 knowhow 文档 (6 DOC 策略/AI 层知识 + retrospective TIP)",
+      "files": [
+        ".workflow/knowhow/DOC-knowhow-data-layer-upgrade-polars-clickhouse.md",
+        ".workflow/knowhow/DOC-knowhow-fingpt-v33-finbert-upgrade.md",
+        ".workflow/knowhow/DOC-knowhow-live-cost-modeling-funding-fee-alerts.md",
+        ".workflow/knowhow/DOC-knowhow-qlib-model-zoo-benchmark.md",
+        ".workflow/knowhow/DOC-knowhow-rdagent-q-factor-mining-architecture.md",
+        ".workflow/knowhow/DOC-knowhow-sentiment-dissemination-breadth.md",
+        ".workflow/knowhow/DOC-strategy-matrix-complementarity-and-rationale.md",
+        ".workflow/knowhow/TIP-pre-batch-probe-target-state.md"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "732eff3a64a181a9589ed2a8e64c6ee81e5462b0",
+      "at": "2026-07-22T18:38:40+08:00",
+      "message": "chore: gitignore 排除 maestro 本地索引缓存 (kg/embedding/search-cache) + replay 脚本 ruff 格式化",
+      "files": [
+        ".gitignore",
+        "scripts/replay_paper_f4f5.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "91f66d348f0a72ce4f17d85e9cc0f949d0abd887",
+      "at": "2026-07-22T18:38:28+08:00",
+      "message": "docs(knowledge): harvest + retrospective + spec conflict 闭环",
+      "files": [
+        ".maestroignore",
+        ".workflow/harvest/harvest-log.jsonl",
+        ".workflow/harvest/harvest-report-2026-07-18.md",
+        ".workflow/harvest/harvest-report-2026-07-20.md",
+        ".workflow/harvest/harvest-report-2026-07-21.md",
+        ".workflow/harvest/harvest-report-2026-07-22.md",
+        ".workflow/issues/issues.jsonl",
+        ".workflow/spec-analytics.jsonl",
+        ".workflow/specs/.conflict-log.jsonl",
+        ".workflow/specs/.hit-log.jsonl",
+        ".workflow/specs/architecture-constraints.md",
+        ".workflow/specs/coding-conventions.md",
+        ".workflow/specs/debug-notes.md",
+        ".workflow/specs/learnings.md",
+        ".workflow/specs/review-standards.md",
+        ".workflow/wiki-index.json",
+        "data/station_history/research_runs.jsonl",
+        "data/station_history/session_events.jsonl",
+        "data/station_history/session_snapshots.jsonl",
+        "data/station_history/validation_runs.jsonl",
+        "data/station_history/workbench_state.json"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "d098e4988a1443de7cd6bd4f71a7f7dc8cc1ec93",
+      "at": "2026-07-21T22:05:10+08:00",
+      "message": "chore(security): 关闭 9 个安全 backlog issue (ISS-20260721-001~009) — hardening pass 完成",
+      "files": [
+        ".workflow/issues/issues.jsonl"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "f966b30a3f00353195f345a663387d31006d963c",
+      "at": "2026-07-21T22:02:50+08:00",
+      "message": "test(security): ISS-008 — mypy strict 兼容 operator_id 可空断言",
+      "files": [
+        "tests/unit/test_session_security.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "548a229b2d603d9803097d5f996c77f1afd586e8",
+      "at": "2026-07-21T21:58:13+08:00",
+      "message": "fix(security): ISS-005+ISS-009 — Docker non-root/auth/loopback + CI SHA-pin (SEC-005/012/013/014)",
+      "files": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        "docker/Dockerfile",
+        "docker/docker-compose.yaml",
+        "tests/unit/test_deployment_hardening.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "8d4e609d93d7427fdf630e85ff3508afec02c2e1",
+      "at": "2026-07-21T21:49:46+08:00",
+      "message": "fix(security): ISS-009 — JSONL category 白名单 + per-line size cap (SEC-018)",
+      "files": [
+        "quantflow/web/history.py",
+        "tests/unit/test_web_history.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "9e49629439950d522765285ba115bd40c192c85f",
+      "at": "2026-07-21T21:35:44+08:00",
+      "message": "fix(security): ISS-008 Session 安全 — session_id 高熵 + operator identity 审计",
+      "files": [
+        "quantflow/web/session_manager.py",
+        "tests/unit/test_session_security.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "65708147edfda71c683dabdc05c2be0769dd7afe",
+      "at": "2026-07-21T20:58:40+08:00",
+      "message": "fix(security): ISS-006+007 配置/日志卫生 — web 层 config-path footgun + okx symbol validate + gitignore 私钥",
+      "files": [
+        ".gitignore",
+        "quantflow/execution/okx_gateway.py",
+        "quantflow/web/service.py",
+        "tests/unit/test_okx_gateway.py",
+        "tests/unit/test_web_config_path_guard.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "87bfa5152d89bebc5bfcf2d531a37e10e7bc5519",
+      "at": "2026-07-21T20:14:20+08:00",
+      "message": "fix(security): ISS-003 SSRF 防护 — outbound URL scheme/host 校验",
+      "files": [
+        "quantflow/common/url_safety.py",
+        "quantflow/monitoring/alerts.py",
+        "tests/unit/test_alerts.py",
+        "tests/unit/test_url_safety.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "a3d55137c0c84181a52e5a045c3a8b3fde287c2f",
+      "at": "2026-07-21T20:05:58+08:00",
+      "message": "fix(security): ISS-001 Web DoS 防护 — per-IP rate limit + body size cap + params 深度校验",
+      "files": [
+        "quantflow/web/app.py",
+        "quantflow/web/rate_limit.py",
+        "quantflow/web/service.py",
+        "tests/unit/test_rate_limit.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "84f15456a4f3a394f50e28fd1bff7ccdf8ea9fb5",
+      "at": "2026-07-21T19:39:27+08:00",
+      "message": "fix(security): ISS-002+004 redaction 集中化 — common/redaction.py 全 secret + bot token/bearer/redis URL 形态过滤",
+      "files": [
+        "quantflow/common/redaction.py",
+        "quantflow/web/app.py",
+        "quantflow/web/session_manager.py",
+        "tests/unit/test_redaction.py",
+        "tests/unit/test_web_app_errors.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "b661dc23e24c622d5e5201a7774708e763737ced",
+      "at": "2026-07-21T18:47:31+08:00",
+      "message": "diag(iss-003): mean_reversion F5 trade-shuffle 根因诊断 — 顺序敏感源于无止损+低胜率",
+      "files": [
+        ".workflow/issues/issues.jsonl",
+        "scripts/diagnose_mean_reversion_f5.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "41a74d6efd440ff2a885d93071b904e52e53c1e5",
+      "at": "2026-07-21T18:31:19+08:00",
+      "message": "fix(arch): ISS-20260720-004 部分修复 — check_health/snapshot_state 统一从 L4 读 positions",
+      "files": [
+        ".workflow/issues/issues.jsonl",
+        "quantflow/strategy/engine.py",
+        "tests/unit/test_trading_session_extra.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "626b01534da7c2b5e5c3298652aca5ff63623fc8",
+      "at": "2026-07-21T18:15:18+08:00",
+      "message": "feat(p1-verify): F3 vol-target + F4 CI milestones 真实数据复现完成 — P1-verify 可进 P2",
+      "files": [
+        ".workflow/specs/p1-live-verification-checklist.md",
+        ".workflow/specs/p1-verify-link-validation-20260720.md",
+        "scripts/verify_f3_vol_target.py",
+        "scripts/verify_f4_ci_milestones.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "881ab84d67a2c631b2a63fda0f518855b181dc17",
+      "at": "2026-07-20T21:51:22+08:00",
+      "message": "odyssey-review(p1-parity-paths): RECORD — persist compound strategy_id exact-lookup spec (S-20260720-98vs)",
+      "files": [
+        ".workflow/specs/coding-conventions.md"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "428002da6dc51249c668fc803fa5d6a9185801ef",
+      "at": "2026-07-20T21:45:39+08:00",
+      "message": "odyssey-review(p1-parity-paths): CONFIRM — reduceOnly camelCase param name (CCXT canonical, zero-residual review catch)",
+      "files": [
+        "quantflow/common/models.py",
+        "quantflow/strategy/engine.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "7d272e31568af4ef5c2aabf1f8c0e6c7d759f45c",
+      "at": "2026-07-20T21:36:12+08:00",
+      "message": "odyssey-review(p1-parity-paths): FIX-low — paper gateway config clamp/reject log + var doc; register 3 deferred issues",
+      "files": [
+        ".workflow/issues/issues.jsonl",
+        "quantflow/execution/paper_gateway.py",
+        "quantflow/signal/risk_engine.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "2bde8ff134b423898892a273ba82aba7a05bff65",
+      "at": "2026-07-20T21:30:38+08:00",
+      "message": "odyssey-review(p1-parity-paths): FIX-medium — vol guard/session reset/var cache/parity doc/timeframe warning",
+      "files": [
+        "quantflow/execution/paper_gateway.py",
+        "quantflow/signal/position_sizer.py",
+        "quantflow/signal/risk_engine.py",
+        "quantflow/strategy/base.py",
+        "quantflow/strategy/engine.py",
+        "quantflow/strategy/templates/trend_following.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "33b8c7bfb2b298554e1ee3383b164896a9304b10",
+      "at": "2026-07-20T21:18:41+08:00",
+      "message": "odyssey-review(p1-parity-paths): FIX-high — compound allocation/OKX redaction+reduceOnly/weekly PnL",
+      "files": [
+        "quantflow/common/models.py",
+        "quantflow/execution/engine.py",
+        "quantflow/execution/okx_gateway.py",
+        "quantflow/signal/portfolio.py",
+        "quantflow/strategy/engine.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "00a09092ad744e4c2167f85c01f3caf909ecf3e0",
+      "at": "2026-07-20T20:21:06+08:00",
+      "message": "chore(issue): 登记 mean_reversion F5 trade-shuffle 顺序依赖红旗",
+      "files": [
+        ".workflow/issues/issues.jsonl",
+        ".workflow/specs/p1-verify-link-validation-20260720.md"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "cb77beede1edf6ae8d21f406207dc4bde9b2ff01",
+      "at": "2026-07-20T19:45:29+08:00",
+      "message": "fix(ISS-20260720-002): replay 脚本补 set_allocation，解锁 P1-verify 实盘诊断",
+      "files": [
+        ".workflow/issues/issue-history.jsonl",
+        ".workflow/issues/issues.jsonl",
+        ".workflow/specs/p1-verify-link-validation-20260720.md",
+        "scripts/replay_paper_f4f5.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "85a27e46af3293e45802aaa2a99f959af11baaf5",
+      "at": "2026-07-20T19:17:39+08:00",
+      "message": "feat(P1-verify): replay 脚本支持 --strategy + 链路验证报告",
+      "files": [
+        ".workflow/issues/issues.jsonl",
+        ".workflow/specs/p1-verify-link-validation-20260720.md",
+        "scripts/replay_paper_f4f5.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "98d36f0ca404ae76f12a2dd91423ef71581bb70b",
+      "at": "2026-07-20T19:07:16+08:00",
+      "message": "docs(ISS-20260720-001): regime/entry 两层设计文档标注 + 闭环为 design-property",
+      "files": [
+        ".workflow/issues/issue-history.jsonl",
+        ".workflow/issues/issues.jsonl",
+        "quantflow/strategy/engine.py",
+        "quantflow/strategy/templates/trend_following.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "ac0377eae9d960abe7b3b7cf8bcb408f87909ed5",
+      "at": "2026-07-20T18:58:18+08:00",
+      "message": "fix(ISS-20260718-004): parametric VaR 加 fat-tail 警示 + 闭环 issue",
+      "files": [
+        ".workflow/issues/issue-history.jsonl",
+        ".workflow/issues/issues.jsonl",
+        "quantflow/signal/risk_metrics.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "c8cc79352392deeb9ff11ba8584672a80472a19c",
+      "at": "2026-07-20T18:52:42+08:00",
+      "message": "chore(issues): 闭环 4 个已修 issue + 登记 regime parity 缺口",
+      "files": [
+        ".workflow/issues/issue-history.jsonl",
+        ".workflow/issues/issues.jsonl"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "aa57923eac24d5bd934391144776df8d94189977",
+      "at": "2026-07-20T18:37:56+08:00",
+      "message": "docs: 同步 state.json + roadmap 至代码进度——ISS-006/regime/harvest 入册",
+      "files": [
+        ".workflow/roadmap.md",
+        ".workflow/state.json"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "805e5b7f3dab552a47574d53ba5ebc4dcfeddffc",
+      "at": "2026-07-19T22:14:47+08:00",
+      "message": "docs: checklist 同步 ISS-006 exit 修复 + regime 缺口守卫登记",
+      "files": [
+        ".workflow/specs/p1-live-verification-checklist.md"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "0dbee17e5cde3fbf78a12c87c37669fe905eecff",
+      "at": "2026-07-19T22:08:08+08:00",
+      "message": "fix(ISS-006): 修复 trend_following exit 漂移根因 + 登记 regime parity 缺口",
+      "files": [
+        ".workflow/issues/issues.jsonl",
+        "quantflow/strategy/templates/trend_following.py",
+        "tests/unit/test_strategies.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "3cfda6a0a8193b8f9b388a2ba85c740f7a4933c2",
+      "at": "2026-07-19T21:22:46+08:00",
+      "message": "docs: P1-verify checklist 增补——离线/模拟实盘可执行性三步结论",
+      "files": [
+        ".workflow/specs/p1-live-verification-checklist.md"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "ce4d9b4c11ccbe034ba44274389a1e099966f4fd",
+      "at": "2026-07-19T21:20:27+08:00",
+      "message": "feat: paper 历史回放脚本——用真实 on_bar 路径积累 F4/F5 诊断数据",
+      "files": [
+        "scripts/replay_paper_f4f5.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "4f5e21862fb0f7aea9db4f7d9b5c2f62a326901d",
+      "at": "2026-07-19T20:58:20+08:00",
+      "message": "test: F4/F5 数据流接通——paper session returns 历史可直接喂诊断",
+      "files": [
+        "tests/unit/test_engine_extra.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "4c2dbd0c7b46a5c7a9d4d8ce92406de5c76fa002",
+      "at": "2026-07-19T20:49:40+08:00",
+      "message": "test: 补 trend_following 信号 parity 守卫——ISS-006 落地 + exit 漂移根因定位",
+      "files": [
+        ".workflow/issues/issues.jsonl",
+        "tests/unit/test_strategies.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "98e41dfdf7cd9e2cf4b53d3125af3e69ad1e6610",
+      "at": "2026-07-19T20:19:24+08:00",
+      "message": "test: P1 端到端确认——on_bar 事件流验证 CVaR gate 阻断下单与 vol-target 缩仓",
+      "files": [
+        ".workflow/specs/p1-live-verification-checklist.md",
+        "tests/unit/test_engine_extra.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "f2124711027f1d57a408aabe4dc0701e986fda74",
+      "at": "2026-07-19T19:48:14+08:00",
+      "message": "chore: 同步 M3 状态——P0/P1 代码完成 + P1 阻塞已清，待 P1-verify",
+      "files": [
+        ".workflow/roadmap.md",
+        ".workflow/state.json"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "ec17b237f5029f6646e511ce579f7315548991d7",
+      "at": "2026-07-19T19:13:07+08:00",
+      "message": "fix: 修复 ISS-20260719-001——on_bar 接线 add_return，CVaR gate 现真正生效",
+      "files": [
+        ".workflow/issues/issues.jsonl",
+        ".workflow/specs/p1-live-verification-checklist.md",
+        "quantflow/strategy/engine.py",
+        "tests/unit/test_engine_extra.py",
+        "tests/unit/test_risk_engine.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "82331b4acf101b89550c78489ea71aacfdff60d4",
+      "at": "2026-07-19T18:52:16+08:00",
+      "message": "chore: 登记 P1 阻塞 issue ISS-20260719-001——add_return 零调用方",
+      "files": [
+        ".workflow/issues/issues.jsonl"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "e57128c2d753056d4fea45230ce47f9b545badb1",
+      "at": "2026-07-19T18:48:22+08:00",
+      "message": "docs: P1 实盘验证 checklist——F3/F4/F5 观察项 + GO/NO-GO 判定标准",
+      "files": [
+        ".workflow/specs/p1-live-verification-checklist.md"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "c1bc8177d6245173eaed8f4fd0834a8da45389a3",
+      "at": "2026-07-19T18:40:31+08:00",
+      "message": "docs: roadmap P1 风控层补齐标记完成（F3/F4/F5 三 commit）",
+      "files": [
+        ".workflow/roadmap.md"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "5e5b432641a038288c98c6bd3045f5d4a4b4e570",
+      "at": "2026-07-19T18:38:38+08:00",
+      "message": "feat: F4 辅助诊断 bootstrap CVaR 置信区间（不替代 historical 主门）",
+      "files": [
+        "quantflow/signal/__init__.py",
+        "quantflow/signal/risk_metrics.py",
+        "tests/unit/test_risk_metrics.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "9b856ff61973b4e0d361f2007ad05c07b8d8c417",
+      "at": "2026-07-19T18:33:14+08:00",
+      "message": "feat: F5 路径级 MC 压力测试（trade-shuffle + returns-bootstrap，诊断非 gate）",
+      "files": [
+        "quantflow/cli/main.py",
+        "quantflow/strategy/research/backtest.py",
+        "quantflow/strategy/validation/__init__.py",
+        "quantflow/strategy/validation/monte_carlo.py",
+        "tests/unit/test_monte_carlo.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "09445de9840ad3e631e3de4ed1ec1c0dd8f43223",
+      "at": "2026-07-19T18:21:12+08:00",
+      "message": "feat: F3 vol-targeting opt-in 仓位绑定（默认 off 保 byte-for-byte）",
+      "files": [
+        "quantflow/common/config.py",
+        "quantflow/signal/position_sizer.py",
+        "quantflow/strategy/engine.py",
+        "tests/unit/test_position_sizer.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "99795b23d1ac7009a0d310120b6807ab074307ad",
+      "at": "2026-07-19T17:02:25+08:00",
+      "message": "feat: 新增 look-ahead 静态泄漏检测 CLI（validate --method lookahead）",
+      "files": [
+        "quantflow/cli/main.py",
+        "quantflow/strategy/validation/__init__.py",
+        "quantflow/strategy/validation/lookahead.py",
+        "tests/unit/test_lookahead_scanner.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "01f05fb3319f87e6ba6aa4af96e4e03bf0141582",
+      "at": "2026-07-19T17:01:56+08:00",
+      "message": "fix: MTF 对齐 leak-safe——HTF bar 值仅在收盘后对 minor 可见",
+      "files": [
+        "quantflow/data/mtf_aligner.py",
+        "tests/unit/test_mtf_aligner.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "15e1622c0c3c88258b7a2959dd71ec928487597b",
+      "at": "2026-07-18T09:09:59+08:00",
+      "message": "docs: 更新 README——27 因子、BacktestEngine、9 CLI 命令、Station、双模式接口",
+      "files": [
+        "README.md"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "b439ce784eb346d130e75e0eef116b0c334ae49d",
+      "at": "2026-07-16T10:41:13+08:00",
+      "message": "feat: Qlib RD-Agent 因子挖掘骨架——CLI 接线 + 可选依赖 guard",
+      "files": [
+        ".workflow/codebase/doc-index.json",
+        ".workflow/codebase/feature-maps/ai-layer.md",
+        ".workflow/codebase/feature-maps/cli.md",
+        ".workflow/codebase/tech-registry/strategy-layer.md",
+        "CLAUDE.md",
+        "quantflow/cli/main.py",
+        "quantflow/strategy/rd_agent.py",
+        "tests/unit/test_cli.py",
+        "tests/unit/test_rd_agent.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "b800fad2e78ae0fc8be9e26ed0a602866b5bd45a",
+      "at": "2026-07-16T09:18:14+08:00",
+      "message": "docs: 修正 AI 层文档——FinBERT/Meta-Labeling 已实现，Qlib RD-Agent 未实现",
+      "files": [
+        ".workflow/codebase/doc-index.json",
+        ".workflow/codebase/feature-maps/_index.md",
+        ".workflow/codebase/feature-maps/ai-layer.md",
+        ".workflow/codebase/rebuild-report-2026-07-15.md",
+        ".workflow/codebase/tech-registry/strategy-layer.md",
+        ".workflow/project.md",
+        "CLAUDE.md",
+        "README.md",
+        "quantflow/strategy/ai_factors.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "496280e6867a0b9d07238f7347a6639aeb0e3cfd",
+      "at": "2026-07-16T08:36:39+08:00",
+      "message": "refactor: 切断 ScalingPositionSizer 的 L5→L2 分层依赖",
+      "files": [
+        "quantflow/execution/scaling_position_sizer.py",
+        "tests/integration/test_elliott_wave.py",
+        "tests/unit/test_scaling_position_sizer_extra.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "b2289ce7169072528085b29e83bf31866c342a97",
+      "at": "2026-07-16T08:26:57+08:00",
+      "message": "fix: 实盘模式强制启用 Kill Switch（CLAUDE.md 安全要求）",
+      "files": [
+        "quantflow/strategy/engine.py",
+        "tests/unit/test_engine_async.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "7975773aae9a805d093c9b6c3e0956f81949de68",
+      "at": "2026-07-16T08:10:32+08:00",
+      "message": "docs: 重建 .workflow/codebase/ 文档体系（4 mapper 全量重建）",
+      "files": [
+        ".workflow/codebase/doc-index.json",
+        ".workflow/codebase/feature-maps/_index.md",
+        ".workflow/codebase/feature-maps/ai-layer.md",
+        ".workflow/codebase/feature-maps/anti-overfitting-validation.md",
+        ".workflow/codebase/feature-maps/cli.md",
+        ".workflow/codebase/feature-maps/data-layer.md",
+        ".workflow/codebase/feature-maps/execution.md",
+        ".workflow/codebase/feature-maps/indicators.md",
+        ".workflow/codebase/feature-maps/research-pipeline.md",
+        ".workflow/codebase/feature-maps/risk-controls.md",
+        ".workflow/codebase/feature-maps/strategies.md",
+        ".workflow/codebase/feature-maps/web-station.md",
+        ".workflow/codebase/rebuild-report-2026-07-15.md",
+        ".workflow/codebase/tech-registry/_index.md",
+        ".workflow/codebase/tech-registry/cli-entry.md",
+        ".workflow/codebase/tech-registry/common-foundation.md",
+        ".workflow/codebase/tech-registry/data-layer.md",
+        ".workflow/codebase/tech-registry/execution-layer.md",
+        ".workflow/codebase/tech-registry/indicators-layer.md",
+        ".workflow/codebase/tech-registry/monitoring-layer.md",
+        ".workflow/codebase/tech-registry/signal-risk-layer.md",
+        ".workflow/codebase/tech-registry/strategy-layer.md",
+        ".workflow/codebase/tech-registry/trading-shim.md",
+        ".workflow/codebase/tech-registry/web-station.md",
+        ".workflow/project.md",
+        ".workflow/state.json"
+      ]
+    }
+  ],
+  "hot_paths": [
+    "tests/unit/ (63 changes)",
+    "quantflow/strategy/ (41 changes)",
+    ".workflow/issues/ (33 changes)",
+    ".workflow/codebase/ (33 changes)",
+    "quantflow/execution/ (30 changes)",
+    ".workflow/specs/ (28 changes)",
+    "quantflow/web/ (25 changes)",
+    "quantflow/signal/ (17 changes)",
+    "quantflow/common/ (12 changes)",
+    ".workflow/ (12 changes)"
+  ],
+  "cold_workflow_files": [
+    {
+      "path": ".workflow/scratch/20260530-verify-quality-loop/verification.json",
+      "last_modified": "2026-05-30"
+    },
+    {
+      "path": ".workflow/scratch/20260530-verify-quality-loop/review.json",
+      "last_modified": "2026-05-30"
+    },
+    {
+      "path": ".workflow/scratch/20260530-plan-quality-fixes/plan.json",
+      "last_modified": "2026-05-30"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-001-zigzag-wave-identifier.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-002-fibonacci-critical-level.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-001-zigzag-wave-identifier.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-003-wave-channel-divergence.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-002-fibonacci-critical-level.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-004-elliott-wave-strategy.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-003-wave-channel-divergence.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-005-wave-signal-risk.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-006-scaling-position.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-004-elliott-wave-strategy.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-007-multi-timeframe-align.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-005-wave-signal-risk.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-008-cli-config-backtest.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/findings-wave-state-machine.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-006-scaling-position.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/findings-layer-boundary.md",
+      "last_modified": "2026-05-31"
+    }
+  ]
+}

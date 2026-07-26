@@ -35,7 +35,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
 - indicators → common (独立于 data)
 - strategy → common + indicators
 - signal → common
-- execution → common + monitoring.metrics
+- execution → common（monitoring 经 `common/monitoring_sink.py` 的 MonitoringSink Protocol 注入，lower layer 不 import `monitoring/`；见 §181 详述。drift-realign DFT-2f9a4c71 修正，2026-07-26）
 - strategy.engine (TradingSession) 是编排器，导入所有层
 - cli → 所有层（延迟导入以加快启动）
 
@@ -179,5 +179,45 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 ### L6 跨层耦合禁用 in-function import 规避审计
 
 低下层（L3 strategy/engine、L4 signal/risk_engine:90、L5 execution/kill_switch+engine、web/session_manager）不得 import monitoring/（L6）具体类——违反事件驱动 L6 契约（L6 应订阅 EventBus，低下层只 publish）。特别禁止用 in-function 延迟 import（risk_engine.py:90 把 monitoring import 放函数体内）来躲过 top-level grep 'import monitoring' 静态扫描——这是 audit-evasion 反模式，lazy import 只可用于打破循环依赖，不可用于规避分层审计。修复：全部 monitoring 调用移到 L6 EventBus subscriber；若必须同步推指标，在 common/ 暴露 thin Protocol 并注入。L6 耦合的静态 guard 必须同时扫 top-level + in-function import。
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="l4,权威账本,engine.submit,薄路由,reconcile,paper-live-parity" date="2026-07-25" sid="S-20260725-y8sf" title="L4 单一权威账本: engine.submit 统一负责 L4 PortfolioManager 的 fill 更新(含 fee), _process_signal 不再二次更新 L4。L5 PositionManager 退化为薄路由委托 L4(全 9 方法委托), PaperGateway 移除第三套 _cash 账本(仅保留 _positions 作为 gateway 本地交易所视图, 与 OKXGateway 对称: gateway 暴露交易所持仓视图不拥有 L4 账本)。消除 L5 委托 L4 后 engine.submit + _process_signal 双计同一 fill 的风险。fee 由 L4 单次扣除(PaperGateway send_order 不再借记 cash)。paper/live parity: 两者均经 engine.submit 单一 L4 fill 更新点。backtest 独立向量化 book 不在 reconcile 范围(per arch parity spec)。" description="多 book reconcile: L4 单一权威账本 + L5 薄路由委托 + engine.submit 统一 fill 更新" source="main@06a8d93">
+
+### L4 单一权威账本: engine.submit 统一负责 L4 PortfolioManager 的 fill 更新(含 fee), _process_signal 不再二次更新 L4。L5 PositionManager 退化为薄路由委托 L4(全 9 方法委托), PaperGateway 移除第三套 _cash 账本(仅保留 _positions 作为 gateway 本地交易所视图, 与 OKXGateway 对称: gateway 暴露交易所持仓视图不拥有 L4 账本)。消除 L5 委托 L4 后 engine.submit + _process_signal 双计同一 fill 的风险。fee 由 L4 单次扣除(PaperGateway send_order 不再借记 cash)。paper/live parity: 两者均经 engine.submit 单一 L4 fill 更新点。backtest 独立向量化 book 不在 reconcile 范围(per arch parity spec)。
+
+
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="翻仓,realized-pnl,归因,cash-解耦,closing-qty" date="2026-07-25" sid="S-20260725-nxzl" title="翻仓 realized PnL 归因与 cash 解耦(保守路径): PortfolioManager.update_position 在 cash mutation 后, 当 existing.quantity * quantity_delta &lt; 0(方向反转/部分平仓) 时, 用 closing_qty = min(|delta|, |existing.qty|), sign = sign(existing.quantity), realized = (price - entry) * closing_qty * sign 累计到 _realized_pnl。cash mutation 保留原 notional 语义(cash 总变动 = delta*price + fee), realized 仅作归因累计不重算 cash。0 数值回归(现有 cash 断言全保持), realized 可观测(snapshot 暴露 realized_pnl)。比重算 cash 方案更稳, 避免新 leg qty 代数推导风险。" description="翻仓 realized 归因: closing_qty*sign 累计, cash 保留原 notional 语义" source="main@06a8d93">
+
+### 翻仓 realized PnL 归因与 cash 解耦(保守路径): PortfolioManager.update_position 在 cash mutation 后, 当 existing.quantity * quantity_delta < 0(方向反转/部分平仓) 时, 用 closing_qty = min(|delta|, |existing.qty|), sign = sign(existing.quantity), realized = (price - entry) * closing_qty * sign 累计到 _realized_pnl。cash mutation 保留原 notional 语义(cash 总变动 = delta*price + fee), realized 仅作归因累计不重算 cash。0 数值回归(现有 cash 断言全保持), realized 可观测(snapshot 暴露 realized_pnl)。比重算 cash 方案更稳, 避免新 leg qty 代数推导风险。
+
+
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="partial-fill,cumulative,applied-filled-qty,增量,delta,双计" date="2026-07-25" sid="S-20260725-ue4p" title="partial-fill cumulative-fill 契约: ccxt/OKX 的 order['filled'] 是累计总量(非每次回调 delta)。Order.applied_filled_qty 跟踪已应用到 L4 的累计量, ExecutionEngine.submit 派生增量 delta = filled_quantity - applied_filled_qty, 仅当 delta &gt; POSITION_EPSILON 时调 L4 update_position(qty_signed=delta*side, fee=order.fee), 然后 applied_filled_qty = filled_quantity。POSITION_EPSILON guard 防 delta=0 重复回调误调 L4。OKXGateway.send_order 从 ccxt result 提取 filled/average/fee.cost 累计值盖印到 order。OKX REST create_order 仅返回 market order final state; limit 部分成交的 live 自动感知需未来 ws(watch_orders)集成。" description="cumulative-fill 契约: applied_filled_qty 防 partial 重复 fill 双计" source="main@06a8d93">
+
+### partial-fill cumulative-fill 契约: ccxt/OKX 的 order['filled'] 是累计总量(非每次回调 delta)。Order.applied_filled_qty 跟踪已应用到 L4 的累计量, ExecutionEngine.submit 派生增量 delta = filled_quantity - applied_filled_qty, 仅当 delta > POSITION_EPSILON 时调 L4 update_position(qty_signed=delta*side, fee=order.fee), 然后 applied_filled_qty = filled_quantity。POSITION_EPSILON guard 防 delta=0 重复回调误调 L4。OKXGateway.send_order 从 ccxt result 提取 filled/average/fee.cost 累计值盖印到 order。OKX REST create_order 仅返回 market order final state; limit 部分成交的 live 自动感知需未来 ws(watch_orders)集成。
+
+
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="构造顺序,懒绑定,set-portfolio,循环依赖,l4-l5" date="2026-07-25" sid="S-20260725-0du3" title="构造顺序循环懒绑定: ExecutionEngine 在 PortfolioManager 之前构造(TradingSession line 130 前注入 gateway), 产生 L4 引用循环。解法: ExecutionEngine.__init__ 接受 portfolio=None, PositionManager 默认自建私有 PortfolioManager(standalone/test 可用); set_portfolio(portfolio) 在 PortfolioManager 构造后注入共享 L4, 内部调 position_mgr.bind_portfolio(portfolio) 重绑委托目标。Idempotent。PositionManager 默认自建 L4 保证 submit() 在 standalone/test 不崩。" description="构造顺序循环: set_portfolio 懒绑定重绑共享 L4" source="main@06a8d93">
+
+### 构造顺序循环懒绑定: ExecutionEngine 在 PortfolioManager 之前构造(TradingSession line 130 前注入 gateway), 产生 L4 引用循环。解法: ExecutionEngine.__init__ 接受 portfolio=None, PositionManager 默认自建私有 PortfolioManager(standalone/test 可用); set_portfolio(portfolio) 在 PortfolioManager 构造后注入共享 L4, 内部调 position_mgr.bind_portfolio(portfolio) 重绑委托目标。Idempotent。PositionManager 默认自建 L4 保证 submit() 在 standalone/test 不崩。
+
+
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="daily-loss,total-value,baseline,日切锚定,warmup-guard" date="2026-07-25" sid="S-20260725-58tc" title="daily_loss 门 total-vs-baseline 语义: RiskEngine._check_daily_loss 改用 pnl_pct = (portfolio.total_value - portfolio.daily_baseline) / daily_baseline, baseline&lt;=0 时 warmup guard 返回 passed=True(首日无 baseline 不阻断)。daily_baseline 由 TradingSession.on_bar 日切锚定: current_day = bar.timestamp // 86_400_000(UTC 日历日索引), 新日时 portfolio.set_daily_baseline(curr_equity)。daily_baseline 经 Portfolio dataclass 快照传递(非 RiskEngine 持 L4 引用绕过快照), 保持 check 纯函数语义。原 sum(unrealized_pnl)/total 语义被替代(不含 realized + 对浮亏过度敏感)。" description="daily_loss 改 total-vs-baseline + 日切锚定 + warmup guard" source="main@06a8d93">
+
+### daily_loss 门 total-vs-baseline 语义: RiskEngine._check_daily_loss 改用 pnl_pct = (portfolio.total_value - portfolio.daily_baseline) / daily_baseline, baseline<=0 时 warmup guard 返回 passed=True(首日无 baseline 不阻断)。daily_baseline 由 TradingSession.on_bar 日切锚定: current_day = bar.timestamp // 86_400_000(UTC 日历日索引), 新日时 portfolio.set_daily_baseline(curr_equity)。daily_baseline 经 Portfolio dataclass 快照传递(非 RiskEngine 持 L4 引用绕过快照), 保持 check 纯函数语义。原 sum(unrealized_pnl)/total 语义被替代(不含 realized + 对浮亏过度敏感)。
+
+
 
 </spec-entry>

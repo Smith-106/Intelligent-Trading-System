@@ -1,0 +1,273 @@
+{
+  "drift_score": "SEVERE",
+  "window": "2026-07-15 → 2026-07-26 (11 days, 90 commits, 172 files)",
+  "total": 21,
+  "p0": 4,
+  "p1": 12,
+  "p2": 5,
+  "by_scope": {
+    "roadmap": 8,
+    "spec": 1,
+    "codebase": 7,
+    "issue": 1,
+    "state": 2,
+    "project": 1,
+    "knowhow": 1
+  },
+  "conflict_markers_merged": 0,
+  "findings": [
+    {
+      "id": "DFT-1a3f7c02",
+      "scope": "roadmap",
+      "severity": "P0",
+      "target": {
+        "file": ".workflow/roadmap.md",
+        "section": "M3 Phase 2 (P1 风控) stale_progress — P1-verify 已PASS 07-21 仍标待verify"
+      },
+      "drift_type": "stale_progress",
+      "suggested_action": "update",
+      "source": "roadmap-scanner"
+    },
+    {
+      "id": "DFT-2b8e1d47",
+      "scope": "roadmap",
+      "severity": "P0",
+      "target": {
+        "file": ".workflow/roadmap.md",
+        "section": "M3 Phase 3 (P2 AI) stale_progress — P1-verify PASS后P2应unblocked仍标blocked"
+      },
+      "drift_type": "stale_progress",
+      "suggested_action": "update",
+      "source": "roadmap-scanner"
+    },
+    {
+      "id": "DFT-3c9f2e58",
+      "scope": "roadmap",
+      "severity": "P0",
+      "target": {
+        "file": ".workflow/roadmap.md",
+        "section": "phantom_phase — Wave1-5多book reconcile未入任何phase/milestone"
+      },
+      "drift_type": "phantom_phase",
+      "suggested_action": "update",
+      "source": "roadmap-scanner"
+    },
+    {
+      "id": "DFT-4d1a3b69",
+      "scope": "roadmap",
+      "severity": "P0",
+      "target": {
+        "file": ".workflow/roadmap.md",
+        "section": "M2 Phase 3 v0.1.3 — tag+Release已存在(4bc72cd)仍标未创建"
+      },
+      "drift_type": "stale_progress",
+      "suggested_action": "update",
+      "source": "roadmap-scanner"
+    },
+    {
+      "id": "DFT-7a3c9e01",
+      "scope": "codebase",
+      "severity": "P1",
+      "target": {
+        "file": ".workflow/codebase/doc-index.json",
+        "section": "TC-007 removed_symbols误标8个EVENT_* (符号仍存在)"
+      },
+      "drift_type": "concern_drift",
+      "suggested_action": "update",
+      "source": "codebase-scanner"
+    },
+    {
+      "id": "DFT-8b1f4c27",
+      "scope": "codebase",
+      "severity": "P1",
+      "target": {
+        "file": ".workflow/codebase/doc-index.json",
+        "section": "TC-008 removed_symbols误标app/_load_gateway_config (符号仍存在)"
+      },
+      "drift_type": "concern_drift",
+      "suggested_action": "update",
+      "source": "codebase-scanner"
+    },
+    {
+      "id": "DFT-9c2e5d83",
+      "scope": "codebase",
+      "severity": "P1",
+      "target": {
+        "file": ".workflow/codebase/doc-index.json",
+        "section": "TC-009 removed_symbols误标_station_token/_is_loopback_host (符号仍存在)"
+      },
+      "drift_type": "concern_drift",
+      "suggested_action": "update",
+      "source": "codebase-scanner"
+    },
+    {
+      "id": "DFT-1d4a6f72",
+      "scope": "codebase",
+      "severity": "P1",
+      "target": {
+        "file": ".workflow/codebase/tech-registry/signal-risk-layer.md",
+        "section": "portfolio.py PortfolioManager未反映realized_pnl+daily_baseline"
+      },
+      "drift_type": "feature_missing",
+      "suggested_action": "update",
+      "source": "codebase-scanner"
+    },
+    {
+      "id": "DFT-2e5b7a94",
+      "scope": "codebase",
+      "severity": "P1",
+      "target": {
+        "file": ".workflow/codebase/tech-registry/execution-layer.md",
+        "section": "PositionManager仍称local book实为薄路由(Wave2)"
+      },
+      "drift_type": "architecture_outdated",
+      "suggested_action": "update",
+      "source": "codebase-scanner"
+    },
+    {
+      "id": "DFT-3f6c8b15",
+      "scope": "codebase",
+      "severity": "P1",
+      "target": {
+        "file": ".workflow/codebase/tech-registry/signal-risk-layer.md",
+        "section": "RiskEngine daily_loss未反映total-vs-baseline(Wave3)"
+      },
+      "drift_type": "concern_drift",
+      "suggested_action": "update",
+      "source": "codebase-scanner"
+    },
+    {
+      "id": "DFT-0a3f1c9b",
+      "scope": "issue",
+      "severity": "P1",
+      "target": {
+        "file": ".workflow/issues/issues.jsonl",
+        "section": "ISS-20260723-001 stale_open(Wave1-5已修复三账本)"
+      },
+      "drift_type": "issue_stale_open",
+      "suggested_action": "archive",
+      "source": "artifact-scanner"
+    },
+    {
+      "id": "DFT-2c8d4f1e",
+      "scope": "project",
+      "severity": "P1",
+      "target": {
+        "file": "quantflow/config/default.yaml + common/config.py",
+        "section": "research_engine default=vectorbt 永不工作(已移除vectorbt)"
+      },
+      "drift_type": "project_tech_drift",
+      "suggested_action": "update",
+      "source": "artifact-scanner"
+    },
+    {
+      "id": "DFT-5e7c4f8a",
+      "scope": "roadmap",
+      "severity": "P1",
+      "target": {
+        "file": ".workflow/roadmap.md",
+        "section": "M3 P0.3 回归守卫 baseline被Wave1-5 engine重写失效"
+      },
+      "drift_type": "timeline_impossible",
+      "suggested_action": "update",
+      "source": "roadmap-scanner"
+    },
+    {
+      "id": "DFT-6f8d5a9b",
+      "scope": "roadmap",
+      "severity": "P1",
+      "target": {
+        "file": ".workflow/roadmap.md",
+        "section": "Overview+成功标准未反映reconcile契约(realized/daily_baseline/薄路由)"
+      },
+      "drift_type": "outdated_criteria",
+      "suggested_action": "update",
+      "source": "roadmap-scanner"
+    },
+    {
+      "id": "DFT-7a9e6b0c",
+      "scope": "roadmap",
+      "severity": "P1",
+      "target": {
+        "file": "CLAUDE.md",
+        "section": "分阶段Phase3✅ 与roadmap M3 in_progress(P2未完成)矛盾"
+      },
+      "drift_type": "outdated_criteria",
+      "suggested_action": "update",
+      "source": "roadmap-scanner"
+    },
+    {
+      "id": "DFT-2f9a4c71",
+      "scope": "spec",
+      "severity": "P1",
+      "target": {
+        "file": ".workflow/specs/architecture-constraints.md",
+        "section": "Layer Boundaries L38 execution→monitoring.metrics 过时(已改Protocol注入)"
+      },
+      "drift_type": "stale_dependency",
+      "suggested_action": "update",
+      "source": "spec-scanner"
+    },
+    {
+      "id": "DFT-4a7d9e36",
+      "scope": "codebase",
+      "severity": "P2",
+      "target": {
+        "file": ".workflow/codebase/doc-index.json",
+        "section": "TC-007 POSITION_EPSILON未入symbols"
+      },
+      "drift_type": "feature_missing",
+      "suggested_action": "update",
+      "source": "codebase-scanner"
+    },
+    {
+      "id": "DFT-3d9e5a2f",
+      "scope": "knowhow",
+      "severity": "P2",
+      "target": {
+        "file": ".workflow/knowhow/DOC-knowhow-data-layer-upgrade-polars-clickhouse.md",
+        "section": "未标not-implemented易误读为现状"
+      },
+      "drift_type": "knowhow_code_ref_dead",
+      "suggested_action": "keep",
+      "source": "artifact-scanner"
+    },
+    {
+      "id": "DFT-8b1f7c3d",
+      "scope": "roadmap",
+      "severity": "P2",
+      "target": {
+        "file": ".workflow/state.json",
+        "section": "current_task_id=M3-P1-verify stale(已PASS)"
+      },
+      "drift_type": "stale_progress",
+      "suggested_action": "update",
+      "source": "roadmap-scanner"
+    },
+    {
+      "id": "DFT-1b7c2e0a",
+      "scope": "state",
+      "severity": "P2",
+      "target": {
+        "file": ".workflow/state.json",
+        "section": "blockers v0.1.2/v0.1.3 tag已解决(4bc72cd)"
+      },
+      "drift_type": "deferred_resolved",
+      "suggested_action": "update",
+      "source": "artifact-scanner"
+    },
+    {
+      "id": "DFT-4e1f6b3c",
+      "scope": "state",
+      "severity": "P2",
+      "target": {
+        "file": ".workflow/state.json",
+        "section": "sessions数组未登记.workflow/sessions/目录"
+      },
+      "drift_type": "orphan_session",
+      "suggested_action": "rebuild",
+      "source": "artifact-scanner"
+    }
+  ],
+  "synthesized_at": "2026-07-26T10:30:00Z"
+}

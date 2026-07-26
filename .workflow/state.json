@@ -1,14 +1,14 @@
 {
-  "version": "3.1",
+  "version": "2.0",
   "project_name": "QuantFlow",
   "status": "active",
   "current_milestone": "M3",
-  "current_task_id": "M3-P1-verify",
+  "current_task_id": "M3-P2",
   "milestones": [
     {
       "id": "M1",
       "name": "四策略实现",
-      "type": "standard",
+      "title": "四策略实现",
       "status": "completed",
       "phases": [
         {
@@ -17,18 +17,12 @@
           "slug": "strategy-implementation",
           "status": "completed"
         }
-      ],
-      "phase_slugs": {
-        "1": "strategy-implementation"
-      },
-      "roadmap_ref": ".workflow/roadmap.md",
-      "created_at": "2026-06-02T04:30:00Z",
-      "completed_at": "2026-06-02T23:55:00Z"
+      ]
     },
     {
       "id": "M2",
       "name": "v0.1.3 发布候选准备",
-      "type": "release",
+      "title": "v0.1.3 发布候选准备",
       "status": "in_progress",
       "phases": [
         {
@@ -49,19 +43,12 @@
           "slug": "release-evidence",
           "status": "in_progress"
         }
-      ],
-      "phase_slugs": {
-        "1": "release-alignment",
-        "2": "package-governance",
-        "3": "release-evidence"
-      },
-      "roadmap_ref": ".workflow/roadmap.md",
-      "created_at": "2026-06-07T09:27:00+08:00"
+      ]
     },
     {
       "id": "M3",
       "name": "deep-research 改进分批实施",
-      "type": "standard",
+      "title": "deep-research 改进分批实施",
       "status": "in_progress",
       "phases": [
         {
@@ -82,15 +69,7 @@
           "slug": "p2-ai-layer",
           "status": "blocked"
         }
-      ],
-      "phase_slugs": {
-        "1": "p0-data-leakage",
-        "2": "p1-risk-layer",
-        "3": "p2-ai-layer"
-      },
-      "roadmap_ref": ".workflow/roadmap.md",
-      "created_at": "2026-07-18T21:40:00+08:00",
-      "serial_constraint": "P0-verify -> P1 -> P1-verify -> P2"
+      ]
     }
   ],
   "artifacts": [
@@ -270,8 +249,6 @@
       "summary": "新策略 brainstorm → 1 knowhow（策略矩阵+互补性+学术依据，4/5 已实现）+ 1 spec arch（跨交易所套利 P5 未实现，S-20260720-5v13）；2 skip-dup（实施顺序+架构兼容性已入库）"
     }
   ],
-  "last_updated": "2026-07-20T18:30:00+08:00",
-  "last_codebase_rebuild": "2026-07-15T22:35:00Z",
   "accumulated_context": {
     "key_decisions": [
       "自建事件驱动引擎(TradingSession)",
@@ -294,8 +271,6 @@
     "blockers": [
       "P1-verify 未跑（F3/F4/F5 实盘观察项待产出 verification.json + review.json）——串行约束下 P2 禁止启动",
       "P0-verify 的 byte-for-byte 回归守卫证据未产出",
-      "当前 HEAD 与 v0.1.2 tag 不一致，不能继续复用 v0.1.2 作为发布基线",
-      "远端尚未创建 v0.1.3 tag 与 GitHub Release",
       "远端发布证据、安全扫描与 installed-wheel 冒烟记录尚未补齐"
     ],
     "deferred": [
@@ -335,5 +310,17 @@
       "at": "2026-07-19T18:00:00+08:00"
     }
   ],
-  "updated_at": "2026-07-19T18:00:00+08:00"
+  "last_updated": "2026-07-25T22:21:36+08:00",
+  "sessions": [
+    {
+      "session_id": "maestro-multi-book-reconcile-20260725-113526",
+      "intent": "多 book reconcile 连贯重构：L4 单一权威 + L5 薄路由 + realized 归因 + daily_loss total-vs-baseline + partial-fill 同步 + OKX cumulative 契约",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    }
+  ],
+  "active_session_id": null,
+  "last_drift_realign": "2026-07-26T10:40:00+08:00"
 }

@@ -144,3 +144,27 @@ except Exception 路径不可返回与合法结果不可区分的值（0.0/True/
 L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需要 push 指标/发告警时，禁止直接 import quantflow.monitoring.* 具体类（top-level 或 in-function lazy，后者额外违反 arch-013 audit-evasion）。固定模式：在 common/monitoring_sink.py 定义 runtime_checkable Protocol（MonitoringSink：start/record_signal/record_bar_latency/record_signal_latency/record_portfolio/send_alert）+ NullMonitoringSink（零开销默认，backtest/tests 用）；monitoring/sink.py 实现 DefaultMonitoringSink（owns AlertManager 生命周期 + idempotent per-port metrics-server start）；调用方（cli/main、web/session_manager 高层）注入 create_default_sink()，lower layer 构造函数接受 monitoring_sink: MonitoringSink | None = None 默认 Null。EventBus 保留给 control flow（BAR/SIGNAL/RISK/ORDER/FILL），observability side-effect 走 sink Protocol——避免为 telemetry 膨胀 event 契约。ISS-019 落地 L3 strategy/engine（commit 1bf8e2b）；ISS-20260724-044 落地 3 sibling 站点——risk_engine:90 in-function RISK_EVENTS lazy-import（audit-evasion）、kill_switch:11 KILL_SWITCH_ACTIVATIONS/STEP_FAILURES、execution/engine:25 ORDER_LATENCY/ORDERS_FILLED/ORDERS_TOTAL 全部改走 self._sink.record_*（commit b2a4cf8，Protocol 扩展 6 个 record 方法）。L1-L5 现零 monitoring/ 直接 import。
 
 </spec-entry>
+
+<spec-entry category="coding" keywords="翻仓,realized,closing-qty,snapshot,portfolio" date="2026-07-25" sid="S-20260725-3zl0" title="翻仓 realized 归因实现模式(PortfolioManager.update_position): 在 cash mutation 后追加: if existing.quantity * quantity_delta &lt; 0: closing_qty = min(abs(quantity_delta), abs(existing.quantity)); sign = 1.0 if existing.quantity &gt; 0 else -1.0; self._realized_pnl += (price - existing.entry_price) * closing_qty * sign。仅当方向反转(乘积&lt;0)触发, 部分平仓取 min(delta, existing) 防超平。snapshot 经 Portfolio dataclass realized_pnl 字段暴露(默认 0.0 保后向兼容)。测试: 翻仓双向(long→short / short→long)+ 部分平仓 realized 累计 + snapshot 暴露。" description="翻仓 realized 归因代码模式: closing_qty*sign 累计 + snapshot 暴露" source="main@06a8d93">
+
+### 翻仓 realized 归因实现模式(PortfolioManager.update_position): 在 cash mutation 后追加: if existing.quantity * quantity_delta < 0: closing_qty = min(abs(quantity_delta), abs(existing.quantity)); sign = 1.0 if existing.quantity > 0 else -1.0; self._realized_pnl += (price - existing.entry_price) * closing_qty * sign。仅当方向反转(乘积<0)触发, 部分平仓取 min(delta, existing) 防超平。snapshot 经 Portfolio dataclass realized_pnl 字段暴露(默认 0.0 保后向兼容)。测试: 翻仓双向(long→short / short→long)+ 部分平仓 realized 累计 + snapshot 暴露。
+
+
+
+</spec-entry>
+
+<spec-entry category="coding" keywords="cumulative-fill,delta,position-epsilon,partial,applied-filled-qty" date="2026-07-25" sid="S-20260725-j4x6" title="cumulative-fill delta 守卫实现模式(ExecutionEngine.submit FILLED/PARTIAL 分支): delta_filled = order.filled_quantity - order.applied_filled_qty; if delta_filled &gt; POSITION_EPSILON: qty_signed = delta_filled if order.side==BUY else -delta_filled; position_mgr.update_position(symbol, qty_signed, filled_price, fee=order.fee, strategy_id=...); order.applied_filled_qty = order.filled_quantity。FILLED 才 emit EVENT_FILL + record_order_filled; PARTIAL 保持 non-terminal(OrderManager get_open_orders 含 PARTIAL, _pending 不 pop)。POSITION_EPSILON 来自 common.validators, 防 delta=0 重复回调误调 L4。Order.applied_filled_qty 默认 0.0 保后向兼容。" description="cumulative-fill delta 守卫代码模式 + PARTIAL 状态保留" source="main@06a8d93">
+
+### cumulative-fill delta 守卫实现模式(ExecutionEngine.submit FILLED/PARTIAL 分支): delta_filled = order.filled_quantity - order.applied_filled_qty; if delta_filled > POSITION_EPSILON: qty_signed = delta_filled if order.side==BUY else -delta_filled; position_mgr.update_position(symbol, qty_signed, filled_price, fee=order.fee, strategy_id=...); order.applied_filled_qty = order.filled_quantity。FILLED 才 emit EVENT_FILL + record_order_filled; PARTIAL 保持 non-terminal(OrderManager get_open_orders 含 PARTIAL, _pending 不 pop)。POSITION_EPSILON 来自 common.validators, 防 delta=0 重复回调误调 L4。Order.applied_filled_qty 默认 0.0 保后向兼容。
+
+
+
+</spec-entry>
+
+<spec-entry category="coding" keywords="薄路由,委托,positionmanager,bind-portfolio,本地视图" date="2026-07-25" sid="S-20260725-jabg" title="L5 PositionManager 薄路由委托模式: __init__(portfolio=None) 默认自建 PortfolioManager(standalone/test), bind_portfolio(portfolio) 重绑共享 L4。全 9 方法委托: update_market_price→update_market_prices({sym:price}); update_position→委托 L4(含 fee); set_position→委托; get_position/get_all_positions/has_position/position_count/total_unrealized_pnl/total_market_value→委托; close_position→update_position(-pos.quantity, current_price)(真平仓经 L4)。ExecutionEngine.sync_positions 改 self._position_mgr.set_position(pos.symbol, pos)(替代私有属性写, exchange 是 live sync 真值源覆盖本地 book)。PaperGateway 移除 _cash 第三套账本, fee 仅盖印 order.fee(L4 单扣), 保留 _positions 本地视图(query_positions/reduceOnly caps)。" description="L5 薄路由委托模式 + PaperGateway 本地视图" source="main@06a8d93">
+
+### L5 PositionManager 薄路由委托模式: __init__(portfolio=None) 默认自建 PortfolioManager(standalone/test), bind_portfolio(portfolio) 重绑共享 L4。全 9 方法委托: update_market_price→update_market_prices({sym:price}); update_position→委托 L4(含 fee); set_position→委托; get_position/get_all_positions/has_position/position_count/total_unrealized_pnl/total_market_value→委托; close_position→update_position(-pos.quantity, current_price)(真平仓经 L4)。ExecutionEngine.sync_positions 改 self._position_mgr.set_position(pos.symbol, pos)(替代私有属性写, exchange 是 live sync 真值源覆盖本地 book)。PaperGateway 移除 _cash 第三套账本, fee 仅盖印 order.fee(L4 单扣), 保留 _positions 本地视图(query_positions/reduceOnly caps)。
+
+
+
+</spec-entry>

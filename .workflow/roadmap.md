@@ -6,7 +6,7 @@
 
 - `M1` 已完成：4 个新增策略的实现与验证
 - `M2` 进行中：`v0.1.3` 发布候选准备，目标是对齐版本、治理打包内容、重建制品校验信息，并为后续 tag / release 对齐铺平状态
-- `M3` 进行中：按 deep-research 研究文档（ANL-002）分批里程碑实施 P0 数据层防泄漏 → P1 风控层补齐 → P2 AI 层升级，每批独立实盘验证后才进下一批。当前 P0 代码层完成（待 P0-verify），P1 代码层完成 + 阻塞已清（待 P1-verify），P2 待 P1-verify 通过方可启动
+- `M3` 进行中：按 deep-research 研究文档（ANL-002）分批里程碑实施 P0 数据层防泄漏 → P1 风控层补齐 → P2 AI 层升级，每批独立实盘验证后才进下一批。**P0 代码层完成**，**P1 已 P1-verify PASS（2026-07-21，commit `626b015`）**，**P2 unblocked 未启动**（P2.1 schema-only 隔离层为下一步）。2026-07-25 另完成 Wave 1-5 多 book reconcile 一致性收口（L4 单一权威 + L5 薄路由 + realized_pnl 翻仓归因 + daily_loss total-vs-baseline + partial-fill cumulative 契约）——该 reconcile 契约现为新 load-bearing 架构不变量，后续成功标准须引用（drift-realign DFT-6f8d5a9b, 2026-07-26）
 
 ## Milestones
 
@@ -49,7 +49,7 @@
 
 - [x] **Phase 1: 版本与工作流对齐**：更新版本元数据，建立发布里程碑与 maestro 会话，准备 `docs/release/v0.1.3/`
 - [x] **Phase 2: 打包治理与制品重建**：限制 sdist / wheel 内容，重建 `SHA256SUMS.txt` 与 `release-manifest.json`
-- [ ] **Phase 3: 发布证据与远端对齐**：准备 tag / release 对齐所需证据，核验远端资产闭环
+- [x] **Phase 3: 发布证据与远端对齐**：tag `v0.1.3` + GitHub Release「QuantFlow v0.1.3」已创建（commit `4bc72cd`，2026-06-07），dist 制品已封存
 
 #### Delivery Summary
 
@@ -66,8 +66,8 @@
 
 #### Blocking Findings
 
-- `v0.1.3` 远端 tag / release 尚未创建
-- 安全扫描与发布证据仍未归档到当前候选版本
+- ~~`v0.1.3` 远端 tag / release 尚未创建~~ — **已解决**：tag `v0.1.3`（target `4bc72cd`）+ GitHub Release「QuantFlow v0.1.3」已创建于 2026-06-07（drift-realign DFT-4d1a3b69, 2026-07-26）
+- ~~安全扫描与发布证据仍未归档~~ — 待核验：远端资产闭环扫描证据归档状态未确认（保留待办）
 
 ### Milestone 3: deep-research 改进分批实施（P0/P1/P2）
 
@@ -90,7 +90,7 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 - [x] **P0.0 只读核实**：读 `_create_aligned_index` + 写「跨 HTF 边界 minor bar 断言无未收盘 HTF 值泄漏」测试。核实结论：CCXT fetch_ohlcv 返回 bar-open 时间戳（fetcher.py:102-105），原 reindex+ffill 会暴露未收盘 HTF bar → 确认泄漏存在，进 P0.1
 - [x] **P0.1 MTF 修复（方案 b）**：reindex 前将 HTF index 整体右移一个周期（`_infer_period` 三级推断：freq → infer_freq → median diff），HTF bar 值只在下一根开盘（== 本根收盘）后对 minor 可见；不改 fetcher 索引，不破坏 backtest parity — commit `01f05fb`
 - [x] **P0.2 look-ahead CLI**：`quantflow validate --method lookahead` 新建 `validation/lookahead.py`，静态 AST 扫描检出 `series[mask].agg()` 聚合泄漏模式（Shape 1 high / Shape 2 medium），无需数据/回测可直接进 CI — commit `99795b2`
-- [ ] **P0.3 回归守卫**：4 策略回测基线 byte-for-byte 不变 — 待 P0-verify 产出 `test-results.json`
+- [ ] **P0.3 回归守卫**：4 策略回测基线 byte-for-byte 不变 — ⚠️ Wave 1-5（2026-07-25）重写 `strategy/engine.py`+`execution/engine.py`，pre-Wave 基线已失效，须对当前 HEAD 重立 `test-results.json`（drift-realign DFT-5e7c4f8a, 2026-07-26）
 
 **Acceptance**:
 - MTF 跨 HTF 边界无未收盘值泄漏断言通过 ✅（`test_mtf_does_not_expose_unclosed_htf_bar_close_to_minor`）
@@ -101,7 +101,7 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 #### Phase 2: P1 风控层补齐（milestone-gate: P1-verify）
 
-**Status**：代码层完成 + 阻塞已清（ISS-20260719-001），待 P1-verify（按 `.workflow/specs/p1-live-verification-checklist.md` 跑 F3/F4/F5 观察项，产出 `verification.json` + `review.json`）
+**Status**：P1-verify PASS（2026-07-21，commit `626b015`）— F3/F4 GO，F5 mean_reversion 路径运气红旗 ISS-20260720-003 为「诊断非 gate」不阻 P2
 
 **Scope**：F3 vol-targeting（opt-in）、F4 辅助诊断 CVaR、F5 路径级 MC 压力测试
 **Target files**：`config.py:50-68`、`position_sizer.py:12-99`、`risk_metrics.py:13-62`、`risk_engine.py:176-193`、`strategy/validation/monte_carlo.py`（新建）、`cli/main.py`
@@ -133,11 +133,11 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 **Deferred**：研究层大规模参数扫描优化（依赖 F8 vectorbt 裁决——「numpy 向量化并行」vs「重新评估 vectorbt 2026 兼容性」，用户 P1 启动前裁决）
 
-**Done when**: P1-verify `verification.json` + `review.json` passed（checklist 全 PASS）
+**Done when**: ✅ P1-verify `verification.json` + `review.json` passed（checklist 全 PASS，2026-07-21，commit `626b015`）
 
 #### Phase 3: P2 AI 层升级（milestone-gate: P2-verify）
 
-**Status**：blocked — 串行约束要求 P1-verify PASS 后方可启动
+**Status**：unblocked（P1-verify PASS 2026-07-21），未启动 — P2.1 schema-only 隔离层是下一步；串行约束闸门已开（drift-realign DFT-2b8e1d47, 2026-07-26）
 **Scope**：F6 schema-only 暴露层（P2 内部硬约束）、F11 FinGPT、F12 情绪传播广度
 **Target files**：`strategy/sentiment.py`、新建 schema 暴露层
 
@@ -152,6 +152,29 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 **Done when**: `verification.json` + `review.json` passed
 
+#### Phase 4: 多 book reconcile 一致性收口（Wave 1-5，2026-07-25 已落地）
+
+**Status**：completed（commits `7e781a8` → `06a8d93`，Wave 1-5，2026-07-25）
+
+**Scope**：横切 L4/L5 执行路径一致性重构 — 消除多账本、统一 fill 更新点、翻仓 realized 归因、daily_loss 语义切换、partial-fill cumulative 契约。此 Phase 非 deep-research F1-F12 范畴，是 P1-verify 后暴露的执行路径一致性收口（drift-realign DFT-3c9f2e58 补登，2026-07-26）。
+
+**Tasks（已落地）**:
+- [x] **Wave 1**：`PortfolioManager` 增 `realized_pnl` 翻仓归因（closing-leg PnL）+ `daily_baseline` 字段 — commit `7e781a8`
+- [x] **Wave 2**：`PositionManager` 退化为薄路由委托 L4（全 9 方法委托 + `bind_portfolio`），`PaperGateway` 移除第三套 `_cash` 账本 — commit `062a7b5`
+- [x] **Wave 3**：`daily_loss` gate 改 total-vs-baseline 语义（日切首 bar equity 锚定），替代旧 daily PnL 累计 — commit `90b3eff`
+- [x] **Wave 4**：partial-fill cumulative 契约 — `Order.applied_filled_qty` + `delta_filled` guard（POSITION_EPSILON 防 0 回调误调 L4），OKX cumulative fill 提取 — commit `b0177e0`
+- [x] **Wave 5**：全套验证通过（lint + mypy + test + parity） — commit `06a8d93`
+
+**Acceptance**:
+- L4 PortfolioManager 单一权威账本，engine.submit 统一 fill 更新点（含 fee），_process_signal 不再二次更新 L4 ✅
+- L5 PositionManager 薄路由委托，PaperGateway 无独立 cash 账本 ✅
+- paper/live 经同一 engine.submit 路径，parity 成立（backtest 独立向量化 book 不在 reconcile 范围，per arch parity spec）✅
+- partial-fill 重复回调不双计 L4 ✅
+
+**Done when**: ✅ Wave 5 全套验证通过（2026-07-25，commit `06a8d93`）
+
+**Note（drift-realign DFT-5e7c4f8a）**：Wave 1-5 重写了 `strategy/engine.py`（+57）与 `execution/engine.py`（+111），P0.3 byte-for-byte 回归守卫基线若在 Wave 前建立则已失效，需对当前 HEAD 重立基线。
+
 ## Scope Decisions
 
 - **In scope**：版本抬升到 `v0.1.3`、发布文档、`.workflow` 发布里程碑、maestro 会话、打包治理、哈希与 manifest 刷新
@@ -165,7 +188,8 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 | 1. 四策略实现 | 1. 策略实现与验证 | Completed | 2026-06-02 |
 | 2. v0.1.3 发布候选准备 | 1. 版本与工作流对齐 | Completed | 2026-06-07 |
 | 2. v0.1.3 发布候选准备 | 2. 打包治理与制品重建 | Completed | 2026-06-07 |
-| 2. v0.1.3 发布候选准备 | 3. 发布证据与远端对齐 | In Progress | - |
-| 3. deep-research 改进分批实施 | 1. P0 数据层防泄漏 | 代码完成，待 P0-verify | `01f05fb` `99795b2` |
-| 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | 代码完成+阻塞已清+parity 地基就绪，待 P1-verify | `09445de` `9b856ff` `5e5b432` `ec17b23` `4c2dbd0` `4f5e218` `ce4d9b4` `0dbee17` `805e5b7` |
-| 3. deep-research 改进分批实施 | 3. P2 AI 层升级 | Blocked（待 P1-verify） | - |
+| 2. v0.1.3 发布候选准备 | 3. 发布证据与远端对齐 | Completed | 2026-06-07 (tag `4bc72cd` + Release) |
+| 3. deep-research 改进分批实施 | 1. P0 数据层防泄漏 | 代码完成，待 P0-verify（P0.3 基线待 Wave 后重立） | `01f05fb` `99795b2` |
+| 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | **P1-verify PASS** | 2026-07-21 `626b015` |
+| 3. deep-research 改进分批实施 | 2.5 多 book reconcile (Wave 1-5) | **Completed** | 2026-07-25 `7e781a8`→`06a8d93` |
+| 3. deep-research 改进分批实施 | 3. P2 AI 层升级 | Unblocked，未启动 | - |

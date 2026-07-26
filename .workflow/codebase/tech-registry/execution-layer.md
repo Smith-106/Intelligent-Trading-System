@@ -13,26 +13,29 @@
 - `quantflow/execution/paper_gateway.py:8` — `PaperGateway` (local simulation, immediate fills)
 - `quantflow/execution/engine.py:30` — `ExecutionEngine` (routes orders, tracks state, emits ORDER/FILL events L139/172, latency metrics L196; `start` switches gateway by mode L48-65)
 - `quantflow/execution/order_manager.py:8` — `OrderManager` (pending tracking, timeout checks)
-- `quantflow/execution/position_manager.py:7` — `PositionManager` (local position book)
+- `quantflow/execution/position_manager.py:7` — `PositionManager` (thin delegate over L4 `PortfolioManager` — Wave 2 退化: `__init__(portfolio=None)` 默认自建 + `bind_portfolio()` 重绑; 全 9 方法委托 L4)
 - `quantflow/execution/kill_switch.py:8` — `KillSwitch` (emergency flatten, wraps `GatewayBase`; best-effort — catches per-step exceptions into `results["errors"]`)
 - `quantflow/execution/scaling_position_sizer.py:68` — `ScalingPositionSizer` (phased position building; outputs `PositionRequest` for RiskEngine authority)
 
 ## Exported Symbols
 
-`GatewayBase`, `OKXGateway`, `PaperGateway`, `ExecutionEngine`, `OrderManager`, `PositionManager`, `KillSwitch`, `ScalingPositionSizer`, `ScalingConfig`, `PositionPhase`, `PositionRequest`
+`ExecutionEngine`, `GatewayBase`, `GatewayError`, `KillSwitch`, `OKXGateway`, `OrderManager`, `PaperGateway`, `PositionManager`, `PositionPhase`, `PositionRequest`, `ScalingConfig`, `ScalingPositionSizer`
 
 ## Dependencies
 
-- **Imports**: `common`, `monitoring.metrics`; **anomaly** `scaling_position_sizer.py:18` → `indicators.wave_models.WaveCount` (L5→L2 upward dep).
+- **Imports**: `common`, `common.monitoring_sink` (Protocol injection, ISS-019/044). `metrics`/`alerts` calls route through the injected `MonitoringSink` — **no direct `quantflow.monitoring.*` imports** in execution layer (ISS-044 closed the lazy-import audit-evasion).
 - **Imported by**: `strategy/engine` (orchestrator), `web/` (session_manager).
 
 ## Notes
 
 - **Three execution modes**: paper (`PaperGateway`) / sandbox (OKX testnet) / live (OKX). Gateway selected in `ExecutionEngine.start` based on `mode`.
 - **OKX credentials from env vars only** — `cli/main.py:61-81` `_load_gateway_config_from_env` requires `OKX_API_KEY`/`OKX_SECRET`/`OKX_PASSPHRASE` for non-paper; `web/session_manager.py:33-50` same.
-- **⚠️ Layering anomaly**: `scaling_position_sizer.py:18` imports `indicators.wave_models.WaveCount` (L5→L2 upward dep). Per `ScalingPosition → RiskEngine` spec, sizing authority belongs in L4 (`signal/position_sizer.py`). Consider relocating or injecting `WaveCount` via DI rather than importing the type.
-- **⚠️ Kill switch gap**: `kill_switch_enabled` defaults `True` (config.py:56) but is only a config flag — **no live-mode enforcement**. CLAUDE.md says "实盘模式必须启用 Kill Switch" but no assertion rejects `mode=live` + `kill_switch_enabled=False`. Web layer (`session_manager.py:153`) only logs, does not reject.
-- **⚠️ Event constant duplication**: `execution/engine.py:24-25` locally redefines `EVENT_ORDER`/`EVENT_FILL` instead of importing from `common/models.py:50-51` — dedup candidate (single source of truth).
+- **ISS-021 paper/live parity (fixed)**: `PaperGateway` now honors `reduceOnly` (paper_gateway.py:85) — a reduceOnly SELL only flattens a long (never flips into a new short), matching OKX live exchange semantics. Previously paper ignored reduceOnly, causing paper/live divergence.
+- **ISS-044 L6 解耦 (fixed)**: `ExecutionEngine` (engine.py:45,57) + `KillSwitch` accept `monitoring_sink: MonitoringSink | None = None` (default `NullMonitoringSink`). All 4 metric call sites (159/203 `record_order_total`, 237 `record_order_filled`, 272 `record_order_latency`) route through `self._sink`. `_record_order_latency` converted static→instance method.
+- **ISS-20260720-004 Wave 2 (L5 薄路由退化, 2026-07-25)**: `PositionManager` 退化为薄路由委托 L4 `PortfolioManager`(全 9 方法委托: `update_position`→L4 含 fee, `set_position`→L4, `close_position`→`update_position(-qty)`, `get_position`/`get_all_positions`/`has_position`/`position_count`/`total_unrealized_pnl`/`total_market_value`→委托)。`PaperGateway` 移除第三套 `_cash` 账本(fee 仅盖印 `order.fee`,L4 单扣;保留 `_positions` 作 gateway 本地交易所视图,与 `OKXGateway` 对称)。消除 L5 委托 L4 后 `engine.submit` + `_process_signal` 双计同一 fill 的风险。commit `062a7b5`。
+- **ISS-20260720-004 Wave 4 (partial-fill cumulative 契约, 2026-07-25)**: `Order.applied_filled_qty` 跟踪已应用 L4 的累计量,`ExecutionEngine.submit` 派生 `delta_filled = filled_quantity - applied_filled_qty`,仅当 `delta_filled > POSITION_EPSILON` 时调 L4 `update_position`(防重复回调误调),FILLED 才 emit EVENT_FILL。`OKXGateway.send_order` 从 ccxt result 提取 cumulative filled/average/fee.cost 盖印。commit `b0177e0`。
+- **Kill switch live enforcement (fixed)**: `web/session_manager.py:167` rejects `mode in ("live","sandbox")` + `kill_switch_enabled=False` — closes the CLAUDE.md "实盘必须启用 Kill Switch" gap (was config-flag-only with no assertion).
+- **⚠️ Event constant duplication**: `execution/engine.py:27-28` locally redefines `EVENT_ORDER`/`EVENT_FILL` instead of importing from `common/models.py:50-51` — dedup candidate (single source of truth).
 - **KillSwitch best-effort flatten**: `activate()` catches broad `except Exception` into `results["errors"]` and logs without re-raising — deliberate resilience for emergency flatten.
 
-*Auto-generated by codebase-rebuild at 2026-07-15T22:35:00Z*
+*Auto-generated by codebase-refresh at 2026-07-25T00:00:00Z*

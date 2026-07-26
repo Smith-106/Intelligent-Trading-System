@@ -72,6 +72,7 @@ docker/grafana_data/
 # not be tracked. (Historical committed sessions under .workflow/.maestro/
 # are left tracked for resume-from-git; only forward-going clutter is ignored.)
 .workflow/scratch/
+.workflow/sessions/
 .workflow/.team/
 .workflow/.maestro/*/status.json
 
