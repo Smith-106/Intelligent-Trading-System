@@ -228,6 +228,17 @@ class _FakeTradingSession:
         self._kill_switch = _FakeKillSwitch()
         self._running = True
 
+    @property
+    def event_bus(self) -> EventBus:
+        """ISS-20260723-017: mirror the real TradingSession's public
+        ``event_bus`` property so the facade reads the public seam, not the
+        private ``_event_bus`` attribute."""
+        return self._event_bus
+
+    @property
+    def last_error(self) -> str | None:
+        return None
+
     async def start(self, mode: str = "paper", gateway_config=None) -> None:
         self.mode = mode
         self.gateway_config = gateway_config
@@ -352,7 +363,7 @@ async def test_station_session_manager_records_lifecycle_and_signal_events(
 
     runtime = manager._runtime
     assert runtime is not None
-    runtime.session._event_bus.publish(
+    runtime.session.event_bus.publish(
         Event(
             EVENT_SIGNAL,
             {
