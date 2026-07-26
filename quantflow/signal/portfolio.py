@@ -114,14 +114,10 @@ class PortfolioManager:
             if existing is None:
                 self._refresh_drawdown()
                 return
-            self._positions[symbol] = Position(
-                symbol=symbol,
-                quantity=existing.quantity,
-                entry_price=existing.entry_price,
-                current_price=price,
-                unrealized_pnl=(price - existing.entry_price) * existing.quantity,
-                strategy_id=existing.strategy_id,
-            )
+            # ISS-20260723-002: route through Position.with_current_price — the
+            # unrealized-PnL formula now has a single owner (common/models.py),
+            # shared with PaperGateway.update_market_price.
+            self._positions[symbol] = existing.with_current_price(price)
             self._refresh_drawdown()
             return
 
@@ -186,15 +182,9 @@ class PortfolioManager:
         for symbol, price in prices.items():
             pos = self._positions.get(symbol)
             if pos is not None:
-                upnl = (price - pos.entry_price) * pos.quantity
-                self._positions[symbol] = Position(
-                    symbol=symbol,
-                    quantity=pos.quantity,
-                    entry_price=pos.entry_price,
-                    current_price=price,
-                    unrealized_pnl=upnl,
-                    strategy_id=pos.strategy_id,
-                )
+                # ISS-20260723-002: single-owner unrealized-PnL formula via
+                # Position.with_current_price (shared with PaperGateway).
+                self._positions[symbol] = pos.with_current_price(price)
 
     def mark_to_market(self, price_feed: dict[str, float]) -> dict[str, float]:
         """Mark all positions to market and return unrealized P&L per symbol."""

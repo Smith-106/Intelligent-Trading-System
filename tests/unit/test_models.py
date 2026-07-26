@@ -101,6 +101,31 @@ class TestPosition:
         )
         assert short_pos.side == Direction.SHORT
 
+    def test_with_current_price_long(self):
+        """ISS-20260723-002: with_current_price is the single owner of the
+        unrealized-PnL formula — (price - entry) * qty."""
+        pos = Position(symbol="BTC/USDT", quantity=2.0, entry_price=40000, current_price=40000)
+        updated = pos.with_current_price(45000)
+        assert updated.current_price == 45000
+        assert updated.unrealized_pnl == pytest.approx((45000 - 40000) * 2.0)
+        # original unchanged
+        assert pos.current_price == 40000
+
+    def test_with_current_price_short(self):
+        """Short position: unrealized PnL is negative when price rises."""
+        pos = Position(symbol="BTC/USDT", quantity=-1.0, entry_price=40000, current_price=40000)
+        updated = pos.with_current_price(41000)
+        assert updated.unrealized_pnl == pytest.approx((41000 - 40000) * -1.0)
+
+    def test_with_current_price_preserves_identity_fields(self):
+        """with_current_price must not mutate symbol/qty/entry/strategy_id."""
+        pos = Position(symbol="ETH/USDT", quantity=1.5, entry_price=3000, strategy_id="trend")
+        updated = pos.with_current_price(3100)
+        assert updated.symbol == "ETH/USDT"
+        assert updated.quantity == 1.5
+        assert updated.entry_price == 3000
+        assert updated.strategy_id == "trend"
+
 
 class TestPortfolio:
     def test_total_value(self):

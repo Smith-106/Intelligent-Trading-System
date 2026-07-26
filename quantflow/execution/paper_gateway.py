@@ -167,14 +167,10 @@ class PaperGateway(GatewayBase):
         self._prices[symbol] = price
         pos = self._positions.get(symbol)
         if pos is not None:
-            self._positions[symbol] = Position(
-                symbol=symbol,
-                quantity=pos.quantity,
-                entry_price=pos.entry_price,
-                current_price=price,
-                unrealized_pnl=(price - pos.entry_price) * pos.quantity,
-                strategy_id=pos.strategy_id,
-            )
+            # ISS-20260723-002: route through Position.with_current_price —
+            # the unrealized-PnL formula now has a single owner
+            # (common/models.py), shared with PortfolioManager.
+            self._positions[symbol] = pos.with_current_price(price)
 
     def _update_position(
         self, symbol: str, quantity: float, price: float, *, strategy_id: str = ""

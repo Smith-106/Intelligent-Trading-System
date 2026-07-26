@@ -108,6 +108,26 @@ class Position:
             return Direction.SHORT
         return Direction.FLAT
 
+    def with_current_price(self, price: float) -> Position:
+        """Return a copy of this position with ``current_price`` updated and
+        ``unrealized_pnl`` recomputed from the single canonical formula.
+
+        ISS-20260723-002: the unrealized-PnL formula
+        ``(price - entry_price) * quantity`` was duplicated in
+        ``PortfolioManager._merge_or_replace`` (signal/portfolio.py) and
+        ``PaperGateway.update_market_price`` (execution/paper_gateway.py),
+        risking silent divergence. Centralizing it here gives one owner;
+        both call sites now route through this helper.
+        """
+        return Position(
+            symbol=self.symbol,
+            quantity=self.quantity,
+            entry_price=self.entry_price,
+            current_price=price,
+            unrealized_pnl=(price - self.entry_price) * self.quantity,
+            strategy_id=self.strategy_id,
+        )
+
 
 @dataclass
 class OrderRequest:
