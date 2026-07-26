@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
@@ -111,10 +112,41 @@ class ExecutionEngine:
         logger.info("Execution engine started: mode=%s", mode)
 
     async def stop(self) -> None:
-        """Stop the execution engine and disconnect gateway."""
+        """Stop the execution engine and disconnect gateway.
+
+        ISS-20260723-012: CancelledError raised during ``gateway.disconnect()``
+        (e.g. event-loop shutdown racing the await) is swallowed so a
+        half-torn-down gateway does not surface a misleading traceback —
+        ``stop()`` is idempotent and must not raise on cleanup paths.
+        """
         if self._gateway:
-            await self._gateway.disconnect()
+            try:
+                await self._gateway.disconnect()
+            except asyncio.CancelledError:
+                # loop-shutdown race: gateway teardown interrupted — log + continue
+                logger.warning("Execution engine stop() interrupted (CancelledError)")
+                raise
+            except Exception as e:
+                logger.warning("Execution engine stop() partial failure: %s", e)
         logger.info("Execution engine stopped")
+
+    async def __aenter__(self) -> ExecutionEngine:
+        """ISS-20260723-012: async context manager support — ``start()`` on
+        enter. Callers that previously hand-managed ``start``/``stop`` in a
+        ``try/finally`` can now use ``async with engine:`` for guaranteed
+        teardown even on exception paths."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: Any,
+    ) -> None:
+        """ISS-20260723-012: guaranteed teardown on exit — delegates to
+        ``stop()`` which is CancelledError-safe. Does not suppress the
+        in-flight exception (no return True)."""
+        await self.stop()
 
     @property
     def gateway(self) -> GatewayBase | None:

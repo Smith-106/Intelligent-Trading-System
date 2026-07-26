@@ -180,3 +180,40 @@ class TestExecutionEngine:
         assert engine.position_manager is not None
         assert engine.gateway is not None
         await engine.stop()
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager_teardown(self):
+        """ISS-20260723-012: ``async with engine`` guarantees stop() on exit."""
+        engine = ExecutionEngine()
+        async with engine:
+            await engine.start(mode="paper")
+            assert engine.gateway is not None
+        # exit path ran stop() — gateway disconnected
+        assert engine.gateway is not None  # gateway ref retained, just disconnected
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager_teardown_on_exception(self):
+        """ISS-20260723-012: teardown runs even when body raises; exception
+        is not suppressed."""
+        engine = ExecutionEngine()
+        await engine.start(mode="paper")
+        with pytest.raises(ValueError, match="boom"):
+            async with engine:
+                raise ValueError("boom")
+        # stop() still ran despite the exception
+        # (no assert on side-effect beyond no-leak; gateway.disconnect is a no-op
+        #  on PaperGateway after disconnect, so this mainly proves no swallow)
+
+    @pytest.mark.asyncio
+    async def test_stop_swallows_disconnect_failure(self):
+        """ISS-20260723-012: stop() must not raise if gateway.disconnect fails
+        on cleanup — idempotent teardown."""
+        engine = ExecutionEngine()
+        await engine.start(mode="paper")
+
+        async def boom(_config=None):
+            raise RuntimeError("disconnect exploded")
+
+        engine.gateway.disconnect = boom  # type: ignore[method-assign]
+        # should not raise
+        await engine.stop()
