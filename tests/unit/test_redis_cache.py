@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from quantflow.common.exceptions import DataError
 from quantflow.data.redis_cache import RedisCache
 
 
@@ -47,10 +50,13 @@ class TestRedisCache:
         cache.set_ticker("BTC/USDT", {"price": 50000})  # Should not raise
 
     def test_get_ticker_no_connection(self):
+        """ISS-20260723-015: client=None is a connection-state failure,
+        not a cache miss — must raise DataError so callers don't silently
+        bypass the cache forever after a connection drop."""
         cache = RedisCache()
         cache._client = None
-        result = cache.get_ticker("BTC/USDT")
-        assert result is None
+        with pytest.raises(DataError, match="not connected"):
+            cache.get_ticker("BTC/USDT")
 
     def test_set_latest_bar_no_connection(self):
         cache = RedisCache()
@@ -58,10 +64,11 @@ class TestRedisCache:
         cache.set_latest_bar("BTC/USDT", "1h", {"close": 50000})  # Should not raise
 
     def test_get_latest_bar_no_connection(self):
+        """ISS-20260723-015: see test_get_ticker_no_connection — raises DataError."""
         cache = RedisCache()
         cache._client = None
-        result = cache.get_latest_bar("BTC/USDT", "1h")
-        assert result is None
+        with pytest.raises(DataError, match="not connected"):
+            cache.get_latest_bar("BTC/USDT", "1h")
 
     @patch("quantflow.data.redis_cache.redis")
     def test_set_and_get_ticker(self, mock_redis_module):
@@ -89,6 +96,34 @@ class TestRedisCache:
 
         result = cache.get_ticker("BTC/USDT")
         assert result == {"price": 50000}
+
+    @patch("quantflow.data.redis_cache.redis")
+    def test_get_ticker_key_miss_returns_none(self, mock_redis_module):
+        """ISS-20260723-015 guard: a genuine key miss (raw falsy) still
+        returns None — only client=None raises. Prevents the antipattern
+        from regressing (caller must distinguish miss from failure)."""
+        mock_client = MagicMock()
+        mock_redis_module.from_url.return_value = mock_client
+        mock_client.get.return_value = None  # key miss
+
+        cache = RedisCache()
+        cache.connect()
+
+        result = cache.get_ticker("BTC/USDT")
+        assert result is None
+
+    @patch("quantflow.data.redis_cache.redis")
+    def test_get_latest_bar_key_miss_returns_none(self, mock_redis_module):
+        """ISS-20260723-015 guard: key miss on latest_bar still returns None."""
+        mock_client = MagicMock()
+        mock_redis_module.from_url.return_value = mock_client
+        mock_client.get.return_value = None
+
+        cache = RedisCache()
+        cache.connect()
+
+        result = cache.get_latest_bar("BTC/USDT", "1h")
+        assert result is None
 
     def test_disconnect(self):
         cache = RedisCache()

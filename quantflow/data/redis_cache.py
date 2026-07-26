@@ -8,6 +8,8 @@ from typing import Any
 
 import redis
 
+from quantflow.common.exceptions import DataError
+
 logger = logging.getLogger(__name__)
 
 TICKER_TTL = 60  # seconds
@@ -37,8 +39,21 @@ class RedisCache:
         self._client.setex(key, TICKER_TTL, json.dumps(data))
 
     def get_ticker(self, symbol: str) -> dict[str, Any] | None:
+        """Read a cached ticker.
+
+        ISS-20260723-015 (GP1 fail-silent): previously returned ``None``
+        both when the cache was not connected (``_client is None``) and on
+        a genuine key miss — indistinguishable, so a caller treating
+        ``None`` as "cache miss, fetch from source" would silently bypass
+        the cache forever after a connection drop. Now raises ``DataError``
+        when the client is not connected (a connection-state failure, not
+        cache-miss); a real key miss still returns ``None``.
+        """
         if not self._client:
-            return None
+            raise DataError(
+                "RedisCache.get_ticker: client not connected — call connect() first "
+                "(caching disabled by a prior connection failure is a failure, not a miss)"
+            )
         key = f"ticker:{symbol}"
         raw = self._client.get(key)
         return json.loads(raw) if raw else None
@@ -50,8 +65,16 @@ class RedisCache:
         self._client.setex(key, 300, json.dumps(data))
 
     def get_latest_bar(self, symbol: str, timeframe: str) -> dict[str, Any] | None:
+        """Read a cached latest bar.
+
+        ISS-20260723-015 (GP1 fail-silent): see ``get_ticker`` — raises
+        ``DataError`` when the client is not connected; key miss still
+        returns ``None``.
+        """
         if not self._client:
-            return None
+            raise DataError(
+                "RedisCache.get_latest_bar: client not connected — call connect() first"
+            )
         key = f"bar:{symbol}:{timeframe}"
         raw = self._client.get(key)
         return json.loads(raw) if raw else None
