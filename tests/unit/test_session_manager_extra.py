@@ -203,7 +203,7 @@ class TestAttachDetachEventBusNotEventBus:
 
         runtime = MagicMock(spec=SessionRuntime)
         runtime.session = MagicMock()
-        runtime.session._event_bus = "not_an_eventbus"  # not an EventBus instance
+        runtime.session.event_bus = "not_an_eventbus"  # not an EventBus instance (ISS-017)
         runtime.event_handlers = []
 
         manager._attach_event_observers(runtime)
@@ -217,7 +217,7 @@ class TestAttachDetachEventBusNotEventBus:
 
         runtime = MagicMock(spec=SessionRuntime)
         runtime.session = MagicMock()
-        runtime.session._event_bus = "not_an_eventbus"
+        runtime.session.event_bus = "not_an_eventbus"  # ISS-017: public property
         runtime.event_handlers = [("signal", MagicMock())]
 
         manager._detach_event_observers(runtime)

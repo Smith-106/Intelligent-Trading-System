@@ -737,6 +737,17 @@ class TradingSession:
         return self._kill_switch
 
     @property
+    def event_bus(self) -> EventBus:
+        """ISS-20260723-017: public accessor for the session's EventBus.
+
+        Previously the web facade (SessionManager) read ``session._event_bus``
+        via ``getattr`` — a private-attribute poke that violates the facade
+        contract and silently returns None (the default) if the attribute is
+        ever renamed. Exposing it as a property gives a stable public seam.
+        """
+        return self._event_bus
+
+    @property
     def last_error(self) -> str | None:
         return self._last_error
 

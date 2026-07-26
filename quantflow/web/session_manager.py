@@ -484,7 +484,10 @@ class StationSessionManager:
         return f"token:{digest[:8]}"
 
     def _attach_event_observers(self, runtime: SessionRuntime) -> None:
-        event_bus = getattr(runtime.session, "_event_bus", None)
+        # ISS-20260723-017: read the public ``event_bus`` property instead of
+        # poking the private ``_event_bus`` attribute (getattr-default keeps a
+        # degraded fallback for any session object that lacks the property).
+        event_bus = getattr(runtime.session, "event_bus", None)
         if not isinstance(event_bus, EventBus):
             return
 
@@ -497,7 +500,8 @@ class StationSessionManager:
         )
 
     def _detach_event_observers(self, runtime: SessionRuntime) -> None:
-        event_bus = getattr(runtime.session, "_event_bus", None)
+        # ISS-20260723-017: public ``event_bus`` property (was private _event_bus).
+        event_bus = getattr(runtime.session, "event_bus", None)
         if not isinstance(event_bus, EventBus):
             return
         for event_type, handler in runtime.event_handlers:
