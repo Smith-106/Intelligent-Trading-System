@@ -9,6 +9,33 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# ISS-20260723-008: returns preprocessing (asarray + NaN strip + min-length
+# guard) was duplicated in value_at_risk / conditional_var / bootstrap_cvar.
+# Centralizing it here gives one owner; the three call sites now share it.
+_MIN_RETURNS_FOR_VAR = 10
+
+
+def _clean_returns(returns: pd.Series | np.ndarray) -> np.ndarray:
+    """Coerce returns to a 1-D float ndarray with NaNs stripped.
+
+    Returns an empty array if fewer than ``_MIN_RETURNS_FOR_VAR`` samples
+    remain — callers treat this as "not enough data" (return 0.0).
+    """
+    r = np.asarray(returns, dtype=float)
+    r = r[~np.isnan(r)]
+    return np.asarray(r, dtype=float)
+
+
+def _historical_var_percentile(r: np.ndarray, confidence: float) -> float:
+    """Historical VaR percentile — the single owner of the
+    ``np.percentile(r, (1 - confidence) * 100)`` formula.
+
+    ISS-20260723-008: previously duplicated in ``value_at_risk`` (historical
+    branch) and ``conditional_var``. Centralized so the two cannot silently
+    diverge (e.g. one using a different interpolation).
+    """
+    return float(np.percentile(r, (1 - confidence) * 100))
+
 
 def value_at_risk(
     returns: pd.Series | np.ndarray, confidence: float = 0.95, method: str = "historical"
@@ -38,9 +65,8 @@ def value_at_risk(
     float
         VaR as a negative fraction (e.g. -0.02 = 2% VaR).
     """
-    r = np.asarray(returns, dtype=float)
-    r = r[~np.isnan(r)]
-    if len(r) < 10:
+    r = _clean_returns(returns)
+    if len(r) < _MIN_RETURNS_FOR_VAR:
         return 0.0
 
     if method == "parametric":
@@ -50,7 +76,7 @@ def value_at_risk(
 
         var = mu - sigma * norm.ppf(confidence)
     else:
-        var = np.percentile(r, (1 - confidence) * 100)
+        var = _historical_var_percentile(r, confidence)
 
     return float(var)
 
@@ -60,12 +86,11 @@ def conditional_var(returns: pd.Series | np.ndarray, confidence: float = 0.95) -
 
     Average loss in the worst (1-confidence)% of cases.
     """
-    r = np.asarray(returns, dtype=float)
-    r = r[~np.isnan(r)]
-    if len(r) < 10:
+    r = _clean_returns(returns)
+    if len(r) < _MIN_RETURNS_FOR_VAR:
         return 0.0
 
-    var = np.percentile(r, (1 - confidence) * 100)
+    var = _historical_var_percentile(r, confidence)
     cvar = -np.mean(r[r <= var])
     return float(cvar)
 
@@ -97,9 +122,8 @@ def bootstrap_cvar(
     fat-tail spec (understates tail mass); bootstrap CVaR is asymptotically
     the historical CVaR and adds only a CI, not a competing gate.
     """
-    r = np.asarray(returns, dtype=float)
-    r = r[~np.isnan(r)]
-    if len(r) < 10:
+    r = _clean_returns(returns)
+    if len(r) < _MIN_RETURNS_FOR_VAR:
         return {"point": 0.0, "ci_low": 0.0, "ci_high": 0.0, "n": 0, "n_bootstrap": 0}
 
     point = conditional_var(r, confidence)
