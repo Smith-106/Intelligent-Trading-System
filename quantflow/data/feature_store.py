@@ -8,6 +8,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
+from quantflow.common.exceptions import DataError
 from quantflow.common.validators import validate_symbol
 from quantflow.data.store import DataStore
 
@@ -118,9 +119,11 @@ class FeatureStore:
                 params=params,
             ).df()
         except Exception as e:
-            # Log rather than silently swallow (REV-010) — mirrors store.query().
+            # ISS-20260723-014 (GP1 fail-silent): storage error → raise, not
+            # return empty DF. "No data" (source None) returns empty DF at
+            # line 100 above — distinct from this failure path. Mirrors store.query().
             logger.warning("load_features failed for %s: %s", symbol, e)
-            return pd.DataFrame()
+            raise DataError(f"load_features failed for {symbol!r}: {e}") from e
 
     def close(self) -> None:
         self._db.close()

@@ -292,8 +292,31 @@ def test_get_last_timestamp_success_and_failures(
     assert fetcher.get_last_timestamp("BTC/USDT", "1d", parquet_dir) == 2_000
     assert fetcher.get_last_timestamp("BTC/USDT", "1h", parquet_dir) == 9_999
 
-    # A storage error (nonexistent store root) is swallowed → None.
+    # A non-existent store root means no symbol dir → "no data" returns None.
+    # (ISS-20260723-016 GP1: this is the legitimate no-data path, distinct
+    # from a storage failure which now raises DataError.)
     assert fetcher.get_last_timestamp("BTC/USDT", "1d", Path("no/such/dir")) is None
+
+
+def test_get_last_timestamp_raises_on_corrupt_parquet(data_config: DataConfig, tmp_path) -> None:
+    """ISS-20260723-016 (GP1): fetcher.get_last_timestamp delegates to
+    DataStore, which now raises DataError on a genuine storage failure
+    (corrupted parquet). The fetcher propagates it so callers distinguish
+    "no history yet" (None) from "query broke" (raise)."""
+    import pytest
+
+    from quantflow.common.exceptions import DataError
+
+    fetcher = DataFetcher(data_config)
+    parquet_dir = tmp_path / "pq"
+    parquet_dir.mkdir()
+    symbol_dir = parquet_dir / "BTC_USDT"
+    symbol_dir.mkdir()
+    year_dir = symbol_dir / "2024"
+    year_dir.mkdir()
+    (year_dir / "01.parquet").write_text("not a parquet file")
+    with pytest.raises(DataError, match="get_last_timestamp failed"):
+        fetcher.get_last_timestamp("BTC/USDT", "1d", parquet_dir)
 
 
 def test_get_last_timestamp_rejects_injection_inputs(data_config: DataConfig) -> None:

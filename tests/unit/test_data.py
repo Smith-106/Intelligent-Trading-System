@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from quantflow.common.exceptions import DataError
 from quantflow.data.cleaner import clean_ohlcv, validate_no_future_leak
 from quantflow.data.store import DataStore
 
@@ -111,3 +112,43 @@ class TestDataStore:
             store = DataStore(str(Path(tmp) / "pq"), str(Path(tmp) / "db.duckdb"))
             assert store.get_date_range("NONEXISTENT/USDT") is None
             store.close()
+
+    def test_query_raises_data_error_on_corrupt_parquet(self, tmp_path):
+        """ISS-20260723-013 (GP1): a corrupted parquet triggers a DuckDB
+        execution failure → raises DataError, not an empty DataFrame. The
+        "no data" path (symbol dir missing) still returns empty (see above)."""
+        store = DataStore(str(tmp_path))
+        symbol_dir = tmp_path / "BTC_USDT"
+        symbol_dir.mkdir()
+        year_dir = symbol_dir / "2024"
+        year_dir.mkdir()
+        (year_dir / "01.parquet").write_text("not a parquet file")
+        with pytest.raises(DataError, match="Query failed"):
+            store.query("BTC/USDT")
+        store.close()
+
+    def test_get_date_range_raises_data_error_on_corrupt_parquet(self, tmp_path):
+        """ISS-20260723-014 (GP1): corrupted parquet → DataError, not None.
+        Unknown symbol (dir missing) still returns None (no-data path)."""
+        store = DataStore(str(tmp_path))
+        symbol_dir = tmp_path / "BTC_USDT"
+        symbol_dir.mkdir()
+        year_dir = symbol_dir / "2024"
+        year_dir.mkdir()
+        (year_dir / "01.parquet").write_text("not a parquet file")
+        with pytest.raises(DataError, match="get_date_range failed"):
+            store.get_date_range("BTC/USDT")
+        store.close()
+
+    def test_get_last_timestamp_raises_data_error_on_corrupt_parquet(self, tmp_path):
+        """ISS-20260723-016 (GP1): corrupted parquet → DataError, not None.
+        Unknown symbol (dir missing) still returns None (no-data path)."""
+        store = DataStore(str(tmp_path))
+        symbol_dir = tmp_path / "BTC_USDT"
+        symbol_dir.mkdir()
+        year_dir = symbol_dir / "2024"
+        year_dir.mkdir()
+        (year_dir / "01.parquet").write_text("not a parquet file")
+        with pytest.raises(DataError, match="get_last_timestamp failed"):
+            store.get_last_timestamp("BTC/USDT", "1d")
+        store.close()

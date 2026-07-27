@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import socket
 import subprocess
@@ -29,6 +30,7 @@ from quantflow.common.config import (  # noqa: F401
     resolve_config_path,
     resolve_config_path_safe,
 )
+from quantflow.common.exceptions import DataError
 from quantflow.common.numeric import safe_number
 from quantflow.common.validators import validate_symbol
 from quantflow.data.store import DataStore
@@ -40,6 +42,8 @@ from quantflow.strategy.catalog import (
 from quantflow.strategy.research.backtest import BacktestEngine, BacktestResult
 from quantflow.strategy.research.report import generate_report
 from quantflow.web.history import StationHistoryStore
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_PATH = "quantflow/config/default.yaml"
 MAX_CHART_POINTS = 720
@@ -601,7 +605,16 @@ def _query_symbol_frame(
     start: str | None = None,
     end: str | None = None,
 ) -> tuple[pd.DataFrame, str]:
-    frame = store.query(symbol)
+    # ISS-20260723-013 (GP1 fail-silent): store.query now raises DataError on
+    # storage failures (distinct from "no data" which returns an empty DF).
+    # The Station overview must degrade to a demo frame on either — the page
+    # must not 500 when a single symbol's parquet is corrupt. The error is
+    # logged here so the failure is observable, not silently swallowed.
+    try:
+        frame = store.query(symbol)
+    except DataError as e:
+        logger.warning("Station overview query failed for %s: %s — degrading to demo", symbol, e)
+        return _build_demo_frame(symbol, start=start, end=end), "demo"
     if frame.empty:
         return _build_demo_frame(symbol, start=start, end=end), "demo"
 
@@ -936,14 +949,22 @@ class StationService:
             symbols: list[dict[str, Any]] = []
             for symbol_name in store.list_symbols():
                 symbol = symbol_name.replace("_", "/")
-                frame = store.query(symbol, columns=["timestamp", "data_source"])
-                data_source, source_breakdown = _resolve_frame_data_source(frame)
-                source_counts[data_source] += 1
-                date_range = store.get_date_range(symbol)
-                if date_range is None and not frame.empty and "timestamp" in frame.columns:
-                    timestamps = pd.to_numeric(frame["timestamp"], errors="coerce").dropna()
-                    if not timestamps.empty:
-                        date_range = (int(timestamps.min()), int(timestamps.max()))
+                # ISS-20260723-013/014 (GP1 fail-silent): store.query/get_date_range
+                # now raise DataError on storage failures. A single corrupt
+                # symbol must not 500 the whole overview — skip it (logged) so
+                # the rest of the dashboard still renders.
+                try:
+                    frame = store.query(symbol, columns=["timestamp", "data_source"])
+                    data_source, source_breakdown = _resolve_frame_data_source(frame)
+                    source_counts[data_source] += 1
+                    date_range = store.get_date_range(symbol)
+                    if date_range is None and not frame.empty and "timestamp" in frame.columns:
+                        timestamps = pd.to_numeric(frame["timestamp"], errors="coerce").dropna()
+                        if not timestamps.empty:
+                            date_range = (int(timestamps.min()), int(timestamps.max()))
+                except DataError as e:
+                    logger.warning("Station overview skipping symbol %s: %s", symbol, e)
+                    continue
                 symbols.append(
                     {
                         "symbol": symbol,

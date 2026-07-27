@@ -8,6 +8,7 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
+from quantflow.common.exceptions import DataError
 from quantflow.common.validators import (
     COLUMN_PATTERN,
     SYMBOL_PATTERN,
@@ -158,8 +159,13 @@ class DataStore:
             ).df()
             return result
         except Exception as e:
+            # ISS-20260723-013 (GP1 fail-silent): a DuckDB execution failure is
+            # a storage error, not "no data" — raise so callers can distinguish
+            # (the "no data" path returns an empty DF at line 133-134 above,
+            # indistinguishable before this fix). Logged before raise so the
+            # server log retains the raw error for diagnostics.
             logger.warning("Query failed for %s: %s", symbol, e)
-            return pd.DataFrame()
+            raise DataError(f"Query failed for {symbol!r}: {e}") from e
 
     def list_symbols(self) -> list[str]:
         """List all stored symbols."""
@@ -176,6 +182,15 @@ class DataStore:
         # a single quote could break out of the glob literal and inject
         # arbitrary SQL (e.g. read_csv_auto('/etc/passwd')). Mirrors query().
         symbol_name = _validate_symbol(symbol)
+        # ISS-20260723-014 (GP1 fail-silent): probe the symbol dir before the
+        # glob query so "no data for this symbol" returns None cleanly —
+        # distinct from a DuckDB execution failure (raised below). Without this
+        # an unknown symbol hits DuckDB's "No files found" IO Error, which the
+        # except block would now raise as DataError, breaking callers that
+        # legitimately treat None as "no history yet" (e.g. incremental download).
+        symbol_dir = self._parquet_dir / symbol_name
+        if not symbol_dir.exists():
+            return None
         # Escape single quotes so a parquet_dir containing a quote cannot break
         # the glob literal (mirrors _read_parquet_source's chr(39) escaping).
         pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/*/*.parquet".replace("'", "''")
@@ -187,9 +202,11 @@ class DataStore:
             if result and result[0] is not None:
                 return (result[0], result[1])
         except Exception as e:
-            # Log rather than silently swallow (REV-010) — a genuine storage
-            # error should be observable, not indistinguishable from "no data".
+            # ISS-20260723-014 (GP1 fail-silent): storage error → raise, not
+            # return None. "No data" (dir missing above, or result empty) returns
+            # None at the fallthrough below — distinct from this failure path.
             logger.warning("get_date_range failed for %s: %s", symbol, e)
+            raise DataError(f"get_date_range failed for {symbol!r}: {e}") from e
         return None
 
     def get_last_timestamp(self, symbol: str, timeframe: str) -> int | None:
@@ -212,6 +229,13 @@ class DataStore:
         symbol_name = _validate_symbol(symbol)
         if timeframe not in TIMEFRAMES:
             raise ValueError(f"Invalid timeframe: {timeframe!r}. Allowed: {TIMEFRAMES}")
+        # ISS-20260723-016 (GP1 fail-silent): probe the symbol dir before the
+        # glob query so "no data for this symbol" returns None cleanly —
+        # distinct from a DuckDB execution failure (raised below). Mirrors
+        # get_date_range + _read_parquet_source.
+        symbol_dir = self._parquet_dir / symbol_name
+        if not symbol_dir.exists():
+            return None
         pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/*/*.parquet".replace("'", "''")
         try:
             result = self._db.query(
@@ -225,7 +249,12 @@ class DataStore:
             if result and result[0] is not None:
                 return int(result[0])
         except Exception as e:
+            # ISS-20260723-016 (GP1 fail-silent): storage error → raise, not
+            # return None. "No data" (result empty) falls through to return None
+            # below — distinct from this failure path. Lets the fetcher caller
+            # distinguish "no history yet" (None) from "query broke" (raise).
             logger.warning("get_last_timestamp failed for %s %s: %s", symbol, timeframe, e)
+            raise DataError(f"get_last_timestamp failed for {symbol!r} {timeframe!r}: {e}") from e
         return None
 
     def close(self) -> None:

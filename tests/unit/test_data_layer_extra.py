@@ -20,9 +20,15 @@ from quantflow.data.store import DataStore
 
 class TestDataStoreQueryException:
     def test_query_returns_empty_on_exception(self, tmp_path):
-        """Line 136-138: query catches exception → returns empty DataFrame."""
+        """No-data path: query on non-existent symbol returns empty DataFrame.
+
+        ISS-20260723-013 (GP1 fail-silent): the symbol dir doesn't exist, so
+        ``_read_parquet_source`` returns None and ``query`` returns an empty
+        DataFrame via the source-None early return — this is the "no data"
+        path, NOT a failure. A genuine DuckDB execution failure (corrupted
+        parquet) now raises DataError (see test_remaining_gaps).
+        """
         store = DataStore(str(tmp_path))
-        # query on non-existent symbol triggers exception path
         result = store.query(symbol="NONEXIST/USDT")
         assert isinstance(result, pd.DataFrame)
 

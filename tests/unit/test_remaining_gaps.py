@@ -16,7 +16,17 @@ from quantflow.common.models import Bar
 
 class TestDataStoreQueryExceptionDetail:
     def test_query_with_invalid_parquet_returns_empty(self, tmp_path):
-        """Lines 136-138: query with corrupted/empty parquet dir → returns empty."""
+        """Lines 136-138: query with corrupted parquet → raises DataError.
+
+        ISS-20260723-013 (GP1 fail-silent): previously query swallowed the
+        DuckDB error and returned an empty DataFrame — indistinguishable from
+        "no data". Now a corrupted-parquet storage error raises DataError so
+        callers can distinguish. (The "no data" path — symbol dir missing —
+        still returns an empty DataFrame via the source-None early return.)
+        """
+        import pytest
+
+        from quantflow.common.exceptions import DataError
         from quantflow.data.store import DataStore
 
         store = DataStore(str(tmp_path))
@@ -27,9 +37,8 @@ class TestDataStoreQueryExceptionDetail:
         year_dir.mkdir()
         # Write an empty file that's not a valid parquet
         (year_dir / "01.parquet").write_text("not a parquet file")
-        result = store.query("BTC/USDT")
-        # Should catch the exception and return empty DataFrame
-        assert isinstance(result, pd.DataFrame)
+        with pytest.raises(DataError, match="Query failed"):
+            store.query("BTC/USDT")
 
 
 # ---------------------------------------------------------------------------

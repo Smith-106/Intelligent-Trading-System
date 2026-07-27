@@ -196,6 +196,14 @@ class TestFeatureStore:
         assert list(loaded["value"]) == [2.0]
 
     def test_load_features_returns_empty_on_query_failure(self, tmp_path, monkeypatch):
+        """ISS-20260723-014 (GP1 fail-silent): a DuckDB execution failure
+        during load_features now raises DataError — previously returned an
+        empty DataFrame indistinguishable from "no data". The "no data"
+        path (source None) still returns an empty DataFrame."""
+        import pytest
+
+        from quantflow.common.exceptions import DataError
+
         fs = FeatureStore(str(tmp_path))
         features = pd.DataFrame({"timestamp": [1704067200000], "value": [1.0]})
         fs.save_features("BTC/USDT", features)
@@ -206,9 +214,8 @@ class TestFeatureStore:
 
         monkeypatch.setattr(fs, "_db", BrokenDB())
 
-        loaded = fs.load_features("BTC/USDT")
-
-        assert loaded.empty
+        with pytest.raises(DataError, match="load_features failed"):
+            fs.load_features("BTC/USDT")
 
     def test_close(self, tmp_path):
         fs = FeatureStore(str(tmp_path))

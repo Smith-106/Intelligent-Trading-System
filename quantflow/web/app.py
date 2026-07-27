@@ -142,7 +142,7 @@ async def _data_seed_demo(request: web.Request) -> web.Response:
     payload = await request.json()
     try:
         result = service.seed_demo_data(DataDownloadRequest.model_validate(payload))
-    except ValueError as exc:
+    except (ValueError, DataError) as exc:
         return _error_response(exc)
     return web.json_response(_redact_paths(result))
 
@@ -152,7 +152,7 @@ async def _data_tag_source(request: web.Request) -> web.Response:
     payload = await request.json()
     try:
         result = service.tag_data_source(DataSourceTagRequest.model_validate(payload))
-    except ValueError as exc:
+    except (ValueError, DataError) as exc:
         return _error_response(exc)
     return web.json_response(_redact_paths(result))
 
