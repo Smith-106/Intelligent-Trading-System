@@ -70,6 +70,15 @@ class GatewayBase(ABC):
         "query failed" — that is indistinguishable from a genuine empty
         result and breaks fail-closed callers like KillSwitch).
 
+        ISS-20260723-005 (spot limitation): in spot mode (OKXGateway
+        ``market_type='spot'``) there are no persistent leveraged positions;
+        OKX ``fetch_positions`` returns ``[]``. The spot gateway therefore
+        derives holdings from ``fetch_balance`` (each non-quote asset with a
+        non-zero balance is a Position). Spot Positions carry no
+        entry_price/unrealized_pnl (those default to 0) — spot KillSwitch
+        flattens by quantity, not PnL. Swap mode reads the derivatives
+        ``contracts`` schema as before.
+
         Returns:
             List of Position objects for all open positions (empty if none).
         """

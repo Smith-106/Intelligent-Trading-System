@@ -103,7 +103,10 @@ class ExecutionEngine:
             self._gateway = PaperGateway(gateway_config)
         elif mode in ("live", "okx"):
             self._gateway = OKXGateway(
-                sandbox=gateway_config.get("sandbox", True) if gateway_config else True
+                sandbox=gateway_config.get("sandbox", True) if gateway_config else True,
+                # ISS-20260723-005: propagate market_type so connect() defaultType
+                # and query_positions() branch agree on spot vs swap scope.
+                market_type=gateway_config.get("market_type", "spot") if gateway_config else "spot",
             )
         else:
             self._gateway = PaperGateway(gateway_config)

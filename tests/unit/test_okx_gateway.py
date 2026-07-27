@@ -37,6 +37,16 @@ class _FakeExchange:
         self.fail_cancel = False
         self.fail_cancel_all = False
         self.fail_positions = False
+        self.fail_balance = False
+        # ISS-20260723-005: spot-mode balance payload. Spot query_positions
+        # derives holdings from fetch_balance; the quote (USDT) is cash and
+        # is excluded, BTC is a real holding. Zero-balance assets are skipped.
+        self.balance_payload: dict[str, object] = {
+            "total": {"BTC": "0.5", "ETH": "0.0", "USDT": "10000"},
+            "free": {"BTC": "0.4", "USDT": "9000"},
+            "used": {"BTC": "0.1", "USDT": "1000"},
+        }
+        self.ticker_last: dict[str, float] = {"BTC/USDT": 50000.0}
 
     def set_sandbox_mode(self, enabled: bool) -> None:
         self.sandbox_mode = enabled
@@ -68,6 +78,14 @@ class _FakeExchange:
         if self.fail_positions:
             raise RuntimeError("positions failed")
         return self.positions_payload
+
+    async def fetch_balance(self) -> dict[str, object]:
+        if self.fail_balance:
+            raise RuntimeError("balance failed")
+        return self.balance_payload
+
+    async def fetch_ticker(self, symbol: str) -> dict[str, object]:
+        return {"last": self.ticker_last.get(symbol, 0.0)}
 
 
 @pytest.mark.asyncio
@@ -304,7 +322,8 @@ async def test_cancel_all_orders_handles_success_failure_and_missing_exchange() 
 
 @pytest.mark.asyncio
 async def test_query_positions_filters_zero_contracts_and_handles_failures() -> None:
-    gateway = OKXGateway()
+    # ISS-20260723-005: this exercises the swap branch (contracts schema).
+    gateway = OKXGateway(market_type="swap")
     # Fail-closed (odyssey-improve SEC-H5): a not-connected gateway raises
     # rather than returning [] (which is indistinguishable from "no positions").
     with pytest.raises(GatewayError):
@@ -328,3 +347,91 @@ async def test_query_positions_filters_zero_contracts_and_handles_failures() -> 
     with pytest.raises(GatewayError):
         await gateway.query_positions()
     assert gateway.is_connected is False
+
+
+@pytest.mark.asyncio
+async def test_ctor_rejects_invalid_market_type() -> None:
+    """ISS-20260723-005: market_type is validated at construction — only
+    'spot' and 'swap' (the OKX defaultType vocabulary) are accepted, so a
+    typo cannot silently fall through to the spot branch."""
+    with pytest.raises(ValueError, match="Invalid market_type"):
+        OKXGateway(market_type="margin")
+
+
+@pytest.mark.asyncio
+async def test_connect_uses_market_type_for_default_type(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ISS-20260723-005: connect() forwards market_type to options.defaultType
+    so the account scope and the query_positions branch agree."""
+    captured: dict[str, object] = {}
+    exchange = _FakeExchange()
+
+    def build_okx(config: dict[str, object]) -> _FakeExchange:
+        captured.update(config)
+        return exchange
+
+    import ccxt.async_support as ccxt
+
+    monkeypatch.setattr(ccxt, "okx", build_okx)
+    gateway = OKXGateway(sandbox=False, market_type="swap")
+
+    await gateway.connect({"api_key": "k", "secret": "s", "passphrase": "p"})
+
+    assert captured["options"] == {"defaultType": "swap"}
+    assert gateway.is_connected is True
+
+
+@pytest.mark.asyncio
+async def test_query_positions_spot_derives_holdings_from_balance() -> None:
+    """ISS-20260723-005: spot mode has no derivatives positions — fetch_positions
+    returns [] — so query_positions derives holdings from fetch_balance. Each
+    non-quote asset with a non-zero total balance is a Position; the quote
+    currency (USDT) is excluded as cash; zero-balance assets are skipped."""
+    gateway = OKXGateway(market_type="spot")
+
+    # Fail-closed in spot mode too: a not-connected gateway raises.
+    with pytest.raises(GatewayError):
+        await gateway.query_positions()
+
+    exchange = _FakeExchange()
+    gateway._exchange = exchange
+    gateway._connected = True
+    positions = await gateway.query_positions()
+
+    # Only BTC (total 0.5) survives — ETH is 0, USDT is the quote (cash).
+    assert len(positions) == 1
+    assert positions[0].symbol == "BTC/USDT"
+    assert positions[0].quantity == 0.5
+    # Spot carries no entry/PnL — documented limitation (defaults to 0).
+    assert positions[0].entry_price == 0.0
+    assert positions[0].unrealized_pnl == 0.0
+    # current_price comes from the spot ticker (BTC/USDT last=50000).
+    assert positions[0].current_price == 50000.0
+
+    # Fail-closed: a fetch_balance failure raises GatewayError (not []).
+    exchange.fail_balance = True
+    with pytest.raises(GatewayError):
+        await gateway.query_positions()
+    assert gateway.is_connected is False
+
+
+@pytest.mark.asyncio
+async def test_query_positions_spot_skips_assets_without_ticker() -> None:
+    """ISS-20260723-005: a spot asset with no available ticker (delisted pair
+    or rate-limited fetch_ticker) still appears as a Position — current_price
+    falls back to 0 rather than dropping the holding."""
+    gateway = OKXGateway(market_type="spot")
+    exchange = _FakeExchange()
+    # DOGE holding, but no DOGE/USDT ticker configured → current_price=0.
+    exchange.balance_payload = {"total": {"DOGE": "1000.0", "USDT": "500"}}
+    exchange.ticker_last = {}
+    gateway._exchange = exchange
+    gateway._connected = True
+
+    positions = await gateway.query_positions()
+
+    assert len(positions) == 1
+    assert positions[0].symbol == "DOGE/USDT"
+    assert positions[0].quantity == 1000.0
+    assert positions[0].current_price == 0.0

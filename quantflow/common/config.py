@@ -43,7 +43,7 @@ class ValidationConfig(BaseModel):
 
 
 class StrategyConfig(BaseModel):
-    research_engine: str = "vectorbt"
+    research_engine: str = "eventdriven"  # drift-realign DFT-2c8d4f1e: vectorbt 已移除, default 改 eventdriven (BacktestEngine)。注: 字段当前零消费方 (schema-drift)。
     validation: ValidationConfig = Field(default_factory=ValidationConfig)
 
 
@@ -89,6 +89,11 @@ class ExecutionConfig(BaseModel):
     slippage: float = 0.001
     maker_fee: float = 0.0008
     taker_fee: float = 0.001
+    # ISS-20260723-005: OKX account/market scope. "spot" (default) trades spot
+    # pairs and derives holdings from fetch_balance; "swap" trades derivatives
+    # and reads the contracts schema from fetch_positions. Drives OKXGateway
+    # defaultType + query_positions branch.
+    market_type: str = "spot"
 
 
 class AlertChannelConfig(BaseModel):

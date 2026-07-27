@@ -46,8 +46,20 @@ class OKXGateway(GatewayBase):
     Implements the canonical GatewayBase interface.
     """
 
-    def __init__(self, sandbox: bool = True) -> None:
+    def __init__(self, sandbox: bool = True, market_type: str = "spot") -> None:
+        """Initialize the OKX gateway.
+
+        ISS-20260723-005: ``market_type`` selects the OKX account/market scope
+        and is honored both at ``connect`` (``options.defaultType``) and at
+        ``query_positions`` (spot derives from ``fetch_balance``; swap reads
+        the derivatives ``contracts`` schema). Default ``spot`` preserves the
+        prior behavior. Valid values: ``spot`` | ``swap`` (OKX ``defaultType``
+        vocabulary).
+        """
+        if market_type not in ("spot", "swap"):
+            raise ValueError(f"Invalid market_type {market_type!r}: expected 'spot' or 'swap'")
         self._sandbox = sandbox
+        self._market_type = market_type
         self._exchange: Any = None
         self._connected = False
         self._reconnect_interval = RECONNECT_INTERVAL
@@ -57,13 +69,17 @@ class OKXGateway(GatewayBase):
         import ccxt.async_support as ccxt
 
         cfg = config or {}
+        # ISS-20260723-005: defaultType is now driven by market_type so connect()
+        # and query_positions() agree on the account scope (the prior hardcode
+        # of "spot" while query_positions read the derivatives "contracts"
+        # schema was the gap this fixes).
         self._exchange = ccxt.okx(
             {
                 "apiKey": cfg.get("api_key", ""),
                 "secret": cfg.get("secret", ""),
                 "password": cfg.get("passphrase", ""),
                 "enableRateLimit": True,
-                "options": {"defaultType": "spot"},
+                "options": {"defaultType": self._market_type},
             }
         )
 
@@ -250,9 +266,27 @@ class OKXGateway(GatewayBase):
         indistinguishable from "no positions" and caused KillSwitch to report
         a successful activation while real positions stayed open. Genuine
         empty results still return ``[]``.
+
+        ISS-20260723-005: branch on ``market_type``. In ``swap`` mode OKX
+        ``fetch_positions`` returns the derivatives schema (contracts /
+        entryPrice / markPrice / unrealizedPnl). In ``spot`` mode spot
+        accounts have no persistent derivatives positions — ``fetch_positions``
+        returns ``[]`` — so the contract would be silently unsatisfiable.
+        Spot mode derives holdings from ``fetch_balance``: each non-quote
+        asset with a non-zero free+used total is a Position. Spot has no
+        leverage/entry notion, so ``entry_price`` and ``unrealized_pnl`` are
+        set from the last trade price when available and 0 otherwise (the
+        mark price comes from the balance snapshot's no value, not a live
+        mark — documented limitation of spot mode).
         """
         if not self._exchange:
             raise GatewayError("query_positions: gateway not connected")
+        if self._market_type == "swap":
+            return await self._query_swap_positions()
+        return await self._query_spot_positions()
+
+    async def _query_swap_positions(self) -> list[Position]:
+        """Derivatives positions via ``fetch_positions`` (contracts schema)."""
         try:
             raw = await asyncio.wait_for(self._exchange.fetch_positions(), timeout=CALL_TIMEOUT)
         except TimeoutError as e:
@@ -293,6 +327,80 @@ class OKXGateway(GatewayBase):
                         unrealized_pnl=upnl,
                     )
                 )
+        return positions
+
+    async def _query_spot_positions(self) -> list[Position]:
+        """Spot holdings via ``fetch_balance`` (no derivatives schema).
+
+        Spot mode has no persistent leveraged positions; OKX ``fetch_positions``
+        returns ``[]``. To satisfy the ``query_positions`` contract for spot
+        accounts, derive holdings from the spot balance: each asset with a
+        non-zero free+used total becomes a Position. The quote currency
+        (e.g. USDT) is excluded — it is cash, not a holding.
+
+        ``entry_price``/``unrealized_pnl`` are best-effort: spot balances carry
+        no entry-price or unrealized-PnL field, so both default to 0. The
+        ``current_price`` is set from ``fetch_ticker`` when the market is
+        available; otherwise 0. This is the documented spot limitation —
+        KillSwitch flattens spot holdings by quantity, not by PnL.
+        """
+        try:
+            balance = await asyncio.wait_for(self._exchange.fetch_balance(), timeout=CALL_TIMEOUT)
+        except TimeoutError as e:
+            self._connected = False
+            logger.error("OKX query spot balance timed out")
+            raise GatewayError("fetch_balance timed out") from e
+        except Exception as e:
+            self._connected = False
+            logger.error("OKX query spot balance failed: %s", _safe_error(e))
+            raise GatewayError("fetch_balance failed") from e
+
+        positions: list[Position] = []
+        # ccxt unified balance: {"info":..., "free": {asset: qty}, "used": {...},
+        # "total": {...}}. Iterate total (free+used) and skip zero/quote.
+        totals: dict[str, float] = {}
+        for key in ("total", "free", "used"):
+            bucket = balance.get(key) or {}
+            if not isinstance(bucket, dict):
+                continue
+            for asset, raw_qty in bucket.items():
+                try:
+                    qty = float(raw_qty or 0)
+                except (TypeError, ValueError):
+                    continue
+                if not math.isfinite(qty):
+                    continue
+                totals[asset] = max(totals.get(asset, 0.0), qty)
+        for asset, qty in totals.items():
+            if qty <= POSITION_EPSILON:
+                continue
+            # Skip quote currencies — they are cash, not holdings. Common OKX
+            # quotes; a non-quote base asset (BTC/ETH/...) is a real holding.
+            if asset in ("USDT", "USDC", "USD", "DAI"):
+                continue
+            # Best-effort mark price from the spot ticker; failures fall back
+            # to 0 (documented spot limitation — no entry/PnL in spot mode).
+            current_price = 0.0
+            symbol = f"{asset}/USDT"
+            try:
+                ticker = await asyncio.wait_for(
+                    self._exchange.fetch_ticker(symbol), timeout=CALL_TIMEOUT
+                )
+                current_price = float(ticker.get("last", 0.0) or 0.0)
+            except Exception:
+                # Ticker unavailable (delisted pair, rate limit) — leave 0.
+                logger.debug("OKX spot: no ticker for %s, current_price=0", symbol)
+            if not math.isfinite(current_price):
+                current_price = 0.0
+            positions.append(
+                Position(
+                    symbol=symbol,
+                    quantity=qty,
+                    entry_price=0.0,
+                    current_price=current_price,
+                    unrealized_pnl=0.0,
+                )
+            )
         return positions
 
     @property
