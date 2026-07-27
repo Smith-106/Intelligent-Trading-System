@@ -101,7 +101,18 @@ class WaveSignalGenerator:
         direction: Direction,
         critical_levels: CriticalLevels,
     ) -> float | None:
-        """Compute hard stop from critical levels."""
+        """Compute hard stop price from critical levels.
+
+        ISS-20260723-009: this is a verified helper (7 unit tests cover
+        LONG/SHORT + empty/above-only/below-only edge cases) exposed for
+        stop-price computation. ``_build_signal`` currently collects hard
+        levels inline for ``invalidation_points`` (it needs the level
+        *objects*, not the min/max *price* this returns), so the two are
+        distinct concerns — but the hard-level filter
+        (``cl.severity == "hard"``) is shared. Kept as a public-ish helper
+        rather than deleted: a future trailing-stop / risk-engine consumer
+        can call it without re-deriving the min/max logic.
+        """
         hard_levels = [cl for cl in critical_levels.levels if cl.severity == "hard"]
         if not hard_levels:
             return None
@@ -117,7 +128,11 @@ class WaveSignalGenerator:
         direction: Direction,
         critical_levels: CriticalLevels,
     ) -> float | None:
-        """Compute soft stop from critical levels."""
+        """Compute soft stop price from critical levels.
+
+        ISS-20260723-009: see ``_compute_hard_stop`` — verified helper
+        (unit-tested), exposed for soft-stop / trailing-stop consumers.
+        """
         soft_levels = [cl for cl in critical_levels.levels if cl.severity == "soft"]
         if not soft_levels:
             return None
