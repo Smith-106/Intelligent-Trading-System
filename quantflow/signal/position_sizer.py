@@ -128,26 +128,12 @@ class PositionSizer:
         if total_value <= 0:
             return 0.0
 
-        # Use per-strategy win_rate when available. A consolidated signal
-        # carries a compound strategy_id; average the win rates of its
-        # constituents so sizing reflects the blended edge rather than the
-        # default (which would over-size when one constituent is strong).
-        rates = strategy_win_rates or {}
-        constituents = strategy_id_constituents(signal.strategy_id) or [signal.strategy_id]
-        matched = [rates[c] for c in constituents if c in rates]
-        actual_win_rate = sum(matched) / len(matched) if matched else win_rate
+        actual_win_rate = self._blend_win_rate(signal, win_rate, strategy_win_rates)
 
         if self._method == "fixed":
             base = total_value * self._fixed_pct
         else:
-            # Raw Kelly: f* = (p*b - q) / b
-            p = max(0.01, min(actual_win_rate, 0.99))
-            q = 1.0 - p
-            b = max(win_loss_ratio, 0.01)
-            raw_kelly = (p * b - q) / b
-            if raw_kelly <= 0:
-                return 0.0
-            base = total_value * self._kelly_fraction * raw_kelly
+            base = self._kelly_base_notional(total_value, actual_win_rate, win_loss_ratio)
 
         # Scale by signal strength [0, 1] and strategy allocation weight.
         # Allocation is applied here (before the cap + deduction) so the cap
@@ -185,3 +171,40 @@ class PositionSizer:
             return 0.0
 
         return round(target, 2)
+
+    def _blend_win_rate(
+        self,
+        signal: Signal,
+        default_win_rate: float,
+        strategy_win_rates: dict[str, float] | None,
+    ) -> float:
+        """Blend per-strategy win rates across a (possibly compound) strategy_id.
+
+        ISS-20260723-006: extracted from ``size``. A consolidated signal carries
+        a comma-joined strategy_id; average the win rates of its constituents so
+        sizing reflects the blended edge rather than the default (which would
+        over-size when one constituent is strong). Falls back to the default
+        win_rate when no per-strategy rate is available.
+        """
+        rates = strategy_win_rates or {}
+        constituents = strategy_id_constituents(signal.strategy_id) or [signal.strategy_id]
+        matched = [rates[c] for c in constituents if c in rates]
+        return sum(matched) / len(matched) if matched else default_win_rate
+
+    def _kelly_base_notional(
+        self, total_value: float, win_rate: float, win_loss_ratio: float
+    ) -> float:
+        """Kelly-fraction base notional, or 0.0 if the raw Kelly fraction <= 0.
+
+        ISS-20260723-006: extracted from ``size``. Raw Kelly f* = (p*b - q)/b,
+        clamped to a sane [0.01, 0.99] win-rate window; scaled by the configured
+        ``_kelly_fraction``. Returns 0.0 (caller short-circuits to no order)
+        when the edge is non-positive.
+        """
+        p = max(0.01, min(win_rate, 0.99))
+        q = 1.0 - p
+        b = max(win_loss_ratio, 0.01)
+        raw_kelly = (p * b - q) / b
+        if raw_kelly <= 0:
+            return 0.0
+        return total_value * self._kelly_fraction * raw_kelly
