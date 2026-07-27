@@ -8,7 +8,6 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from quantflow.execution.scaling_position_sizer import ScalingPositionSizer
 from quantflow.indicators.critical_level import CriticalLevelDetector, CriticalLevels
 from quantflow.indicators.fibonacci import FibonacciCalculator
 from quantflow.indicators.wave_identifier import WaveIdentifier
@@ -197,38 +196,6 @@ class TestSignalRiskPipeline:
         cl = CriticalLevels()
         events = checker.check(wc, cl, 50000.0)
         assert isinstance(events, list)
-
-
-class TestScalingPositionPipeline:
-    """Test scaling position sizer within the risk pipeline."""
-
-    def test_full_position_lifecycle(self) -> None:
-        sizer = ScalingPositionSizer()
-        wc = WaveCount(pattern=WavePattern.IMPULSE, current_wave=2)
-
-        # Trial position
-        trial = sizer.compute_trial_position(100000, 90000, 88000, wc.current_wave)
-        assert trial.size_pct > 0
-        assert trial.phase.value == "trial"
-
-        # Add position
-        sizer._current_position_pct = trial.size_pct
-        add = sizer.compute_add_position(100000, 92000, 90000, wc.current_wave)
-        assert add.size_pct > 0
-        assert add.phase.value == "add"
-
-        # Exit schedule
-        exits = sizer.compute_exit_schedule(90000, 96000, 99000)
-        assert len(exits) == 3
-        total = sum(e.size_pct for e in exits)
-        assert abs(total - 1.0) < 0.01
-
-    def test_risk_limits(self) -> None:
-        sizer = ScalingPositionSizer()
-        # Daily loss breached
-        limits = sizer.check_risk_limits(100000, -6000, -5000)
-        assert limits["daily_loss"] is True
-        assert limits["monthly_loss"] is False
 
 
 class TestBacktest:

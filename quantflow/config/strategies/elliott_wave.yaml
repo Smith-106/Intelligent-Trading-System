@@ -60,16 +60,6 @@ risk:
     - signal_stop
   max_consecutive_stops: 3
 
-scaling:
-  trial_pct: 0.125
-  add_pct: 0.25
-  chase_pct: 0.125
-  max_total_pct: 0.55
-  exit_first_pct: 0.30
-  exit_second_pct: 0.30
-  exit_final_pct: 0.40
-  min_risk_reward: 3.0
-
 mtf:
   timeframes: [1W, 4H, 1H, 15m]
   alignment_mode: closed_only
