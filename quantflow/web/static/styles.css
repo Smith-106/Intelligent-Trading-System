@@ -1,14 +1,18 @@
 :root {
   color-scheme: dark;
   --bg: #0b1220;
+  --bg-base: #0b1220;
   --panel: #101827;
   --panel-2: #162132;
   --border: #203047;
   --text: #e6edf7;
+  --text-secondary: #e6edf7;
+  --text-muted: #93a4bd;
   --muted: #93a4bd;
   --accent: #2dd4bf;
   --accent-2: #38bdf8;
   --danger: #fb7185;
+  --warning: #f59e0b;
 
   /* Semantic status colors (ISS-ui: centralize the go/warn/danger literals
      previously repeated as raw hex ~51 times across pill/shadow/text). */
@@ -60,7 +64,7 @@
 
 body {
   margin: 0;
-  font-family: Inter, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   background: linear-gradient(180deg, #08111f 0%, #0e1726 100%);
   color: var(--text);
 }
@@ -3579,7 +3583,7 @@ th {
   text-decoration: none;
   transition: top var(--dur-fast) var(--ease);
 }
-.skip-link:focus {
+.skip-link:focus-visible {
   top: 8px;
 }
 
@@ -3870,4 +3874,97 @@ textarea:focus-visible,
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* --- UX fixes (2026-07-28) — H1/M5 banners, M1 overlay, M2 display font, L2 pill --- */
+
+/* M5: app-level poll-stall banner (body[data-poll-stalled="true"]). */
+body[data-poll-stalled="true"]::before {
+  content: "实时数据同步中断 — 当前显示的是上次同步的数据";
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 8000;
+  padding: var(--sp-2) var(--sp-4);
+  background: color-mix(in oklch, var(--warning) 14%, var(--bg-base));
+  color: var(--warning);
+  font-size: var(--fs-md);
+  text-align: center;
+  border-bottom: 1px solid color-mix(in oklch, var(--warning) 30%, transparent);
+}
+
+/* H1: per-panel stale-data banner (panels tagged data-stale="true" by load* catches). */
+[data-panel][data-stale="true"]::before {
+  content: "数据可能过期 — 上次同步失败";
+  display: block;
+  padding: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-2);
+  background: color-mix(in oklch, var(--warning) 12%, transparent);
+  color: var(--warning);
+  font-size: var(--fs-md);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--warning);
+}
+
+/* M1: full-screen bootstrap error overlay with retry affordance. */
+.bootstrap-error-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-4);
+  padding: var(--sp-6);
+  background: color-mix(in oklch, var(--danger) 8%, var(--bg-base));
+  backdrop-filter: blur(4px);
+  z-index: 9000;
+}
+.bootstrap-error-overlay[hidden] { display: none; }
+.bootstrap-error-overlay .bootstrap-error-title {
+  font-size: var(--fs-xl);
+  color: var(--danger);
+}
+.bootstrap-error-overlay .bootstrap-error-body {
+  max-width: 480px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* L2: version-pill failure state — muted italic instead of perpetual "加载中". */
+#version-pill[data-state="failed"] {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* M2: display font (Space Grotesk, self-hosted woff2 — no runtime CDN). */
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/static/fonts/SpaceGrotesk-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/static/fonts/SpaceGrotesk-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/static/fonts/SpaceGrotesk-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  --font-body: Inter, "Segoe UI", sans-serif;
+  --font-display: "Space Grotesk", Inter, sans-serif;
+}
+h1, h2, h3,
+.app-header .title,
+.panel-title {
+  font-family: var(--font-display);
 }

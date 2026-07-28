@@ -114,6 +114,7 @@ const refreshState = {
   runtimePromise: null,
   fullPromise: null,
   pollHandle: null,
+  stalled: false, // M5: one-shot toast debounce for poll stall streaks
 };
 
 const WORKBENCH_STATE_STORAGE_KEY = "quantflow.station.workbench.v1";
@@ -716,6 +717,17 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+// setHTML: single audit-face choke point for assigning HTML to a node (M4).
+// Mirrors the validate_symbol single-audit-face discipline: every innerHTML
+// assignment should go through here so static guards can grep for raw
+// `.innerHTML =` outside this function body. Callers MUST pre-escape any
+// interpolated server/user text via escapeHtml/safeText/localizeInlineText —
+// setHTML does NOT auto-escape (that would require HTML parsing).
+function setHTML(node, html) {
+  if (!node) return;
+  node.innerHTML = html;
+}
+
 // Sync a toggle button's aria-pressed with its active class so screen readers
 // announce selection state (WCAG 4.1.2 / toggle pattern). The two must never
 // drift — always set both via this helper instead of raw classList.toggle.
@@ -862,13 +874,14 @@ function metricCard(label, value) {
     // Guard NaN/Infinity — render placeholder rather than literal "NaN"/"Infinity".
     display = Number.isFinite(value) ? value : "待检测";
   } else if (typeof value === "string") {
-    display = localizeInlineText(value, value);
+    display = escapeHtml(localizeInlineText(value, value)); // M4: escape string branch
   } else if (value === null || value === undefined) {
     display = "待检测";
   } else {
     display = escapeHtml(String(value));
   }
-  return `<div class="metric-card"><span class="label">${localizeInlineText(label, label)}</span><span class="value">${display}</span></div>`;
+  const safeLabel = escapeHtml(localizeInlineText(label, label)); // M4: escape label
+  return `<div class="metric-card"><span class="label">${safeLabel}</span><span class="value">${display}</span></div>`;
 }
 
 function safeText(value, fallback = "N/A") {
@@ -3415,7 +3428,9 @@ function renderOverview(overview) {
   const selectedOverviewInspector = activeOverviewInspector
     ? overviewInspectorSelection(activeOverviewInspector.kind, activeOverviewInspector.key)
     : overviewInspectorSelection();
-  document.getElementById("version-pill").textContent = `v${overview.version}`;
+  const versionPill = document.getElementById("version-pill");
+  versionPill.textContent = `v${overview.version}`;
+  versionPill.dataset.state = "ready";
   document.getElementById("overview-metrics").innerHTML = [
     metricCard("策略数", overview.strategies.count),
     metricCard("数据交易对", data.symbol_count),
@@ -10915,82 +10930,133 @@ function renderSession(snapshot) {
 }
 
 async function loadOverview() {
-  const overview = await api("/api/overview");
-  const strategies = await api("/api/strategies");
-  state.strategyMap = Object.fromEntries(strategies.map((strategy) => [strategy.strategy_id, strategy]));
-  renderOverview(overview);
-  state.strategies = strategies;
-  populateStrategySelectors(strategies);
-  renderStrategies(strategies);
-  syncTerminalForms(state.session?.request || state.executionHub?.control || {});
+  try {
+    const overview = await api("/api/overview");
+    const strategies = await api("/api/strategies");
+    state.strategyMap = Object.fromEntries(strategies.map((strategy) => [strategy.strategy_id, strategy]));
+    renderOverview(overview);
+    state.strategies = strategies;
+    populateStrategySelectors(strategies);
+    renderStrategies(strategies);
+    syncTerminalForms(state.session?.request || state.executionHub?.control || {});
 
-  const researchStrategy = document.getElementById("research-strategy").value || strategies[0]?.strategy_id;
-  const validationStrategy = document.getElementById("validation-strategy").value || strategies[0]?.strategy_id;
-  if (researchStrategy) {
-    renderParamEditor("research", researchStrategy, state.researchParams);
-  }
-  if (validationStrategy) {
-    renderParamEditor("validation", validationStrategy, state.validationParams);
+    const researchStrategy = document.getElementById("research-strategy").value || strategies[0]?.strategy_id;
+    const validationStrategy = document.getElementById("validation-strategy").value || strategies[0]?.strategy_id;
+    if (researchStrategy) {
+      renderParamEditor("research", researchStrategy, state.researchParams);
+    }
+    if (validationStrategy) {
+      renderParamEditor("validation", validationStrategy, state.validationParams);
+    }
+  } catch (error) {
+    showToast(`总览加载失败：${error.message}`, "danger");
+    // L2: version-pill failure fallback — end perpetual "加载中".
+    const pill = document.getElementById("version-pill");
+    if (pill) {
+      pill.textContent = "版本未知";
+      pill.dataset.state = "failed";
+    }
+    throw error; // H1: surface failure, re-throw so M5 poll banner can trigger.
   }
 }
 
 async function loadResearchHistory() {
-  const payload = await api("/api/research/history");
-  renderResearchHistory(payload.items || []);
+  try {
+    const payload = await api("/api/research/history");
+    renderResearchHistory(payload.items || []);
+  } catch (error) {
+    showToast(`研究历史加载失败：${error.message}`, "danger");
+    throw error;
+  }
 }
 
 async function loadValidationHistory() {
-  const payload = await api("/api/validate/history");
-  renderValidationHistory(payload.items || []);
+  try {
+    const payload = await api("/api/validate/history");
+    renderValidationHistory(payload.items || []);
+  } catch (error) {
+    showToast(`验证历史加载失败：${error.message}`, "danger");
+    throw error;
+  }
 }
 
 async function loadDataHub() {
-  const payload = await api("/api/data");
-  renderDataHub(payload);
+  try {
+    const payload = await api("/api/data");
+    renderDataHub(payload);
+  } catch (error) {
+    showToast(`数据中心加载失败：${error.message}`, "danger");
+    throw error;
+  }
 }
 
 async function loadMonitoring() {
-  const payload = await api("/api/monitoring");
-  renderMonitoring(payload);
+  try {
+    const payload = await api("/api/monitoring");
+    renderMonitoring(payload);
+  } catch (error) {
+    showToast(`监控加载失败：${error.message}`, "danger");
+    throw error;
+  }
 }
 
 async function loadExecutionHub() {
-  const payload = await api("/api/execution");
-  renderExecutionHub(payload);
+  try {
+    const payload = await api("/api/execution");
+    renderExecutionHub(payload);
+  } catch (error) {
+    showToast(`执行工作台加载失败：${error.message}`, "danger");
+    throw error;
+  }
 }
 
 async function refreshSession() {
-  const snapshot = await api("/api/session");
-  renderSession(snapshot);
+  try {
+    const snapshot = await api("/api/session");
+    renderSession(snapshot);
+  } catch (error) {
+    showToast(`会话刷新失败：${error.message}`, "danger");
+    throw error;
+  }
 }
 
 async function loadSessionHistory() {
-  const payload = await api("/api/session/history");
-  state.sessionHistory = payload.items || [];
-  const snapshot = state.liveSessionSnapshot || state.session || {};
-  if (openLatestSessionHistoryByDefault(snapshot)) {
-    await loadSessionEvents();
-    return;
+  try {
+    const payload = await api("/api/session/history");
+    state.sessionHistory = payload.items || [];
+    const snapshot = state.liveSessionSnapshot || state.session || {};
+    if (openLatestSessionHistoryByDefault(snapshot)) {
+      await loadSessionEvents();
+      return;
+    }
+    if (state.session || state.liveSessionSnapshot) {
+      refreshSessionAuditSurfaces(state.session || state.liveSessionSnapshot || {});
+      return;
+    }
+    renderSessionHistory(state.sessionHistory);
+  } catch (error) {
+    showToast(`会话历史加载失败：${error.message}`, "danger");
+    throw error;
   }
-  if (state.session || state.liveSessionSnapshot) {
-    refreshSessionAuditSurfaces(state.session || state.liveSessionSnapshot || {});
-    return;
-  }
-  renderSessionHistory(state.sessionHistory);
 }
 
 async function loadSessionEvents() {
-  const sessionId = sessionViewIsHistory()
-    ? state.sessionView?.historySessionId
-    : state.session?.session_id;
-  const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : "";
-  const payload = await api(`/api/session/events${query}`);
-  state.sessionEvents = payload.items || [];
-  if (state.session || state.liveSessionSnapshot) {
-    refreshSessionAuditSurfaces(state.session || state.liveSessionSnapshot || {});
-    return;
+  try {
+    const sessionId = sessionViewIsHistory()
+      ? state.sessionView?.historySessionId
+      : state.session?.session_id;
+    const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : "";
+    const payload = await api(`/api/session/events${query}`);
+    state.sessionEvents = payload.items || [];
+    if (state.session || state.liveSessionSnapshot) {
+      refreshSessionAuditSurfaces(state.session || state.liveSessionSnapshot || {});
+      return;
+    }
+    renderSessionEvents(state.sessionEvents);
+  } catch (error) {
+    showToast(`会话事件加载失败：${error.message}`, "danger");
+    throw error;
   }
-  renderSessionEvents(state.sessionEvents);
 }
 
 async function refreshRuntimeSurfaces({ includeMonitoring = true } = {}) {
@@ -11874,14 +11940,82 @@ async function bootstrap() {
   }
   refreshState.pollHandle = window.setInterval(() => {
     refreshRuntimeSurfaces()
-      .then(() => setPollHeartbeat(false))
+      .then(() => {
+        setPollHeartbeat(false);
+        if (refreshState.stalled) {
+          // Recovery after a stall streak — clear banner + one-shot info toast.
+          refreshState.stalled = false;
+          document.body.dataset.pollStalled = "false";
+          showToast("实时数据已恢复", "info", 1500);
+        }
+      })
       .catch(() => {
         setPollHeartbeat(true);
+        if (!refreshState.stalled) {
+          // One-shot toast on FIRST failure of a stall streak (no 5s toast-spam).
+          refreshState.stalled = true;
+          document.body.dataset.pollStalled = "true";
+          showToast("实时数据同步中断，显示上次同步数据", "warning");
+        }
       });
   }, 5000);
   ensurePollHeartbeat();
 }
 
-bootstrap().catch((error) => {
-  document.getElementById("header-context").textContent = error.message;
-});
+// M1: bootstrap error overlay with retry affordance. Replaces the one-line
+// .catch that only mutated header subtitle text. Uses DOM API (textContent)
+// — no innerHTML with server text (M4-safe).
+const bootstrapState = {
+  status: "loading", // "loading" | "failed" | "ready"
+  error: null,
+};
+
+function renderBootstrapError(message) {
+  bootstrapState.status = "failed";
+  bootstrapState.error = message;
+
+  let overlay = document.getElementById("bootstrap-error-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "bootstrap-error-overlay";
+    overlay.className = "bootstrap-error-overlay";
+    overlay.setAttribute("role", "alert");
+    overlay.setAttribute("aria-live", "assertive");
+    document.body.appendChild(overlay);
+  }
+  overlay.replaceChildren();
+
+  const title = document.createElement("h2");
+  title.className = "bootstrap-error-title";
+  title.textContent = "初始化失败";
+
+  const body = document.createElement("p");
+  body.className = "bootstrap-error-body";
+  body.textContent = safeText(message, "未知错误");
+
+  const retry = document.createElement("button");
+  retry.className = "btn btn-primary";
+  retry.type = "button";
+  retry.textContent = "重试";
+  retry.addEventListener("click", () => {
+    overlay.hidden = true;
+    bootstrapState.status = "loading";
+    runBootstrap();
+  });
+
+  overlay.append(title, body, retry);
+  overlay.hidden = false;
+}
+
+async function runBootstrap() {
+  try {
+    await bootstrap();
+    bootstrapState.status = "ready";
+    const overlay = document.getElementById("bootstrap-error-overlay");
+    if (overlay) overlay.hidden = true;
+  } catch (error) {
+    renderBootstrapError(error.message);
+  }
+}
+
+runBootstrap();

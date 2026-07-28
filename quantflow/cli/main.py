@@ -267,14 +267,22 @@ def optimize(
         return s.generate_signals(sub_df)
 
     optimizer = StrategyOptimizer()
-    result = optimizer.optimize(
-        close=close,
-        signal_fn=_signal_fn,
-        param_space=param_space,
-        n_trials=trials,
-        method=method,
-        initial_capital=capital,
-    )
+    try:
+        with console.status(f"[bold blue]运行 Optuna 优化中（{trials} trials）..."):
+            result = optimizer.optimize(
+                close=close,
+                signal_fn=_signal_fn,
+                param_space=param_space,
+                n_trials=trials,
+                method=method,
+                initial_capital=capital,
+            )
+    except Exception as e:
+        console.print(f"[red]✗ 优化失败：{redact_secrets(str(e))}[/]")
+        console.print("  请检查参数空间、数据范围与策略 generate_signals 实现。")
+        return
+    finally:
+        store.close()
 
     table = Table(title="Optimization Results")
     table.add_column("Metric", style="cyan")
@@ -287,7 +295,12 @@ def optimize(
         table.add_row(k, str(v))
 
     console.print(table)
-    store.close()
+
+    # H4: next-step guidance — strictly after console.print(table), before return.
+    console.print(
+        f"[dim]下一步：运行 [bold]quantflow validate --strategy {strategy} "
+        f"--symbol {symbol} --method gate[/] 进行 GO/NO-GO 验证。[/]"
+    )
 
 
 @app.command()
@@ -399,108 +412,123 @@ def validate(
         store.close()
         return
 
-    if method == "cpcv":
-        from quantflow.strategy.validation.cpcv import cpcv_backtest
+    try:
+        if method == "cpcv":
+            from quantflow.strategy.validation.cpcv import cpcv_backtest
 
-        console.print("[bold blue]Running CPCV validation with train-window optimization...[/]")
-        result = cpcv_backtest(
-            close,
-            entries,
-            exits,
-            n_groups=groups,
-            n_test_groups=test_groups,
-            initial_capital=capital,
-            signal_fn=_signal_fn,
-            param_space=param_space,
-            data=df,
-            n_trials=optimize_trials,
-            method=optimize_method,
-        )
-        _display_cpcv(result)
+            console.print("[bold blue]Running CPCV validation with train-window optimization...[/]")
+            with console.status("[bold blue]CPCV 多路径回测中..."):
+                result = cpcv_backtest(
+                    close,
+                    entries,
+                    exits,
+                    n_groups=groups,
+                    n_test_groups=test_groups,
+                    initial_capital=capital,
+                    signal_fn=_signal_fn,
+                    param_space=param_space,
+                    data=df,
+                    n_trials=optimize_trials,
+                    method=optimize_method,
+                )
+            _display_cpcv(result)
 
-    elif method == "dsr":
-        from quantflow.strategy.research.backtest import BacktestEngine
-        from quantflow.strategy.validation.dsr import deflated_sharpe_ratio
+        elif method == "dsr":
+            from quantflow.strategy.research.backtest import BacktestEngine
+            from quantflow.strategy.validation.dsr import deflated_sharpe_ratio
 
-        # Chain run_backtest directly — reusing the `bt`/`res` names (bound to
-        # BacktestResult/MonteCarloResult by the monte_carlo branch above) for a
-        # BacktestEngine confused mypy into narrowing them, flagging run_backtest
-        # / sharpe_ratio as missing attributes. Use a branch-local name.
-        dsr_res = BacktestEngine().run_backtest(close, entries, exits, initial_capital=capital)
-        console.print("[bold blue]Running DSR validation...[/]")
-        result = deflated_sharpe_ratio(
-            dsr_res.sharpe_ratio, n_trials=n_trials, sample_length=len(close)
-        )
-        _display_dsr(result)
+            # Chain run_backtest directly — reusing the `bt`/`res` names (bound to
+            # BacktestResult/MonteCarloResult by the monte_carlo branch above) for a
+            # BacktestEngine confused mypy into narrowing them, flagging run_backtest
+            # / sharpe_ratio as missing attributes. Use a branch-local name.
+            dsr_res = BacktestEngine().run_backtest(close, entries, exits, initial_capital=capital)
+            console.print("[bold blue]Running DSR validation...[/]")
+            with console.status("[bold blue]计算 Deflated Sharpe Ratio 中..."):
+                result = deflated_sharpe_ratio(
+                    dsr_res.sharpe_ratio, n_trials=n_trials, sample_length=len(close)
+                )
+            _display_dsr(result)
 
-    elif method == "wfo":
-        from quantflow.strategy.validation.wfo import walk_forward_optimization
+        elif method == "wfo":
+            from quantflow.strategy.validation.wfo import walk_forward_optimization
 
-        console.print("[bold blue]Running Walk-Forward Optimization with OOS regeneration...[/]")
-        rolling = walk_forward_optimization(
-            close,
-            entries,
-            exits,
-            n_windows=wfo_windows,
-            mode="rolling",
-            initial_capital=capital,
-            signal_fn=_signal_fn,
-            param_space=param_space,
-            data=df,
-            n_trials=optimize_trials,
-            method=optimize_method,
-        )
-        anchored = walk_forward_optimization(
-            close,
-            entries,
-            exits,
-            n_windows=wfo_windows,
-            mode="anchored",
-            initial_capital=capital,
-            signal_fn=_signal_fn,
-            param_space=param_space,
-            data=df,
-            n_trials=optimize_trials,
-            method=optimize_method,
-        )
-        _display_wfo(rolling, anchored)
+            console.print(
+                "[bold blue]Running Walk-Forward Optimization with OOS regeneration...[/]"
+            )
+            with console.status("[bold blue]Walk-Forward (rolling) 优化中..."):
+                rolling = walk_forward_optimization(
+                    close,
+                    entries,
+                    exits,
+                    n_windows=wfo_windows,
+                    mode="rolling",
+                    initial_capital=capital,
+                    signal_fn=_signal_fn,
+                    param_space=param_space,
+                    data=df,
+                    n_trials=optimize_trials,
+                    method=optimize_method,
+                )
+            with console.status("[bold blue]Walk-Forward (anchored) 优化中..."):
+                anchored = walk_forward_optimization(
+                    close,
+                    entries,
+                    exits,
+                    n_windows=wfo_windows,
+                    mode="anchored",
+                    initial_capital=capital,
+                    signal_fn=_signal_fn,
+                    param_space=param_space,
+                    data=df,
+                    n_trials=optimize_trials,
+                    method=optimize_method,
+                )
+            _display_wfo(rolling, anchored)
 
-    elif method == "pbo":
-        from quantflow.strategy.validation.pbo import probability_of_overfitting
+        elif method == "pbo":
+            from quantflow.strategy.validation.pbo import probability_of_overfitting
 
-        console.print("[bold blue]Running PBO validation...[/]")
-        result = probability_of_overfitting(
-            close,
-            entries,
-            exits,
-            n_groups=groups,
-            n_test_groups=test_groups,
-            initial_capital=capital,
-        )
-        _display_pbo(result)
+            console.print("[bold blue]Running PBO validation...[/]")
+            with console.status("[bold blue]计算 Probability of Backtest Overfitting 中..."):
+                result = probability_of_overfitting(
+                    close,
+                    entries,
+                    exits,
+                    n_groups=groups,
+                    n_test_groups=test_groups,
+                    initial_capital=capital,
+                )
+            _display_pbo(result)
 
-    elif method in ("full", "gate"):
-        from quantflow.strategy.validation.gate import validation_gate
+        elif method in ("full", "gate"):
+            from quantflow.strategy.validation.gate import validation_gate
 
-        console.print("[bold blue]Running Full Validation Gate with true OOS validation...[/]")
-        result = validation_gate(
-            close,
-            entries,
-            exits,
-            n_trials=n_trials,
-            cpcv_groups=groups,
-            cpcv_test_groups=test_groups,
-            wfo_windows=wfo_windows,
-            initial_capital=capital,
-            signal_fn=_signal_fn,
-            param_space=param_space,
-            data=df,
-            optimize_trials=optimize_trials,
-            optimize_method=optimize_method,
-        )
-        _display_gate(result)
-
-    store.close()
+            console.print("[bold blue]Running Full Validation Gate with true OOS validation...[/]")
+            # validation_gate runs all phases internally — single sequential with-block
+            # (H2 constraint #4: Rich allows only one live console.status at a time).
+            with console.status("[bold blue]运行完整验证门禁 (CPCV→DSR→WFO→PBO) 中..."):
+                result = validation_gate(
+                    close,
+                    entries,
+                    exits,
+                    n_trials=n_trials,
+                    cpcv_groups=groups,
+                    cpcv_test_groups=test_groups,
+                    wfo_windows=wfo_windows,
+                    initial_capital=capital,
+                    signal_fn=_signal_fn,
+                    param_space=param_space,
+                    data=df,
+                    optimize_trials=optimize_trials,
+                    optimize_method=optimize_method,
+                )
+            _display_gate(result)
+    except Exception as e:
+        console.print(f"[red]✗ 验证失败：{redact_secrets(str(e))}[/]")
+        console.print("  请检查 CPCV 分组数、WFO 窗口、数据长度与策略 generate_signals 实现。")
+        return
+    finally:
+        store.close()
 
 
 @app.command()
@@ -571,6 +599,12 @@ def run(
 
         except KeyboardInterrupt:
             console.print("\n[yellow]Stopping session...[/]")
+        except Exception as e:
+            # OKXGateway/order exceptions may embed apiKey/passphrase/URL in error
+            # body. redact_secrets (module-level import, main.py:19) is the
+            # two-layer scrubber — never print raw str(e).
+            console.print(f"[red]✗ 运行失败：{redact_secrets(str(e))}[/]")
+            console.print("  请检查 gateway 配置、API key 与 symbol。")
         finally:
             await session.stop()
             console.print("[green]Session stopped[/]")
