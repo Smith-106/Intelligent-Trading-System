@@ -22,6 +22,7 @@ from quantflow.execution.gateway_base import GatewayBase, GatewayError
 from quantflow.execution.kill_switch import KillSwitch
 from quantflow.execution.okx_gateway import OKXGateway
 from quantflow.execution.order_manager import OrderManager
+from quantflow.execution.order_router import OrderRouter
 from quantflow.execution.paper_gateway import PaperGateway
 from quantflow.execution.position_manager import PositionManager
 
@@ -50,6 +51,12 @@ class ExecutionEngine:
         portfolio: PortfolioManager | None = None,
     ) -> None:
         self._gateway = gateway
+        # ISS-20260723-003: OrderRouter owns gateway dispatch + Order/Request
+        # construction (the two order-shaping concerns submit/submit_order/
+        # close_position previously inlined). arch-017 lazy binding — the
+        # gateway is built by start() after the engine exists, so the router
+        # starts unbound and is rebound via set_gateway on start.
+        self._router = OrderRouter(gateway)
         self._event_bus = event_bus
         self._timeout = timeout
         # ISS-20260723-011 (OBS-M): OrderManager shares the injected sink so
@@ -121,6 +128,9 @@ class ExecutionEngine:
         else:
             self._gateway = PaperGateway(gateway_config)
 
+        # ISS-20260723-003: bind the freshly built gateway to the router so
+        # submit()'s route() calls can dispatch (arch-017 lazy binding).
+        self._router.set_gateway(self._gateway)
         await self._gateway.connect(gateway_config)
         logger.info("Execution engine started: mode=%s", mode)
 
@@ -163,7 +173,16 @@ class ExecutionEngine:
 
     @property
     def gateway(self) -> GatewayBase | None:
+        # ISS-20260723-003: engine still owns gateway lifecycle (start/stop/
+        # cancel/sync); the router holds the same reference for send_order
+        # dispatch. Public API (engine.gateway) unchanged.
         return self._gateway
+
+    @property
+    def router(self) -> OrderRouter:
+        # ISS-20260723-003: expose the router for tests / callers that need
+        # Order construction without going through submit (e.g. dry-run sizing).
+        return self._router
 
     @property
     def order_manager(self) -> OrderManager:
@@ -204,7 +223,10 @@ class ExecutionEngine:
             return order
 
         try:
-            exchange_id = await self._gateway.send_order(order)
+            # ISS-20260723-003: gateway dispatch moved to OrderRouter.route;
+            # submit keeps the orchestration (kill-switch gate → route → track
+            # → metric → event → fill) but no longer calls gateway.send_order.
+            exchange_id = await self._router.route(order)
         except Exception as e:
             order.status = OrderStatus.REJECTED
             # odyssey-review RP2 (SEC, CWE-532): gateway re-raises raw CCXT
@@ -382,16 +404,9 @@ class ExecutionEngine:
         Returns:
             Order object with updated status and fill info.
         """
-        order = Order(
-            order_id="",
-            symbol=request.symbol,
-            side=request.side,
-            order_type=request.order_type,
-            quantity=request.quantity,
-            price=request.price,
-            strategy_id=request.strategy_id,
-            params=dict(request.params),
-        )
+        # ISS-20260723-003: Order construction moved to OrderRouter.build_order
+        # (the shaping concern submit previously inlined).
+        order = self._router.build_order(request)
         return await self.submit(order)
 
     async def cancel(self, order_id: str, symbol: str) -> bool:
@@ -404,24 +419,19 @@ class ExecutionEngine:
         return success
 
     async def close_position(self, symbol: str) -> Order | None:
-        """Close an existing position by placing an opposing order."""
-        pos = self._position_mgr.get_position(symbol)
-        if pos is None or abs(pos.quantity) < POSITION_EPSILON:
-            return None
+        """Close an existing position by placing an opposing order.
 
-        side = OrderSide.SELL if pos.quantity > 0 else OrderSide.BUY
-        qty = abs(pos.quantity)
-        request = OrderRequest(
-            symbol=symbol,
-            side=side,
-            order_type="market",
-            quantity=qty,
-            strategy_id="close_position",
-            # reduceOnly (odyssey-improve SEC-H2): a flatten order must not
-            # flip into a new opposite-side position if the held quantity has
-            # already decreased between sizing and submit.
-            params={"reduceOnly": True},
-        )
+        ISS-20260723-003: the close-request construction (opposing side +
+        reduceOnly) moved to OrderRouter.build_close_request; submit keeps the
+        orchestration. The POSITION_EPSILON closeable check is
+        OrderRouter.is_closeable so the definition is owned once.
+        """
+        pos = self._position_mgr.get_position(symbol)
+        if not self._router.is_closeable(pos):
+            return None
+        # is_closeable guarantees pos is not None; narrow for mypy + build_close_request.
+        assert pos is not None
+        request = self._router.build_close_request(pos)
         return await self.submit_order(request)
 
     def check_timeouts(self) -> list[tuple[str, str]]:
