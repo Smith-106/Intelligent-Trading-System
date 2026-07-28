@@ -102,6 +102,18 @@ class _FakeSink:
         self.signals: list[tuple[str, str]] = []
         self.bar_observations: list[tuple[str, float]] = []
         self.signal_observations: list[tuple[str, float]] = []
+        # ISS-20260724-044 (ISS-019) + ISS-20260723-011 (OBS-M): recorders for
+        # every sink method so the full Protocol surface is captured.
+        self.risk_events: list[tuple[str, str]] = []
+        self.kill_switch_activations: list[str] = []
+        self.kill_switch_step_failures: list[str] = []
+        self.order_totals: list[tuple[str, str, str]] = []
+        self.order_filleds: list[tuple[str, str, str]] = []
+        self.order_latencies: list[tuple[str, float]] = []
+        self.gateway_connected: list[tuple[str, bool]] = []
+        self.gateway_disconnects: list[tuple[str, str]] = []
+        self.gateway_reconnects: list[tuple[str, bool]] = []
+        self.orders_timed_out: list[tuple[str, str]] = []
 
     def start(self, config: object) -> None:
         return
@@ -130,6 +142,36 @@ class _FakeSink:
                 "n_positions": n_positions,
             }
         )
+
+    def record_risk_event(self, event_type: str, severity: str) -> None:
+        self.risk_events.append((event_type, severity))
+
+    def record_kill_switch_activation(self, reason: str) -> None:
+        self.kill_switch_activations.append(reason)
+
+    def record_kill_switch_step_failure(self, step: str) -> None:
+        self.kill_switch_step_failures.append(step)
+
+    def record_order_total(self, symbol: str, side: str, strategy_id: str) -> None:
+        self.order_totals.append((symbol, side, strategy_id))
+
+    def record_order_filled(self, symbol: str, side: str, strategy_id: str) -> None:
+        self.order_filleds.append((symbol, side, strategy_id))
+
+    def record_order_latency(self, symbol: str, duration_seconds: float) -> None:
+        self.order_latencies.append((symbol, duration_seconds))
+
+    def record_gateway_connected(self, exchange: str, connected: bool) -> None:
+        self.gateway_connected.append((exchange, connected))
+
+    def record_gateway_disconnect(self, exchange: str, reason: str) -> None:
+        self.gateway_disconnects.append((exchange, reason))
+
+    def record_gateway_reconnect(self, exchange: str, success: bool) -> None:
+        self.gateway_reconnects.append((exchange, success))
+
+    def record_order_timed_out(self, symbol: str, side: str) -> None:
+        self.orders_timed_out.append((symbol, side))
 
     async def send_alert(
         self,

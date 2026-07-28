@@ -6,6 +6,7 @@ import logging
 import time
 
 from quantflow.common.models import Order, OrderRequest, OrderResult, OrderStatus
+from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +25,16 @@ _TERMINAL_STATES = (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJEC
 class OrderManager:
     """Track order lifecycle: creation → fill/cancel/timeout."""
 
-    def __init__(self, timeout: int = DEFAULT_TIMEOUT) -> None:
+    def __init__(
+        self,
+        timeout: int = DEFAULT_TIMEOUT,
+        monitoring_sink: MonitoringSink | None = None,
+    ) -> None:
         self._timeout = timeout
+        # ISS-20260723-011 (OBS-M): L5→L6 seam for the orders-timed-out counter
+        # (arch-013: depends on the common/ Protocol, never imports monitoring/).
+        # Default Null = no observability (tests/backtest).
+        self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
         self._orders: dict[str, Order] = {}
         self._pending: dict[str, float] = {}  # order_id → submit_timestamp
 
@@ -177,6 +186,9 @@ class OrderManager:
             logger.warning("Order timeout: %s (%ds)", oid, self._timeout)
             if order is not None:
                 order.status = OrderStatus.CANCELLED
+                # ISS-20260723-011 (OBS-M): surface stale-order churn as a
+                # counter so a panel/alert tracks timeouts without log mining.
+                self._sink.record_order_timed_out(symbol=order.symbol, side=order.side.value)
             self._pending.pop(oid, None)
             timed_out.append((oid, symbol))
         return timed_out

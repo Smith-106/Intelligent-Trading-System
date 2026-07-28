@@ -88,7 +88,17 @@ class RiskEngine:
         for check_fn in self._checks:
             result = check_fn(signal, portfolio)
             if not result.passed:
-                logger.warning("Risk check failed: %s", result.reason)
+                # ISS-20260723-011 (OBS-M #5): include the structured details
+                # (pct/limit/exposure/budget) in the rejection log so operators
+                # see WHY a check tripped, not just the reason label. ``details``
+                # is redaction-safe (numeric limits/pcts, no credentials).
+                details = result.details if result.details else {}
+                logger.warning(
+                    "Risk check failed: %s details=%s symbol=%s",
+                    result.reason,
+                    details,
+                    signal.symbol,
+                )
                 self._record_risk_event(result.reason, "warn")
                 return result
         return RiskDecision(passed=True)

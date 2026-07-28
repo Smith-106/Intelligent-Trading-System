@@ -20,10 +20,14 @@ from typing import Any
 from quantflow.monitoring.alerts import AlertLevel, AlertManager
 from quantflow.monitoring.metrics import (
     BAR_PROCESSING_LATENCY,
+    GATEWAY_CONNECTED,
+    GATEWAY_DISCONNECTS,
+    GATEWAY_RECONNECTS,
     KILL_SWITCH_ACTIVATIONS,
     KILL_SWITCH_STEP_FAILURES,
     ORDER_LATENCY,
     ORDERS_FILLED,
+    ORDERS_TIMED_OUT,
     ORDERS_TOTAL,
     RISK_EVENTS,
     SIGNAL_PROCESSING_LATENCY,
@@ -121,6 +125,26 @@ class DefaultMonitoringSink:
     def record_order_latency(self, symbol: str, duration_seconds: float) -> None:
         # L5 execution/engine seam (ISS-20260724-044): replaced ORDER_LATENCY.
         ORDER_LATENCY.labels(symbol=symbol).observe(duration_seconds)
+
+    def record_gateway_connected(self, exchange: str, connected: bool) -> None:
+        # L5 okx_gateway seam (ISS-20260723-011 OBS-M): liveness gauge — set
+        # (not inc) so it reflects current state, not a cumulative tally.
+        GATEWAY_CONNECTED.labels(exchange=exchange).set(1 if connected else 0)
+
+    def record_gateway_disconnect(self, exchange: str, reason: str) -> None:
+        # L5 okx_gateway seam (ISS-20260723-011 OBS-M): disconnect counter by
+        # trigger reason (timeout/error/shutdown).
+        GATEWAY_DISCONNECTS.labels(exchange=exchange, reason=reason).inc()
+
+    def record_gateway_reconnect(self, exchange: str, success: bool) -> None:
+        # L5 okx_gateway seam (ISS-20260723-011 OBS-M): reconnect counter by
+        # outcome — repeated success=False alerts on a flapping exchange.
+        GATEWAY_RECONNECTS.labels(exchange=exchange, success="true" if success else "false").inc()
+
+    def record_order_timed_out(self, symbol: str, side: str) -> None:
+        # L5 order_manager seam (ISS-20260723-011 OBS-M): stale-order churn
+        # counter — orders that exceeded the watchdog window and were cancelled.
+        ORDERS_TIMED_OUT.labels(symbol=symbol, side=side).inc()
 
     async def send_alert(
         self,

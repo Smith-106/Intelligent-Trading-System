@@ -54,6 +54,34 @@ KILL_SWITCH_STEP_FAILURES = Counter(
     ["step"],
 )
 
+# Gateway observability (ISS-20260723-011 OBS-M cluster): liveness gauge +
+# disconnect/reconnect/timeout counters so a Grafana panel / alert can surface
+# exchange connectivity health independently of log lines. The connected gauge
+# is set (not inc) so it reflects the current state, not a cumulative tally.
+GATEWAY_CONNECTED = Gauge(
+    "quantflow_gateway_connected",
+    "Gateway connectivity (1=connected, 0=disconnected) by exchange",
+    ["exchange"],
+)
+
+GATEWAY_DISCONNECTS = Counter(
+    "quantflow_gateway_disconnects_total",
+    "Gateway disconnect events by exchange and trigger reason",
+    ["exchange", "reason"],
+)
+
+GATEWAY_RECONNECTS = Counter(
+    "quantflow_gateway_reconnects_total",
+    "Gateway reconnect attempts by exchange and outcome (success/failure)",
+    ["exchange", "success"],
+)
+
+ORDERS_TIMED_OUT = Counter(
+    "quantflow_orders_timed_out_total",
+    "Orders that exceeded the OrderManager timeout watchdog and were cancelled",
+    ["symbol", "side"],
+)
+
 # Gauges
 PORTFOLIO_VALUE = Gauge(
     "quantflow_portfolio_value",

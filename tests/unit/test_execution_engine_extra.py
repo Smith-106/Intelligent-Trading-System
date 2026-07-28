@@ -82,7 +82,9 @@ class TestExecutionEngineExtra:
                 return None
 
         class FakeOKXGateway:
-            def __init__(self, sandbox: bool = True, market_type: str = "spot") -> None:
+            def __init__(
+                self, sandbox: bool = True, market_type: str = "spot", monitoring_sink=None
+            ) -> None:
                 created.append(("okx", sandbox))
 
             async def connect(self, config: dict[str, Any] | None = None) -> None:

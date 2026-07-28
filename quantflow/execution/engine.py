@@ -52,7 +52,13 @@ class ExecutionEngine:
         self._gateway = gateway
         self._event_bus = event_bus
         self._timeout = timeout
-        self._order_mgr = OrderManager(timeout=int(timeout))
+        # ISS-20260723-011 (OBS-M): OrderManager shares the injected sink so
+        # the orders-timed-out counter lands on the same MonitoringSink as the
+        # engine's order_total/filled/latency metrics.
+        self._order_mgr = OrderManager(
+            timeout=int(timeout),
+            monitoring_sink=monitoring_sink,
+        )
         # L5 PositionManager is a thin delegate over L4 (ISS-20260720-004 Wave 2).
         # When TradingSession constructs the engine before PortfolioManager
         # exists, pass None here and call set_portfolio() after; the
@@ -107,6 +113,10 @@ class ExecutionEngine:
                 # ISS-20260723-005: propagate market_type so connect() defaultType
                 # and query_positions() branch agree on spot vs swap scope.
                 market_type=gateway_config.get("market_type", "spot") if gateway_config else "spot",
+                # ISS-20260723-011 (OBS-M): share the engine's sink so gateway
+                # connectivity gauge + disconnect/reconnect counters land on the
+                # same MonitoringSink as the engine's order metrics.
+                monitoring_sink=self._sink,
             )
         else:
             self._gateway = PaperGateway(gateway_config)

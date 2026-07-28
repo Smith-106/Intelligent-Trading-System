@@ -8,6 +8,7 @@ import math
 from typing import Any
 
 from quantflow.common.models import Order, OrderSide, OrderStatus, Position
+from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
 from quantflow.common.validators import POSITION_EPSILON, validate_quantity, validate_symbol
 from quantflow.execution.gateway_base import GatewayBase, GatewayError
 
@@ -46,7 +47,12 @@ class OKXGateway(GatewayBase):
     Implements the canonical GatewayBase interface.
     """
 
-    def __init__(self, sandbox: bool = True, market_type: str = "spot") -> None:
+    def __init__(
+        self,
+        sandbox: bool = True,
+        market_type: str = "spot",
+        monitoring_sink: MonitoringSink | None = None,
+    ) -> None:
         """Initialize the OKX gateway.
 
         ISS-20260723-005: ``market_type`` selects the OKX account/market scope
@@ -55,11 +61,18 @@ class OKXGateway(GatewayBase):
         the derivatives ``contracts`` schema). Default ``spot`` preserves the
         prior behavior. Valid values: ``spot`` | ``swap`` (OKX ``defaultType``
         vocabulary).
+
+        ISS-20260723-011 (OBS-M): ``monitoring_sink`` drives the gateway
+        connectivity gauge + disconnect/reconnect counters (arch-013: L5
+        depends on the common/ Protocol, never imports monitoring/). Default
+        Null = no observability.
         """
         if market_type not in ("spot", "swap"):
             raise ValueError(f"Invalid market_type {market_type!r}: expected 'spot' or 'swap'")
         self._sandbox = sandbox
         self._market_type = market_type
+        self._exchange_obj_label = "okx"
+        self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
         self._exchange: Any = None
         self._connected = False
         self._reconnect_interval = RECONNECT_INTERVAL
@@ -89,6 +102,9 @@ class OKXGateway(GatewayBase):
 
         await self._exchange.load_markets()
         self._connected = True
+        # ISS-20260723-011 (OBS-M): surface connectivity as a gauge so a
+        # Grafana panel/alert tracks liveness without log mining.
+        self._sink.record_gateway_connected(self._exchange_obj_label, True)
         logger.info("OKX Gateway connected: %d markets", len(self._exchange.markets))
 
     async def disconnect(self) -> None:
@@ -102,6 +118,10 @@ class OKXGateway(GatewayBase):
         finally:
             self._exchange = None
             self._connected = False
+            # ISS-20260723-011 (OBS-M): record the disconnect (reason=shutdown
+            # for explicit disconnect) + flip the liveness gauge to 0.
+            self._sink.record_gateway_disconnect(self._exchange_obj_label, "shutdown")
+            self._sink.record_gateway_connected(self._exchange_obj_label, False)
 
     async def ensure_connected(self) -> None:
         """Check connection and attempt reconnect if needed.
@@ -119,10 +139,15 @@ class OKXGateway(GatewayBase):
             try:
                 await self.connect()
                 logger.info("Reconnected on attempt %d", attempt)
+                # ISS-20260723-011 (OBS-M): successful reconnect.
+                self._sink.record_gateway_reconnect(self._exchange_obj_label, True)
                 return
             except Exception as e:
                 last_err = e
                 logger.error("Reconnect attempt %d failed: %s", attempt, _safe_error(e))
+                # ISS-20260723-011 (OBS-M): failed reconnect attempt — repeated
+                # failures alert on a flapping exchange.
+                self._sink.record_gateway_reconnect(self._exchange_obj_label, False)
                 if attempt < self._max_reconnect_attempts:
                     await asyncio.sleep(self._reconnect_interval)
 
@@ -207,6 +232,10 @@ class OKXGateway(GatewayBase):
                 order.quantity,
             )
             self._connected = False
+            # ISS-20260723-011 (OBS-M): record the disconnect (reason=timeout)
+            # + flip liveness gauge so the panel reflects the drop.
+            self._sink.record_gateway_disconnect(self._exchange_obj_label, "timeout")
+            self._sink.record_gateway_connected(self._exchange_obj_label, False)
             raise GatewayError("create_order timed out") from e
         except Exception as e:
             logger.error(
@@ -217,6 +246,9 @@ class OKXGateway(GatewayBase):
                 order.quantity,
             )
             self._connected = False
+            # ISS-20260723-011 (OBS-M): record the disconnect (reason=error).
+            self._sink.record_gateway_disconnect(self._exchange_obj_label, "error")
+            self._sink.record_gateway_connected(self._exchange_obj_label, False)
             raise
 
     async def cancel_order(self, order_id: str, symbol: str) -> bool:
@@ -285,16 +317,28 @@ class OKXGateway(GatewayBase):
             return await self._query_swap_positions()
         return await self._query_spot_positions()
 
+    def _record_disconnect(self, reason: str) -> None:
+        """Mark the gateway disconnected + emit OBS-M metrics (ISS-20260723-011).
+
+        Centralizes the connect-state drop + disconnect counter + liveness
+        gauge flip so every connection-loss branch (send_order/query_positions
+        timeout/error) records consistently. ``reason`` is a short label
+        (``timeout`` / ``error`` / ``shutdown``).
+        """
+        self._connected = False
+        self._sink.record_gateway_disconnect(self._exchange_obj_label, reason)
+        self._sink.record_gateway_connected(self._exchange_obj_label, False)
+
     async def _query_swap_positions(self) -> list[Position]:
         """Derivatives positions via ``fetch_positions`` (contracts schema)."""
         try:
             raw = await asyncio.wait_for(self._exchange.fetch_positions(), timeout=CALL_TIMEOUT)
         except TimeoutError as e:
-            self._connected = False
+            self._record_disconnect("timeout")
             logger.error("OKX query positions timed out")
             raise GatewayError("fetch_positions timed out") from e
         except Exception as e:
-            self._connected = False
+            self._record_disconnect("error")
             logger.error("OKX query positions failed: %s", _safe_error(e))
             raise GatewayError("fetch_positions failed") from e
 
@@ -347,11 +391,11 @@ class OKXGateway(GatewayBase):
         try:
             balance = await asyncio.wait_for(self._exchange.fetch_balance(), timeout=CALL_TIMEOUT)
         except TimeoutError as e:
-            self._connected = False
+            self._record_disconnect("timeout")
             logger.error("OKX query spot balance timed out")
             raise GatewayError("fetch_balance timed out") from e
         except Exception as e:
-            self._connected = False
+            self._record_disconnect("error")
             logger.error("OKX query spot balance failed: %s", _safe_error(e))
             raise GatewayError("fetch_balance failed") from e
 

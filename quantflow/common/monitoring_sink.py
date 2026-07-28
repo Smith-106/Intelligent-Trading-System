@@ -113,6 +113,43 @@ class MonitoringSink(Protocol):
         """
         ...
 
+    def record_gateway_connected(self, exchange: str, connected: bool) -> None:
+        """Set the gateway connectivity gauge for ``exchange`` (1/0).
+
+        ISS-20260723-011 (OBS-M): used by L5 OKXGateway at connect/disconnect
+        and on connection-loss branches in send_order/query_positions so a
+        Grafana panel surfaces liveness independently of log lines. ``set``
+        semantics — reflects current state, not a cumulative tally.
+        """
+        ...
+
+    def record_gateway_disconnect(self, exchange: str, reason: str) -> None:
+        """Increment the gateway-disconnect counter for (exchange, reason).
+
+        ISS-20260723-011 (OBS-M): used by L5 OKXGateway on every disconnect
+        path (timeout, exception, explicit disconnect). ``reason`` is a
+        short label (``timeout`` / ``error`` / ``shutdown``).
+        """
+        ...
+
+    def record_gateway_reconnect(self, exchange: str, success: bool) -> None:
+        """Increment the gateway-reconnect counter for (exchange, success).
+
+        ISS-20260723-011 (OBS-M): used by L5 OKXGateway.ensure_connected per
+        reconnect attempt so alerting can distinguish repeated reconnect
+        failures (``success=False``) from healthy recovery.
+        """
+        ...
+
+    def record_order_timed_out(self, symbol: str, side: str) -> None:
+        """Increment the orders-timed-out counter for (symbol, side).
+
+        ISS-20260723-011 (OBS-M): used by L5 OrderManager.check_timeouts when
+        an order exceeds the watchdog window and is marked CANCELLED. Lets a
+        panel/alert surface stale-order churn without log mining.
+        """
+        ...
+
     async def send_alert(
         self,
         message: str,
@@ -172,6 +209,18 @@ class NullMonitoringSink:
         """No-op."""
 
     def record_order_latency(self, symbol: str, duration_seconds: float) -> None:
+        """No-op."""
+
+    def record_gateway_connected(self, exchange: str, connected: bool) -> None:
+        """No-op."""
+
+    def record_gateway_disconnect(self, exchange: str, reason: str) -> None:
+        """No-op."""
+
+    def record_gateway_reconnect(self, exchange: str, success: bool) -> None:
+        """No-op."""
+
+    def record_order_timed_out(self, symbol: str, side: str) -> None:
         """No-op."""
 
     async def send_alert(
