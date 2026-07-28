@@ -49,7 +49,7 @@
 
 - [x] **Phase 1: 版本与工作流对齐**：更新版本元数据，建立发布里程碑与 maestro 会话，准备 `docs/release/v0.1.3/`
 - [x] **Phase 2: 打包治理与制品重建**：限制 sdist / wheel 内容，重建 `SHA256SUMS.txt` 与 `release-manifest.json`
-- [x] **Phase 3: 发布证据与远端对齐**：tag `v0.1.3` + GitHub Release「QuantFlow v0.1.3」已创建（commit `4bc72cd`，2026-06-07），dist 制品已封存
+- [~] **Phase 3: 发布证据与远端对齐**：tag `v0.1.3` + GitHub Release「QuantFlow v0.1.3」已创建（commit `4bc72cd`，2026-06-07），dist 制品已封存。**部分完成**：远端资产闭环扫描证据归档状态未确认（保留待办，对齐 state.json phase3=release-evidence:in_progress）
 
 #### Delivery Summary
 
@@ -188,7 +188,7 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 | 1. 四策略实现 | 1. 策略实现与验证 | Completed | 2026-06-02 |
 | 2. v0.1.3 发布候选准备 | 1. 版本与工作流对齐 | Completed | 2026-06-07 |
 | 2. v0.1.3 发布候选准备 | 2. 打包治理与制品重建 | Completed | 2026-06-07 |
-| 2. v0.1.3 发布候选准备 | 3. 发布证据与远端对齐 | Completed | 2026-06-07 (tag `4bc72cd` + Release) |
+| 2. v0.1.3 发布候选准备 | 3. 发布证据与远端对齐 | In progress（tag/Release 已建，远端扫描证据归档待核验） | 2026-06-07 (tag `4bc72cd` + Release) |
 | 3. deep-research 改进分批实施 | 1. P0 数据层防泄漏 | 代码完成，待 P0-verify（P0.3 基线待 Wave 后重立） | `01f05fb` `99795b2` |
 | 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | **P1-verify PASS** | 2026-07-21 `626b015` |
 | 3. deep-research 改进分批实施 | 2.5 多 book reconcile (Wave 1-5) | **Completed** | 2026-07-25 `7e781a8`→`06a8d93` |

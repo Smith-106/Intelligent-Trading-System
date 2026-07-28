@@ -23,7 +23,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
   - quantflow/indicators/ — 21 个因子、注册表、指标引擎 (L2)
   - quantflow/strategy/ — 策略基类、回测、优化、验证 (L3)
   - quantflow/signal/ — 信号生成、风险引擎、仓位调整 (L4)
-  - quantflow/execution/ — 网关、执行引擎、订单管理 (L5)
+  - quantflow/execution/ — 网关、执行引擎、订单管理、OrderRouter (L5)。ExecutionEngine 保留 gateway 生命周期 + submit 编排(kill_switch→route→track→metric→event→fill);OrderRouter (ISS-003) 拥有 gateway dispatch + Order/Request 构造。
   - quantflow/monitoring/ — Prometheus 指标、告警 (L6)
   - quantflow/common/ — 共享数据模型、事件总线、配置
   - quantflow/cli/ — Typer + Rich CLI
@@ -88,12 +88,14 @@ Auto-generated from project structure. Update manually as architecture evolves.
 </spec-entry>
 
 <spec-entry category="arch" keywords="仓位管理,RiskEngine,PositionRequest,风控权限" date="2026-06-13" title="ScalingPosition → RiskEngine: PositionRequest 权限控制" description="分批建仓与风控引擎的交互协议">
-### ScalingPosition → RiskEngine 交互协议
+### ScalingPosition → RiskEngine 交互协议（⚠️ ISS-20260723-004 已删 ScalingPositionSizer 死代码，本 spec-entry 的交互协议 moot）
 
 ScalingPositionSizer 输出 `PositionRequest`，由 RiskEngine 做最终权限控制。单笔风险 ≤2%，日最大亏损 ≤5%，月最大亏损 ≤15%。RiskEngine 可拒绝或缩减 PositionRequest。
 
 **来源**: brainstorm-elliott-wave G-003 缺口补充
 **理由**: 分批建仓模型需与风控体系解耦，RiskEngine 是最终权限门
+
+**drift-realign 2026-07-28 标注**: ScalingPositionSizer/PositionRequest/ScalingConfig/PositionPhase 4 类已随 ISS-004 (commit a5b7f37) 删除（生产零引用死代码）。当前仓位 sizing 由 `signal/position_sizer.py` PositionSizer 直接产出 notional（half-Kelly + vol-target + 单名上限 min 下界）。单笔 ≤2%/日 ≤5%/月 ≤15% 约束现由 PositionSizer.size 内执行。若未来重启分批建仓，应作新 spec 而非恢复本 stale 引用。
 </spec-entry>
 
 <spec-entry category="arch" keywords="波浪理论,六层架构,规则引擎,集成方式" date="2026-06-13" title="波浪理论集成到 QuantFlow 六层架构" description="波浪理论系统设计决策">
@@ -149,6 +151,8 @@ Source: odyssey-review security-fixes session (REV-006).
 
 TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(1) NautilusTrader 用 Rust 核心(71.3% Rust/22.4% Python)+mimalloc+tokio+PyO3,Python 仅作控制面,回测与实盘共用同一确定性事件驱动执行语义与时钟,策略部署无需改代码;(2) Jesse 用单一 Strategy 类跨 backtest/live/paper/optimize/benchmark 保持相同方法签名(should_long/go_long/before/hyperparameters),模式由运行时探测(jh.is_live())而非切换类。QuantFlow 需审计 TradingSession 与 PaperGateway/OKXGateway 代码路径是否真正等价(无模式间分支)。Backtrader 也是单一 Cerebro 编排回测+实盘的范式,但已基本停止维护,仅作架构参照不作实盘依赖。来源: deep-research-20260718 F11/F12 (3-0 verified)。
 
+**drift-realign 2026-07-28 更新（ISS-20260723-005 market_type 双分支）**: OKXGateway 引入 `market_type` ctor 参数（默认 `spot`），`query_positions` 显式 spot/swap 双分支 — `_query_swap_positions` 读 contracts schema、`_query_spot_positions` 从 `fetch_balance` 派生非 quote 资产（entry_price=0/unrealized_pnl=0，spot 无杠杆）。这使 parity 声称"无模式间分支"需收窄：paper/live **spot-mode** parity 成立（PaperGateway spot 语义与 OKXGateway spot 分支对齐）；**swap-mode** 需 PaperGateway 补 swap 分支或文档标注限制（当前 PaperGateway 无 market_type 分支，仅 spot 语义）。parity 审计需区分 market_type 而非笼统称等价。
+
 </spec-entry>
 
 <spec-entry category="arch" keywords="跨交易所套利,统计套利,价差z-score,half-life,市场中性" date="2026-07-20" sid="S-20260720-5v13" title="跨交易所套利策略候选（P5，未实现）——brainstorm 20260602 收敛的 5 候选中唯一未落地项。核心逻辑：同一交易对在不同交易所的价差 → 统计套利。指标：价差 Z-Score、Half-Life、Hedge Ratio（OLS/Kalman）。互补性：市场中性，不依赖方向，与所有方向性策略负相关。复杂度：高（需多交易所数据源 + 低延迟执行）。适用：全状态。学术依据：Avellaneda &amp; Lee (2010) 统计套利。优先级最低因架构改动大（需多 Gateway 数据源 + 低延迟执行路径），暂未实现。设计依据详见 knowhow DOC-strategy-matrix-complementarity-and-rationale。" description="brainstorm 5 候选中唯一未落地项——市场中性统计套利" source="main@805e5b7">
@@ -180,6 +184,8 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 
 低下层（L3 strategy/engine、L4 signal/risk_engine:90、L5 execution/kill_switch+engine、web/session_manager）不得 import monitoring/（L6）具体类——违反事件驱动 L6 契约（L6 应订阅 EventBus，低下层只 publish）。特别禁止用 in-function 延迟 import（risk_engine.py:90 把 monitoring import 放函数体内）来躲过 top-level grep 'import monitoring' 静态扫描——这是 audit-evasion 反模式，lazy import 只可用于打破循环依赖，不可用于规避分层审计。修复：全部 monitoring 调用移到 L6 EventBus subscriber；若必须同步推指标，在 common/ 暴露 thin Protocol 并注入。L6 耦合的静态 guard 必须同时扫 top-level + in-function import。
 
+**arch-013 落地站点（drift-realign 2026-07-28 更新）**: ISS-019/044 落地 4 站点（strategy/engine、risk_engine、execution/engine+kill_switch）；ISS-20260723-011 扩展 2 新站点 — `okx_gateway.py`（record_gateway_connected/disconnect/reconnect 经 `_record_disconnect` helper）+ `order_manager.py`（record_order_timed_out 在 check_timeouts），均经 `common/monitoring_sink.py` Protocol 注入（ctor `monitoring_sink` 参数，默认 NullMonitoringSink），不直接 import `quantflow.monitoring.*`。Protocol 12→16 方法。
+
 </spec-entry>
 
 <spec-entry category="arch" keywords="l4,权威账本,engine.submit,薄路由,reconcile,paper-live-parity" date="2026-07-25" sid="S-20260725-y8sf" title="L4 单一权威账本: engine.submit 统一负责 L4 PortfolioManager 的 fill 更新(含 fee), _process_signal 不再二次更新 L4。L5 PositionManager 退化为薄路由委托 L4(全 9 方法委托), PaperGateway 移除第三套 _cash 账本(仅保留 _positions 作为 gateway 本地交易所视图, 与 OKXGateway 对称: gateway 暴露交易所持仓视图不拥有 L4 账本)。消除 L5 委托 L4 后 engine.submit + _process_signal 双计同一 fill 的风险。fee 由 L4 单次扣除(PaperGateway send_order 不再借记 cash)。paper/live parity: 两者均经 engine.submit 单一 L4 fill 更新点。backtest 独立向量化 book 不在 reconcile 范围(per arch parity spec)。" description="多 book reconcile: L4 单一权威账本 + L5 薄路由委托 + engine.submit 统一 fill 更新" source="main@06a8d93">
@@ -210,6 +216,8 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 
 ### 构造顺序循环懒绑定: ExecutionEngine 在 PortfolioManager 之前构造(TradingSession line 130 前注入 gateway), 产生 L4 引用循环。解法: ExecutionEngine.__init__ 接受 portfolio=None, PositionManager 默认自建私有 PortfolioManager(standalone/test 可用); set_portfolio(portfolio) 在 PortfolioManager 构造后注入共享 L4, 内部调 position_mgr.bind_portfolio(portfolio) 重绑委托目标。Idempotent。PositionManager 默认自建 L4 保证 submit() 在 standalone/test 不崩。
 
+**arch-017 同构站点（drift-realign 2026-07-28）**: ISS-20260723-003 (commit c51d571) 的 `OrderRouter.set_gateway` 采用同一 lazy-binding 模式 — router 构造时 `gateway=None`（因 ExecutionEngine.start() 后才建 gateway），start() 调 `router.set_gateway(self._gateway)` 重绑。route() 在未绑定时 raise "Gateway not initialized — call start() first"，与 set_portfolio 未注入时 PositionManager 默认自建 L4 不崩的兜底语义对称。arch-017 = 构造序在前的组件接受 None + 后置 set_* 重绑共享引用。
+
 
 
 </spec-entry>
@@ -219,5 +227,22 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 ### daily_loss 门 total-vs-baseline 语义: RiskEngine._check_daily_loss 改用 pnl_pct = (portfolio.total_value - portfolio.daily_baseline) / daily_baseline, baseline<=0 时 warmup guard 返回 passed=True(首日无 baseline 不阻断)。daily_baseline 由 TradingSession.on_bar 日切锚定: current_day = bar.timestamp // 86_400_000(UTC 日历日索引), 新日时 portfolio.set_daily_baseline(curr_equity)。daily_baseline 经 Portfolio dataclass 快照传递(非 RiskEngine 持 L4 引用绕过快照), 保持 check 纯函数语义。原 sum(unrealized_pnl)/total 语义被替代(不含 realized + 对浮亏过度敏感)。
 
 
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="execution-engine,srp,god-object,order-router,route,build-order,close-position,arch-017" date="2026-07-27" sid="S-20260727-or3r" title="ExecutionEngine god-object 退役: OrderRouter 抽取 gateway dispatch + Order 构造, engine 保留 submit 编排 + gateway 生命周期 (ISS-20260723-003)" description="ExecutionEngine 原 7 职责 god-object; ISS-003 抽 OrderRouter 拿 routing + Order shaping + close_request, engine 降级为编排 facade" source="main@c51d571">
+
+### ExecutionEngine god-object 退役 — OrderRouter 抽取 (ISS-20260723-003, commit c51d571)
+
+ExecutionEngine 原持有 7 职责 (routing / order state / event publish / metric / Order construction / close_position / sync) 形成 god-object。ISS-003 将两个纯 order-construction 职责移入 `quantflow/execution/order_router.py` `OrderRouter`:
+- `route(order) -> str` — gateway `send_order` dispatch（routing concern）
+- `build_order(request) -> Order` — OrderRequest → Order 构造（params 副本，下游不 mutate caller request）
+- `build_close_request(position) -> OrderRequest` — 对向平仓请求（reduceOnly=True，SEC-H2 防 flip）
+- `is_closeable(position) -> bool` staticmethod — POSITION_EPSILON 守卫，单一"可平仓"定义
+- `set_gateway(gateway)` — arch-017 lazy binding（构造 unbound，start() 后重绑）
+
+ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + submit 编排 (kill_switch gate → router.route → track → metric → event → `_handle_fill`)。close_position 用 `router.is_closeable` + `build_close_request` + `submit_order`。新增 `router` property。hot-path 控制流不变，无回归。
+
+**验收**: tests/unit/test_order_router.py 9 测试（route dispatch / no-gateway raise / error propagation / set_gateway rebind / build_order copy / close_request long+short reduceOnly / is_closeable None+epsilon+nontrivial）。全量 1559 passed。
 
 </spec-entry>

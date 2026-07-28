@@ -310,7 +310,7 @@
       "at": "2026-07-19T18:00:00+08:00"
     }
   ],
-  "last_updated": "2026-07-25T22:21:36+08:00",
+  "last_updated": "2026-07-28T20:09:45+08:00",
   "sessions": [
     {
       "session_id": "maestro-multi-book-reconcile-20260725-113526",
@@ -319,8 +319,32 @@
       "depends_on": [],
       "roadmap_artifact_id": null,
       "seed_ref": null
+    },
+    {
+      "session_id": "maestro-arch-iss003-004-005-011-20260727-131947",
+      "intent": "修复 ISS-003/004/005/011：ExecutionEngine SRP 渐进抽2组件 + ScalingPositionSizer 删除 + OKXGateway market_type spot/swap + L6 Protocol 扩展",
+      "status": "running",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "20260728-iss012-position-sizer-config-20260728-092108",
+      "intent": "修复 ISS-012：PositionSizer fixed_pct/min_order_notional/fee_rate 硬编码 fallback 改 config-sourced",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "20260728-team-ux-improve-web-cli",
+      "intent": "改善 UX 体验：Web Station UI + CLI 全覆盖全管道",
+      "status": "running",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
     }
   ],
-  "active_session_id": null,
+  "active_session_id": "20260728-team-ux-improve-web-cli",
   "last_drift_realign": "2026-07-26T10:40:00+08:00"
 }

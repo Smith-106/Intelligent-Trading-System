@@ -17,17 +17,17 @@
 | TC-009 | WebStation | web-presentation | `quantflow/web/` (7 files) |
 | TC-010 | TradingShim | shim | `quantflow/trading/` (1 file) |
 
-**Total components: 10** · covering 98 Python source files across the six-layer architecture plus CLI, web, and trading-shim layers. Refreshed 2026-07-25 (ISS-019/021/022/027/029/030/034/036/038/041/044 incorporated).
+**Total components: 10** · covering 98 Python source files across the six-layer architecture plus CLI, web, and trading-shim layers. Refreshed 2026-07-25 (ISS-019/021/022/027/029/030/034/036/038/041/044 incorporated); drift-realign 2026-07-28 (ISS-003/005/011 batch incorporated).
 
 ## Recent Changes (since 2026-07-15 rebuild)
 
 - **TC-003**: validation/ expanded (monte_carlo, lookahead, _common); ISS-022 weighted avg_strength; ISS-029/030 finite-mask PBO + NaN sentinel.
-- **TC-005**: ISS-021 PaperGateway reduceOnly parity; ISS-044 MonitoringSink injection (no L6 import).
-- **TC-006**: new `sink.py` (DefaultMonitoringSink); ISS-019/044 Protocol injection pattern.
-- **TC-007**: 5 new modules (monitoring_sink, jsonable, numeric, redaction, url_safety); ISS-019/041 single-owner patterns.
+- **TC-005**: ISS-021 PaperGateway reduceOnly parity; ISS-044 MonitoringSink injection (no L6 import); ISS-003 OrderRouter 抽取 (order_router.py, ExecutionEngine 退役 god-object); ISS-005 OKXGateway market_type spot/swap 双分支; ISS-011 OKXGateway+OrderManager 接入 sink (gateway lifecycle + order timeout OBS-M).
+- **TC-006**: new `sink.py` (DefaultMonitoringSink); ISS-019/044 Protocol injection pattern; ISS-011 Protocol +4 方法 (record_gateway_*/record_order_timed_out) + 4 prometheus (GATEWAY_CONNECTED/DISCONNECTS/RECONNECTS/ORDERS_TIMED_OUT).
+- **TC-007**: 5 new modules (monitoring_sink, jsonable, numeric, redaction, url_safety); ISS-019/041 single-owner patterns; ISS-011 MonitoringSink Protocol 12→16 methods.
 - **TC-009**: new `rate_limit.py`; ISS-036 path-leak (CWE-200) fix; ISS-041 _jsonable single-owner.
 - **TC-001**: ISS-027 fetcher delegate; ISS-034 append-only fast path.
-- **TC-004**: ISS-044 risk_engine sink; ISS-038 compound allocation cap order.
+- **TC-004**: ISS-044 risk_engine sink; ISS-038 compound allocation cap order; ISS-011 risk rejection log 加 details+symbol.
 
 ## Knowledge Graph Status
 

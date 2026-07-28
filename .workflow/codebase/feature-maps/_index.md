@@ -17,4 +17,4 @@
 | FT-009 | Indicators (27 factors) | active | TC-002 | — |
 | FT-010 | AI Layer | partial | TC-003 | — |
 
-**Total features: 10** · Phase 1/2/3 complete (FT-010 AI layer: FinBERT + Meta-Labeling implemented+tested; Qlib RD-Agent not implemented — planned).
+**Total features: 10** · Phase 1/2/3 complete (FT-010 AI layer: FinBERT + Meta-Labeling implemented+tested; Qlib RD-Agent not implemented — planned). Drift-realign 2026-07-28: FT-005 Execution reflects ISS-003 OrderRouter 抽取 + ISS-005 market_type spot/swap + ISS-011 OBS-M 集群; FT-006 Risk Controls ScalingPositionSizer 死代码已删 (ISS-004).
