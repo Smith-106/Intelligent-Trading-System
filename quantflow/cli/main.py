@@ -599,6 +599,12 @@ def run(
 
         except KeyboardInterrupt:
             console.print("\n[yellow]Stopping session...[/]")
+        except typer.BadParameter:
+            # Config-validation errors (missing OKX env vars, bad mode) must
+            # propagate to Typer's exit handler for a non-zero exit code + the
+            # canonical usage message — H3's redacted Exception handler must not
+            # swallow them into exit 0.
+            raise
         except Exception as e:
             # OKXGateway/order exceptions may embed apiKey/passphrase/URL in error
             # body. redact_secrets (module-level import, main.py:19) is the
