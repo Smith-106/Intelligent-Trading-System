@@ -135,6 +135,10 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 **Done when**: ✅ P1-verify `verification.json` + `review.json` passed（checklist 全 PASS，2026-07-21，commit `626b015`）
 
+**Post-verify maintenance**（不改 P1-verify 结论，均为 byte-for-byte 行为不变的 config-sourcing / 文档对齐）:
+- ISS-20260721-012（commit `8ffd612`，2026-07-28）PositionSizer `fixed_pct`/`min_order_notional`/`fee_rate` config-sourced（默认值对齐硬编码保 baseline 不变；`fee_rate` 复用 `execution.taker_fee` D3 single-source-of-truth）— 非 gate 项，纯 config-sourcing
+- ISS-UX-20260728（commit `4e32c24`+`74b83d1`，2026-07-28）Web Station + CLI UX 加固（11 issues，M4 setHTML XSS choke-point + H3 redact_secrets + REG-1 `typer.BadParameter` re-raise）— 不在 deep-research F1-F12 范畴，属维护/润色 lane（roadmap M3 不跟踪 UX，见 Scope Decisions）
+
 #### Phase 3: P2 AI 层升级（milestone-gate: P2-verify）
 
 **Status**：unblocked（P1-verify PASS 2026-07-21），未启动 — P2.1 schema-only 隔离层是下一步；串行约束闸门已开（drift-realign DFT-2b8e1d47, 2026-07-26）

@@ -1,0 +1,196 @@
+{
+  "window": {
+    "from": "2026-07-28T04:37:25.000Z",
+    "to": "2026-07-28T12:53:22.254Z",
+    "days": 1
+  },
+  "git_summary": {
+    "commits": 5,
+    "files_changed": 40,
+    "insertions": 1997,
+    "deletions": 5689
+  },
+  "session_summary": {
+    "total": 0,
+    "with_edits": 0,
+    "last_session": null,
+    "by_platform": {}
+  },
+  "events": [
+    {
+      "type": "commit",
+      "hash": "f6021c0898b98ce04ef360cad683f59da1022853",
+      "at": "2026-07-28T20:42:26+08:00",
+      "message": "chore(workflow): drift-realign + ISS-012 记录 + maestro runtime 状态同步",
+      "files": [
+        ".workflow/.drift-realign/drift-log.jsonl",
+        ".workflow/.drift-realign/drift-report-20260728.md",
+        ".workflow/.drift-realign/timeline-20260728.json",
+        ".workflow/codebase/feature-maps/_index.md",
+        ".workflow/codebase/feature-maps/execution.md",
+        ".workflow/codebase/tech-registry/_index.md",
+        ".workflow/codebase/tech-registry/common-foundation.md",
+        ".workflow/codebase/tech-registry/execution-layer.md",
+        ".workflow/codebase/tech-registry/monitoring-layer.md",
+        ".workflow/issues/issue-history.jsonl",
+        ".workflow/issues/issues.jsonl",
+        ".workflow/roadmap.md",
+        ".workflow/spec-analytics.jsonl",
+        ".workflow/specs/.hit-log.jsonl",
+        ".workflow/specs/architecture-constraints.md",
+        ".workflow/specs/coding-conventions.md",
+        ".workflow/specs/test-conventions.md",
+        ".workflow/state.json",
+        ".workflow/wiki-index.json",
+        "data/station_history/research_runs.jsonl",
+        "data/station_history/session_events.jsonl",
+        "data/station_history/session_snapshots.jsonl",
+        "data/station_history/validation_runs.jsonl",
+        "data/station_history/workbench_state.json"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "74b83d184213d964bef92f37814e890a905a5e76",
+      "at": "2026-07-28T20:02:31+08:00",
+      "message": "fix(cli): TEST-001-REG-1 — H3 回归修复: typer.BadParameter 在 except Exception 前 raise",
+      "files": [
+        "quantflow/cli/main.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "4e32c247a5ba1a95bf1ed339ffd82bb5e053c197",
+      "at": "2026-07-28T19:44:36+08:00",
+      "message": "fix(web,cli): 改善 UX 体验 — 11 issues 反馈/状态/视觉修复",
+      "files": [
+        "quantflow/cli/main.py",
+        "quantflow/web/static/app.js",
+        "quantflow/web/static/fonts/SpaceGrotesk-Bold.woff2",
+        "quantflow/web/static/fonts/SpaceGrotesk-Regular.woff2",
+        "quantflow/web/static/fonts/SpaceGrotesk-SemiBold.woff2",
+        "quantflow/web/static/index.html",
+        "quantflow/web/static/styles.css",
+        "tests/unit/test_innerhtml_choke_point.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "8ffd6123ad7a86c101be0cfb3b7f9e21c5de2e8b",
+      "at": "2026-07-28T17:36:24+08:00",
+      "message": "fix(signal): ISS-012 — PositionSizer fixed_pct/min_order_notional/fee_rate config-sourced",
+      "files": [
+        "quantflow/common/config.py",
+        "quantflow/config/default.yaml",
+        "quantflow/strategy/engine.py",
+        "tests/unit/test_config.py",
+        "tests/unit/test_position_sizer.py"
+      ]
+    },
+    {
+      "type": "commit",
+      "hash": "c51d571a6486cdc48397ab7ca92099771f08338a",
+      "at": "2026-07-28T12:37:25+08:00",
+      "message": "refactor(execution): ISS-003 — ExecutionEngine SRP 渐进抽 OrderRouter",
+      "files": [
+        "quantflow/execution/engine.py",
+        "quantflow/execution/order_router.py",
+        "tests/unit/test_order_router.py"
+      ]
+    }
+  ],
+  "hot_paths": [
+    ".workflow/codebase/ (6 changes)",
+    "quantflow/web/ (6 changes)",
+    "data/station_history/ (5 changes)",
+    ".workflow/ (4 changes)",
+    ".workflow/specs/ (4 changes)",
+    "tests/unit/ (4 changes)",
+    ".workflow/.drift-realign/ (3 changes)",
+    ".workflow/issues/ (2 changes)",
+    "quantflow/cli/ (2 changes)",
+    "quantflow/execution/ (2 changes)"
+  ],
+  "cold_workflow_files": [
+    {
+      "path": ".workflow/scratch/20260530-verify-quality-loop/verification.json",
+      "last_modified": "2026-05-30"
+    },
+    {
+      "path": ".workflow/scratch/20260530-verify-quality-loop/review.json",
+      "last_modified": "2026-05-30"
+    },
+    {
+      "path": ".workflow/scratch/20260530-plan-quality-fixes/plan.json",
+      "last_modified": "2026-05-30"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-001-zigzag-wave-identifier.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-002-fibonacci-critical-level.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-001-zigzag-wave-identifier.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-003-wave-channel-divergence.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-002-fibonacci-critical-level.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-004-elliott-wave-strategy.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-003-wave-channel-divergence.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-005-wave-signal-risk.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-006-scaling-position.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-004-elliott-wave-strategy.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-007-multi-timeframe-align.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-005-wave-signal-risk.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/analysis-F-008-cli-config-backtest.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/findings-wave-state-machine.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/test-strategist/analysis-F-006-scaling-position.md",
+      "last_modified": "2026-05-31"
+    },
+    {
+      "path": ".workflow/scratch/brainstorm-elliott-wave-20260601/system-architect/findings-layer-boundary.md",
+      "last_modified": "2026-05-31"
+    }
+  ]
+}

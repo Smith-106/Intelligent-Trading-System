@@ -3,7 +3,7 @@
   "schema_version": "1.0",
   "project": "QuantFlow",
   "project_version": "0.1.3",
-  "last_updated": "2026-07-25T00:00:00Z",
+  "last_updated": "2026-07-28T00:00:00Z",
   "rebuild_source": "manage-codebase-rebuild (--skip-kg)",
   "overview": "Personal Crypto quantitative trading system (OKX) with six-layer architecture (L1 data -> L6 monitoring), self-built event-driven TradingSession engine, anti-overfitting validation pipeline (CPCV+DSR+PBO+WFO), and QuantFlow Station web UI. Phase 1/2/3 complete.",
   "features": [
@@ -426,7 +426,7 @@
         "sortino_ratio",
         "value_at_risk"
       ],
-      "last_updated": "2026-07-25T00:00:00Z",
+      "last_updated": "2026-07-28T00:00:00Z",
       "_refresh_meta": {
         "added_locations": [],
         "added_symbols": [
@@ -448,10 +448,10 @@
         "quantflow/execution/okx_gateway.py",
         "quantflow/execution/paper_gateway.py",
         "quantflow/execution/engine.py",
+        "quantflow/execution/order_router.py",
         "quantflow/execution/order_manager.py",
         "quantflow/execution/position_manager.py",
         "quantflow/execution/kill_switch.py",
-        "quantflow/execution/scaling_position_sizer.py",
         "quantflow/execution/__init__.py"
       ],
       "feature_ids": [
@@ -464,22 +464,24 @@
         "KillSwitch",
         "OKXGateway",
         "OrderManager",
+        "OrderRouter",
         "PaperGateway",
-        "PositionManager",
-        "PositionPhase",
-        "PositionRequest",
-        "ScalingConfig",
-        "ScalingPositionSizer"
+        "PositionManager"
       ],
-      "last_updated": "2026-07-25T00:00:00Z",
+      "last_updated": "2026-07-28T00:00:00Z",
       "_refresh_meta": {
         "added_locations": [],
         "added_symbols": [
-          "GatewayError"
+          "OrderRouter"
         ],
-        "removed_symbols": [],
+        "removed_symbols": [
+          "PositionPhase",
+          "PositionRequest",
+          "ScalingConfig",
+          "ScalingPositionSizer"
+        ],
         "total_files": 9,
-        "total_symbols": 12
+        "total_symbols": 9
       }
     },
     {
@@ -595,7 +597,7 @@
         "validate_quantity",
         "validate_symbol"
       ],
-      "last_updated": "2026-07-25T00:00:00Z",
+      "last_updated": "2026-07-28T00:00:00Z",
       "_refresh_meta": {
         "added_locations": [
           "quantflow/common/monitoring_sink.py",
@@ -661,7 +663,7 @@
         "status",
         "validate"
       ],
-      "last_updated": "2026-07-25T00:00:00Z",
+      "last_updated": "2026-07-28T00:00:00Z",
       "_refresh_meta": {
         "added_locations": [],
         "added_symbols": [],
@@ -704,7 +706,7 @@
         "run_station",
         "same_origin_guard"
       ],
-      "last_updated": "2026-07-25T00:00:00Z",
+      "last_updated": "2026-07-28T00:00:00Z",
       "_refresh_meta": {
         "added_locations": [
           "quantflow/web/rate_limit.py",

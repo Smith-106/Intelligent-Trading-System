@@ -170,3 +170,19 @@ L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需
 
 
 </spec-entry>
+
+<spec-entry category="coding" keywords="config-sourced,hardcoded-fallback,baseline,yaml-schema-drift,position-sizer,iss-012" date="2026-07-28" sid="S-20260728-iu1x" title="config-sourced hardcoded fallback MUST 保 byte-for-byte backtest baseline" description="hardcoded fallback 迁移 config 时默认值必须 byte-for-byte 对齐保 baseline" source="main@f6021c0">
+
+### config-sourced hardcoded fallback MUST 保 byte-for-byte backtest baseline
+
+当 hardcoded 默认值迁移到 Pydantic config 字段时，字段默认值必须与原硬编码完全相等（如 0.10/10.0/0.001），保 backtest baseline 不变；S1（pydantic 字段）+ S2（default.yaml 键）同 commit 落地以满足 TestConfigSchemaDrift 守卫；fee 等已有 single-source-of-truth 字段复用而非新建（D3）。这是 YAML-schema-drift 防护的通则实例（前序 validate_symbol / TestConfigSchemaDrift）。范本：ISS-012 PositionSizer (commit 8ffd612) — fixed_pct/min_order_notional 落 RiskConfig，fee_rate 复用 ExecutionConfig.taker_fee；守卫 test_config_sourced_defaults + TestConfigSchemaDrift。
+
+</spec-entry>
+
+<spec-entry category="coding" keywords="credential-redaction,cwe-532,redact-secrets,fail-closed,typer-badparameter,reg-1,cli,choke-point" date="2026-07-28" sid="S-20260728-q1ha" title="Credential redaction choke-point + fail-closed re-raise ordering (REG-1)" description="redact_secrets 公开 choke-point + typer.BadParameter 在 except Exception 前 raise" source="main@f6021c0">
+
+### Credential redaction choke-point + fail-closed re-raise ordering (REG-1)
+
+所有面向用户/日志/快照的异常字符串经 common/redaction.py redact_secrets() 脱敏（CWE-532）；redact_secrets 是公开 API（非 _redact），对齐 arch security-primitive 公开契约。CLI except Exception 路径必经 redact_secrets(str(e)) 再输出。FAIL-CLOSED 例外：配置校验类错误（typer.BadParameter / 缺 env vars / click.ClickException）须在通用 except Exception 前 except: raise 传播到框架 exit handler（非零 exit + usage message），不可被 redact 吞成 exit 0。这是 fail-silent antipattern（S-20260724-elsu）的 CLI analog — exit 0 是合法 success 值，不可复用为错误路径返回。范本：cli/main.py run _run_session（H3 模块级 import redact_secrets + REG-1 加 except typer.BadParameter: raise 在 except Exception 前，commit 4e32c24+74b83d1）。
+
+</spec-entry>

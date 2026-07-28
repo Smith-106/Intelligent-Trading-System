@@ -119,7 +119,9 @@ Anti-pattern: `_validate_symbol` defined private in `data/store.py` and lazy-imp
 
 Why: (1) inconsistent audit surface — callers may re-implement instead of importing, bypassing the invariant; (2) the borrowing module's import breaks silently if the underscore form is renamed; (3) security review can't grep for a single public API.
 
-Closing pattern: `quantflow/common/validators.py` exposes public `validate_symbol`/`validate_columns` + `SYMBOL_PATTERN`/`COLUMN_PATTERN`; `quantflow/web/security.py` exposes `same_origin_guard`/`_station_token`/`is_loopback_host`. Back-compat aliases kept at old sites only when tests import the underscored form.
+Closing pattern: `quantflow/common/validators.py` exposes public `validate_symbol`/`validate_columns` + `SYMBOL_PATTERN`/`COLUMN_PATTERN`; `quantflow/web/security.py` exposes `same_origin_guard`/`_station_token`/`is_loopback_host`; `quantflow/common/redaction.py` exposes public `redact_secrets` (CWE-532 credential choke-point). Back-compat aliases kept at old sites only when tests import the underscored form.
+
+**Web-layer XSS choke-point (ISS-UX-20260728, commit 4e32c24)**: the same single-audit-face discipline applies to `innerHTML` on the frontend — `quantflow/web/static/app.js` exposes `setHTML(node, html)` as the ONLY sanctioned `innerHTML` sink; `metricCard` string/label branches escape via `escapeHtml` before reaching `setHTML`. Static guard `tests/unit/test_innerhtml_choke_point.py` greps `app.js` source to assert `setHTML` exists + escape wrap (mirrors the `validate_symbol` single-audit-face pattern). Server/user-interpolated text MUST be pre-escaped — `setHTML` does not auto-escape (unlike `textContent`, which is the M4-safe path for non-HTML dynamic text, e.g. the bootstrap overlay retry button).
 
 Source: odyssey-review security-fixes session (REV-005, REV-013).
 </spec-entry>

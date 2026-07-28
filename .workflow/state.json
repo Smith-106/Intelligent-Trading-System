@@ -266,6 +266,34 @@
         "phase": "P1",
         "decided_at": "2026-07-20T00:00:00+08:00",
         "rationale": "F3 用 paper-on_bar、F5 用 BacktestEngine 跑，两路径信号必须 parity 否则 P1-verify 结论不可信；exit 根因修复消除条件 exit 漂移，regime 缺口是更结构性残留待裁决"
+      },
+      {
+        "text": "L6 可观测性跨层 Protocol 注入 (MonitoringSink) — L3/L4/L5 经 common/monitoring_sink.py Protocol 推指标/告警，禁止直接 import monitoring/。ISS-019/044 落地 4 site，ISS-011 扩展至 14 record_* + send_alert + start。详见 specs[coding] S-20260724-3i37。",
+        "milestone": "M3",
+        "phase": "ISS-019/044/011",
+        "decided_at": "2026-07-24",
+        "rationale": "arch-013 audit-evasion 闭环 + event-contract 不为 telemetry 膨胀"
+      },
+      {
+        "text": "L5 ExecutionEngine god-object 拆分 (OrderRouter) — 2 纯 order-construction 职责 (route/build_order/build_close_request/is_closeable) 移入 execution/order_router.py，engine 保留 submit 编排 + gateway 生命周期。arch-017 lazy-binding (set_gateway)。ISS-003 落地。详见 tech-registry[execution-layer]。",
+        "milestone": "M3",
+        "phase": "ISS-003",
+        "decided_at": "2026-07-26",
+        "rationale": "SRP 渐进抽取，hot-path 控制流不变"
+      },
+      {
+        "text": "多 book reconcile 一致性收口 (Wave 1-5) — L4 PortfolioManager 单一权威账本，L5 PositionManager 退化为薄路由委托，realized_pnl 翻仓归因，daily_loss total-vs-baseline 语义，partial-fill cumulative delta 守卫。新 load-bearing 架构不变量。详见 roadmap Phase 4 + specs[coding] S-20260725-3zl0/j4x6/jabg。",
+        "milestone": "M3",
+        "phase": "ISS-001/023/024/032",
+        "decided_at": "2026-07-25",
+        "rationale": "P1-verify 后暴露的执行路径一致性收口"
+      },
+      {
+        "text": "PositionSizer config-sourced sizing 阈值 (ISS-012) — 3 硬编码 fallback (fixed_pct/min_order_notional/fee_rate) 改 config 注入，默认值 byte-for-byte 对齐保 backtest baseline，fee_rate 复用 taker_fee (D3 single-source-of-truth)。P1-verify 后维护，不改行为。详见 specs[coding] config-sourced baseline 条目。",
+        "milestone": "M3",
+        "phase": "ISS-012",
+        "decided_at": "2026-07-28",
+        "rationale": "YAML-schema-drift 通则实例，TestConfigSchemaDrift 守卫"
       }
     ],
     "blockers": [
@@ -310,7 +338,7 @@
       "at": "2026-07-19T18:00:00+08:00"
     }
   ],
-  "last_updated": "2026-07-28T20:09:45+08:00",
+  "last_updated": "2026-07-28T21:00:00+08:00",
   "sessions": [
     {
       "session_id": "maestro-multi-book-reconcile-20260725-113526",
@@ -346,5 +374,5 @@
     }
   ],
   "active_session_id": "20260728-team-ux-improve-web-cli",
-  "last_drift_realign": "2026-07-26T10:40:00+08:00"
+  "last_drift_realign": "2026-07-28T21:00:00+08:00"
 }

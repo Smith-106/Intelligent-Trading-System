@@ -22,15 +22,15 @@ Typer + Rich CLI, entry point `quantflow.cli.main:app` (`no_args_is_help=True`, 
 
 | Command | Line | Purpose |
 |---------|------|---------|
-| `download` | `:84` | Fetch OKX OHLCV via CCXT, `clean_ohlcv`, save to Parquet |
-| `research` | `:151` | Run strategy backtest, show Markdown report |
-| `optimize` | `:217` | Param optimization (bayesian/cmaes/grid), n trials |
-| `validate` | `:288` | Anti-overfitting: cpcv/dsr/pbo/wfo/full/gate |
-| `run` | `:444` | Live/sandbox/paper trading; comma-separated multi-strategy; polling data loop |
-| `benchmark` | `:631` | Synthetic perf baseline across all layer paths with threshold gates |
-| `ai` | `:1047` | AI-layer workflows: `ai rdagent` runs Qlib RD-Agent factor mining (dependency guard: qlib optional) |
-| `station` | `:1035` | Launch QuantFlow Station Web UI at `host:port` |
-| `status` | `:1115` | System status table (data, config, strategies, risk, Docker) |
+| `download` | `:88` | Fetch OKX OHLCV via CCXT, `clean_ohlcv`, save to Parquet |
+| `research` | `:157` | Run strategy backtest, show Markdown report |
+| `optimize` | `:223` | Param optimization (bayesian/cmaes/grid), n trials |
+| `validate` | `:307` | Anti-overfitting: cpcv/dsr/pbo/wfo/full/gate |
+| `run` | `:535` | Live/sandbox/paper trading; comma-separated multi-strategy; polling data loop |
+| `benchmark` | `:798` | Synthetic perf baseline across all layer paths with threshold gates |
+| `ai` | `:1214` | AI-layer workflows: `ai rdagent` runs Qlib RD-Agent factor mining (dependency guard: qlib optional) |
+| `station` | `:1202` | Launch QuantFlow Station Web UI at `host:port` |
+| `status` | `:1282` | System status table (data, config, strategies, risk, Docker) |
 
 OKX creds from env vars only (`_load_gateway_config_from_env` L61-81, raises `typer.BadParameter` if missing for non-paper).
 
