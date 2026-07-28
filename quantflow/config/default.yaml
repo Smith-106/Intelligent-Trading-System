@@ -41,6 +41,8 @@ risk:
   kill_switch_enabled: true             # 是否启用 Kill Switch（一键清仓）
   kelly_fraction: 0.5                   # 半 Kelly 仓位比例
   var_confidence: 0.95                  # VaR 置信度
+  fixed_pct: 0.10                       # fixed-method 仓位比例（原 PositionSizer 硬编码，ISS-012 config-source）
+  min_order_notional: 10.0              # PositionSizer 最小下单名义价值阈值（原硬编码，ISS-012 config-source）
 
 # ==================== 执行层 ====================
 execution:

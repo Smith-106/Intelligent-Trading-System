@@ -204,3 +204,20 @@ class TestVolTargeting:
             self._sig(), pf, 0.55, 2.0
         )
         assert size < kelly_only and size > 0
+
+    def test_config_sourced_defaults(self):
+        """ISS-20260721-012: PositionSizer fixed_pct/min_order_notional/fee_rate
+        defaults align with the prior hardcoded values (0.10/10.0/0.001) so the
+        backtest baseline is byte-for-byte unchanged when config-sourced. The
+        kwargs must also pass through injected values (engine.py wires
+        config.risk.fixed_pct / config.execution.taker_fee here)."""
+        # No-arg construction -> hardcoded defaults preserved (back-compat).
+        sizer = PositionSizer()
+        assert sizer._fixed_pct == 0.10
+        assert sizer._min_order_notional == 10.0
+        assert sizer._fee_rate == 0.001
+        # Injection path -> kwargs thread through verbatim.
+        injected = PositionSizer(fixed_pct=0.05, min_order_notional=5.0, fee_rate=0.002)
+        assert injected._fixed_pct == 0.05
+        assert injected._min_order_notional == 5.0
+        assert injected._fee_rate == 0.002

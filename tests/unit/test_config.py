@@ -48,6 +48,27 @@ class TestAppConfig:
         assert cfg.risk.kelly_fraction == 0.5
         assert cfg.risk.var_confidence == 0.95
 
+    def test_risk_config_wires_fixed_pct_and_min_order_notional(self):
+        """ISS-20260721-012: fixed_pct/min_order_notional moved off the
+        PositionSizer hardcoded fallback onto RiskConfig. Defaults must equal
+        the prior hardcoded values (0.10/10.0) so the backtest baseline is
+        unchanged; presence here also keeps TestConfigSchemaDrift green once
+        the keys land in default.yaml."""
+        cfg = AppConfig()
+        assert hasattr(cfg.risk, "fixed_pct")
+        assert hasattr(cfg.risk, "min_order_notional")
+        assert cfg.risk.fixed_pct == 0.10
+        assert cfg.risk.min_order_notional == 10.0
+
+    def test_execution_taker_fee_wired(self):
+        """ISS-20260721-012 D3: PositionSizer.fee_rate is sourced from
+        config.execution.taker_fee (single-source-of-truth for execution-layer
+        fees). Default 0.001 == prior hardcoded value, so the backtest baseline
+        is unchanged."""
+        cfg = AppConfig()
+        assert hasattr(cfg.execution, "taker_fee")
+        assert cfg.execution.taker_fee == 0.001
+
 
 class TestConfigSchemaDrift:
     """Guard against YAML<->pydantic schema drift.

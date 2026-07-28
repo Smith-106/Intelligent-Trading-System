@@ -126,6 +126,13 @@ class TradingSession:
             vol_target_pct=config.risk.vol_target_pct,
             vol_annualization=config.risk.vol_annualization,
             vol_window=config.risk.vol_window,
+            # PositionSizer sizing 阈值（原硬编码 0.10/10.0，ISS-20260721-012 config-source）。
+            # 默认值对齐硬编码保 byte-for-byte backtest baseline。
+            fixed_pct=config.risk.fixed_pct,
+            min_order_notional=config.risk.min_order_notional,
+            # fee_rate 走 config.execution.taker_fee（D3：复用 execution 层 fee 真理源，
+            # 默认 0.001 == 原硬编码，single-source-of-truth 消 YAML-schema-drift 重现）。
+            fee_rate=config.execution.taker_fee,
         )
         self._portfolio = PortfolioManager(initial_capital=100000.0)
         # ISS-20260720-004 Wave 2: ExecutionEngine was constructed before

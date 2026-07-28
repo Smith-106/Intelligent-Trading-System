@@ -79,6 +79,12 @@ class RiskConfig(BaseModel):
     # Rolling window (in bars) for realized-volatility estimation when
     # vol-targeting is enabled.
     vol_window: int = 30
+    # PositionSizer fixed-method 仓位比例（原 position_sizer.py 硬编码 0.10，
+    # ISS-20260721-012 config-source）。默认值对齐硬编码以保 backtest baseline。
+    fixed_pct: float = 0.10
+    # PositionSizer 最小下单名义价值阈值（原 position_sizer.py 硬编码 10.0，
+    # ISS-20260721-012 config-source）。低于此值的订单被跳过。
+    min_order_notional: float = 10.0
 
 
 class ExecutionConfig(BaseModel):
