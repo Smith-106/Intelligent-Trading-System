@@ -32,7 +32,7 @@ Auto-generated from project analysis. Update manually as patterns evolve.
 - Use `|` union syntax (Python 3.10+ style)
 - Google/NumPy docstrings on classes and public methods
 - Pydantic v2 for config/data validation
-- structlog for structured logging
+- structlog for structured logging — `setup_logging()` bridges stdlib `logging` via `structlog.stdlib.ProcessorFormatter`; modules use `logging.getLogger(__name__)` and render through the structlog pipeline (see debug-notes 日志规范)
 - async/await throughout (CCXT async, WebSocket, gateway)
 - Abstract base classes for interfaces (StrategyBase, GatewayBase, FactorBase)
 

@@ -16,6 +16,8 @@ keywords:
 <spec-entry category="debug" keywords="调试,日志,事件总线,异常,kill-switch" date="2026-05-29">
 ### 调试策略与日志规范
 使用 structlog 结构化日志，关键事件（下单、撤单、风控触发）写审计日志。EventBus 发布事件时捕获 handler 异常，不阻塞其他 handler。KillSwitch 是最终安全网——所有风控失败且无法恢复时应触发 KillSwitch 而非忽略错误。
+
+日志实现：`quantflow/monitoring/logger.py` 的 `setup_logging()` 通过 `structlog.stdlib.ProcessorFormatter` 桥接 stdlib `logging`——所有 `logging.getLogger` 调用与原生 structlog 调用共享同一 processor pipeline（`foreign_pre_chain` 接入 stdlib 记录，`wrap_for_formatter` 接入原生记录），统一渲染为结构化输出。新模块用 `logging.getLogger(__name__)` 即可自动结构化，无需直接 import structlog。
 </spec-entry>
 
 <spec-entry category="debug" keywords="VectorBTEngine,BacktestEngine,重命名,import-error" date="2026-06-02">

@@ -39,11 +39,12 @@
 - Mode: `apply` (user confirmed). 7 findings fixed, 1 skipped, 2 kept.
 - Backup: `.workflow/.trash/drift-realign-20260729T104515/`
 - `last_drift_realign` timestamp updated to `2026-07-29T10:50:00+08:00`.
+- **Post-run update (2026-07-29 11:50)**: DFT-7a3c1e9f resolved by odyssey-debug — `setup_logging()` rewritten to bridge stdlib logging→structlog via `structlog.stdlib.ProcessorFormatter`; spec claims in `coding-conventions.md` + `debug-notes.md` updated; regression test `tests/unit/test_logger_bridge.py` added. See drift-log.jsonl `action=resolved` record.
 
 | Status | Count | Finding IDs |
 |--------|-------|-------------|
 | update (applied) | 7 | DFT-9c1f2a7b, DFT-4d8e6b2c, DFT-7f3a9c12, DFT-2b8e4d61, DFT-5c1f7a90, DFT-9d4e2b18, DFT-b2d4f08a |
-| skip (too complex) | 1 | DFT-7a3c1e9f (structlog spec — requires code change to bridge stdlib logging→structlog) |
+| resolved (post-run) | 1 | DFT-7a3c1e9f (structlog bridge — code change applied, spec updated) |
 | keep (outside scope) | 2 | DFT-3a6c8e05, DFT-6f2b1d47 (orphan `.maestro` session metadata, predate window) |
 | pending | 0 | — |
 
@@ -58,6 +59,6 @@
 - Files: project.md, state.json, issues.jsonl, quality-rules.md
 
 ## Next
-- DFT-7a3c1e9f (structlog): requires code change (bridge stdlib logging→structlog via `structlog.stdlib`) before updating the spec — tracked separately
+- ~~DFT-7a3c1e9f (structlog): requires code change (bridge stdlib logging→structlog via `structlog.stdlib`) before updating the spec — tracked separately~~ **RESOLVED 2026-07-29** via odyssey-debug (see Actions Applied).
 - DFT-3a6c8e05/DFT-6f2b1d47: stale `.maestro` session files, safe to archive next drift-realign round
 - Re-run `/manage-drift-realign --scope all --report` after significant source changes
