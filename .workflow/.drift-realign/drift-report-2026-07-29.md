@@ -45,7 +45,7 @@
 |--------|-------|-------------|
 | update (applied) | 7 | DFT-9c1f2a7b, DFT-4d8e6b2c, DFT-7f3a9c12, DFT-2b8e4d61, DFT-5c1f7a90, DFT-9d4e2b18, DFT-b2d4f08a |
 | resolved (post-run) | 1 | DFT-7a3c1e9f (structlog bridge — code change applied, spec updated) |
-| keep (outside scope) | 2 | DFT-3a6c8e05, DFT-6f2b1d47 (orphan `.maestro` session metadata, predate window) |
+| keep (outside scope) | 2 | DFT-3a6c8e05, DFT-6f2b1d47 (orphan `.maestro` session metadata, predate window) — **r4 update**: artifacts deleted between r3 and r4, resolved in spirit (see drift-report-2026-07-29-r4.md) |
 | pending | 0 | — |
 
 ## Files Modified

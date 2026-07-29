@@ -31,9 +31,12 @@
 ## 2. 日志（Logging）
 
 **结构化日志** — `quantflow/monitoring/logger.py`
-- `setup_logging(level="INFO", json_format=False)` 使用 `structlog` 配置：
-  - processors 链：`merge_contextvars` → `add_log_level` → `StackInfoRenderer` → `set_exc_info` → `TimeStamper(fmt="iso")` → `ConsoleRenderer`（默认）或 `JSONRenderer`（json_format=True）。
-  - `wrapper_class=structlog.make_filtering_bound_logger(...)`，`logger_factory=PrintLoggerFactory()`，`cache_logger_on_first_use=True`。
+- `setup_logging(level="INFO", json_format=False)` 通过 `structlog.stdlib.ProcessorFormatter` 桥接 stdlib `logging` 与原生 structlog，使二者共享同一 processor pipeline：
+  - **structlog 端**：`structlog.configure(processors=shared + [ProcessorFormatter.wrap_for_formatter], logger_factory=structlog.stdlib.LoggerFactory(), wrapper_class=make_filtering_bound_logger(level), cache_logger_on_first_use=True)`，其中 `shared = [merge_contextvars, stdlib.add_log_level, StackInfoRenderer, set_exc_info, TimeStamper(fmt="iso")]`。
+  - **stdlib 端**：`logging.config.dictConfig` 将 `ProcessorFormatter`（`foreign_pre_chain=shared`）挂到 root logger 的 `StreamHandler`——所有 `logging.getLogger(__name__)` 调用（全代码库 40+ 模块）经 `foreign_pre_chain` 接入同一 pipeline，与原生 structlog 记录统一渲染。
+  - renderer：`ConsoleRenderer`（默认）或 `JSONRenderer`（`json_format=True`），经 `remove_processors_meta` 后输出。
+- 这使规范声明 "structlog for structured logging" 对全代码库成立（DFT-7a3c1e9f，commit `3b35c3d`），而非仅原生 structlog 调用方。回归守卫 `tests/unit/test_logger_bridge.py`。
+- 新模块用 `logging.getLogger(__name__)` 即可自动结构化，无需直接 import structlog（仅 `logger.py` 桥接点 import）。
 
 **密钥脱敏** — `quantflow/common/redaction.py`
 - `redact_secrets(text)` 双层脱敏：

@@ -61,7 +61,7 @@
           "id": 2,
           "name": "P1 风控层补齐",
           "slug": "p1-risk-layer",
-          "status": "code-complete-blocker-cleared-await-verify"
+          "status": "verify-passed"
         },
         {
           "id": 3,
@@ -303,7 +303,6 @@
       }
     ],
     "blockers": [
-      "P1-verify 未跑（F3/F4/F5 实盘观察项待产出 verification.json + review.json）——串行约束下 P2 禁止启动",
       "P0-verify 的 byte-for-byte 回归守卫证据未产出",
       "远端发布证据、安全扫描与 installed-wheel 冒烟记录尚未补齐"
     ],
@@ -342,9 +341,15 @@
       "milestone_id": "M3",
       "event": "p1-code-complete-blocker-cleared",
       "at": "2026-07-19T18:00:00+08:00"
+    },
+    {
+      "milestone_id": "M3",
+      "event": "p1-verify-passed",
+      "at": "2026-07-21T00:00:00+08:00",
+      "ref": "commit 626b015"
     }
   ],
-  "last_updated": "2026-07-29T06:38:45+08:00",
+  "last_updated": "2026-07-29T20:30:32+08:00",
   "sessions": [
     {
       "session_id": "maestro-multi-book-reconcile-20260725-113526",
@@ -380,6 +385,6 @@
     }
   ],
   "active_session_id": "20260728-team-ux-improve-web-cli",
-  "last_drift_realign": "2026-07-29T10:50:00+08:00",
+  "last_drift_realign": "2026-07-29T20:30:32+08:00",
   "codebase_last_refreshed": "2026-07-29T06:38:45+08:00"
 }
