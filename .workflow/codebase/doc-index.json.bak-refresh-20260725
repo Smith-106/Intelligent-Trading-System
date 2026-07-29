@@ -1,0 +1,196 @@
+{
+  "version": "1.0",
+  "schema_version": "1.0",
+  "project": "QuantFlow",
+  "project_version": "0.1.3",
+  "last_updated": "2026-07-15T22:35:00Z",
+  "rebuild_source": "manage-codebase-rebuild (--skip-kg)",
+  "overview": "Personal Crypto quantitative trading system (OKX) with six-layer architecture (L1 data -> L6 monitoring), self-built event-driven TradingSession engine, anti-overfitting validation pipeline (CPCV+DSR+PBO+WFO), and QuantFlow Station web UI. Phase 1/2/3 complete.",
+  "features": [
+    {
+      "id": "FT-001",
+      "name": "Strategies",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": ["TC-003"],
+      "phase": "Phase 1/2 complete (7 strategies)",
+      "description": "7 strategies via StrategyBase dual-mode API (generate_signals vectorized + on_bar incremental): trend_following, mean_reversion, elliott_wave (rule engine), volatility_breakout (P1), funding_rate (P2), momentum_rotation (P3), ml_ensemble (P4). YAML-driven via strategy/catalog.py factory."
+    },
+    {
+      "id": "FT-002",
+      "name": "CLI",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": ["TC-008"],
+      "phase": "Phase 1 complete",
+      "description": "Typer + Rich CLI with 9 commands: download, research, optimize, validate, run, benchmark, ai (rdagent), station, status. Entry point: quantflow.cli.main:app."
+    },
+    {
+      "id": "FT-003",
+      "name": "Research Pipeline",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": ["TC-003"],
+      "phase": "Phase 1 complete",
+      "description": "VectorBT-replaced pure pandas/numpy backtest (BacktestEngine) + Optuna optimization (bayesian/cmaes/grid) + report generation. BacktestEngine (renamed from VectorBTEngine) — no VectorBT dependency (Py3.14+ numba incompat)."
+    },
+    {
+      "id": "FT-004",
+      "name": "Anti-Overfitting Validation",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": ["TC-003"],
+      "phase": "Phase 2 complete",
+      "description": "CPCV (PBO<0.5) + DSR (>0.95) + PBO + WFO (OOS eff>50%, rolling+anchored) + GO/NO-GO gate. Triple-barrier labeling, min TRL, signal quality metrics. Each stage accepts signal_fn + param_space for true OOS re-optimization."
+    },
+    {
+      "id": "FT-005",
+      "name": "Execution",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": ["TC-005"],
+      "phase": "Phase 3 complete",
+      "description": "Three modes: paper (PaperGateway) / sandbox (OKX testnet) / live (OKX). GatewayBase ABC, ExecutionEngine routes + emits ORDER/FILL events, OrderManager timeout tracking, KillSwitch emergency flatten. OKX creds from env vars only."
+    },
+    {
+      "id": "FT-006",
+      "name": "Risk Controls",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": ["TC-004"],
+      "phase": "Phase 2 complete",
+      "description": "RiskEngine 7-check short-circuit pipeline: position_limit -> portfolio_limit -> strategy_budget -> daily_loss -> weekly_loss -> drawdown -> VaR. Half-Kelly position sizing, VaR/CVaR, drawdown circuit breaker, KillSwitch. ScalingPositionSizer outputs PositionRequest for RiskEngine authority."
+    },
+    {
+      "id": "FT-007",
+      "name": "Data Layer",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": ["TC-001"],
+      "phase": "Phase 1 complete",
+      "description": "CCXT async OKX fetcher (REST+WebSocket), Parquet Hive-partitioned storage (symbol/year/month) + DuckDB zero-copy query, FeatureStore point-in-time safe (no future leak), RedisCache real-time ticker, MTFAligner multi-timeframe. clean_ohlcv + validate_no_future_leak."
+    },
+    {
+      "id": "FT-008",
+      "name": "QuantFlow Station Web UI",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": ["TC-009"],
+      "phase": "New (beyond CLAUDE.md)",
+      "description": "aiohttp web frontend with 23 REST endpoints: overview, strategies, data (download/seed-demo/tag-source), research+history, validate+history, workbench state, monitoring, execution, session (start/stop/events/history/kill-switch). Security: same_origin_guard CSRF + Bearer auth, bind-boundary launch guard (non-loopback requires QUANTFLOW_STATION_TOKEN)."
+    },
+    {
+      "id": "FT-009",
+      "name": "Indicators (27 factors)",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": ["TC-002"],
+      "phase": "Phase 1 complete",
+      "description": "27 registered factors (21 base + 6 Elliott Wave): trend (7), momentum (4), volatility (5), volume (5), Elliott Wave (6). FactorBase ABC + FactorRegistry. Pure pandas/numpy, no TA-Lib required (optional). MarketRegimeDetector for strategy gating."
+    },
+    {
+      "id": "FT-010",
+      "name": "AI Layer",
+      "status": "partial",
+      "requirement_ids": [],
+      "component_ids": ["TC-003"],
+      "phase": "Phase 3 partial",
+      "description": "AIFactorEngine (Meta-Labeling, expanding CV splits) + MLEnsembleStrategy active. FinBERT sentiment (SentimentAnalyzer/NewsCollector) implemented in sentiment.py with tests — but not exported from strategy/__init__ nor CLI-wired. Qlib RD-Agent: CLI skeleton wired (quantflow ai rdagent) — RDAgentRunner with dependency guard (qlib optional [ml] extra); when qlib absent prints install hint, when present runs Alpha158-style baseline factor evaluation with IC gate (blueprint E13-S1 acceptance: 5+ factors IC>0.03). Full RD-Agent LLM factor search is a future layer on top."
+    }
+  ],
+  "components": [
+    {
+      "id": "TC-001",
+      "name": "DataLayer",
+      "type": "L1-data",
+      "code_locations": ["quantflow/data/fetcher.py", "quantflow/data/cleaner.py", "quantflow/data/store.py", "quantflow/data/feature_store.py", "quantflow/data/redis_cache.py", "quantflow/data/mtf_aligner.py", "quantflow/data/__init__.py"],
+      "feature_ids": ["FT-007"],
+      "symbols": ["DataFetcher", "clean_ohlcv", "validate_no_future_leak", "DataStore", "FeatureStore", "RedisCache", "MTFAligner", "MTFData"],
+      "last_updated": "2026-07-15T22:35:00Z"
+    },
+    {
+      "id": "TC-002",
+      "name": "IndicatorsLayer",
+      "type": "L2-indicators",
+      "code_locations": ["quantflow/indicators/base.py", "quantflow/indicators/engine.py", "quantflow/indicators/trend.py", "quantflow/indicators/momentum.py", "quantflow/indicators/volatility.py", "quantflow/indicators/volume.py", "quantflow/indicators/regime.py", "quantflow/indicators/elliott_wave.py", "quantflow/indicators/zigzag.py", "quantflow/indicators/wave_models.py", "quantflow/indicators/wave_identifier.py", "quantflow/indicators/wave_channel.py", "quantflow/indicators/fibonacci.py", "quantflow/indicators/divergence.py", "quantflow/indicators/critical_level.py", "quantflow/indicators/__init__.py"],
+      "feature_ids": ["FT-009"],
+      "symbols": ["FactorBase", "FactorRegistry", "IndicatorEngine", "MarketRegimeDetector", "WavePattern", "AnalysisMode", "WaveCount"],
+      "last_updated": "2026-07-15T22:35:00Z"
+    },
+    {
+      "id": "TC-003",
+      "name": "StrategyLayer",
+      "type": "L3-strategy",
+      "code_locations": ["quantflow/strategy/base.py", "quantflow/strategy/engine.py", "quantflow/strategy/catalog.py", "quantflow/strategy/ai_factors.py", "quantflow/strategy/sentiment.py", "quantflow/strategy/elliott_wave_strategy.py", "quantflow/strategy/research/", "quantflow/strategy/templates/", "quantflow/strategy/validation/"],
+      "feature_ids": ["FT-001", "FT-003", "FT-004", "FT-010"],
+      "symbols": ["StrategyBase", "StrategyContext", "TradingSession", "get_strategy_definitions", "load_strategy_config", "AIFactorEngine", "SentimentAnalyzer", "NewsCollector", "RDAgentRunner", "DiscoveredFactor", "LiuYudongWaveStrategy", "BacktestEngine", "StrategyOptimizer", "generate_report", "cpcv_backtest", "deflated_sharpe_ratio", "probability_of_overfitting", "walk_forward_optimization", "validation_gate", "TrendFollowingStrategy", "MeanReversionStrategy", "VolatilityBreakoutStrategy", "FundingRateStrategy", "MomentumRotationStrategy", "MLEnsembleStrategy"],
+      "last_updated": "2026-07-15T22:35:00Z"
+    },
+    {
+      "id": "TC-004",
+      "name": "SignalRiskLayer",
+      "type": "L4-signal-risk",
+      "code_locations": ["quantflow/signal/generator.py", "quantflow/signal/risk_engine.py", "quantflow/signal/position_sizer.py", "quantflow/signal/portfolio.py", "quantflow/signal/risk_metrics.py", "quantflow/signal/wave_signal_generator.py", "quantflow/signal/__init__.py"],
+      "feature_ids": ["FT-006"],
+      "symbols": ["SignalGenerator", "RiskEngine", "PositionSizer", "PortfolioManager", "value_at_risk", "conditional_var", "max_drawdown", "sharpe_ratio", "sortino_ratio", "calmar_ratio", "WaveSignalGenerator", "InvalidationEvent", "InvalidationSeverity"],
+      "last_updated": "2026-07-15T22:35:00Z"
+    },
+    {
+      "id": "TC-005",
+      "name": "ExecutionLayer",
+      "type": "L5-execution",
+      "code_locations": ["quantflow/execution/gateway_base.py", "quantflow/execution/okx_gateway.py", "quantflow/execution/paper_gateway.py", "quantflow/execution/engine.py", "quantflow/execution/order_manager.py", "quantflow/execution/position_manager.py", "quantflow/execution/kill_switch.py", "quantflow/execution/scaling_position_sizer.py", "quantflow/execution/__init__.py"],
+      "feature_ids": ["FT-005"],
+      "symbols": ["GatewayBase", "OKXGateway", "PaperGateway", "ExecutionEngine", "OrderManager", "PositionManager", "KillSwitch", "ScalingPositionSizer", "ScalingConfig", "PositionPhase", "PositionRequest"],
+      "last_updated": "2026-07-15T22:35:00Z"
+    },
+    {
+      "id": "TC-006",
+      "name": "MonitoringLayer",
+      "type": "L6-monitoring",
+      "code_locations": ["quantflow/monitoring/metrics.py", "quantflow/monitoring/alerts.py", "quantflow/monitoring/logger.py", "quantflow/monitoring/__init__.py"],
+      "feature_ids": [],
+      "symbols": ["start_metrics_server", "update_portfolio_metrics", "metrics_registry_snapshot", "AlertManager", "AlertLevel", "setup_logging"],
+      "last_updated": "2026-07-15T22:35:00Z"
+    },
+    {
+      "id": "TC-007",
+      "name": "CommonFoundation",
+      "type": "L0-common",
+      "code_locations": ["quantflow/common/models.py", "quantflow/common/event_bus.py", "quantflow/common/config.py", "quantflow/common/validators.py", "quantflow/common/exceptions.py", "quantflow/common/__init__.py"],
+      "feature_ids": [],
+      "symbols": ["Direction", "OrderSide", "OrderType", "OrderStatus", "RunMode", "EVENT_BAR", "EVENT_TICK", "EVENT_SIGNAL", "EVENT_ORDER", "EVENT_FILL", "EVENT_RISK", "Bar", "Signal", "Position", "OrderRequest", "Order", "OrderResult", "Portfolio", "RiskDecision", "Event", "EventBus", "AppConfig", "load_config", "resolve_config_path_safe", "validate_symbol", "validate_columns", "SYMBOL_PATTERN", "COLUMN_PATTERN", "QuantFlowError", "DataError", "StrategyError", "SignalError", "RiskBreachError", "ExecutionError", "KillSwitchActivatedError"],
+      "last_updated": "2026-07-15T22:35:00Z"
+    },
+    {
+      "id": "TC-008",
+      "name": "CliEntry",
+      "type": "cli",
+      "code_locations": ["quantflow/cli/main.py", "quantflow/cli/__init__.py"],
+      "feature_ids": ["FT-002"],
+      "symbols": ["app", "download", "research", "optimize", "validate", "run", "benchmark", "ai", "station", "status", "_load_gateway_config_from_env"],
+      "last_updated": "2026-07-15T22:35:00Z"
+    },
+    {
+      "id": "TC-009",
+      "name": "WebStation",
+      "type": "web-presentation",
+      "code_locations": ["quantflow/web/app.py", "quantflow/web/security.py", "quantflow/web/service.py", "quantflow/web/session_manager.py", "quantflow/web/history.py", "quantflow/web/static/"],
+      "feature_ids": ["FT-008"],
+      "symbols": ["create_app", "run_station", "same_origin_guard", "_is_loopback_host", "_station_token", "StationService", "StationSessionManager", "StationHistoryStore", "ResearchRequest", "ValidationRequest", "DataDownloadRequest"],
+      "last_updated": "2026-07-15T22:35:00Z"
+    },
+    {
+      "id": "TC-010",
+      "name": "TradingShim",
+      "type": "shim",
+      "code_locations": ["quantflow/trading/__init__.py"],
+      "feature_ids": [],
+      "symbols": ["TradingSession"],
+      "last_updated": "2026-07-15T22:35:00Z"
+    }
+  ],
+  "requirements": [],
+  "architecture_decisions": [],
+  "actions": []
+}

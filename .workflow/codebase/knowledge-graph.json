@@ -1,0 +1,41 @@
+{
+  "valid": true,
+  "generated_at": "2026-07-29T06:38:45Z",
+  "generator": "manage-codebase-rebuild via `maestro kg index` (sync --source codegraph)",
+  "storage": {
+    "backend": "maestro.db (MaestroGraph, SQLite)",
+    "path": ".workflow/kg/maestro.db",
+    "schema_version": "v4"
+  },
+  "stats": {
+    "nodes": 1446,
+    "edges": 2,
+    "files": 115,
+    "db_size_kb": 8748.0,
+    "staleness_pct": 0.0,
+    "nodes_by_type": {
+      "class": 145,
+      "codebase_section": 9,
+      "file": 8,
+      "function": 637,
+      "issue": 41,
+      "knowhow_entry": 9,
+      "method": 506,
+      "property": 36,
+      "spec_entry": 55
+    },
+    "nodes_by_source": {
+      "codebase": 9,
+      "codegraph": 1332,
+      "issue": 41,
+      "knowhow": 9,
+      "spec": 55
+    },
+    "edges_by_type": {
+      "constrains": 2
+    }
+  },
+  "layers": [],
+  "tours": [],
+  "notes": "This maestro version stores the full knowledge graph in .workflow/kg/maestro.db (queryable via `maestro kg context|callers|callees|path|impact|query`). The summary above is the authoritative snapshot for the codebase-rebuild doc set. Wiki virtual entries (kg-*) are indexed lazily on next `maestro wiki` access. Knowledge Graph validation: PASS (0% staleness)."
+}

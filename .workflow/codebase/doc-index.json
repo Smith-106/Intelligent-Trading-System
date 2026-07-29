@@ -3,119 +3,99 @@
   "schema_version": "1.0",
   "project": "QuantFlow",
   "project_version": "0.1.3",
-  "last_updated": "2026-07-28T21:30:00Z",
-  "rebuild_source": "manage-codebase-rebuild (--skip-kg)",
-  "overview": "Personal Crypto quantitative trading system (OKX) with six-layer architecture (L1 data -> L6 monitoring), self-built event-driven TradingSession engine, anti-overfitting validation pipeline (CPCV+DSR+PBO+WFO), and QuantFlow Station web UI. Phase 1/2/3 complete.",
+  "last_updated": "2026-07-29T06:38:45Z",
+  "rebuild_source": "manage-codebase-rebuild (full, 4 mappers + maestro kg index)",
+  "overview": "Personal Crypto quantitative trading system (OKX) with six-layer architecture (L1 data -> L6 monitoring), self-built event-driven TradingSession engine, anti-overfitting validation pipeline (CPCV+DSR+PBO+WFO), and QuantFlow Station web UI. Phase 1/2/3 complete; M3 deep-research remediation in progress (P0 data-leakage code-complete-await-verify, P1 risk-layer code-complete-await-verify, P2 AI-layer blocked).",
   "features": [
     {
       "id": "FT-001",
       "name": "Strategies",
       "status": "active",
       "requirement_ids": [],
-      "component_ids": [
-        "TC-003"
-      ],
+      "component_ids": ["TC-003"],
       "phase": "Phase 1/2 complete (7 strategies)",
-      "description": "7 strategies via StrategyBase dual-mode API (generate_signals vectorized + on_bar incremental): trend_following, mean_reversion, elliott_wave (rule engine), volatility_breakout (P1), funding_rate (P2), momentum_rotation (P3), ml_ensemble (P4). YAML-driven via strategy/catalog.py factory."
+      "description": "7 strategies via StrategyBase dual-mode API (generate_signals vectorized + on_bar incremental): trend_following, mean_reversion, elliott_wave, volatility_breakout (P1), funding_rate (P2), momentum_rotation (P3), ml_ensemble (P4). YAML-driven via strategy/catalog.py factory. ml_ensemble requires pre-trained joblib model; uses its own internal triple-barrier meta-labeling (not AIFactorEngine)."
     },
     {
       "id": "FT-002",
       "name": "CLI",
       "status": "active",
       "requirement_ids": [],
-      "component_ids": [
-        "TC-008"
-      ],
+      "component_ids": ["TC-008"],
       "phase": "Phase 1 complete",
-      "description": "Typer + Rich CLI with 9 commands: download, research, optimize, validate, run, benchmark, ai (rdagent), station, status. Entry point: quantflow.cli.main:app."
+      "description": "Typer + Rich CLI with 9 commands: download, research, optimize, validate, run, benchmark, ai (rdagent), station, status. Entry point: quantflow.cli.main:app. OKX creds loaded from env only via _load_gateway_config_from_env."
     },
     {
       "id": "FT-003",
       "name": "Research Pipeline",
       "status": "active",
       "requirement_ids": [],
-      "component_ids": [
-        "TC-003"
-      ],
+      "component_ids": ["TC-003"],
       "phase": "Phase 1 complete",
-      "description": "VectorBT-replaced pure pandas/numpy backtest (BacktestEngine) + Optuna optimization (bayesian/cmaes/grid) + report generation. BacktestEngine (renamed from VectorBTEngine) — no VectorBT dependency (Py3.14+ numba incompat)."
+      "description": "Pure pandas/numpy backtest (BacktestEngine) + Optuna optimization (bayesian/cmaes/grid) + report generation. BacktestEngine replaced VectorBT (Py3.14+ numba incompat). Same engine used by CPCV/WFO/MC stress."
     },
     {
       "id": "FT-004",
       "name": "Anti-Overfitting Validation",
       "status": "active",
       "requirement_ids": [],
-      "component_ids": [
-        "TC-003"
-      ],
+      "component_ids": ["TC-003"],
       "phase": "Phase 2 complete",
-      "description": "CPCV (PBO<0.5) + DSR (>0.95) + PBO + WFO (OOS eff>50%, rolling+anchored) + GO/NO-GO gate. Triple-barrier labeling, min TRL, signal quality metrics. Each stage accepts signal_fn + param_space for true OOS re-optimization."
+      "description": "CPCV (PBO<0.5) + DSR (>0.95) + PBO + WFO (OOS eff>50%, rolling+anchored) + GO/NO-GO gate. Triple-barrier labeling, min TRL, signal quality metrics, lookahead AST scan, Monte Carlo stress (trade-shuffle + returns-bootstrap, diagnostic non-gating)."
     },
     {
       "id": "FT-005",
       "name": "Execution",
       "status": "active",
       "requirement_ids": [],
-      "component_ids": [
-        "TC-005"
-      ],
+      "component_ids": ["TC-005"],
       "phase": "Phase 3 complete",
-      "description": "Three modes: paper (PaperGateway) / sandbox (OKX testnet) / live (OKX). GatewayBase ABC, ExecutionEngine routes + emits ORDER/FILL events, OrderManager timeout tracking, KillSwitch emergency flatten. OKX creds from env vars only."
+      "description": "Three modes: paper (PaperGateway) / sandbox (OKX testnet) / live (OKX). GatewayBase ABC, ExecutionEngine routes + emits ORDER/FILL events, OrderRouter (extracted from engine) dispatch+build_order, OrderManager timeout tracking, KillSwitch emergency flatten (fail-closed). OKX creds from env vars only."
     },
     {
       "id": "FT-006",
       "name": "Risk Controls",
       "status": "active",
       "requirement_ids": [],
-      "component_ids": [
-        "TC-004"
-      ],
+      "component_ids": ["TC-004"],
       "phase": "Phase 2 complete",
-      "description": "RiskEngine 7-check short-circuit pipeline: position_limit -> portfolio_limit -> strategy_budget -> daily_loss -> weekly_loss -> drawdown -> VaR. Half-Kelly position sizing, VaR/CVaR, drawdown circuit breaker, KillSwitch. ScalingPositionSizer outputs PositionRequest for RiskEngine authority."
+      "description": "RiskEngine 7-check short-circuit pipeline: position_limit -> portfolio_limit -> strategy_budget -> daily_loss -> weekly_loss -> drawdown -> VaR. Half-Kelly position sizing (PositionSizer, not ScalingPositionSizer), VaR/CVaR (historical + bootstrap_cvar diagnostic CI), drawdown circuit breaker, KillSwitch shared instance. Note: no ScalingPositionSizer class exists; PositionSizer.size emits notional wrapped in PositionRequest by session."
     },
     {
       "id": "FT-007",
       "name": "Data Layer",
       "status": "active",
       "requirement_ids": [],
-      "component_ids": [
-        "TC-001"
-      ],
-      "phase": "Phase 1 complete",
-      "description": "CCXT async OKX fetcher (REST+WebSocket), Parquet Hive-partitioned storage (symbol/year/month) + DuckDB zero-copy query, FeatureStore point-in-time safe (no future leak), RedisCache real-time ticker, MTFAligner multi-timeframe. clean_ohlcv + validate_no_future_leak."
+      "component_ids": ["TC-001"],
+      "phase": "Phase 1 complete (P0 leak-safe hardening code-complete-await-verify)",
+      "description": "CCXT async OKX fetcher (REST+WebSocket), Parquet Hive-partitioned storage (symbol/year/month) + DuckDB zero-copy query (path-traversal + SQL-injection guards), FeatureStore point-in-time safe (no future leak), RedisCache real-time ticker, MTFAligner multi-timeframe (leak-safe HTF shift). clean_ohlcv + validate_no_future_leak."
     },
     {
       "id": "FT-008",
       "name": "QuantFlow Station Web UI",
       "status": "active",
       "requirement_ids": [],
-      "component_ids": [
-        "TC-009"
-      ],
-      "phase": "New (beyond CLAUDE.md)",
-      "description": "aiohttp web frontend with 23 REST endpoints: overview, strategies, data (download/seed-demo/tag-source), research+history, validate+history, workbench state, monitoring, execution, session (start/stop/events/history/kill-switch). Security: same_origin_guard CSRF + Bearer auth, bind-boundary launch guard (non-loopback requires QUANTFLOW_STATION_TOKEN)."
+      "component_ids": ["TC-009"],
+      "phase": "Active (beyond baseline)",
+      "description": "aiohttp web frontend (verified 21 API routes + index + static across 9 groups): overview, strategies, data (download/seed-demo/tag-source), research+history, validate+history, workbench state, monitoring, execution, session (start/stop/events/history/kill-switch). Security: same_origin_guard (Bearer hmac + CSRF Origin-Host, X-Requested-With NOT trusted) + bind-boundary launch guard (non-loopback requires QUANTFLOW_STATION_TOKEN) + 256KiB body cap + rate-limit + path/secret redaction."
     },
     {
       "id": "FT-009",
       "name": "Indicators (27 factors)",
       "status": "active",
       "requirement_ids": [],
-      "component_ids": [
-        "TC-002"
-      ],
+      "component_ids": ["TC-002"],
       "phase": "Phase 1 complete",
-      "description": "27 registered factors (21 base + 6 Elliott Wave): trend (7), momentum (4), volatility (5), volume (5), Elliott Wave (6). FactorBase ABC + FactorRegistry. Pure pandas/numpy, no TA-Lib required (optional). MarketRegimeDetector for strategy gating."
+      "description": "27 registered factors (21 base + 6 Elliott Wave): trend (7), momentum (4), volatility (5), volume (5), Elliott Wave (6). FactorBase ABC + FactorRegistry. Pure pandas/numpy, no TA-Lib required (optional). MarketRegimeDetector (ADX-based) gates strategies on on_bar path only (generate_signals intentionally not regime-gated)."
     },
     {
       "id": "FT-010",
       "name": "AI Layer",
       "status": "partial",
       "requirement_ids": [],
-      "component_ids": [
-        "TC-003"
-      ],
-      "phase": "Phase 3 partial",
-      "description": "AIFactorEngine (Meta-Labeling, expanding CV splits) + MLEnsembleStrategy active. FinBERT sentiment (SentimentAnalyzer/NewsCollector) implemented in sentiment.py with tests — but not exported from strategy/__init__ nor CLI-wired. Qlib RD-Agent: CLI skeleton wired (quantflow ai rdagent) — RDAgentRunner with dependency guard (qlib optional [ml] extra); when qlib absent prints install hint, when present runs Alpha158-style baseline factor evaluation with IC gate (blueprint E13-S1 acceptance: 5+ factors IC>0.03). Full RD-Agent LLM factor search is a future layer on top."
+      "component_ids": ["TC-003"],
+      "phase": "Phase 3 partial (MIXED)",
+      "description": "MLEnsembleStrategy ACTIVE (GradientBoosting + triple-barrier meta-labeling, expanding-window OOS, fail-closed reject-all). AIFactorEngine EXPORTED but NOT wired (no strategy/CLI calls it). FinBERT sentiment (SentimentAnalyzer/NewsCollector) IMPLEMENTED but unexported/unwired (orphaned). Qlib RD-Agent CLI skeleton (quantflow ai rdagent) with dependency guard; full LLM factor search = future (blueprint E13-S1)."
     }
   ],
   "components": [
@@ -132,9 +112,7 @@
         "quantflow/data/mtf_aligner.py",
         "quantflow/data/__init__.py"
       ],
-      "feature_ids": [
-        "FT-007"
-      ],
+      "feature_ids": ["FT-007"],
       "symbols": [
         "DataFetcher",
         "DataStore",
@@ -145,14 +123,7 @@
         "clean_ohlcv",
         "validate_no_future_leak"
       ],
-      "last_updated": "2026-07-28T21:30:00Z",
-      "_refresh_meta": {
-        "added_locations": [],
-        "added_symbols": [],
-        "removed_symbols": [],
-        "total_files": 7,
-        "total_symbols": 8
-      }
+      "last_updated": "2026-07-29T06:38:45Z"
     },
     {
       "id": "TC-002",
@@ -176,9 +147,7 @@
         "quantflow/indicators/critical_level.py",
         "quantflow/indicators/__init__.py"
       ],
-      "feature_ids": [
-        "FT-009"
-      ],
+      "feature_ids": ["FT-009"],
       "symbols": [
         "FactorBase",
         "FactorRegistry",
@@ -188,7 +157,7 @@
         "AnalysisMode",
         "WaveCount"
       ],
-      "last_updated": "2026-07-15T22:35:00Z"
+      "last_updated": "2026-07-29T06:38:45Z"
     },
     {
       "id": "TC-003",
@@ -229,12 +198,7 @@
         "quantflow/strategy/validation/signal_quality.py",
         "quantflow/strategy/validation/wfo.py"
       ],
-      "feature_ids": [
-        "FT-001",
-        "FT-003",
-        "FT-004",
-        "FT-010"
-      ],
+      "feature_ids": ["FT-001", "FT-003", "FT-004", "FT-010"],
       "symbols": [
         "AIFactorEngine",
         "BacktestEngine",
@@ -284,7 +248,6 @@
         "lows",
         "minimum_track_record_length",
         "monte_carlo_stress",
-        "probability_of_overfitting",
         "profit_target_exit",
         "profit_target_exit_series",
         "returns_bootstrap_stress",
@@ -308,89 +271,7 @@
         "volumes",
         "walk_forward_optimization"
       ],
-      "last_updated": "2026-07-25T00:00:00Z",
-      "_refresh_meta": {
-        "added_locations": [
-          "quantflow/strategy/rd_agent.py",
-          "quantflow/strategy/__init__.py",
-          "quantflow/strategy/research/__init__.py",
-          "quantflow/strategy/research/backtest.py",
-          "quantflow/strategy/research/elliott_wave_backtest.py",
-          "quantflow/strategy/research/optimizer.py",
-          "quantflow/strategy/research/report.py",
-          "quantflow/strategy/templates/__init__.py",
-          "quantflow/strategy/templates/_runtime.py",
-          "quantflow/strategy/templates/elliott_wave.py",
-          "quantflow/strategy/templates/funding_rate.py",
-          "quantflow/strategy/templates/mean_reversion.py",
-          "quantflow/strategy/templates/ml_ensemble.py",
-          "quantflow/strategy/templates/momentum_rotation.py",
-          "quantflow/strategy/templates/trend_following.py",
-          "quantflow/strategy/templates/volatility_breakout.py",
-          "quantflow/strategy/validation/__init__.py",
-          "quantflow/strategy/validation/_common.py",
-          "quantflow/strategy/validation/barriers.py",
-          "quantflow/strategy/validation/cpcv.py",
-          "quantflow/strategy/validation/dsr.py",
-          "quantflow/strategy/validation/gate.py",
-          "quantflow/strategy/validation/lookahead.py",
-          "quantflow/strategy/validation/monte_carlo.py",
-          "quantflow/strategy/validation/pbo.py",
-          "quantflow/strategy/validation/signal_quality.py",
-          "quantflow/strategy/validation/wfo.py"
-        ],
-        "added_symbols": [
-          "BacktestResult",
-          "ElliottWaveStrategy",
-          "LookaheadFinding",
-          "LookaheadReport",
-          "MetaLabelResult",
-          "MonteCarloResult",
-          "QlibNotAvailableError",
-          "RDAgentConfig",
-          "StrategyDefinition",
-          "WFOFoldResult",
-          "WFOResult",
-          "WalkForwardOptimization",
-          "WaveContext",
-          "aggregate_signal_quality",
-          "closes",
-          "ewm_next",
-          "ewm_series",
-          "generate_synthetic_wave_data",
-          "get_strategy_definition",
-          "get_strategy_factories",
-          "get_strategy_specs",
-          "highs",
-          "list_strategy_summaries",
-          "lows",
-          "minimum_track_record_length",
-          "monte_carlo_stress",
-          "profit_target_exit",
-          "profit_target_exit_series",
-          "returns_bootstrap_stress",
-          "rolling_average_true_ranges",
-          "rolling_mean_at",
-          "rolling_mean_optional_at",
-          "rolling_std_at",
-          "run_backtest",
-          "sanitize_metric_array",
-          "scan_strategies",
-          "scan_strategy",
-          "signal_quality_metrics",
-          "simple_rsi_last",
-          "split_cpcv",
-          "summarize_strategy",
-          "trade_shuffle_stress",
-          "triple_barrier_labels",
-          "true_range_value",
-          "true_ranges",
-          "volumes"
-        ],
-        "removed_symbols": [],
-        "total_files": 33,
-        "total_symbols": 71
-      }
+      "last_updated": "2026-07-29T06:38:45Z"
     },
     {
       "id": "TC-004",
@@ -405,9 +286,7 @@
         "quantflow/signal/wave_signal_generator.py",
         "quantflow/signal/__init__.py"
       ],
-      "feature_ids": [
-        "FT-006"
-      ],
+      "feature_ids": ["FT-006"],
       "symbols": [
         "InvalidationEvent",
         "InvalidationSeverity",
@@ -426,18 +305,7 @@
         "sortino_ratio",
         "value_at_risk"
       ],
-      "last_updated": "2026-07-28T00:00:00Z",
-      "_refresh_meta": {
-        "added_locations": [],
-        "added_symbols": [
-          "WaveInvalidationChecker",
-          "WaveSignal",
-          "bootstrap_cvar"
-        ],
-        "removed_symbols": [],
-        "total_files": 7,
-        "total_symbols": 16
-      }
+      "last_updated": "2026-07-29T06:38:45Z"
     },
     {
       "id": "TC-005",
@@ -454,9 +322,7 @@
         "quantflow/execution/kill_switch.py",
         "quantflow/execution/__init__.py"
       ],
-      "feature_ids": [
-        "FT-005"
-      ],
+      "feature_ids": ["FT-005"],
       "symbols": [
         "ExecutionEngine",
         "GatewayBase",
@@ -468,21 +334,7 @@
         "PaperGateway",
         "PositionManager"
       ],
-      "last_updated": "2026-07-28T00:00:00Z",
-      "_refresh_meta": {
-        "added_locations": [],
-        "added_symbols": [
-          "OrderRouter"
-        ],
-        "removed_symbols": [
-          "PositionPhase",
-          "PositionRequest",
-          "ScalingConfig",
-          "ScalingPositionSizer"
-        ],
-        "total_files": 9,
-        "total_symbols": 9
-      }
+      "last_updated": "2026-07-29T06:38:45Z"
     },
     {
       "id": "TC-006",
@@ -507,20 +359,7 @@
         "start_metrics_server",
         "update_portfolio_metrics"
       ],
-      "last_updated": "2026-07-28T21:30:00Z",
-      "_refresh_meta": {
-        "added_locations": [
-          "quantflow/monitoring/sink.py"
-        ],
-        "added_symbols": [
-          "DefaultMonitoringSink",
-          "create_default_sink",
-          "metrics_server_status"
-        ],
-        "removed_symbols": [],
-        "total_files": 5,
-        "total_symbols": 9
-      }
+      "last_updated": "2026-07-29T06:38:45Z"
     },
     {
       "id": "TC-007",
@@ -597,49 +436,7 @@
         "validate_quantity",
         "validate_symbol"
       ],
-      "last_updated": "2026-07-28T00:00:00Z",
-      "_refresh_meta": {
-        "added_locations": [
-          "quantflow/common/monitoring_sink.py",
-          "quantflow/common/jsonable.py",
-          "quantflow/common/numeric.py",
-          "quantflow/common/redaction.py",
-          "quantflow/common/url_safety.py"
-        ],
-        "added_symbols": [
-          "AlertChannelConfig",
-          "ConfigError",
-          "DataConfig",
-          "DataNotFoundError",
-          "DataValidationError",
-          "ExecutionConfig",
-          "GatewayConnectionError",
-          "IndicatorConfig",
-          "MonitoringConfig",
-          "MonitoringSink",
-          "NullMonitoringSink",
-          "OrderError",
-          "OrderTimeoutError",
-          "RiskConfig",
-          "StrategyConfig",
-          "StrategyConfigError",
-          "UnsafeUrlError",
-          "ValidationConfig",
-          "redact_secrets",
-          "resolve_config_path",
-          "safe_number",
-          "save_config",
-          "series_payload",
-          "strategy_id_constituents",
-          "to_jsonable",
-          "validate_outbound_url",
-          "validate_quantity"
-        ],
-        "removed_symbols": [],
-        "total_files": 11,
-        "total_symbols": 54,
-        "_drift_realign_note": "removed_symbols cleared 2026-07-26 (DFT-7a3c9e01/8b1f4c27/9c2e5d83) — symbols verified present; prior entries were indexer selection-rule artifacts, not real removals"
-      }
+      "last_updated": "2026-07-29T06:38:45Z"
     },
     {
       "id": "TC-008",
@@ -649,9 +446,7 @@
         "quantflow/cli/main.py",
         "quantflow/cli/__init__.py"
       ],
-      "feature_ids": [
-        "FT-002"
-      ],
+      "feature_ids": ["FT-002"],
       "symbols": [
         "ai",
         "benchmark",
@@ -663,15 +458,7 @@
         "status",
         "validate"
       ],
-      "last_updated": "2026-07-28T00:00:00Z",
-      "_refresh_meta": {
-        "added_locations": [],
-        "added_symbols": [],
-        "removed_symbols": [],
-        "total_files": 2,
-        "total_symbols": 9,
-        "_drift_realign_note": "removed_symbols cleared 2026-07-26 (DFT-7a3c9e01/8b1f4c27/9c2e5d83) — symbols verified present; prior entries were indexer selection-rule artifacts, not real removals"
-      }
+      "last_updated": "2026-07-29T06:38:45Z"
     },
     {
       "id": "TC-009",
@@ -686,9 +473,7 @@
         "quantflow/web/rate_limit.py",
         "quantflow/web/static/__init__.py"
       ],
-      "feature_ids": [
-        "FT-008"
-      ],
+      "feature_ids": ["FT-008"],
       "symbols": [
         "DataDownloadRequest",
         "DataSourceTagRequest",
@@ -706,25 +491,7 @@
         "run_station",
         "same_origin_guard"
       ],
-      "last_updated": "2026-07-28T00:00:00Z",
-      "_refresh_meta": {
-        "added_locations": [
-          "quantflow/web/rate_limit.py",
-          "quantflow/web/static/__init__.py"
-        ],
-        "added_symbols": [
-          "DataSourceTagRequest",
-          "RateLimiter",
-          "SessionRuntime",
-          "SessionStartRequest",
-          "format_data_source_label",
-          "rate_limit_middleware"
-        ],
-        "removed_symbols": [],
-        "total_files": 7,
-        "total_symbols": 15,
-        "_drift_realign_note": "removed_symbols cleared 2026-07-26 (DFT-7a3c9e01/8b1f4c27/9c2e5d83) — symbols verified present; prior entries were indexer selection-rule artifacts, not real removals"
-      }
+      "last_updated": "2026-07-29T06:38:45Z"
     },
     {
       "id": "TC-010",
@@ -737,7 +504,7 @@
       "symbols": [
         "TradingSession"
       ],
-      "last_updated": "2026-07-15T22:35:00Z"
+      "last_updated": "2026-07-29T06:38:45Z"
     }
   ],
   "requirements": [],

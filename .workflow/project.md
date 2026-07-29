@@ -91,4 +91,4 @@
 - 个人量化交易开发者（主用户）
 
 ---
-*Last updated: 2026-07-15 after codebase-rebuild (tech stack refreshed)*
+*Last updated: 2026-07-29 after codebase-rebuild (full rebuild: 4 mappers + maestro kg index; tech stack confirmed unchanged)*

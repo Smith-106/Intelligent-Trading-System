@@ -4,32 +4,28 @@
 |-------|-------|
 | **ID** | TC-006 |
 | **Type** | L6-monitoring |
-| **Features** | (cross-cutting — observability seam, not imported by lower layers post-ISS-019) |
+| **Features** | (cross-cutting; not a single FT) |
+| **Last Updated** | 2026-07-29T06:38:45Z |
 
 ## Code Locations
 
-- `quantflow/monitoring/metrics.py:10` — Prometheus: Counters (`ORDERS_TOTAL`, `ORDERS_FILLED`, `SIGNALS_GENERATED`, `RISK_EVENTS`, `KILL_SWITCH_ACTIVATIONS`, `KILL_SWITCH_STEP_FAILURES`, `GATEWAY_DISCONNECTS`, `GATEWAY_RECONNECTS`, `ORDERS_TIMED_OUT`), Gauges (`PORTFOLIO_VALUE/CASH/DRAWDOWN`, `POSITIONS_COUNT`, `GATEWAY_CONNECTED`), Histograms (`ORDER_LATENCY`, `BAR_PROCESSING_LATENCY`, `SIGNAL_PROCESSING_LATENCY`); `start_metrics_server` (idempotent per-port, module-global `_METRICS_SERVER_STATE`), `update_portfolio_metrics`, `metrics_registry_snapshot`
-- `quantflow/monitoring/sink.py:1` — `DefaultMonitoringSink` (L6 concrete impl of the `common/monitoring_sink.py` Protocol; owns `AlertManager` lifecycle; idempotent per-port metrics-server start); `create_default_sink()` factory injected by callers (`cli/main.py`, `web/session_manager.py`)
-- `quantflow/monitoring/alerts.py:21` — `AlertManager` (Telegram/LINE/webhook); `AlertLevel` enum (INFO/WARNING/CRITICAL)
-- `quantflow/monitoring/logger.py:10` — `setup_logging(level, json_format)` (structlog: contextvars merge, StackInfoRenderer, ISO timestamps, Console vs JSON renderer)
+- `quantflow/monitoring/metrics.py` — Prometheus metrics registry + server
+- `quantflow/monitoring/alerts.py` — `AlertManager` (Telegram/LINE)
+- `quantflow/monitoring/logger.py` — `setup_logging` (structlog)
+- `quantflow/monitoring/sink.py` — `DefaultMonitoringSink`, `create_default_sink`
+- `quantflow/monitoring/__init__.py`
 
 ## Exported Symbols
 
-`DefaultMonitoringSink`, `create_default_sink`, `start_metrics_server`, `update_portfolio_metrics`, `metrics_registry_snapshot`, `AlertManager`, `AlertLevel`, `setup_logging`
+`AlertLevel`, `AlertManager`, `DefaultMonitoringSink`, `create_default_sink`,
+`metrics_registry_snapshot`, `metrics_server_status`, `setup_logging`, `start_metrics_server`, `update_portfolio_metrics`.
 
 ## Dependencies
 
-- **Imports**: stdlib + `prometheus_client`/`aiohttp`/`structlog` only. **No `quantflow.*` imports — fully leaf layer.**
-- **Imported by**: `monitoring/sink.py` owns the metrics objects. The sink is injected by high-level callers (`cli/main.py`, `web/session_manager.py`) into lower layers; **lower layers (L3/L4/L5) no longer import `quantflow.monitoring.*` directly** (ISS-019/044 fix). `cli/main.py:27` imports `setup_logging` for logging bootstrap only.
+- Upstream: `quantflow/common` (`MonitoringSink` Protocol — injected into L3/L4/L5 to avoid direct `monitoring/` import; arch-013 audit-evasion fix).
+- Downstream consumers: L3/L4/L5 emit via `MonitoringSink` Protocol; CLI/Web surface metrics; Prometheus + Grafana + Telegram/LINE for observability.
+- External: Prometheus client, structlog, Grafana (deployment).
 
-## Notes
+---
 
-- **ISS-019/044 L6 解耦 — MonitoringSink Protocol injection**: lower layers (L3 `strategy/engine.py`, L4 `signal/risk_engine.py`, L5 `execution/engine.py` + `execution/kill_switch.py`) push metrics/emit alerts via the `common/monitoring_sink.py` `MonitoringSink` Protocol, injected at construction (`monitoring_sink: MonitoringSink | None = None`, defaults to `NullMonitoringSink`). The previous in-function lazy-imports of `quantflow.monitoring.metrics` (audit-evasion anti-pattern, arch-013) in those 4 sites are removed. `EventBus` retains control flow (BAR/SIGNAL/RISK/ORDER/FILL); observability side-effects route through the sink — avoiding event-contract inflation for telemetry. `create_default_sink()` is the single injection point.
-- **ISS-20260723-011 Protocol 扩展 OBS-M 集群 (2026-07-27, commit 08d7032)**: Protocol +4 方法 — `record_gateway_connected`/`record_gateway_disconnect`/`record_gateway_reconnect`/`record_order_timed_out`(`common/monitoring_sink.py`),`NullMonitoringSink` +4 no-op,`DefaultMonitoringSink`(`monitoring/sink.py`)+4 实现。背书 4 新 prometheus(`GATEWAY_CONNECTED` gauge + `GATEWAY_DISCONNECTS`/`GATEWAY_RECONNECTS`/`ORDERS_TIMED_OUT` counters)。新 L5 消费者:`OKXGateway`(connect/disconnect/ensure_connected/send_order/query_positions 经 `_record_disconnect` helper 发 gateway 事件)+ `OrderManager`(`check_timeouts` 发 `record_order_timed_out`)。`risk_engine` rejection log 加 details+symbol(OBS-M #5)。
-- **Idempotent metrics-server start**: `start_metrics_server` (and the sink's `start`) is per-port idempotent via module-global `_METRICS_SERVER_STATE` dict. Downside: tests asserting "called once" from a cold state must `metrics._METRICS_SERVER_STATE.pop(port, None)` to isolate from prior tests' attempted-port state (learnings-001, state-sunk-to-global test-ordering cost).
-- **Logger inconsistency**: `monitoring/logger.py` uses structlog, but `execution/okx_gateway.py:12`, `kill_switch.py:11`, `engine.py:27` use stdlib `logging.getLogger(__name__)`. Works in practice (structlog bridges std loggers) but inconsistent — consider `structlog.get_logger()` everywhere.
-- `setup_logging` called at import time in `cli/main.py:27`. Metrics exposed at `/metrics` endpoint; Docker healthcheck = `curl /metrics`.
-- Deployment: Prometheus (`prom/prometheus:latest` :9090) + Grafana (`grafana/grafana:latest` :3000) via `docker/docker-compose.yaml`; configs at `docker/prometheus.yml`, `docker/alert_rules.yml`, `docker/grafana/provisioning/`.
-
-*Auto-generated by codebase-refresh at 2026-07-25T00:00:00Z*
-</content>
+*Auto-generated by codebase-rebuild at 2026-07-29T06:38:45Z*

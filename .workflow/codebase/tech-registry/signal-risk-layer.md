@@ -5,33 +5,30 @@
 | **ID** | TC-004 |
 | **Type** | L4-signal-risk |
 | **Features** | FT-006 (Risk Controls) |
+| **Last Updated** | 2026-07-29T06:38:45Z |
 
 ## Code Locations
 
-- `quantflow/signal/generator.py:12` — `SignalGenerator` (`generate_signal`, `consolidate_signals` — per-symbol conflict resolution weighted by hit rates)
-- `quantflow/signal/risk_engine.py:15` — `RiskEngine` (7-check pipeline, `check` L41; first failure short-circuits L52; per-strategy budget via `strategy_id_constituents`)
-- `quantflow/signal/position_sizer.py:12` — `PositionSizer` (half-Kelly, scales by `signal.strength`, clamped by `max_position_pct`; **3 硬编码 fallback config-sourced via RiskConfig — ISS-012**)
-- `quantflow/signal/portfolio.py:13` — `PortfolioManager` (mark-to-market, drawdown tracking, per-strategy allocation, weekly PnL to RiskEngine; **+ realized_pnl 翻仓归因 (Wave 1) + daily_baseline 锚定 (Wave 3)**)
-- `quantflow/signal/risk_metrics.py` — `value_at_risk`, `conditional_var`, `max_drawdown`, `sharpe_ratio`, `sortino_ratio`, `calmar_ratio`
-- `quantflow/signal/wave_signal_generator.py:17` — `WaveSignalGenerator` (invalidation checker, `InvalidationEvent`/`InvalidationSeverity`)
+- `quantflow/signal/generator.py` — `SignalGenerator`
+- `quantflow/signal/risk_engine.py` — `RiskEngine` (7-check short-circuit)
+- `quantflow/signal/position_sizer.py` — `PositionSizer` (Half-Kelly)
+- `quantflow/signal/portfolio.py` — `PortfolioManager` (authoritative ledger)
+- `quantflow/signal/risk_metrics.py` — `value_at_risk`, `conditional_var`, `bootstrap_cvar`, `max_drawdown`, `sharpe/sortino/calmar`
+- `quantflow/signal/wave_signal_generator.py` — `WaveSignalGenerator`, `WaveInvalidationChecker`, `WaveSignal`, `InvalidationEvent`, `InvalidationSeverity`
+- `quantflow/signal/__init__.py`
 
 ## Exported Symbols
 
-`InvalidationEvent`, `InvalidationSeverity`, `PortfolioManager`, `PositionSizer`, `RiskEngine`, `SignalGenerator`, `WaveInvalidationChecker`, `WaveSignal`, `WaveSignalGenerator`, `bootstrap_cvar`, `calmar_ratio`, `conditional_var`, `max_drawdown`, `sharpe_ratio`, `sortino_ratio`, `value_at_risk`
+`SignalGenerator`, `RiskEngine`, `PositionSizer`, `PortfolioManager`, `WaveSignalGenerator`,
+`WaveInvalidationChecker`, `WaveSignal`, `InvalidationEvent`, `InvalidationSeverity`,
+`value_at_risk`, `conditional_var`, `bootstrap_cvar`, `max_drawdown`, `sharpe_ratio`, `sortino_ratio`, `calmar_ratio`.
 
 ## Dependencies
 
-- **Imports**: `common`, `indicators`. Clean — no L5/L6 imports except `risk_engine` lazy-imports `monitoring.metrics` (L62).
-- **Imported by**: `strategy/engine` (orchestrator).
+- Upstream: `quantflow/common` (models, exceptions), `quantflow/strategy` (StrategyBase signals via TradingSession).
+- Downstream consumers: L3 `TradingSession` (wires RiskEngine → PositionSizer → ExecutionEngine), L5 Execution (receives `PositionRequest`).
+- Note: emits `PositionRequest` (from common models) consumed by ExecutionEngine; there is **no** `ScalingPositionSizer` class — `PositionSizer.size()` returns notional wrapped by the session.
 
-## Notes
+---
 
-- **RiskEngine 7-check short-circuit pipeline** (L43): position_limit → portfolio_limit → strategy_budget → daily_loss → weekly_loss → drawdown → VaR. Single-strategy budget via compound key `strategy_id_constituents`.
-- `RiskConfig.kelly_fraction` + `var_confidence` now loaded from YAML (previously hardcoded in TradingSession/risk_engine — silent YAML-schema drift anti-pattern, now fixed).
-- **Sizing authority**: `PositionSizer.size()` directly produces notional and enforces single-trade ≤2% / daily ≤5% / monthly ≤15% caps inline (no separate L5 sizer). The earlier `ScalingPositionSizer → RiskEngine` protocol was removed when ISS-004 (commit `a5b7f37`) deleted the dead `ScalingPositionSizer`/`PositionRequest`/`ScalingConfig`/`PositionPhase` classes; sizing authority consolidated in L4 `PositionSizer` per arch spec.
-- **ISS-044 L6 解耦 (fixed)**: `RiskEngine` (risk_engine.py:28,37) accepts `monitoring_sink: MonitoringSink | None = None` (default `NullMonitoringSink`) and routes `RISK_EVENTS` via `self._sink.record_risk_event()` — no direct `quantflow.monitoring.*` import (closes arch-013 lazy-import audit-evasion). `_record_risk_event` call site (L92) migrated.
-- **ISS-038 compound allocation cap (fixed)**: `position_sizer.py` applies the allocation multiplier inside `size()` *before* the `max_position_pct` cap + deduction (L120-124), so the cap always clamps the final notional. The prior call site multiplied by allocation *after* `size()` returned, re-inflating an already-capped notional for compound strategies (`allocation * n_constituents > cap`).
-- **ISS-20260720-004 Wave 1 (realized_pnl 归因, 2026-07-25)**: `PortfolioManager.update_position` 在 cash mutation 后,当 `existing.quantity * quantity_delta < 0`(方向反转/部分平仓)时,用 `closing_qty = min(|delta|, |existing.qty|)`、`sign = sign(existing.quantity)`、`realized = (price - entry) * closing_qty * sign` 累计到 `_realized_pnl`(归因累计,不重算 cash)。`snapshot` 经 `Portfolio.realized_pnl` 字段暴露(默认 0.0 保后向兼容)。commit `7e781a8`。
-- **ISS-20260721-012 config-sourced sizing thresholds (fixed, commit `8ffd612`)**: `PositionSizer` 的 3 个硬编码 fallback 改为 config 注入 — `fixed_pct=0.10` + `min_order_notional=10.0` 落 `RiskConfig` (`common/config.py:84-87`, `default.yaml:44-45`),`fee_rate` 复用 `ExecutionConfig.taker_fee=0.001` (D3 single-source-of-truth,不新增字段)。`strategy/engine.py:116` `PositionSizer(...)` 构造透传 3 参数。默认值 byte-for-byte 对齐原硬编码以保 backtest baseline 不变。守卫:`test_config_sourced_defaults` + `test_risk_config_wires_fixed_pct_and_min_order_notional` + `test_execution_taker_fee_wired`。
-
-*Auto-generated by codebase-refresh at 2026-07-25T00:00:00Z; drift-realign 2026-07-28 ISS-012 config-sourcing + ScalingPosition 残留清理*
+*Auto-generated by codebase-rebuild at 2026-07-29T06:38:45Z*
