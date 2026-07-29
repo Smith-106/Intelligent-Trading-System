@@ -3,7 +3,7 @@
   "schema_version": "1.0",
   "project": "QuantFlow",
   "project_version": "0.1.3",
-  "last_updated": "2026-07-28T00:00:00Z",
+  "last_updated": "2026-07-28T21:30:00Z",
   "rebuild_source": "manage-codebase-rebuild (--skip-kg)",
   "overview": "Personal Crypto quantitative trading system (OKX) with six-layer architecture (L1 data -> L6 monitoring), self-built event-driven TradingSession engine, anti-overfitting validation pipeline (CPCV+DSR+PBO+WFO), and QuantFlow Station web UI. Phase 1/2/3 complete.",
   "features": [
@@ -145,7 +145,7 @@
         "clean_ohlcv",
         "validate_no_future_leak"
       ],
-      "last_updated": "2026-07-25T00:00:00Z",
+      "last_updated": "2026-07-28T21:30:00Z",
       "_refresh_meta": {
         "added_locations": [],
         "added_symbols": [],
@@ -507,7 +507,7 @@
         "start_metrics_server",
         "update_portfolio_metrics"
       ],
-      "last_updated": "2026-07-25T00:00:00Z",
+      "last_updated": "2026-07-28T21:30:00Z",
       "_refresh_meta": {
         "added_locations": [
           "quantflow/monitoring/sink.py"

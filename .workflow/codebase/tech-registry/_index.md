@@ -17,7 +17,7 @@
 | TC-009 | WebStation | web-presentation | `quantflow/web/` (7 files) |
 | TC-010 | TradingShim | shim | `quantflow/trading/` (1 file) |
 
-**Total components: 10** · covering 98 Python source files across the six-layer architecture plus CLI, web, and trading-shim layers. Refreshed 2026-07-25 (ISS-019/021/022/027/029/030/034/036/038/041/044 incorporated); drift-realign 2026-07-28 (ISS-003/005/011 batch incorporated).
+**Total components: 10** · covering 98 Python source files across the six-layer architecture plus CLI, web, and trading-shim layers. Refreshed 2026-07-25 (ISS-019/021/022/027/029/030/034/036/038/041/044 incorporated); drift-realign 2026-07-28 (ISS-003/005/011 batch + ISS-012/UX/REG-1 incorporated); codebase-refresh 2026-07-28 (ISS-015 + GP1 fail-silent cluster + TC-001/006 timestamp refresh).
 
 ## Recent Changes (since 2026-07-15 rebuild)
 
@@ -25,9 +25,10 @@
 - **TC-005**: ISS-021 PaperGateway reduceOnly parity; ISS-044 MonitoringSink injection (no L6 import); ISS-003 OrderRouter 抽取 (order_router.py, ExecutionEngine 退役 god-object); ISS-005 OKXGateway market_type spot/swap 双分支; ISS-011 OKXGateway+OrderManager 接入 sink (gateway lifecycle + order timeout OBS-M).
 - **TC-006**: new `sink.py` (DefaultMonitoringSink); ISS-019/044 Protocol injection pattern; ISS-011 Protocol +4 方法 (record_gateway_*/record_order_timed_out) + 4 prometheus (GATEWAY_CONNECTED/DISCONNECTS/RECONNECTS/ORDERS_TIMED_OUT).
 - **TC-007**: 5 new modules (monitoring_sink, jsonable, numeric, redaction, url_safety); ISS-019/041 single-owner patterns; ISS-011 MonitoringSink Protocol 12→16 methods.
-- **TC-009**: new `rate_limit.py`; ISS-036 path-leak (CWE-200) fix; ISS-041 _jsonable single-owner.
-- **TC-001**: ISS-027 fetcher delegate; ISS-034 append-only fast path.
-- **TC-004**: ISS-044 risk_engine sink; ISS-038 compound allocation cap order; ISS-011 risk rejection log 加 details+symbol.
+- **TC-001**: ISS-027 fetcher delegate; ISS-034 append-only fast path; ISS-015 + GP1 fail-silent cluster (RedisCache reads raise DataError on client=None, store exception paths raise DataError — no silent cache-miss/empty-DF, callers try/except degrade; ISS-20260723-013/014/016).
+- **TC-004**: ISS-044 risk_engine sink; ISS-038 compound allocation cap order; ISS-011 risk rejection log 加 details+symbol; ISS-012 PositionSizer config-sourced sizing thresholds (fixed_pct/min_order_notional → RiskConfig, fee_rate reuses taker_fee; defaults byte-for-byte aligned保 baseline).
+- **TC-009**: new `rate_limit.py`; ISS-036 path-leak (CWE-200) fix; ISS-041 _jsonable single-owner; ISS-UX-20260728 (M4 setHTML XSS choke-point + static guard, H1 load* try/catch, M5 poll-stall banner, M1 bootstrap overlay, M2 self-hosted fonts, M3 skip-link focus-visible).
+- **TC-008**: ISS-UX-20260728 CLI hardening (H2 console.status sequential with-blocks, H3 redact_secrets module-level import + except Exception, H4 next-step guidance) + REG-1 (typer.BadParameter re-raise before except Exception).
 
 ## Knowledge Graph Status
 

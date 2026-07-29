@@ -338,7 +338,7 @@
       "at": "2026-07-19T18:00:00+08:00"
     }
   ],
-  "last_updated": "2026-07-28T21:00:00+08:00",
+  "last_updated": "2026-07-28T21:30:00+08:00",
   "sessions": [
     {
       "session_id": "maestro-multi-book-reconcile-20260725-113526",
@@ -374,5 +374,6 @@
     }
   ],
   "active_session_id": "20260728-team-ux-improve-web-cli",
-  "last_drift_realign": "2026-07-28T21:00:00+08:00"
+  "last_drift_realign": "2026-07-28T21:00:00+08:00",
+  "codebase_last_refreshed": "2026-07-28T21:30:00+08:00"
 }
