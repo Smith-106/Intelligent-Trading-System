@@ -17,7 +17,7 @@ keywords:
 - Config: pyproject.toml [tool.ruff]
 - Line length: 100
 - Target: Python 3.11
-- Select rules: E, F, I, N, UP, B, SIM, RUF
+- Select rules: E, F, I, N, W, UP, B, SIM, RUF
 - isort: known-first-party = ["quantflow"]
 - Fix command: `ruff check --fix .`
 

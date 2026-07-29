@@ -36,7 +36,7 @@
 
 - 新 Gateway 实现（如 A 股 miniQMT）- 当前聚焦 OKX
 - 新数据源接入 - 当前 CCXT + OKX 已满足主链路
-- Web UI / 前端页面 - 当前阶段以 CLI 为主
+- Web UI / 前端页面 - QuantFlow Station 已上线（21 API 路由，9 功能组），处于活跃增强中
 - 部署拓扑重构 - 当前 Docker Compose 已可支撑
 
 ## Context
@@ -70,10 +70,10 @@
 - **Framework**：CCXT（OKX REST+WebSocket，async）、Optuna、自建纯 pandas/numpy 回测引擎（`BacktestEngine`，已替代 VectorBT — Py3.14+ numba 不兼容）
 - **Data**：DuckDB + Parquet（Hive 分区 symbol/year/month）+ Redis（实时缓存）
 - **Indicators**：27 注册因子（21 基础 + 6 Elliott Wave）via `FactorBase`/`IndicatorEngine`，纯 pandas/numpy（TA-Lib 可选）
-- **Web**：aiohttp（QuantFlow Station，23 REST endpoints）+ Typer/Rich CLI（8 commands）
+- **Web**：aiohttp（QuantFlow Station，21 REST endpoints）+ Typer/Rich CLI（9 commands）
 - **Config/Validation**：Pydantic v2（`AppConfig`）+ PyYAML；安全固定 `aiohttp>=3.14.1` / `cryptography>=48.0.1`
 - **Monitoring**：Prometheus + Grafana + structlog；告警 Telegram/LINE
-- **AI**：`AIFactorEngine` + Meta-Labeling（活跃，被 MLEnsembleStrategy 使用）；FinBERT 情绪（`SentimentAnalyzer`/`NewsCollector` 已实现+测试，未导出/未接 CLI）；Qlib RD-Agent（**未实现**，规划中 E13-S1，qlib 为可选 `[ml]` extra）
+- **AI**：`AIFactorEngine` + Meta-Labeling（已导出但未接线到管线）；`MLEnsembleStrategy` 使用自身内部 triple-barrier meta-labeling；FinBERT 情绪（`SentimentAnalyzer`/`NewsCollector` 已实现+测试，未导出/未接 CLI）；Qlib RD-Agent（**未实现**，规划中 E13-S1，qlib 为可选 `[ml]` extra）
 - **Quality**：ruff format+lint、mypy strict、pytest+pytest-asyncio（coverage 70%）、pip-audit、pre-commit
 - **Deployment**：Docker Compose（quantflow + redis + prometheus + grafana）
 

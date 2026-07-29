@@ -67,7 +67,13 @@
           "id": 3,
           "name": "P2 AI 层升级",
           "slug": "p2-ai-layer",
-          "status": "blocked"
+          "status": "unblocked"
+        },
+        {
+          "id": 4,
+          "name": "多 book reconcile 一致性收口",
+          "slug": "multi-book-reconcile",
+          "status": "completed"
         }
       ]
     }
@@ -374,6 +380,6 @@
     }
   ],
   "active_session_id": "20260728-team-ux-improve-web-cli",
-  "last_drift_realign": "2026-07-28T21:00:00+08:00",
+  "last_drift_realign": "2026-07-29T10:50:00+08:00",
   "codebase_last_refreshed": "2026-07-29T06:38:45+08:00"
 }
