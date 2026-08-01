@@ -1,3 +1,12 @@
+metadata:
+  title: "Elliott Wave"
+  description: "Wave-structure strategy with ZigZag consensus and Fibonacci rules"
+
+param_space:
+  zigzag_threshold: [0.02, 0.08]
+  fib_tolerance: [0.10, 0.25]
+  atr_stop_mult: [1.0, 3.0]
+
 strategy:
   name: elliott_wave
   type: wave

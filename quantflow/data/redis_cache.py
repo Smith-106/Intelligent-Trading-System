@@ -1,9 +1,16 @@
-"""Redis cache for real-time market data."""
+"""Redis cache for real-time market data.
+
+.. deprecated:: 0.2.0
+   This module is unused (zero instantiation across the entire codebase as of
+   v0.1.3). It is retained for reference only and will be removed in v0.3.
+   Do NOT import or instantiate RedisCache in new code. (M4-1.3)
+"""
 
 from __future__ import annotations
 
 import json
 import logging
+import warnings
 from typing import Any
 
 import redis
@@ -11,6 +18,13 @@ import redis
 from quantflow.common.exceptions import DataError
 
 logger = logging.getLogger(__name__)
+
+warnings.warn(
+    "quantflow.data.redis_cache is deprecated and unused — "
+    "it will be removed in v0.3. Do not import RedisCache.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 TICKER_TTL = 60  # seconds
 

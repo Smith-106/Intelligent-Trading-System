@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import yaml
+
 from quantflow.strategy.base import StrategyBase
 from quantflow.strategy.catalog import (
+    _DEFAULT_DESCRIPTIONS,
+    _STRATEGY_CONFIG_DIR,
     get_strategy_definition,
     get_strategy_definitions,
     get_strategy_factories,
@@ -59,3 +63,103 @@ def test_strategy_factories_exposes_all_ids() -> None:
     factories = get_strategy_factories()
     definitions = get_strategy_definitions()
     assert set(factories.keys()) == set(definitions.keys())
+
+
+# ---------------------------------------------------------------------------
+# ISS-010: YAML-driven catalog guard tests
+# ---------------------------------------------------------------------------
+
+
+class TestCatalogYAMLLoading:
+    """ISS-010: Verify catalog loads metadata from YAML, not hardcoded Python."""
+
+    def test_all_strategies_have_yaml_metadata(self) -> None:
+        """Every strategy YAML must have metadata.title and metadata.description."""
+        yaml_files = list(_STRATEGY_CONFIG_DIR.glob("*.yaml"))
+        assert len(yaml_files) >= 7, f"Expected >=7 YAML files, found {len(yaml_files)}"
+        for yaml_path in yaml_files:
+            raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+            meta = raw.get("metadata", {})
+            assert "title" in meta, f"{yaml_path.name} missing metadata.title"
+            assert "description" in meta, f"{yaml_path.name} missing metadata.description"
+
+    def test_all_strategies_have_param_space(self) -> None:
+        """Every strategy YAML must have a param_space block."""
+        for yaml_path in _STRATEGY_CONFIG_DIR.glob("*.yaml"):
+            raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+            assert "param_space" in raw, f"{yaml_path.name} missing param_space"
+            assert isinstance(raw["param_space"], dict), (
+                f"{yaml_path.name} param_space is not a dict"
+            )
+
+    def test_get_strategy_definitions_loads_from_yaml(self) -> None:
+        """get_strategy_definitions returns titles matching YAML metadata."""
+        defs = get_strategy_definitions()
+        assert len(defs) >= 7
+        for sid, defn in defs.items():
+            assert defn.title, f"{sid} has empty title"
+            assert defn.description, f"{sid} has empty description"
+
+    def test_param_space_yaml_matches_original(self) -> None:
+        """Guard: YAML param_space values match original hardcoded values."""
+        expected_param_spaces = {
+            "trend_following": {
+                "fast_ma_period": (3, 15),
+                "slow_ma_period": (30, 120),
+                "rsi_oversold": (20, 40),
+                "rsi_overbought": (60, 85),
+                "atr_multiplier": (1.2, 3.0),
+                "volume_threshold": (0.8, 2.0),
+            },
+            "mean_reversion": {
+                "rsi_oversold": (20, 40),
+                "rsi_overbought": (60, 85),
+                "bb_std": (1.5, 3.0),
+                "exit_rsi_overbought": (50, 75),
+                "exit_rsi_oversold": (25, 50),
+            },
+            "elliott_wave": {
+                "zigzag_threshold": (0.02, 0.08),
+                "fib_tolerance": (0.10, 0.25),
+                "atr_stop_mult": (1.0, 3.0),
+            },
+            "volatility_breakout": {
+                "atr_threshold": (1.2, 2.0),
+                "atr_shrink_exit": (0.5, 0.9),
+                "volume_threshold": (1.2, 2.0),
+            },
+            "funding_rate": {
+                "entry_threshold": (0.0005, 0.002),
+                "exit_threshold": (0.0001, 0.0005),
+                "oi_change_threshold": (0.02, 0.1),
+            },
+            "momentum_rotation": {
+                "lookback": (10, 40),
+                "top_n": (1, 5),
+                "stop_loss_pct": (0.01, 0.05),
+            },
+            "ml_ensemble": {
+                "entry_threshold": (0.5, 0.8),
+                "exit_threshold": (0.2, 0.5),
+            },
+        }
+        defs = get_strategy_definitions()
+        for sid, expected_ps in expected_param_spaces.items():
+            assert sid in defs, f"Strategy {sid} not found in definitions"
+            actual_ps = defs[sid].param_space
+            for param, expected_range in expected_ps.items():
+                assert param in actual_ps, f"{sid} missing param_space key '{param}'"
+                actual_range = actual_ps[param]
+                assert tuple(actual_range) == expected_range, (
+                    f"{sid}.{param} mismatch: got {actual_range}, expected {expected_range}"
+                )
+
+    def test_descriptions_match_fallback(self) -> None:
+        """YAML descriptions should match _DEFAULT_DESCRIPTIONS."""
+        defs = get_strategy_definitions()
+        for sid, fallback_desc in _DEFAULT_DESCRIPTIONS.items():
+            if sid in defs:
+                assert defs[sid].description == fallback_desc, (
+                    f"{sid} YAML description '{defs[sid].description}' "
+                    f"differs from fallback '{fallback_desc}'"
+                )

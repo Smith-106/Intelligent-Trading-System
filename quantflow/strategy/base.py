@@ -45,9 +45,14 @@ class StrategyContext:
         )
 
     def flush_signals(self) -> list[Signal]:
-        """Return and clear all queued signals."""
-        signals = self._signals[:]
-        self._signals.clear()
+        """Return and clear all queued signals (atomic swap).
+
+        Uses reference swap rather than copy+clear so the operation is a
+        single bytecode-level assignment under the GIL — safe when on_bar
+        runs in a worker thread (asyncio.to_thread) and flush is called
+        from the main coroutine after the future completes (M4-1.1).
+        """
+        signals, self._signals = self._signals, []
         return signals
 
     @property

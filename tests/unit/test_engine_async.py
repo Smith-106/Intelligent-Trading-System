@@ -178,8 +178,8 @@ class TestTradingSessionOnBarRegimeGating:
 
         # trending strategy should have been called, mean_reversion should not
         # Check contexts
-        assert "trend_s" in session._contexts
-        assert "mr_s" in session._contexts
+        assert ("trend_s", "") in session._contexts
+        assert ("mr_s", "") in session._contexts
         session._running = False
 
 

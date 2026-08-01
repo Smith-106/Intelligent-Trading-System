@@ -233,3 +233,82 @@ class TestMeanReversionStrategyExtra:
         assert short_signals[0].direction == Direction.SHORT
         assert len(flat_signals) == 1
         assert flat_signals[0].direction == Direction.FLAT
+
+    def test_stop_loss_triggers_on_bar_long(self) -> None:
+        """ISS-20260720-003: stop_loss_pct triggers exit when unrealized loss exceeds threshold."""
+        strategy = MeanReversionStrategy(
+            {"bb_period": 2, "volume_period": 2, "rsi_period": 2, "stop_loss_pct": 0.05}
+        )
+        ctx = StrategyContext()
+        # Pre-fill bars so we pass the bb_period check
+        strategy._bars = [_bar(0, 100.0), _bar(1, 101.0)]
+        # Simulate a LONG entry at 100.0
+        strategy._in_position = True
+        strategy._entry_direction = Direction.LONG
+        strategy._entry_price = 100.0
+        strategy._bars_since_entry = 0
+        # Price drops to 94.0 (6% loss, exceeds 5% stop loss)
+        with patch.object(strategy, "_latest_signal", return_value=(None, False)):
+            strategy.on_bar(ctx, _bar(2, 94.0))
+        signals = ctx.flush_signals()
+        # Should emit a FLAT exit signal due to stop loss
+        assert len(signals) == 1
+        assert signals[0].direction == Direction.FLAT
+        assert signals[0].strength == 0.8  # stop loss uses higher strength
+        assert not strategy._in_position
+
+    def test_stop_loss_triggers_on_bar_short(self) -> None:
+        """ISS-20260720-003: stop_loss_pct triggers exit for SHORT when price rises."""
+        strategy = MeanReversionStrategy(
+            {"bb_period": 2, "volume_period": 2, "rsi_period": 2, "stop_loss_pct": 0.05}
+        )
+        ctx = StrategyContext()
+        strategy._bars = [_bar(0, 100.0), _bar(1, 99.0)]
+        strategy._in_position = True
+        strategy._entry_direction = Direction.SHORT
+        strategy._entry_price = 100.0
+        strategy._bars_since_entry = 0
+        # Price rises to 106.0 (6% loss, exceeds 5% stop loss)
+        with patch.object(strategy, "_latest_signal", return_value=(None, False)):
+            strategy.on_bar(ctx, _bar(2, 106.0))
+        signals = ctx.flush_signals()
+        assert len(signals) == 1
+        assert signals[0].direction == Direction.FLAT
+        assert not strategy._in_position
+
+    def test_stop_loss_not_triggered_within_threshold(self) -> None:
+        """ISS-20260720-003: stop_loss does NOT trigger when loss is within threshold."""
+        strategy = MeanReversionStrategy(
+            {"bb_period": 2, "volume_period": 2, "rsi_period": 2, "stop_loss_pct": 0.05}
+        )
+        ctx = StrategyContext()
+        strategy._bars = [_bar(0, 100.0), _bar(1, 101.0)]
+        strategy._in_position = True
+        strategy._entry_direction = Direction.LONG
+        strategy._entry_price = 100.0
+        strategy._bars_since_entry = 0
+        # Price drops to 96.0 (4% loss, within 5% stop loss)
+        with patch.object(strategy, "_latest_signal", return_value=(None, False)):
+            strategy.on_bar(ctx, _bar(2, 96.0))
+        signals = ctx.flush_signals()
+        # No stop loss signal — still within threshold
+        flat_signals = [s for s in signals if s.direction == Direction.FLAT and s.strength == 0.8]
+        assert len(flat_signals) == 0
+        assert strategy._in_position  # Still in position
+
+    def test_stop_loss_disabled_when_zero(self) -> None:
+        """ISS-20260720-003: stop_loss_pct=0 (default) disables stop loss."""
+        strategy = MeanReversionStrategy({"bb_period": 2, "volume_period": 2, "rsi_period": 2})
+        assert strategy._stop_loss_pct == 0.0
+
+    def test_stop_loss_exit_series_vectorized(self) -> None:
+        """ISS-20260720-003: _stop_loss_exit_series produces correct boolean exits."""
+        close = pd.Series([100.0, 98.0, 94.0, 96.0, 90.0])
+        entries = pd.Series([True, False, False, False, False])
+        # 5% stop loss: entry at 100, stop at 95
+        exits = MeanReversionStrategy._stop_loss_exit_series(close, entries, 0.05, direction=1)
+        assert not exits.iloc[0]  # entry bar, no exit
+        assert not exits.iloc[1]  # 98 > 95, no stop
+        assert exits.iloc[2]  # 94 <= 95, stop triggered
+        assert not exits.iloc[3]  # position already closed
+        assert not exits.iloc[4]  # position already closed

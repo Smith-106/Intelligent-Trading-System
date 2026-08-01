@@ -11,6 +11,17 @@ from quantflow.data.store import DataStore
 from quantflow.indicators.engine import IndicatorEngine
 
 
+class _FakeIndicatorComputer:
+    """Stub implementing IndicatorComputer protocol for testing."""
+
+    def compute_all(
+        self, df: pd.DataFrame, indicator_names: list[str] | None = None
+    ) -> pd.DataFrame:
+        result_df = df.copy()
+        result_df["fake_indicator"] = 0.0
+        return result_df
+
+
 class TestIndicatorEngineAPI:
     """Verify IndicatorEngine has the methods that FeatureStore expects."""
 
@@ -83,7 +94,7 @@ class TestFeatureStore:
         )
         raw_store.save(df, "BTC/USDT")
 
-        fs = FeatureStore(str(feat_dir))
+        fs = FeatureStore(str(feat_dir), indicator_computer=_FakeIndicatorComputer())
         return fs, raw_store
 
     def test_compute_features_returns_dataframe(self, store_and_raw):
@@ -93,7 +104,7 @@ class TestFeatureStore:
         assert isinstance(result, pd.DataFrame)
 
     def test_compute_features_no_raw_store_raises(self, tmp_path):
-        fs = FeatureStore(str(tmp_path))
+        fs = FeatureStore(str(tmp_path), indicator_computer=_FakeIndicatorComputer())
         with pytest.raises(ValueError, match="raw_store is required"):
             fs.compute_features("BTC/USDT", 0, [])
 

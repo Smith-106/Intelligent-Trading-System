@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.2.0] — 2026-08-01
+
+### Security
+- ISS-004: Global `_redact_processor` in structlog pipeline prevents credential leakage
+- ISS-006-retro: Adversarial redaction tests (near-miss, benign-collision, env-unset)
+
+### Architecture
+- ISS-002: `IndicatorComputer` Protocol injection eliminates L1→L2 layer violation
+- ISS-011: CLI benchmark extracted to `BenchmarkService` (401→35 lines thin shell)
+- ISS-010: Strategy metadata migrated from hardcoded Python to YAML config
+
+### Features
+- ISS-003: OKXGateway WebSocket support via ccxt.pro (watch_ohlcv, watch_orders, reconnection)
+- ISS-002-recursive: Recursive indicator dependency analysis CLI (`validate --method recursive`)
+- Schema exposure module for LLM-safe data interface
+- Mean reversion stop_loss_pct parameter (on_bar + vectorized paths)
+
+### Performance
+- ISS-001: CPCV O(n²) memory optimization (peak memory halved)
+- P0-verify: 4-strategy byte-for-byte regression guard baseline established
+
+### Bug Fixes
+- ISS-005: CLI research/optimize/validate now pass date filters to DataStore
+- ISS-007: ZigZag low-volatility fallback when consensus pivots empty
+- ISS-001-vectorbt: Spec contradiction resolved (deprecated, numpy vectorization confirmed)
+
+### Tests
+- 100+ new tests across all fixes
+- 1690 total tests passing
+- M4 Phase 6 multi-symbol integration tests (65 tests)
+- Architecture guard tests (data layer import, redaction processor, catalog YAML)
+
+### Workflow
+- 17 open issues resolved (17→0)
+- Roadmap P0-verify passed
+- State blockers cleared
+
 ## [0.1.3] - 2026-06-07
 
 ### Added

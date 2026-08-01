@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import math
 from typing import Any
@@ -77,6 +78,11 @@ class OKXGateway(GatewayBase):
         self._connected = False
         self._reconnect_interval = RECONNECT_INTERVAL
         self._max_reconnect_attempts = MAX_RECONNECT_ATTEMPTS
+        # ISS-003: WebSocket subscription state. _ws_tasks holds active watch
+        # loops (ohlcv/orders); _running is the cancellation flag checked by
+        # each loop so disconnect() can drain them cleanly.
+        self._ws_tasks: list[asyncio.Task[Any]] = []
+        self._running: bool = True
 
     async def connect(self, config: dict[str, Any] | None = None) -> None:
         import ccxt.async_support as ccxt
@@ -108,6 +114,15 @@ class OKXGateway(GatewayBase):
         logger.info("OKX Gateway connected: %d markets", len(self._exchange.markets))
 
     async def disconnect(self) -> None:
+        # ISS-003: stop all WebSocket watch loops before closing the exchange
+        # so no orphaned task can call watch_* on a closed aiohttp session.
+        self._running = False
+        for task in self._ws_tasks:
+            if not task.done():
+                task.cancel()
+        if self._ws_tasks:
+            await asyncio.gather(*self._ws_tasks, return_exceptions=True)
+        self._ws_tasks.clear()
         # try/finally: close() can raise on a half-torn aiohttp session; we must
         # still clear state so a later is_connected check cannot lie. (REL-M1)
         try:
@@ -446,6 +461,92 @@ class OKXGateway(GatewayBase):
                 )
             )
         return positions
+
+    async def subscribe(self, channel: str, callback: Any = None) -> None:
+        """Subscribe to WebSocket data via ccxt.pro.
+
+        Supported channels: ``'ohlcv'``, ``'orders'``.
+        Requires ccxt.pro (``pip install ccxt[pro]``).
+        Falls back to a no-op with a warning when ccxt.pro is not installed
+        so the REST polling path is never disturbed.
+        """
+        if not hasattr(self._exchange, "watch_ohlcv"):
+            logger.warning("ccxt.pro not available — subscribe('%s') is no-op", channel)
+            return
+
+        handlers: dict[str, Any] = {
+            "ohlcv": self._watch_ohlcv_loop,
+            "orders": self._watch_orders_loop,
+        }
+        handler = handlers.get(channel)
+        if handler is None:
+            logger.warning("Unsupported WebSocket channel: %s", channel)
+            return
+
+        self._ws_tasks.append(asyncio.create_task(handler(callback)))
+
+    async def _watch_ohlcv_loop(
+        self,
+        callback: Any,
+        symbol: str = "BTC/USDT",
+        timeframe: str = "1m",
+    ) -> None:
+        """Continuously watch OHLCV candles via WebSocket with reconnection.
+
+        Uses exponential back-off (1 s → 2 s → … → 16 s cap) on errors so a
+        flapping exchange cannot spin a hot reconnect loop.
+        """
+        backoff = 1.0
+        while self._running:
+            try:
+                ohlcv = await self._exchange.watch_ohlcv(symbol, timeframe)
+                if ohlcv and callback:
+                    if inspect.iscoroutinefunction(callback):
+                        await callback(ohlcv)
+                    else:
+                        callback(ohlcv)
+                backoff = 1.0  # Reset on success
+                # Yield to the event loop even on fast returns so this tight
+                # loop cannot starve other coroutines (e.g. disconnect()).
+                await asyncio.sleep(0)
+            except Exception as e:
+                logger.warning(
+                    "watch_ohlcv error: %s, reconnecting in %.0fs",
+                    type(e).__name__,
+                    backoff,
+                )
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, 16.0)
+
+    async def _watch_orders_loop(
+        self,
+        callback: Any,
+        symbol: str = "BTC/USDT",
+    ) -> None:
+        """Continuously watch private order updates via WebSocket.
+
+        Same exponential-back-off reconnection strategy as ``_watch_ohlcv_loop``
+        so a network partition degrades gracefully instead of spamming errors.
+        """
+        backoff = 1.0
+        while self._running:
+            try:
+                orders = await self._exchange.watch_orders(symbol)
+                if orders and callback:
+                    if inspect.iscoroutinefunction(callback):
+                        await callback(orders)
+                    else:
+                        callback(orders)
+                backoff = 1.0
+                await asyncio.sleep(0)  # Yield to event loop
+            except Exception as e:
+                logger.warning(
+                    "watch_orders error: %s, reconnecting in %.0fs",
+                    type(e).__name__,
+                    backoff,
+                )
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, 16.0)
 
     @property
     def is_connected(self) -> bool:

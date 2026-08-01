@@ -55,3 +55,14 @@ Auto-generated from project analysis. Update manually as patterns evolve.
 ### 测试分层与覆盖率要求
 核心模块（data/indicators/strategy/validation/execution/risk）必须有单元测试，覆盖率 >70%。测试分三层：unit（单模块）、integration（跨模块端到端）、conftest 共享 fixture。集成测试需要真实数据流而非 mock。禁止用 @skip/@ignore 掩盖测试失败，必须修复根因。
 </spec-entry>
+
+<spec-entry category="test" keywords="asyncio,装饰器,async,pytest-asyncio,false-negative" date="2026-07-31" sid="S-20260731-a7k2" title="async 测试方法必须添加 @pytest.mark.asyncio 装饰器" description="类中 async def test_* 缺少装饰器会被跳过导致 false negative" source="phase-6-codereview">
+
+### async 测试方法必须添加 @pytest.mark.asyncio 装饰器
+
+所有定义在 class 中的 `async def test_*` 方法必须显式添加 `@pytest.mark.asyncio` 装饰器。缺少装饰器时 pytest-asyncio 会跳过该测试（或将其当作同步函数执行而不 await），导致测试显示 passed 但实际未执行——这是 false negative，比显式失败更危险。
+
+**注意**: `pyproject.toml` 的 `asyncio_mode = "auto"` 仅对**模块级** async 函数自动生效。类方法中的 `async def` 仍需显式装饰器。Phase 6 CodeReview (Ryan) 在 `test_m4_killswitch_threadflush.py` 中发现 3 个缺失装饰器的 Critical Issue，已修复。
+
+**守卫**: ruff 规则 `RUF100` + 手动 grep `async def test_` 后检查上方是否有 `@pytest.mark.asyncio`。新增 async 测试时立即添加装饰器。
+</spec-entry>

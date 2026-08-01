@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import cast
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pandas as pd
 import pytest
@@ -150,7 +150,13 @@ class TestFeatureStoreSmallGaps:
     def test_compute_features_appends_symbol_and_timestamp(
         self, tmp_path: pytest.TempPathFactory
     ) -> None:
-        store = FeatureStore(str(tmp_path))
+        # ISS-002: inject a mock IndicatorComputer via constructor instead of
+        # patching the concrete IndicatorEngine class (no more L1→L2 import).
+        mock_computer = Mock()
+        computed = pd.DataFrame({"timestamp": [1, 2, 3], "feature_a": [0.1, 0.2, 0.3]})
+        mock_computer.compute_all.return_value = computed.copy()
+
+        store = FeatureStore(str(tmp_path), indicator_computer=mock_computer)
         raw = pd.DataFrame(
             {
                 "timestamp": [1, 2, 3],
@@ -163,14 +169,10 @@ class TestFeatureStoreSmallGaps:
         )
         raw_store = Mock()
         raw_store.query.return_value = raw
-        computed = pd.DataFrame({"timestamp": [1, 2, 3], "feature_a": [0.1, 0.2, 0.3]})
 
-        with patch(
-            "quantflow.indicators.engine.IndicatorEngine.compute_all", return_value=computed.copy()
-        ) as mock_compute:
-            result = store.compute_features("BTC/USDT", 3, ["feature_a"], raw_store)
+        result = store.compute_features("BTC/USDT", 3, ["feature_a"], raw_store)
 
-        mock_compute.assert_called_once()
+        mock_computer.compute_all.assert_called_once()
         assert "symbol" in result.columns
         assert "computed_at" in result.columns
         assert result["symbol"].eq("BTC/USDT").all()

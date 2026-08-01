@@ -100,6 +100,11 @@ class ExecutionConfig(BaseModel):
     # and reads the contracts schema from fetch_positions. Drives OKXGateway
     # defaultType + query_positions branch.
     market_type: str = "spot"
+    # M4-2.4: multi-symbol support. When non-empty, TradingSession creates
+    # per-(strategy, symbol) instances and the data loop rotates over all
+    # symbols. Empty list = legacy single-symbol mode (symbol supplied by
+    # CLI --symbol or data loop argument). Backward compatible.
+    symbols: list[str] = Field(default_factory=list)
 
 
 class AlertChannelConfig(BaseModel):

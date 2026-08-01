@@ -154,16 +154,18 @@ def cpcv_backtest(
     quality_rows: list[dict[str, Any]] = []
 
     engine = BacktestEngine()
-    source_data = (
-        data.copy() if data is not None else pd.DataFrame({"close": close}, index=close.index)
-    )
+    # ISS-20260613-001: avoid full copy — source_data is read-only;
+    # iloc with integer-array indexer already returns a copy in pandas.
+    source_data = data if data is not None else pd.DataFrame({"close": close}, index=close.index)
     uses_oos_signal_generation = signal_fn is not None
 
     for i, (train_idx, test_idx) in enumerate(splits):
         train_close = close.iloc[train_idx]
         test_close = close.iloc[test_idx]
-        train_frame = source_data.iloc[train_idx].copy()
-        test_frame = source_data.iloc[test_idx].copy()
+        # ISS-20260613-001: iloc[array] already copies in pandas — drop
+        # the redundant .copy() that doubled per-split memory allocation.
+        train_frame = source_data.iloc[train_idx]
+        test_frame = source_data.iloc[test_idx]
         best_params: dict[str, Any] = {}
 
         if signal_fn is not None and param_space is not None:

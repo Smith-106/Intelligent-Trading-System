@@ -3,12 +3,33 @@
 from __future__ import annotations
 
 import logging
+import time
+from dataclasses import dataclass
 from typing import Any
 
 from quantflow.common.models import Portfolio, Position, strategy_id_constituents
 from quantflow.common.validators import POSITION_EPSILON
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class PendingEntry:
+    """A single pending exposure reservation (M4-5.1)."""
+
+    symbol: str
+    notional: float
+    strategy_id: str
+    reserved_at_ms: int
+
+
+@dataclass(frozen=True, slots=True)
+class PendingView:
+    """Read-only snapshot of pending reservations for risk checks (M4-5.2)."""
+
+    total: float
+    by_symbol: dict[str, float]
+    by_strategy: dict[str, float]
 
 
 class PortfolioManager:
@@ -35,6 +56,9 @@ class PortfolioManager:
         # first bar's equity of each calendar day by TradingSession.on_bar;
         # NaN means "not yet anchored" (warmup). Wave 1 only declares the field.
         self._daily_baseline: float = float("nan")
+        # M4-5.1: pending exposure ledger. Maps order_id → PendingEntry.
+        # Reserve before submit, confirm on fill, release on reject/timeout.
+        self._pending: dict[str, PendingEntry] = {}
 
     # --- Core properties ---
 
@@ -69,6 +93,7 @@ class PortfolioManager:
             current_drawdown=self._current_drawdown,
             realized_pnl=self._realized_pnl,
             daily_baseline=self._daily_baseline,
+            pending_exposure=self.total_pending_exposure,
         )
 
     @property
@@ -282,3 +307,102 @@ class PortfolioManager:
             self._peak_equity = total
         if self._peak_equity > 0:
             self._current_drawdown = (total - self._peak_equity) / self._peak_equity
+
+    # --- Pending Exposure Ledger (M4-5.1) ---
+
+    def reserve(self, order_id: str, symbol: str, notional: float, strategy_id: str = "") -> None:
+        """Freeze notional exposure before order submission.
+
+        MUST be called BEFORE gateway.send_order. Idempotent per order_id
+        (re-reserve overwrites — protects against retry paths).
+        """
+        self._pending[order_id] = PendingEntry(
+            symbol=symbol,
+            notional=notional,
+            strategy_id=strategy_id,
+            reserved_at_ms=int(time.time() * 1000),
+        )
+
+    def confirm(self, order_id: str) -> None:
+        """Release reservation after full fill confirmed.
+
+        The actual position update is handled by update_position (existing path).
+        confirm only removes the pending shadow — it does NOT touch cash/positions.
+        """
+        self._pending.pop(order_id, None)
+
+    def partial_confirm(self, order_id: str, cumulative_filled_notional: float) -> None:
+        """Reduce reservation based on cumulative filled notional (M4-5.14).
+
+        Aligns with ccxt cumulative contract: filled_quantity * filled_price
+        gives the cumulative notional; remaining = original - cumulative.
+        """
+        entry = self._pending.get(order_id)
+        if entry is None:
+            return
+        remaining = entry.notional - cumulative_filled_notional
+        if remaining <= POSITION_EPSILON:
+            del self._pending[order_id]
+        else:
+            self._pending[order_id] = PendingEntry(
+                symbol=entry.symbol,
+                notional=remaining,
+                strategy_id=entry.strategy_id,
+                reserved_at_ms=entry.reserved_at_ms,
+            )
+
+    def release(self, order_id: str) -> None:
+        """Release reservation on reject/timeout/cancel. Full amount freed."""
+        self._pending.pop(order_id, None)
+
+    def release_all(self) -> int:
+        """Release all pending reservations (Kill Switch activation). Returns count."""
+        count = len(self._pending)
+        self._pending.clear()
+        return count
+
+    def pending_for_symbol(self, symbol: str) -> float:
+        """Sum of reserved notional for a specific symbol."""
+        return sum(e.notional for e in self._pending.values() if e.symbol == symbol)
+
+    @property
+    def total_pending_exposure(self) -> float:
+        """Sum of all reserved notional across symbols."""
+        return sum(e.notional for e in self._pending.values())
+
+    def pending_view(self) -> PendingView:
+        """Build a read-only snapshot for risk checks (M4-5.2)."""
+        by_symbol: dict[str, float] = {}
+        by_strategy: dict[str, float] = {}
+        for entry in self._pending.values():
+            by_symbol[entry.symbol] = by_symbol.get(entry.symbol, 0.0) + entry.notional
+            if entry.strategy_id:
+                by_strategy[entry.strategy_id] = (
+                    by_strategy.get(entry.strategy_id, 0.0) + entry.notional
+                )
+        return PendingView(
+            total=self.total_pending_exposure, by_symbol=by_symbol, by_strategy=by_strategy
+        )
+
+    def sweep_stale_pending(self, max_age_ms: int = 120_000) -> list[str]:
+        """Release pending entries older than max_age_ms (M4-5.12).
+
+        Returns released order_ids for logging/alerting. Called periodically
+        as a last-resort guard when cancel+sync both fail (quadrant D).
+        """
+        now_ms = int(time.time() * 1000)
+        stale = [
+            oid
+            for oid, entry in self._pending.items()
+            if now_ms - entry.reserved_at_ms > max_age_ms
+        ]
+        for oid in stale:
+            entry = self._pending[oid]
+            logger.critical(
+                "Sweeping stale pending: oid=%s symbol=%s age=%dms (manual review needed)",
+                oid,
+                entry.symbol,
+                now_ms - entry.reserved_at_ms,
+            )
+            del self._pending[oid]
+        return stale

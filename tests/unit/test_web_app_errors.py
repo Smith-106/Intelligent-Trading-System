@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 from aiohttp.test_utils import AioHTTPTestCase
@@ -142,3 +143,71 @@ class TestRunStation:
 
         # run_station calls web.run_app — just verify it doesn't crash on import
         assert callable(run_station)
+
+
+class TestResidualRiskPaths(AioHTTPTestCase):
+    """ISS-20260722-004: Pinned negative tests for residual risk surfaces."""
+
+    async def get_application(self):
+        history_store = StationHistoryStore()
+        service = StationService(history_store=history_store)
+        session_mgr = StationSessionManager(history_store=history_store)
+        return create_app(service=service, session_manager=session_mgr)
+
+    async def test_xff_spoofing_rejected(self) -> None:
+        """X-Forwarded-For header should not bypass origin check.
+
+        The security middleware ignores XFF entirely; a cross-origin POST
+        with a spoofed XFF must still be rejected (403) when Origin
+        mismatches Host.
+        """
+        resp = await self.client.post(
+            "/api/data/download",
+            json={"symbol": "BTC/USDT", "timeframe": "1h"},
+            headers={
+                "X-Forwarded-For": "1.2.3.4",
+                "Origin": "http://evil.example.com",
+                "Host": "localhost:8080",
+            },
+        )
+        # Origin mismatch → 403 regardless of XFF spoofing
+        assert resp.status == 403
+
+    async def test_dns_rebinding_rejected(self) -> None:
+        """Non-loopback Host header with mismatched Origin requires rejection.
+
+        Even when an attacker controls the Host header (DNS rebinding),
+        the same_origin_guard rejects the mutation if Origin != Host.
+        """
+        resp = await self.client.post(
+            "/api/data/download",
+            json={"symbol": "BTC/USDT", "timeframe": "1h"},
+            headers={
+                "Host": "rebound-attacker.evil.com",
+                "Origin": "http://different-origin.evil.com",
+            },
+        )
+        # Origin != Host → 403, DNS rebinding does not bypass CSRF
+        assert resp.status == 403
+
+    async def test_static_guard_self_test(self) -> None:
+        """Verify setHTML choke-point function exists in app.js.
+
+        The setHTML function is the single audit-face for all innerHTML
+        assignments. This test verifies the choke-point itself is present
+        so the static guard (grep for raw `.innerHTML =` outside setHTML)
+        remains effective.
+        """
+        app_js_path = (
+            Path(__file__).resolve().parents[2] / "quantflow" / "web" / "static" / "app.js"
+        )
+        content = app_js_path.read_text(encoding="utf-8")
+        # The setHTML choke-point function must be defined
+        assert "function setHTML(node, html)" in content, (
+            "setHTML choke-point function missing from app.js — "
+            "static guard for innerHTML assignments is ineffective"
+        )
+        # The function body must contain the actual innerHTML assignment
+        assert "node.innerHTML = html" in content, (
+            "setHTML function body does not assign innerHTML — choke-point is hollow"
+        )

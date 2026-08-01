@@ -7,6 +7,7 @@ parameter sensitivity (Q1) with >80% overlap threshold (C-002).
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any
@@ -15,6 +16,8 @@ import numpy as np
 import pandas as pd
 
 from quantflow.indicators.base import FactorBase
+
+logger = logging.getLogger(__name__)
 
 
 class PivotDirection(IntEnum):
@@ -100,16 +103,32 @@ class ZigZagIndicator(FactorBase):
             thresholds = [0.03, 0.05, 0.08, 0.12, 0.15]
         min_overlap = max(1, int(len(thresholds) * min_overlap_ratio))
 
-        all_pivots: list[pd.DataFrame] = []
+        all_pivots: list[tuple[float, pd.DataFrame]] = []
         for t in thresholds:
             p = _zigzag_single(high, low, threshold=t)
             if not p.empty:
-                all_pivots.append(p)
+                all_pivots.append((t, p))
 
         if not all_pivots:
             return PivotSequence(pivots=[], overlap_ratio=0.0, thresholds_used=thresholds)
 
-        merged = _merge_pivot_runs(all_pivots, min_overlap=min_overlap, bar_tolerance=bar_tolerance)
+        merged = _merge_pivot_runs(
+            [p for _, p in all_pivots], min_overlap=min_overlap, bar_tolerance=bar_tolerance
+        )
+
+        # ISS-20260613-007: low-volatility fallback — when min_overlap > 80%
+        # produces no consensus pivots, fall back to the single ZigZag run whose
+        # threshold is closest to the median of thresholds that produced results.
+        if merged.empty:
+            median_threshold = sorted(t for t, _ in all_pivots)[len(all_pivots) // 2]
+            median_run = next(p for t, p in all_pivots if t == median_threshold)
+            logger.warning(
+                "Low consensus pivots, falling back to single-ZigZag result "
+                "(threshold=%.4f, ISS-20260613-007)",
+                median_threshold,
+            )
+            merged = median_run
+            merged = merged.assign(overlap_count=1)
 
         pivots_list: list[PivotPoint] = []
         for _, row in merged.iterrows():

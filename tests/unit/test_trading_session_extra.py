@@ -339,7 +339,7 @@ class TestTradingSessionExtra:
         session._sink = sink
         events: list[str] = []
         session._event_bus.subscribe(EVENT_RISK, lambda e: events.append(e.data["reason"]))
-        session._risk_engine.check = lambda signal, portfolio: RiskDecision(
+        session._risk_engine.check = lambda signal, portfolio, pending=None: RiskDecision(
             passed=False, reason="max_drawdown"
         )
 
@@ -361,7 +361,9 @@ class TestTradingSessionExtra:
         session = TradingSession(AppConfig(), [strategy])
         session._running = True
         session.portfolio.set_allocation({"zero": 1.0, "long": 0.5, "short": 1.0})
-        session._risk_engine.check = lambda signal, portfolio: RiskDecision(passed=True)
+        session._risk_engine.check = lambda signal, portfolio, pending=None: RiskDecision(
+            passed=True
+        )
 
         submitted: list[tuple[str, str, float]] = []
 
@@ -409,7 +411,9 @@ class TestTradingSessionExtra:
         session = TradingSession(AppConfig(), [_Strategy()])
         session._running = True
         session.portfolio.set_allocation({"filled": 1.0})
-        session._risk_engine.check = lambda signal, portfolio: RiskDecision(passed=True)
+        session._risk_engine.check = lambda signal, portfolio, pending=None: RiskDecision(
+            passed=True
+        )
         session._position_sizer.size = lambda signal, portfolio, **kw: 25.0
         sink = _FakeSink()
         session._sink = sink
@@ -472,9 +476,11 @@ class TestTradingSessionExtra:
         sink = _FakeSink()
         session = TradingSession(AppConfig(), [strategy], monitoring_sink=sink)
         session._running = True
-        session._contexts = {"latency": StrategyContext()}
+        session._contexts = {("latency", ""): StrategyContext()}
         session.portfolio.set_allocation({"latency": 1.0})
-        session._risk_engine.check = lambda signal, portfolio: RiskDecision(passed=True)
+        session._risk_engine.check = lambda signal, portfolio, pending=None: RiskDecision(
+            passed=True
+        )
         session._position_sizer.size = lambda signal, portfolio, **kw: 0.0
 
         monkeypatch.setattr(

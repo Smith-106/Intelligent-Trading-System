@@ -114,14 +114,15 @@ class TestCLIBasics:
                 self._running = True
                 events.append(("init", len(strategies)))
 
-            async def start(self, mode: str = "paper", gateway_config=None) -> None:
+            async def start(self, mode: str = "paper", gateway_config=None, symbols=None) -> None:
                 events.append(("start", mode, gateway_config))
 
             async def run_data_loop(
                 self,
-                symbol: str,
+                symbol: str = "",
                 timeframe: str = "1h",
                 interval_seconds: int = 60,
+                symbols=None,
             ) -> None:
                 events.append(("loop", symbol, timeframe, interval_seconds))
                 self._running = False
@@ -177,14 +178,15 @@ class TestCLIBasics:
                 self._running = True
                 events.append(("init", len(strategies)))
 
-            async def start(self, mode: str = "paper", gateway_config=None) -> None:
+            async def start(self, mode: str = "paper", gateway_config=None, symbols=None) -> None:
                 events.append(("start", mode, gateway_config))
 
             async def run_data_loop(
                 self,
-                symbol: str,
+                symbol: str = "",
                 timeframe: str = "1h",
                 interval_seconds: int = 60,
+                symbols=None,
             ) -> None:
                 events.append(("loop", symbol, timeframe, interval_seconds))
                 self._running = False
@@ -246,7 +248,7 @@ class TestCLIBasics:
                 self.parquet_dir = parquet_dir
                 self.duckdb_path = duckdb_path
 
-            def query(self, symbol):
+            def query(self, symbol, **kwargs):
                 assert symbol == "ETH/USDT"
                 return frame.copy()
 
@@ -369,7 +371,7 @@ class TestAICommand:
             def __init__(self, *args, **kwargs):
                 pass
 
-            def query(self, symbol):
+            def query(self, symbol, **kwargs):
                 return fake_df.copy()
 
             def close(self):

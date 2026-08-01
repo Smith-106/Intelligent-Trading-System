@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeAlias
 
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
     from quantflow.strategy.base import StrategyBase
     from quantflow.strategy.validation.lookahead import LookaheadReport
     from quantflow.strategy.validation.monte_carlo import MonteCarloResult
+    from quantflow.strategy.validation.recursive import RecursiveReport
 
 StrategyFactory: TypeAlias = Callable[[dict[str, Any] | None], "StrategyBase"]
 ParamSpace: TypeAlias = dict[str, tuple[Any, ...]]
@@ -45,6 +47,12 @@ def _get_strategy_factories() -> dict[str, StrategyFactory]:
 
 def _get_strategy_specs() -> dict[str, tuple[StrategyFactory, ParamSpace]]:
     return _catalog_strategy_specs()
+
+
+def _date_to_ms(date_str: str) -> int:
+    """Convert a YYYY-MM-DD date string to UTC millisecond timestamp."""
+    dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=UTC)
+    return int(dt.timestamp() * 1000)
 
 
 app = typer.Typer(
@@ -177,7 +185,9 @@ def research(
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
 
     # Load data
-    df = store.query(symbol)
+    start_ts = _date_to_ms(start)
+    end_ts = _date_to_ms(end)
+    df = store.query(symbol, start=start_ts, end=end_ts)
     if df.empty:
         console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
         return
@@ -223,6 +233,8 @@ def research(
 def optimize(
     strategy: str = typer.Option("trend_following", help="Strategy name"),
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    start: str = typer.Option("2024-01-01", help="Start date"),
+    end: str = typer.Option("2025-01-01", help="End date"),
     method: str = typer.Option("bayesian", help="Optimization method: bayesian | cmaes"),
     trials: int = typer.Option(200, help="Number of optimization trials"),
     capital: float = typer.Option(10000.0, help="Initial capital"),
@@ -240,7 +252,9 @@ def optimize(
     cfg = _load(config)
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
 
-    df = store.query(symbol)
+    start_ts = _date_to_ms(start)
+    end_ts = _date_to_ms(end)
+    df = store.query(symbol, start=start_ts, end=end_ts)
     if df.empty:
         console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
         return
@@ -307,8 +321,11 @@ def optimize(
 def validate(
     strategy: str = typer.Option("trend_following", help="Strategy name"),
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    start: str = typer.Option("2024-01-01", help="Start date"),
+    end: str = typer.Option("2025-01-01", help="End date"),
     method: str = typer.Option(
-        "full", help="Validation: cpcv | dsr | pbo | wfo | full | gate | lookahead | stress"
+        "full",
+        help="Validation: cpcv | dsr | pbo | wfo | full | gate | lookahead | recursive | stress",
     ),
     groups: int = typer.Option(8, help="CPCV groups"),
     test_groups: int = typer.Option(2, help="CPCV test groups"),
@@ -329,6 +346,7 @@ def validate(
         full       — All validation methods
         gate       — GO/NO-GO decision gate (CPCV + DSR + WFO)
         lookahead  — Static look-ahead leak scan (no data needed)
+        recursive  — Recursive indicator dependency scan (no data needed)
         stress     — Monte Carlo path-level stress (diagnostic, non-gate)
 
     Examples:
@@ -341,7 +359,9 @@ def validate(
 
     cfg = _load(config)
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
-    df = store.query(symbol)
+    start_ts = _date_to_ms(start)
+    end_ts = _date_to_ms(end)
+    df = store.query(symbol, start=start_ts, end=end_ts)
     if df.empty:
         console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
         return
@@ -364,6 +384,15 @@ def validate(
         console.print("[bold blue]Running static look-ahead leak scan on generate_signals...[/]")
         report = scan_strategy(strategy_instance)
         _display_lookahead(report)
+        store.close()
+        return
+
+    if method == "recursive":
+        from quantflow.strategy.validation.recursive import scan_recursive
+
+        console.print("[bold blue]Running recursive indicator dependency scan...[/]")
+        report = scan_recursive(type(strategy_instance))
+        _display_recursive(report)
         store.close()
         return
 
@@ -537,7 +566,10 @@ def run(
     strategy: str = typer.Option(
         "trend_following", help="Strategy name (comma-separated for multiple)"
     ),
-    symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol (legacy single-symbol)"),
+    symbols: str = typer.Option(
+        "", help="Trading symbols, comma-separated (e.g. BTC/USDT,ETH/USDT). Overrides --symbol."
+    ),
     timeframe: str = typer.Option("1h", help="Market data timeframe"),
     interval: int = typer.Option(60, min=0, help="Polling interval in seconds"),
     capital: float = typer.Option(100000.0, help="Initial capital"),
@@ -553,6 +585,7 @@ def run(
     Examples:
         quantflow run --mode paper --strategy trend_following
         quantflow run --mode paper --strategy trend_following,mean_reversion
+        quantflow run --mode paper --symbols BTC/USDT,ETH/USDT
     """
     from quantflow.monitoring.sink import create_default_sink
     from quantflow.strategy.engine import TradingSession
@@ -579,6 +612,10 @@ def run(
 
     console.print(f"[bold blue]Starting {mode} trading with {len(strategies)} strategy(ies)[/]")
 
+    # M4-4.4: resolve multi-symbol list. --symbols overrides --symbol.
+    symbol_list = [s.strip() for s in symbols.split(",") if s.strip()] if symbols else [symbol]
+    console.print(f"[bold blue]Symbols: {', '.join(symbol_list)}[/]")
+
     session = TradingSession(cfg, strategies, monitoring_sink=create_default_sink())
 
     async def _run_session() -> None:
@@ -587,14 +624,15 @@ def run(
                 mode=mode,
                 sandbox=(mode == "sandbox"),
             )
-            await session.start(mode=mode, gateway_config=gateway_config)
+            await session.start(mode=mode, gateway_config=gateway_config, symbols=symbol_list)
             console.print(f"[green]Session started in {mode} mode[/]")
             console.print("[yellow]Press Ctrl+C to stop[/]")
 
             await session.run_data_loop(
-                symbol=symbol,
+                symbol=symbol_list[0],
                 timeframe=timeframe,
                 interval_seconds=interval,
+                symbols=symbol_list,
             )
 
         except KeyboardInterrupt:
@@ -731,6 +769,23 @@ def _display_lookahead(report: LookaheadReport) -> None:
     console.print()
 
 
+def _display_recursive(report: RecursiveReport) -> None:
+    """Render a recursive analysis scan report."""
+    verdict = "PASS" if report.passed else "FAIL"
+    color = "green" if report.passed else "red"
+    console.print(f"\n[bold {color}]RECURSIVE ANALYSIS: {report.strategy} — {verdict}[/]")
+    if report.source_path:
+        console.print(f"Source: {report.source_path}")
+    if report.indicator_deps:
+        console.print(f"Indicator dependencies: {len(report.indicator_deps)} methods analyzed")
+    if report.passed:
+        console.print("[green]No circular dependencies detected.[/]")
+    else:
+        for cycle in report.cycles:
+            console.print(f"[red]Cycle detected: {' → '.join(cycle)}[/]")
+    console.print()
+
+
 def _display_monte_carlo(res: MonteCarloResult) -> None:
     """Render a Monte Carlo path-level stress result (diagnostic, non-gate)."""
     console.print(f"\n[bold cyan]MC STRESS — {res.method} (n_paths={res.n_paths})[/]")
@@ -827,374 +882,40 @@ def benchmark(
     ),
 ) -> None:
     """Run a synthetic performance baseline across key QuantFlow paths."""
-    import sys
-    import tempfile
-    from time import perf_counter
+    from quantflow.cli.services.benchmark import BenchmarkRequest, BenchmarkService
 
-    import numpy as np
-    import pandas as pd
-
-    from quantflow.common.config import AppConfig
-    from quantflow.common.models import Bar, Direction, OrderRequest, OrderSide
-    from quantflow.data.feature_store import FeatureStore
-    from quantflow.data.store import DataStore
-    from quantflow.execution.engine import ExecutionEngine
-    from quantflow.indicators.engine import IndicatorEngine
-    from quantflow.monitoring.sink import create_default_sink
-    from quantflow.strategy.base import StrategyBase, StrategyContext
-    from quantflow.strategy.engine import TradingSession
-    from quantflow.strategy.research.backtest import BacktestEngine
-    from quantflow.strategy.research.optimizer import StrategyOptimizer
-    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
-    from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
-    from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
-    from quantflow.strategy.validation.wfo import walk_forward_optimization
-
-    dates = pd.date_range("2024-01-01", periods=bars, freq="h", tz="UTC")
-    rng = np.random.default_rng(42)
-    close_values = 100.0 + np.cumsum(rng.normal(0.02, 0.8, bars))
-    frame = pd.DataFrame(
-        {
-            "timestamp": [int(dt.timestamp() * 1000) for dt in dates],
-            "datetime": dates,
-            "open": close_values - 0.2,
-            "high": close_values + 0.5,
-            "low": close_values - 0.5,
-            "close": close_values,
-            "volume": rng.uniform(10.0, 100.0, bars),
-            "symbol": "BTC/USDT",
-            "timeframe": "1h",
-        }
+    request = BenchmarkRequest(
+        bars=bars,
+        trials=trials,
+        wfo_windows=wfo_windows,
+        test_target=test_target,
+        skip_subprocess=skip_subprocess,
+        min_query_rows_per_sec=min_query_rows_per_sec,
+        min_bars_per_sec=min_bars_per_sec,
+        min_three_strategy_bars_per_sec=min_three_strategy_bars_per_sec,
+        min_orders_per_sec=min_orders_per_sec,
+        max_backtest_ms=max_backtest_ms,
     )
-    close = pd.Series(close_values, index=dates)
-    rolling_mean = close.rolling(12, min_periods=1).mean()
-    entries = (close > rolling_mean).fillna(False)
-    exits = (close < rolling_mean).fillna(False)
-    rows: list[tuple[str, str, str]] = []
-    metrics: dict[str, float] = {}
-    records: list[dict[str, str | float]] = []
-
-    def _metric_key(area: str, metric: str) -> str:
-        normalized = metric.lower().replace(" ", "_").replace("/", "_per_")
-        return f"{area}.{normalized}"
-
-    def _record(area: str, metric: str, value: float, unit: str) -> None:
-        metrics[_metric_key(area, metric)] = value
-        records.append(
-            {
-                "area": area,
-                "metric": metric,
-                "value": round(value, 6),
-                "unit": unit,
-            }
-        )
-
-    def _time(area: str, metric: str, action: Callable[[], Any]) -> Any:
-        started_at = perf_counter()
-        value = action()
-        elapsed_ms = (perf_counter() - started_at) * 1000
-        rows.append((area, metric, f"{elapsed_ms:.2f} ms"))
-        _record(area, metric, elapsed_ms, "ms")
-        return value
-
-    def _throughput(area: str, metric: str, count: int, elapsed_ms: float) -> None:
-        per_second = count / max(elapsed_ms / 1000, 1e-9)
-        rows.append((area, metric, f"{per_second:.0f}/s"))
-        _record(area, metric, per_second, "per_second")
-
-    with tempfile.TemporaryDirectory() as tmp:
-        store = DataStore(str(Path(tmp) / "pq"), str(Path(tmp) / "db.duckdb"))
-        _time("data", "save synthetic parquet", lambda: store.save(frame, "BTC/USDT"))
-
-        started_at = perf_counter()
-        queried = store.query(
-            "BTC/USDT",
-            start=int(frame["timestamp"].iloc[bars // 4]),
-            end=int(frame["timestamp"].iloc[-1]),
-            timeframe="1h",
-            columns=("timestamp", "close", "volume"),
-        )
-        query_ms = (perf_counter() - started_at) * 1000
-        rows.append(("data", "query projected range", f"{query_ms:.2f} ms"))
-        _record("data", "query projected range", query_ms, "ms")
-        _throughput("data", "query rows/sec", len(queried), query_ms)
-        store.close()
-
-    indicator_engine = IndicatorEngine()
-    _time("indicators", "batch calculate all", lambda: indicator_engine.batch_calculate(frame))
-    _time(
-        "indicators",
-        "compute requested subset",
-        lambda: indicator_engine.compute_all(frame, ["rsi_14", "atr_14"]),
-    )
-
-    with tempfile.TemporaryDirectory() as tmp:
-        feature_store = FeatureStore(
-            str(Path(tmp) / "features"), str(Path(tmp) / "features.duckdb")
-        )
-        feature_frame = frame[["timestamp", "datetime", "close", "volume"]].copy()
-        feature_frame["rsi_14"] = indicator_engine.compute_all(frame, ["rsi_14"])["rsi_14"]
-        _time(
-            "feature_store",
-            "save feature partitions",
-            lambda: feature_store.save_features("BTC/USDT", feature_frame),
-        )
-
-        feature_start = int(frame["timestamp"].iloc[bars // 4])
-        feature_end = int(frame["timestamp"].iloc[-1])
-        started_at = perf_counter()
-        feature_rows = feature_store.load_features(
-            "BTC/USDT",
-            start=feature_start,
-            end=feature_end,
-        )
-        feature_query_ms = (perf_counter() - started_at) * 1000
-        rows.append(("feature_store", "load projected range", f"{feature_query_ms:.2f} ms"))
-        _record("feature_store", "load projected range", feature_query_ms, "ms")
-        _throughput("feature_store", "load rows/sec", len(feature_rows), feature_query_ms)
-        feature_store.close()
-
-    engine = BacktestEngine()
-    _time("research", "backtest", lambda: engine.run_backtest(close, entries, exits))
-
-    def _signal_fn(close_series: pd.Series, threshold: float = 1.0) -> tuple[pd.Series, pd.Series]:
-        mean = close_series.rolling(12, min_periods=1).mean()
-        return close_series > mean * threshold, close_series < mean * threshold
-
-    optimizer = StrategyOptimizer(engine=engine)
-    _time(
-        "research",
-        f"optimizer {trials} trials",
-        lambda: optimizer.optimize(
-            close,
-            _signal_fn,
-            {"threshold": (0.98, 1.02)},
-            n_trials=trials,
-            method="grid",
-        ),
-    )
-    _time(
-        "validation",
-        "optimized WFO",
-        lambda: walk_forward_optimization(
-            close,
-            entries,
-            exits,
-            n_windows=wfo_windows,
-            signal_fn=lambda data, threshold=1.0: _signal_fn(data["close"], threshold),
-            param_space={"threshold": (0.98, 1.02)},
-            data=pd.DataFrame({"close": close}, index=close.index),
-            n_trials=trials,
-            method="grid",
-        ),
-    )
-
-    class NoSignalStrategy(StrategyBase):
-        def __init__(self) -> None:
-            super().__init__(name="benchmark_no_signal")
-
-        def on_bar(self, ctx: StrategyContext, bar: Bar) -> None:
-            if bar.close < 0:
-                ctx.emit_signal(bar.symbol, Direction.LONG, 1.0, bar.close, self.name)
-
-        def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
-            empty = pd.Series(False, index=df.index)
-            return empty, empty
-
-    async def _runtime_baselines() -> None:
-        def _bar_from_row(row: Any) -> Bar:
-            return Bar(
-                symbol="BTC/USDT",
-                timestamp=int(row.timestamp),
-                open=float(row.open),
-                high=float(row.high),
-                low=float(row.low),
-                close=float(row.close),
-                volume=float(row.volume),
-            )
-
-        strategy = NoSignalStrategy()
-        session = TradingSession(AppConfig(), [strategy], monitoring_sink=create_default_sink())
-        await session.start(mode="paper")
-        try:
-            bar_slice = frame.tail(min(bars, 200))
-            started = perf_counter()
-            for row in bar_slice.itertuples(index=False):
-                await session.on_bar(_bar_from_row(row))
-            elapsed_ms = (perf_counter() - started) * 1000
-            rows.append(("runtime", "TradingSession.on_bar batch", f"{elapsed_ms:.2f} ms"))
-            _record("runtime", "TradingSession.on_bar batch", elapsed_ms, "ms")
-            _throughput("runtime", "bars/sec", len(bar_slice), elapsed_ms)
-        finally:
-            await session.stop()
-
-        hot_path_bars = max(bars, 2000)
-        hot_rng = np.random.default_rng(142)
-        hot_dates = pd.date_range("2024-06-01", periods=hot_path_bars, freq="min", tz="UTC")
-        hot_close = 100.0 + np.cumsum(hot_rng.normal(0.01, 0.6, hot_path_bars))
-        hot_frame = pd.DataFrame(
-            {
-                "timestamp": [int(dt.timestamp() * 1000) for dt in hot_dates],
-                "open": hot_close - 0.2,
-                "high": hot_close + 0.5,
-                "low": hot_close - 0.5,
-                "close": hot_close,
-                "volume": hot_rng.uniform(10.0, 100.0, hot_path_bars),
-            }
-        )
-        hot_strategies = [
-            TrendFollowingStrategy(),
-            MeanReversionStrategy(),
-            VolatilityBreakoutStrategy(),
-        ]
-        hot_contexts = [StrategyContext() for _ in hot_strategies]
-        for hot_strategy, hot_context in zip(hot_strategies, hot_contexts, strict=True):
-            hot_strategy.on_init(hot_context)
-
-        started = perf_counter()
-        for row in hot_frame.itertuples(index=False):
-            hot_bar = _bar_from_row(row)
-            for hot_strategy, hot_context in zip(hot_strategies, hot_contexts, strict=True):
-                hot_strategy.on_bar(hot_context, hot_bar)
-                hot_context.flush_signals()
-        elapsed_ms = (perf_counter() - started) * 1000
-        rows.append(("runtime", "three strategy on_bar batch", f"{elapsed_ms:.2f} ms"))
-        _record("runtime", "three strategy on_bar batch", elapsed_ms, "ms")
-        _throughput("runtime", "three strategy bars/sec", len(hot_frame), elapsed_ms)
-
-        execution = ExecutionEngine(monitoring_sink=create_default_sink())
-        await execution.start(mode="paper")
-        try:
-            started = perf_counter()
-            for _ in range(25):
-                await execution.submit_order(
-                    OrderRequest(
-                        symbol="BTC/USDT",
-                        side=OrderSide.BUY,
-                        order_type="market",
-                        quantity=0.001,
-                        price=float(close.iloc[-1]),
-                        strategy_id="benchmark",
-                    )
-                )
-            elapsed_ms = (perf_counter() - started) * 1000
-            rows.append(("execution", "paper submit_order batch", f"{elapsed_ms:.2f} ms"))
-            _record("execution", "paper submit_order batch", elapsed_ms, "ms")
-            _throughput("execution", "orders/sec", 25, elapsed_ms)
-        finally:
-            await execution.stop()
-
-    asyncio.run(_runtime_baselines())
-
-    if not skip_subprocess:
-        _time(
-            "cli",
-            "startup --help",
-            lambda: subprocess.run(
-                [sys.executable, "-m", "quantflow.cli.main", "--help"],
-                capture_output=True,
-                text=True,
-                timeout=15,
-                check=False,
-            ),
-        )
-        _time(
-            "test",
-            f"pytest {test_target}",
-            lambda: subprocess.run(
-                [sys.executable, "-m", "pytest", test_target, "-q"],
-                capture_output=True,
-                text=True,
-                timeout=120,
-                check=False,
-            ),
-        )
-
-    threshold_checks = [
-        (
-            "data.query_rows_per_sec",
-            metrics.get("data.query_rows_per_sec"),
-            min_query_rows_per_sec,
-            ">=",
-            "per_second",
-        ),
-        (
-            "runtime.bars_per_sec",
-            metrics.get("runtime.bars_per_sec"),
-            min_bars_per_sec,
-            ">=",
-            "per_second",
-        ),
-        (
-            "runtime.three_strategy_bars_per_sec",
-            metrics.get("runtime.three_strategy_bars_per_sec"),
-            min_three_strategy_bars_per_sec,
-            ">=",
-            "per_second",
-        ),
-        (
-            "execution.orders_per_sec",
-            metrics.get("execution.orders_per_sec"),
-            min_orders_per_sec,
-            ">=",
-            "per_second",
-        ),
-        (
-            "research.backtest",
-            metrics.get("research.backtest"),
-            max_backtest_ms,
-            "<=",
-            "ms",
-        ),
-    ]
-    failures = []
-    for key, value, threshold, operator, unit in threshold_checks:
-        if threshold is None or value is None:
-            continue
-        failed = value < threshold if operator == ">=" else value > threshold
-        if failed:
-            failures.append(
-                {
-                    "metric": key,
-                    "value": round(value, 6),
-                    "operator": operator,
-                    "threshold": threshold,
-                    "unit": unit,
-                }
-            )
+    result = BenchmarkService().run(request)
 
     if json_output:
-        console.print_json(
-            json.dumps(
-                {
-                    "params": {
-                        "bars": bars,
-                        "trials": trials,
-                        "wfo_windows": wfo_windows,
-                        "test_target": test_target,
-                        "skip_subprocess": skip_subprocess,
-                    },
-                    "metrics": records,
-                    "failures": failures,
-                }
-            )
-        )
+        console.print_json(json.dumps(result.to_dict()))
     else:
         table = Table(title="QuantFlow Performance Baseline")
         table.add_column("Area", style="cyan")
         table.add_column("Metric", style="green")
         table.add_column("Value", style="magenta")
-        for area, metric, display_value in rows:
-            table.add_row(area, metric, display_value)
+        for m in result.metrics:
+            table.add_row(m.area, m.metric, m.display)
         console.print(table)
-        for failure in failures:
+
+        for f in result.failures:
             console.print(
-                "[red]Benchmark threshold failed:[/] "
-                f"{failure['metric']}={failure['value']} {failure['unit']} "
-                f"{failure['operator']} {failure['threshold']}"
+                f"[red]Benchmark threshold failed:[/] "
+                f"{f.metric}={f.value} {f.unit} {f.operator} {f.threshold}"
             )
 
-    if failures:
+    if result.failures:
         raise typer.Exit(1)
 
 

@@ -1,3 +1,12 @@
+metadata:
+  title: "Funding Rate"
+  description: "Funding-rate extreme reversal strategy with open-interest filter"
+
+param_space:
+  entry_threshold: [0.0005, 0.002]
+  exit_threshold: [0.0001, 0.0005]
+  oi_change_threshold: [0.02, 0.1]
+
 strategy:
   name: "funding_rate"
   symbol: "BTC/USDT"

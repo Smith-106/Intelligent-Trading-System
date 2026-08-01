@@ -1,3 +1,12 @@
+metadata:
+  title: "Volatility Breakout"
+  description: "ATR and channel breakout strategy tuned for crypto volatility"
+
+param_space:
+  atr_threshold: [1.2, 2.0]
+  atr_shrink_exit: [0.5, 0.9]
+  volume_threshold: [1.2, 2.0]
+
 strategy:
   name: "volatility_breakout"
   symbol: "BTC/USDT"

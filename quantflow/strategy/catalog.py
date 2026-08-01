@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
@@ -12,6 +13,8 @@ from typing import Any, TypeAlias
 import yaml
 
 from quantflow.strategy.base import StrategyBase
+
+logger = logging.getLogger(__name__)
 
 StrategyFactory: TypeAlias = Callable[[dict[str, Any] | None], StrategyBase]
 ParamSpace: TypeAlias = dict[str, tuple[Any, ...]]
@@ -71,6 +74,23 @@ class StrategyDefinition:
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 _STRATEGY_CONFIG_DIR = _PACKAGE_ROOT / "config" / "strategies"
+
+_FACTORY_REGISTRY: dict[str, StrategyFactory] = {
+    "trend_following": _trend_following_factory,
+    "mean_reversion": _mean_reversion_factory,
+    "elliott_wave": _elliott_wave_factory,
+    "volatility_breakout": _volatility_breakout_factory,
+    "funding_rate": _funding_rate_factory,
+    "momentum_rotation": _momentum_rotation_factory,
+    "ml_ensemble": _ml_ensemble_factory,
+}
+
+
+def _get_factory_registry() -> dict[str, StrategyFactory]:
+    """Return the strategy_id -> factory mapping."""
+    return dict(_FACTORY_REGISTRY)
+
+
 _DEFAULT_DESCRIPTIONS = {
     "trend_following": "MA crossover, MACD, RSI, ATR, volume multi-filter trend strategy",
     "mean_reversion": "RSI plus Bollinger Band mean reversion with volume confirmation",
@@ -83,97 +103,51 @@ _DEFAULT_DESCRIPTIONS = {
 
 
 def get_strategy_definitions() -> dict[str, StrategyDefinition]:
-    """Return all supported strategy definitions."""
-    return {
-        "trend_following": StrategyDefinition(
-            strategy_id="trend_following",
-            title="Trend Following",
-            description=_DEFAULT_DESCRIPTIONS["trend_following"],
-            config_path=_STRATEGY_CONFIG_DIR / "trend_following.yaml",
-            factory=_trend_following_factory,
-            param_space={
-                "fast_ma_period": (3, 15),
-                "slow_ma_period": (30, 120),
-                "rsi_oversold": (20, 40),
-                "rsi_overbought": (60, 85),
-                "atr_multiplier": (1.2, 3.0),
-                "volume_threshold": (0.8, 2.0),
-            },
-        ),
-        "mean_reversion": StrategyDefinition(
-            strategy_id="mean_reversion",
-            title="Mean Reversion",
-            description=_DEFAULT_DESCRIPTIONS["mean_reversion"],
-            config_path=_STRATEGY_CONFIG_DIR / "mean_reversion.yaml",
-            factory=_mean_reversion_factory,
-            param_space={
-                "rsi_oversold": (20, 40),
-                "rsi_overbought": (60, 85),
-                "bb_std": (1.5, 3.0),
-                "exit_rsi_overbought": (50, 75),
-                "exit_rsi_oversold": (25, 50),
-            },
-        ),
-        "elliott_wave": StrategyDefinition(
-            strategy_id="elliott_wave",
-            title="Elliott Wave",
-            description=_DEFAULT_DESCRIPTIONS["elliott_wave"],
-            config_path=_STRATEGY_CONFIG_DIR / "elliott_wave.yaml",
-            factory=_elliott_wave_factory,
-            param_space={
-                "zigzag_threshold": (0.02, 0.08),
-                "fib_tolerance": (0.10, 0.25),
-                "atr_stop_mult": (1.0, 3.0),
-            },
-        ),
-        "volatility_breakout": StrategyDefinition(
-            strategy_id="volatility_breakout",
-            title="Volatility Breakout",
-            description=_DEFAULT_DESCRIPTIONS["volatility_breakout"],
-            config_path=_STRATEGY_CONFIG_DIR / "volatility_breakout.yaml",
-            factory=_volatility_breakout_factory,
-            param_space={
-                "atr_threshold": (1.2, 2.0),
-                "atr_shrink_exit": (0.5, 0.9),
-                "volume_threshold": (1.2, 2.0),
-            },
-        ),
-        "funding_rate": StrategyDefinition(
-            strategy_id="funding_rate",
-            title="Funding Rate",
-            description=_DEFAULT_DESCRIPTIONS["funding_rate"],
-            config_path=_STRATEGY_CONFIG_DIR / "funding_rate.yaml",
-            factory=_funding_rate_factory,
-            param_space={
-                "entry_threshold": (0.0005, 0.002),
-                "exit_threshold": (0.0001, 0.0005),
-                "oi_change_threshold": (0.02, 0.1),
-            },
-        ),
-        "momentum_rotation": StrategyDefinition(
-            strategy_id="momentum_rotation",
-            title="Momentum Rotation",
-            description=_DEFAULT_DESCRIPTIONS["momentum_rotation"],
-            config_path=_STRATEGY_CONFIG_DIR / "momentum_rotation.yaml",
-            factory=_momentum_rotation_factory,
-            param_space={
-                "lookback": (10, 40),
-                "top_n": (1, 5),
-                "stop_loss_pct": (0.01, 0.05),
-            },
-        ),
-        "ml_ensemble": StrategyDefinition(
-            strategy_id="ml_ensemble",
-            title="ML Ensemble",
-            description=_DEFAULT_DESCRIPTIONS["ml_ensemble"],
-            config_path=_STRATEGY_CONFIG_DIR / "ml_ensemble.yaml",
-            factory=_ml_ensemble_factory,
-            param_space={
-                "entry_threshold": (0.5, 0.8),
-                "exit_threshold": (0.2, 0.5),
-            },
-        ),
-    }
+    """Return all supported strategy definitions loaded from YAML config."""
+    definitions: dict[str, StrategyDefinition] = {}
+
+    factories = _get_factory_registry()
+
+    for yaml_path in sorted(_STRATEGY_CONFIG_DIR.glob("*.yaml")):
+        try:
+            raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+        except (yaml.YAMLError, OSError) as exc:
+            logger.warning("Failed to load strategy config %s: %s", yaml_path.name, exc)
+            continue
+
+        if not isinstance(raw, dict):
+            logger.warning("Strategy config %s is not a mapping, skipping", yaml_path.name)
+            continue
+
+        strategy_config = raw.get("strategy", {})
+        strategy_id = strategy_config.get("name", yaml_path.stem)
+
+        # Metadata from YAML, fallback to _DEFAULT_DESCRIPTIONS
+        meta = raw.get("metadata", {})
+        title = meta.get("title", strategy_id.replace("_", " ").title())
+        description = meta.get("description", _DEFAULT_DESCRIPTIONS.get(strategy_id, ""))
+
+        # param_space from YAML (list -> tuple conversion)
+        raw_param_space = raw.get("param_space", {})
+        param_space = {
+            k: tuple(v) if isinstance(v, list) else v for k, v in raw_param_space.items()
+        }
+
+        factory = factories.get(strategy_id)
+        if factory is None:
+            logger.warning("No factory registered for strategy '%s', skipping", strategy_id)
+            continue
+
+        definitions[strategy_id] = StrategyDefinition(
+            strategy_id=strategy_id,
+            title=title,
+            description=description,
+            config_path=yaml_path,
+            factory=factory,
+            param_space=param_space,
+        )
+
+    return definitions
 
 
 def get_strategy_definition(strategy_id: str) -> StrategyDefinition:

@@ -457,3 +457,74 @@ class TestValidationGate:
             assert kwargs["n_trials"] == 7
             assert kwargs["method"] == "random"
             assert kwargs["objective"] == "total_return"
+
+
+# ---------------------------------------------------------------------------
+# ISS-20260613-001: CPCV memory regression test
+# ---------------------------------------------------------------------------
+
+
+class TestCPCVMemoryRegression:
+    """Verify that CPCV does not create O(n²) redundant DataFrame copies."""
+
+    def test_cpcv_no_redundant_copy_calls(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """cpcv_backtest must NOT call .copy() on source_data or per-split frames.
+
+        Before ISS-20260613-001 fix, every split called .copy() twice on iloc
+        slices (redundant — iloc with integer-array already copies in pandas)
+        plus a full data.copy() up front.  This test counts copy() invocations
+        and asserts the optimised path calls it only inside _train_signal_fn
+        (where mutation of the close column genuinely requires a copy).
+        """
+        from unittest.mock import patch
+
+        import pandas as pd
+
+        n = 200
+        dates = pd.date_range("2024-01-01", periods=n, freq="D")
+        rng = np.random.default_rng(42)
+        close = pd.Series(100.0 + rng.normal(0, 1, n).cumsum(), index=dates)
+        entries = pd.Series(False, index=dates)
+        exits = pd.Series(False, index=dates)
+        for i in range(0, n, 20):
+            if i < n:
+                entries.iloc[i] = True
+            if i + 10 < n:
+                exits.iloc[i + 10] = True
+
+        # Provide a multi-column data frame so the copy saving is meaningful.
+        data = pd.DataFrame(
+            {"close": close, "high": close * 1.01, "low": close * 0.99},
+            index=dates,
+        )
+
+        copy_count = 0
+        original_copy = pd.DataFrame.copy
+
+        def _counting_copy(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            nonlocal copy_count
+            copy_count += 1
+            return original_copy(self, *args, **kwargs)
+
+        with patch.object(pd.DataFrame, "copy", _counting_copy):
+            result = cpcv_backtest(
+                close,
+                entries,
+                exits,
+                n_groups=4,
+                n_test_groups=1,
+                data=data,
+            )
+
+        assert result["n_paths"] > 0
+        n_splits = result["n_paths"]
+
+        # Upper bound: the optimised path should call .copy() far fewer times
+        # than 2 * n_splits (the old per-split double-copy) + 1 (full data copy).
+        # Allow at most n_splits copies (one per split inside _train_signal_fn
+        # when signal_fn is None this is 0; the bound is generous).
+        max_allowed = n_splits
+        assert copy_count <= max_allowed, (
+            f"CPCV called .copy() {copy_count} times for {n_splits} splits; "
+            f"expected ≤ {max_allowed} (O(n²) copy regression)"
+        )

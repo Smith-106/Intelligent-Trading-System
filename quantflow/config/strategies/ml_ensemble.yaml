@@ -1,3 +1,11 @@
+metadata:
+  title: "ML Ensemble"
+  description: "Model-driven ensemble signals with configurable thresholds"
+
+param_space:
+  entry_threshold: [0.5, 0.8]
+  exit_threshold: [0.2, 0.5]
+
 strategy:
   name: "ml_ensemble"
   symbol: "BTC/USDT"

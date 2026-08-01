@@ -190,6 +190,8 @@ class Portfolio:
     # Daily-loss baseline (ISS-20260720-004 Wave 3): the equity anchored at the
     # first bar of the calendar day. <=0 means "not anchored yet" (warmup).
     daily_baseline: float = 0.0
+    # M4-5.3: total pending exposure (reserved notional awaiting fill confirmation).
+    pending_exposure: float = 0.0
 
     @property
     def total_value(self) -> float:

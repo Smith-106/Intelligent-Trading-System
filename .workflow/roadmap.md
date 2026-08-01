@@ -6,7 +6,7 @@
 
 - `M1` 已完成：4 个新增策略的实现与验证
 - `M2` 进行中：`v0.1.3` 发布候选准备，目标是对齐版本、治理打包内容、重建制品校验信息，并为后续 tag / release 对齐铺平状态
-- `M3` 进行中：按 deep-research 研究文档（ANL-002）分批里程碑实施 P0 数据层防泄漏 → P1 风控层补齐 → P2 AI 层升级，每批独立实盘验证后才进下一批。**P0 代码层完成**，**P1 已 P1-verify PASS（2026-07-21，commit `626b015`）**，**P2 unblocked 未启动**（P2.1 schema-only 隔离层为下一步）。2026-07-25 另完成 Wave 1-5 多 book reconcile 一致性收口（L4 单一权威 + L5 薄路由 + realized_pnl 翻仓归因 + daily_loss total-vs-baseline + partial-fill cumulative 契约）——该 reconcile 契约现为新 load-bearing 架构不变量，后续成功标准须引用（drift-realign DFT-6f8d5a9b, 2026-07-26）
+- `M3` 进行中：按 deep-research 研究文档（ANL-002）分批里程碑实施 P0 数据层防泄漏 → P1 风控层补齐 → P2 AI 层升级，每批独立实盘验证后才进下一批。**P0 已 P0-verify PASS（2026-08-01，4 策略回归守卫基线重立）**，**P1 已 P1-verify PASS（2026-07-21，commit `626b015`）**，**P2 unblocked 未启动**（P2.1 schema-only 隔离层为下一步）。2026-07-25 另完成 Wave 1-5 多 book reconcile 一致性收口（L4 单一权威 + L5 薄路由 + realized_pnl 翻仓归因 + daily_loss total-vs-baseline + partial-fill cumulative 契约）——该 reconcile 契约现为新 load-bearing 架构不变量，后续成功标准须引用（drift-realign DFT-6f8d5a9b, 2026-07-26）
 
 ## Milestones
 
@@ -81,7 +81,7 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 #### Phase 1: P0 数据层防泄漏（milestone-gate: P0-verify）
 
-**Status**：代码层完成，待 P0-verify（产出 `verification.json` + 回测回归守卫证据）
+**Status**：P0-verify PASS（2026-08-01，P0.3 回归守卫基线已对当前 HEAD 重立，4 策略 byte-for-byte 绿）
 
 **Scope**：F1 MTF look-ahead 核实+修复、F2 look-ahead 检测 CLI
 **Target files**：`mtf_aligner.py:139-177`、`fetcher.py:63-110`、`cli/main.py:288-439`、`strategy/validation/lookahead.py`（新建）、`tests/`
@@ -90,14 +90,14 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 - [x] **P0.0 只读核实**：读 `_create_aligned_index` + 写「跨 HTF 边界 minor bar 断言无未收盘 HTF 值泄漏」测试。核实结论：CCXT fetch_ohlcv 返回 bar-open 时间戳（fetcher.py:102-105），原 reindex+ffill 会暴露未收盘 HTF bar → 确认泄漏存在，进 P0.1
 - [x] **P0.1 MTF 修复（方案 b）**：reindex 前将 HTF index 整体右移一个周期（`_infer_period` 三级推断：freq → infer_freq → median diff），HTF bar 值只在下一根开盘（== 本根收盘）后对 minor 可见；不改 fetcher 索引，不破坏 backtest parity — commit `01f05fb`
 - [x] **P0.2 look-ahead CLI**：`quantflow validate --method lookahead` 新建 `validation/lookahead.py`，静态 AST 扫描检出 `series[mask].agg()` 聚合泄漏模式（Shape 1 high / Shape 2 medium），无需数据/回测可直接进 CI — commit `99795b2`
-- [ ] **P0.3 回归守卫**：4 策略回测基线 byte-for-byte 不变 — ⚠️ Wave 1-5（2026-07-25）重写 `strategy/engine.py`+`execution/engine.py`，pre-Wave 基线已失效，须对当前 HEAD 重立 `test-results.json`（drift-realign DFT-5e7c4f8a, 2026-07-26）
+- [x] **P0.3 回归守卫**：4 策略回测基线 byte-for-byte 不变 — ✅ 已对当前 HEAD 重立基线（`scripts/establish_p0_baseline.py` + `tests/unit/test_p0_regression_guard.py`，4/4 PASS，2026-08-01）
 
 **Acceptance**:
 - MTF 跨 HTF 边界无未收盘值泄漏断言通过 ✅（`test_mtf_does_not_expose_unclosed_htf_bar_close_to_minor`）
 - look-ahead CLI 能检出已知泄漏模式 ✅（12 测试覆盖 clean/leaky/链式去重/分级/真实策略零误报）
-- 4 策略回测无回归 — 待 P0-verify
+- 4 策略回测无回归 ✅（`test_p0_regression_guard.py` 4/4 PASS，基线 `.workflow/artifacts/p0-baseline/test-results.json`）
 
-**Done when**: `verification.json` passed + `test-results.json` 泄漏断言绿
+**Done when**: `verification.json` passed + `test-results.json` 泄漏断言绿 ✅
 
 #### Phase 2: P1 风控层补齐（milestone-gate: P1-verify）
 
@@ -179,11 +179,149 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 **Note（drift-realign DFT-5e7c4f8a）**：Wave 1-5 重写了 `strategy/engine.py`（+57）与 `execution/engine.py`（+111），P0.3 byte-for-byte 回归守卫基线若在 Wave 前建立则已失效，需对当前 HEAD 重立基线。
 
+### Milestone 4: v0.2 多 Symbol 扩展
+
+**Target**：将 QuantFlow 从严格单 symbol 架构升级为单进程多 symbol 并发（10-30 交易对），消除存量 TOCTOU 风控竞态，保持 paper/live parity
+**Status**：planned
+**Upstream**：Grill session（6 decisions locked, 6 risks）、Brainstorm session（PendingLedger 详细设计，4 cross-role conflicts resolved）
+**Version tag**：`v0.2.0`
+**Timeline**：降档版（paper only）2-2.5 周 / 完整版（含 live TOCTOU 修复 + sync 兜底）3.5-4.5 周
+
+#### 架构决策（Grill locked）
+
+| 决策 | 选项 | 理由 |
+|------|------|------|
+| 扩展模式 | Option A: 单进程 asyncio.gather | L4 已天然多 symbol 就绪；微服务无收益场景 |
+| TOCTOU 解法 | 悲观锁打底 + pending 台账 | Fail-Closed 原则排除事后校验 |
+| on_bar 兼容 | 方案 3: 透明 to_thread 包装 | 接口零变更，7 模板 + 21 测试不受影响 |
+| 策略实例化 | per-(strategy, symbol) 工厂化 | 消除跨 symbol 状态污染（_bars/_in_position） |
+| 数据获取 | 共享 fetcher + 单 poller 轮转 | CCXT throttler 全局协调，防 429 |
+| 50+ 扩展 | 分阶段，Redis 阶段二 | 当前无多机需求，pending 台账即 Redis 预扣原型 |
+
+#### 串行约束
+
+Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 依赖 Phase 2+3 → Phase 5 依赖 Phase 3（Lock 保护 reserve 路径）→ Phase 6 依赖全部
+
+#### Phase 1: 基础设施加固（0.5 天）
+
+**Scope**：消除已知微缺陷，建立多 symbol 硬约束文档
+
+**Tasks**:
+- [ ] **M4-1.1** `StrategyContext.flush_signals` 改原子交换（`signals, self._signals = self._signals, []`）
+- [ ] **M4-1.2** `DataFetcher` 类级 docstring 声明 "single instance per session" 不变量
+- [ ] **M4-1.3** `redis_cache.py` 模块级 `DeprecationWarning`（零引用死代码）
+
+**Done when**: flush 原子交换测试通过 + lint/mypy 绿
+
+#### Phase 2: Per-Symbol 策略实例化（3 天）
+
+**Scope**：消除策略实例跨 symbol 状态污染，配置层支持多 symbol
+
+**Tasks**:
+- [ ] **M4-2.1** 新建 `quantflow/strategy/factory.py`：`create(strategy_cls, symbol, params) -> StrategyBase`
+- [ ] **M4-2.2** `TradingSession._contexts` 键控升级：`dict[str, StrategyContext]` → `dict[tuple[str, str], StrategyContext]`
+- [ ] **M4-2.3** `on_bar` 内 ctx 查找改为 `self._contexts.get((strategy.name, bar.symbol))`
+- [ ] **M4-2.4** `RiskConfig` / `AppConfig` 增加 `symbols: list[str]`（向后兼容单 symbol 字符串）
+- [ ] **M4-2.5** `default.yaml` + 策略 YAML 增加 `symbols` 字段
+- [ ] **M4-2.6** 存量测试回归（单 symbol 行为 byte-for-byte 不变）
+
+**Acceptance**:
+- 同一策略类的两个实例（BTC/ETH）各自维护独立 `_bars`/`_in_position`
+- 单 symbol 配置（`symbol: BTC/USDT`）仍正常工作
+
+**Done when**: `test_multi_symbol_isolation` 通过 + 全量回归绿
+
+#### Phase 3: TOCTOU 第一层 — asyncio.Lock（0.5 天）
+
+**Scope**：保护 risk-check → sizing → submit 临界区
+
+**Tasks**:
+- [ ] **M4-3.1** `TradingSession.__init__` 增加 `self._signal_lock = asyncio.Lock()`
+- [ ] **M4-3.2** `_process_signal` 入口 `async with self._signal_lock:`
+- [ ] **M4-3.3** 验证锁仅覆盖信号路径，不覆盖数据 fetch 和策略计算
+
+**Acceptance**:
+- 两并发信号不会同时进入 risk-check → submit 路径
+- 锁持有时间 < 1s（paper 模式下 submit 同步返回）
+
+**Done when**: 并发信号测试通过（mock gateway 延迟 100ms，assert 串行执行）
+
+#### Phase 4: 多 Symbol 数据循环（3 天）
+
+**Scope**：单 poller 轮转 sweep + 策略计算 to_thread 卸载 + CLI/Web 适配
+
+**Tasks**:
+- [ ] **M4-4.1** `run_data_loop` 签名改为 `symbols: list[str]`
+- [ ] **M4-4.2** 单 poller 轮转实现：一个 task 轮转 sweep 所有 symbol，fetch 到新 bar 后按 symbol 分发
+- [ ] **M4-4.3** `on_bar` 内策略计算卸载：`await asyncio.to_thread(strategy.on_bar, ctx, bar)`
+- [ ] **M4-4.4** CLI `--symbol` → `--symbols`（逗号分隔，向后兼容单 symbol）
+- [ ] **M4-4.5** Web `SessionStartRequest` 增加 `symbols` 字段
+- [ ] **M4-4.6** 共享 fetcher 实例验证（全 session 单 exchange 对象）
+
+**Acceptance**:
+- 3 symbol paper 模式并发运行 60s 无异常
+- 策略计算不阻塞数据 fetch（to_thread 验证）
+- CCXT throttler 全局协调（无 429）
+
+**Done when**: `test_multi_symbol_paper_session` 通过 + CLI `--symbols BTC/USDT,ETH/USDT` 正常启动
+
+#### Phase 5: TOCTOU 第二层 — Pending Exposure 台账（4 天，Live 模式）
+
+**Scope**：reserve/confirm/release 三元状态机 + RiskEngine 口径改造 + 超时/撤单联动 + sync 失败兜底
+**Upstream**：Brainstorm session（PendingEntry, PendingView, F1-F5）、ANL-pending-partial（部分成交边界 3 修正）、ANL-sync-pending（四象限决策矩阵 + sweeper）
+
+**Tasks**:
+- [ ] **M4-5.1** `PortfolioManager` 增加 `_pending: dict[str, PendingEntry]` + reserve/confirm/partial_confirm/release
+- [ ] **M4-5.2** `PendingView` dataclass（frozen, slots）+ `PortfolioManager.pending_view()`
+- [ ] **M4-5.3** `Portfolio` dataclass 增加 `pending_exposure: float = 0.0`
+- [ ] **M4-5.4** `RiskEngine.check` 签名增加 `pending: PendingView | None = None`
+- [ ] **M4-5.5** `_check_position_limit` / `_check_portfolio_limit` / `_check_strategy_budget` 口径改造
+- [ ] **M4-5.6** `TradingSession._process_signal` 集成：reserve → submit → confirm/release
+- [ ] **M4-5.7** `OrderManager.check_timeouts` → release 联动
+- [ ] **M4-5.8** `ExecutionEngine.cancel` → release 联动
+- [ ] **M4-5.9** Kill Switch activate 后统一 release all pending
+- [ ] **M4-5.10** `sync_positions` 返回值改造（`None` → `bool`，True=成功/False=失败）
+- [ ] **M4-5.11** timeout 处理集成四象限决策矩阵（cancel_ok ∨ sync_ok → release；both fail → 冻结）
+- [ ] **M4-5.12** `PortfolioManager.sweep_stale_pending(max_age_ms=120_000)` 实现 + CRITICAL alert
+- [ ] **M4-5.13** data loop 中 sweeper 调用（每轮 check_timeouts 后执行）
+- [ ] **M4-5.14** `partial_confirm` 参数语义为 **cumulative_filled_notional**（对齐 ccxt 累积契约，非 delta）
+- [ ] **M4-5.15** `PaperGateway` 增加 `partial_fill_ratio` opt-in 配置（默认 None=不启用，保 baseline）
+
+**Acceptance**:
+- 限价单 SUBMITTED 后，后续信号的 position_limit 检看到 pending notional
+- 部分成交按累积 notional 增量减少 pending（非 delta_qty × avg_price）
+- 超时 + cancel✓ + sync✓ → pending 归零（象限 A）
+- 超时 + cancel✓ + sync✗ → release（象限 B，信任 cancel ack）
+- 超时 + cancel✗ + sync✓ → release（象限 C，sync 覆盖真相）
+- 超时 + cancel✗ + sync✗ → pending 冻结 + CRITICAL alert（象限 D，Fail-Closed）
+- 冻结 pending 超过 120s 后被 sweeper 清理 + 告警
+- Paper 模式下 reserve→confirm 原子完成，行为不变
+- Paper `partial_fill_ratio=0.3` 时限价单返回 PARTIAL，触发 partial_confirm 路径
+
+**Done when**: `test_pending_ledger_lifecycle` + `test_toctou_concurrent_signals` + `test_timeout_quadrant_matrix` + `test_stale_sweeper` 通过
+
+#### Phase 6: 集成测试 + 回归（3 天）
+
+**Scope**：全量回归 + 多 symbol 专项测试 + 性能基准 + partial fill 路径覆盖
+
+**Tasks**:
+- [ ] **M4-6.1** 多 symbol 并发信号竞态测试（T1-T10 边界矩阵）
+- [ ] **M4-6.2** pending 台账生命周期测试（reserve → partial → timeout → release）
+- [ ] **M4-6.3** per-symbol 策略隔离测试（同策略类两实例互不干扰）
+- [ ] **M4-6.4** 共享 fetcher throttler 压力测试（30 symbol 轮转无 429）
+- [ ] **M4-6.5** 存量 102 测试文件全量回归
+- [ ] **M4-6.6** on_bar 延迟基准测试（`pytest-benchmark`，30 symbol × 5 策略 < 2s/bar）
+- [ ] **M4-6.7** PaperGateway `partial_fill_ratio` 路径测试（PARTIAL → partial_confirm → FILLED → confirm）
+- [ ] **M4-6.8** timeout-on-partial 四象限测试（mock gateway 控制 cancel/sync 成功/失败组合）
+- [ ] **M4-6.9** stale-pending sweeper 测试（冻结 → 超龄 → 清理 + alert）
+
+**Done when**: 全量测试绿 + benchmark 达标 + 覆盖率 ≥ 70%
+
 ## Scope Decisions
 
-- **In scope**：版本抬升到 `v0.1.3`、发布文档、`.workflow` 发布里程碑、maestro 会话、打包治理、哈希与 manifest 刷新
-- **Deferred**：GitHub tag / release 真实发布、远端资产上传、paper / live 运行证据补齐
-- **Out of scope**：新增 Gateway、新数据源、前端 UI、部署拓扑重构
+- **In scope**：版本抬升到 `v0.1.3`、发布文档、`.workflow` 发布里程碑、maestro 会话、打包治理、哈希与 manifest 刷新；**v0.2 多 symbol 扩展（M4）**
+- **Deferred**：GitHub tag / release 真实发布、远端资产上传、paper / live 运行证据补齐；**WebSocket 实时推送（ccxt.pro 切换，50+ symbol 终态）**；**Redis 分布式状态共享（阶段二）**
+- **Out of scope**：新增 Gateway、新数据源、前端 UI、部署拓扑重构、多用户/多租户
 
 ## Progress
 
@@ -193,7 +331,13 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 | 2. v0.1.3 发布候选准备 | 1. 版本与工作流对齐 | Completed | 2026-06-07 |
 | 2. v0.1.3 发布候选准备 | 2. 打包治理与制品重建 | Completed | 2026-06-07 |
 | 2. v0.1.3 发布候选准备 | 3. 发布证据与远端对齐 | In progress（tag/Release 已建，远端扫描证据归档待核验） | 2026-06-07 (tag `4bc72cd` + Release) |
-| 3. deep-research 改进分批实施 | 1. P0 数据层防泄漏 | 代码完成，待 P0-verify（P0.3 基线待 Wave 后重立） | `01f05fb` `99795b2` |
+| 3. deep-research 改进分批实施 | 1. P0 数据层防泄漏 | **P0-verify PASS**（P0.3 基线已重立，4/4 绿） | `01f05fb` `99795b2` |
 | 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | **P1-verify PASS** | 2026-07-21 `626b015` |
 | 3. deep-research 改进分批实施 | 2.5 多 book reconcile (Wave 1-5) | **Completed** | 2026-07-25 `7e781a8`→`06a8d93` |
 | 3. deep-research 改进分批实施 | 3. P2 AI 层升级 | Unblocked，未启动 | - |
+| 4. v0.2 多 Symbol 扩展 | 1. 基础设施加固 | Planned | - |
+| 4. v0.2 多 Symbol 扩展 | 2. Per-Symbol 策略实例化 | Planned | - |
+| 4. v0.2 多 Symbol 扩展 | 3. TOCTOU 第一层 (Lock) | Planned | - |
+| 4. v0.2 多 Symbol 扩展 | 4. 多 Symbol 数据循环 | Planned | - |
+| 4. v0.2 多 Symbol 扩展 | 5. Pending Exposure 台账 | Planned | - |
+| 4. v0.2 多 Symbol 扩展 | 6. 集成测试 + 回归 | Planned | - |

@@ -131,3 +131,33 @@ pytest tests/ --cov=quantflow --cov-report=html
 # 安装
 pip install -e ".[dev]"
 ```
+
+## Agent 运行环境约束 (Qoder)
+本节记录 Qoder（AI 编程 IDE）运行环境下的 agent 操作约束，作为通用开发规范的补充。Claude Code 环境可参考，但不强制。
+
+### 模型固定策略
+- Qoder 运行时统一使用 Claude 主模型，不切换/降级到其他后端。
+- 本机 NVIDIA NIM POST 端点经代理 `127.0.0.1:8756` 不可达；Agent/Ask 模式不要降级重试到 NIM，避免无效等待。
+
+### maestro hooks 补偿
+- Qoder 运行时不触发 maestro hooks（spec/delegate 等工作流钩子）。
+- 需手动执行补偿命令以保持工作流状态一致，例如 `spec load`、`delegate status` 等；具体命令约定见 `CLAUDE.md`。
+
+### 网络代理
+- 本机代理地址：`127.0.0.1:8756`。
+- NIM 端点经该代理不可达，相关请求需注意走对通道；Claude 主模型请求不受此影响。
+
+### MCP 配置现状
+- Qoder 侧 MCP 配置文件：`C:\Users\niko\.qoder\mcp.json`（当前为空）。
+- Claude 侧已配置 `codegraph` MCP 服务。
+
+### 插件状态
+- 已启用：`better-harness`、`security-scan`。
+- 禁用：`computer-use`（处于禁用状态，不可调用桌面操作能力）。
+
+### 禁止操作清单（补充）
+> 与上方"开发规范 > 安全"小节互补，不重复其约束。
+
+- 不在 workspace 目录之外写文件：如 `C:\Users\niko\.qoder\mcp.json` 等用户目录配置由用户手动落地，agent 不代写。
+- 不假设外部 CLI 参数语法：集成外部 CLI 前，先跑 `--help` 确认实际参数与子命令，再编写调用代码。
+- 不直接把用户目录配置（`.qoder/`、`.claude/` 等）写入仓库。

@@ -248,3 +248,25 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 **验收**: tests/unit/test_order_router.py 9 测试（route dispatch / no-gateway raise / error propagation / set_gateway rebind / build_order copy / close_request long+short reduceOnly / is_closeable None+epsilon+nontrivial）。全量 1559 passed。
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="四象限,timeout,Fail-Closed,CRITICAL,pending,sweeper,cancel,sync" date="2026-07-31" sid="S-20260731-b9m3" title="Timeout 四象限 Fail-Closed 矩阵：cancel×sync 双失败必须 HOLD pending + CRITICAL 告警" description="数据循环 timeout 处理的四象限决策矩阵，双失败时不 release + sweeper 兆底" source="phase-6-codereview">
+
+### Timeout 四象限 Fail-Closed 矩阵
+
+数据循环 timeout 处理（`run_data_loop` 中的 `check_timeouts()` 分支）必须遵循 cancel × sync 的四象限决策矩阵：
+
+| Quadrant | cancel_ok | sync_ok | Action |
+|---|---|---|---|
+| A | True | True | release（双确认） |
+| B | True | False | release（cancel 确认） |
+| C | False | True | release（sync 确认） |
+| D | False | False | **HOLD pending**（Fail-Closed） |
+
+**Quadrant D 约束**：当 cancel 和 sync 均失败时，系统处于完全盲区——无法验证交易所实际状态。此时 MUST NOT release pending（否则可能导致持仓超限）。pending 保留在台账中，由 `sweep_stale_pending(120s)` 兆底清理，并 MUST 触发 `logger.critical()` 告警要求人工复核。
+
+**Legacy 路径**：空 symbol 的 timeout entry → 立即 release（无需 cancel/sync 判断）。
+
+**异常吞没**：cancel 抛异常 → cancel_ok 保持 False（不传播）；sync_positions 抛异常 → 经 `contextlib.suppress` 吞没，sync_ok 保持 False。这保证单个 timeout 失败不中断数据循环。
+
+落地：`quantflow/strategy/engine.py` `run_data_loop` ~lines 766-788。测试：`tests/unit/test_m4_timeout_quadrant.py` 9 测试覆盖全四象限 + legacy + 异常 + 交互（D-hold 后下周期 sync 成功 → release）。
+</spec-entry>

@@ -7,6 +7,7 @@ Supports backtest, paper, and live modes with the same strategy code.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import math
 from collections.abc import Sequence
@@ -143,7 +144,20 @@ class TradingSession:
         self._regime_detector = MarketRegimeDetector()
         self._strategy_win_rates = strategy_win_rates or {}
         self._strategy_hit_rates = strategy_hit_rates or {}
-        self._contexts: dict[str, StrategyContext] = {}
+        # M4-2.2: contexts keyed by (strategy_name, symbol) for multi-symbol
+        # isolation. Single-symbol mode uses (name, symbol) with one symbol.
+        self._contexts: dict[tuple[str, str], StrategyContext] = {}
+        # M4-2.1/2.2: per-(strategy, symbol) instances created by start() via
+        # the strategy factory. Prototypes in _strategies are cloned per symbol
+        # so each instance maintains independent state (_bars, EMA, _in_position).
+        self._instances: dict[tuple[str, str], StrategyBase] = {}
+        self._symbols: list[str] = []
+        # M4-3.1: serialize the risk-check → sizing → submit critical section.
+        # Prevents concurrent signals (multi-symbol gather) from seeing stale
+        # portfolio snapshots between check and submit (TOCTOU guard, layer 1).
+        # Lock covers ONLY _process_signal — data fetch and strategy computation
+        # remain fully concurrent.
+        self._signal_lock = asyncio.Lock()
         self._kill_switch: KillSwitch | None = None
         self._running = False
         self._last_error: str | None = None
@@ -174,9 +188,21 @@ class TradingSession:
         self._daily_baseline_day: int | None = None
 
     async def start(
-        self, mode: str = "paper", gateway_config: dict[str, Any] | None = None
+        self,
+        mode: str = "paper",
+        gateway_config: dict[str, Any] | None = None,
+        symbols: list[str] | None = None,
     ) -> None:
-        """Start the trading session."""
+        """Start the trading session.
+
+        Args:
+            mode: "paper", "live", or "okx".
+            gateway_config: Gateway connection parameters.
+            symbols: List of symbols to trade. If None, defaults to a single
+                placeholder (backward compat — the data loop supplies the symbol
+                via on_bar). When provided, per-(strategy, symbol) instances are
+                created via the strategy factory (M4-2.1/2.2).
+        """
         await self._execution.start(mode, gateway_config)
 
         # Safety: live mode MUST run with the kill switch armed (CLAUDE.md
@@ -231,13 +257,37 @@ class TradingSession:
                 allocation = {s.name: 1.0 / len(self._strategies) for s in self._strategies}
             self._portfolio.set_allocation(allocation)
 
-        for strategy in self._strategies:
-            ctx = StrategyContext()
-            strategy.on_init(ctx)
-            self._contexts[strategy.name] = ctx
+        # M4-2.1/2.2: create per-(strategy, symbol) instances and contexts.
+        # When symbols is provided, the factory clones each strategy per symbol
+        # so internal state (_bars, EMA, _in_position) is isolated. When symbols
+        # is None (legacy single-symbol callers), fall back to the original
+        # behavior: one context per strategy keyed by (name, "").
+        self._symbols = symbols or []
+        if self._symbols:
+            from quantflow.strategy.factory import create_all_per_symbol
+
+            self._instances = create_all_per_symbol(self._strategies, self._symbols)
+            for (name, symbol), instance in self._instances.items():
+                ctx = StrategyContext()
+                instance.on_init(ctx)
+                self._contexts[(name, symbol)] = ctx
+        else:
+            # Legacy path: no symbols declared at start time. Contexts are
+            # created per strategy with an empty-symbol key; on_bar will
+            # lazily create (name, bar.symbol) contexts on first sight.
+            self._instances = {}
+            for strategy in self._strategies:
+                ctx = StrategyContext()
+                strategy.on_init(ctx)
+                self._contexts[(strategy.name, "")] = ctx
 
         self._running = True
-        logger.info("Trading session started: %d strategies, mode=%s", len(self._strategies), mode)
+        logger.info(
+            "Trading session started: %d strategies, %d symbols, mode=%s",
+            len(self._strategies),
+            len(self._symbols) or 1,
+            mode,
+        )
 
     async def on_bar(self, bar: Bar) -> None:
         """Process a new bar through the full pipeline."""
@@ -322,6 +372,8 @@ class TradingSession:
         if not dd_ok and self._config.risk.kill_switch_enabled and self._kill_switch:
             logger.critical("Drawdown breach — activating kill switch")
             await self._kill_switch.activate("drawdown_breach")
+            # M4-5.9: release all pending reservations on kill switch.
+            self._portfolio.release_all()
             await self._sink.send_alert(
                 "KILL SWITCH ACTIVATED: drawdown breach",
                 level="critical",
@@ -341,7 +393,9 @@ class TradingSession:
         # validation uses paper-on_bar replay, not the vectorized backtest path.
         regime = self._regime_detector.update(bar.high, bar.low, bar.close)
 
-        # Collect signals from regime-eligible strategies, then consolidate per symbol
+        # Collect signals from regime-eligible strategies, then consolidate per symbol.
+        # M4-2.3: iterate per-(strategy, symbol) instances when available;
+        # fall back to legacy (name, "") contexts for single-symbol callers.
         all_signals: list[Signal] = []
         for strategy in self._strategies:
             # Gate strategies by required regime
@@ -350,10 +404,24 @@ class TradingSession:
             if strategy.required_regime == "mean_reversion" and regime.is_trending:
                 continue
 
-            ctx = self._contexts.get(strategy.name)
+            # Resolve the per-symbol instance and context (M4-2.2/2.3).
+            key = (strategy.name, bar.symbol)
+            instance = self._instances.get(key)
+            if instance is None and not self._symbols:
+                # Legacy path: no multi-symbol declaration; use the prototype
+                # instance and the (name, "") context.
+                instance = strategy
+                key = (strategy.name, "")
+            if instance is None:
+                continue
+
+            ctx = self._contexts.get(key)
             if not ctx:
                 continue
-            strategy.on_bar(ctx, bar)
+            # M4-4.3: offload strategy computation to a worker thread so CPU-heavy
+            # strategies (Elliott Wave, ML ensemble) don't block the event loop
+            # and starve other symbols' data fetch / signal processing.
+            await asyncio.to_thread(instance.on_bar, ctx, bar)
             all_signals.extend(ctx.flush_signals())
 
         # Group by symbol and consolidate conflicting signals
@@ -372,9 +440,21 @@ class TradingSession:
         self._record_bar_latency(bar.symbol, started_at)
 
     async def _process_signal(self, signal: Signal) -> None:
-        """Process a signal through risk check → position sizing → execution."""
+        """Process a signal through risk check → position sizing → execution.
+
+        M4-3.2: the entire risk-check → sizing → submit path is serialized
+        under _signal_lock so concurrent signals (multi-symbol) cannot see
+        stale portfolio snapshots between check and submit (TOCTOU layer 1).
+        """
+        async with self._signal_lock:
+            await self._process_signal_inner(signal)
+
+    async def _process_signal_inner(self, signal: Signal) -> None:
+        """Inner signal processing (called under _signal_lock)."""
         started_at = perf_counter()
         portfolio = self._portfolio.portfolio
+        # M4-5.4: pass pending snapshot so risk checks see in-flight exposure.
+        pending = self._portfolio.pending_view()
 
         # FLAT signals close the existing position (reduce-only) rather than
         # opening a new short. Without this, a FLAT exit on a long would fall
@@ -385,7 +465,7 @@ class TradingSession:
             self._record_signal_latency(signal.strategy_id, started_at)
             return
 
-        risk_decision = self._risk_engine.check(signal, portfolio)
+        risk_decision = self._risk_engine.check(signal, portfolio, pending)
 
         if not risk_decision.passed:
             logger.warning(
@@ -447,21 +527,46 @@ class TradingSession:
         # Submit order
         side = OrderSide.BUY if signal.direction.value > 0 else OrderSide.SELL
 
-        order = await self._execution.submit_order(
-            OrderRequest(
-                symbol=signal.symbol,
-                side=side,
-                order_type="market",
-                quantity=quantity,
-                strategy_id=signal.strategy_id,
+        # M4-5.6: reserve pending exposure BEFORE submit so concurrent signals
+        # (under the lock, or in-flight limit orders) see this exposure.
+        import uuid
+
+        local_order_id = str(uuid.uuid4())
+        notional = size  # size is already in quote currency (notional)
+        self._portfolio.reserve(local_order_id, signal.symbol, notional, signal.strategy_id)
+
+        try:
+            order = await self._execution.submit_order(
+                OrderRequest(
+                    symbol=signal.symbol,
+                    side=side,
+                    order_type="market",
+                    quantity=quantity,
+                    strategy_id=signal.strategy_id,
+                )
             )
-        )
+        except Exception:
+            # Gateway exception: release the reservation immediately.
+            self._portfolio.release(local_order_id)
+            raise
+
+        # M4-5.6: confirm/release based on fill result.
         if order.status == OrderStatus.FILLED:
+            self._portfolio.confirm(local_order_id)
             # ISS-20260720-004 Wave 2: L4 fill update is owned by
             # ExecutionEngine.submit (single source, fee included). _process_signal
             # no longer re-updates L4 — that was the double-count path once L5
             # delegated to L4. Just refresh observability from the now-current L4.
             self._update_portfolio_observability()
+        elif order.status == OrderStatus.PARTIAL:
+            # M4-5.14: partial_confirm uses cumulative notional.
+            cum_notional = order.filled_quantity * order.filled_price
+            self._portfolio.partial_confirm(local_order_id, cum_notional)
+        elif order.status == OrderStatus.REJECTED:
+            self._portfolio.release(local_order_id)
+        # else: SUBMITTED (limit order pending) — reservation stays until
+        # fill callback or timeout releases it.
+
         self._record_signal_latency(signal.strategy_id, started_at)
 
     async def _close_position_for_signal(self, signal: Signal) -> None:
@@ -520,21 +625,47 @@ class TradingSession:
 
     async def run_data_loop(
         self,
-        symbol: str,
+        symbol: str = "",
         timeframe: str = "1h",
         interval_seconds: int = 60,
+        symbols: list[str] | None = None,
     ) -> None:
         """Continuously fetch new bars and feed them into on_bar().
 
         This is the main loop for paper/live mode.
+
+        M4-4.1/4.2: supports multi-symbol via a single poller that rotates
+        over all symbols each interval. A single shared DataFetcher (and thus
+        a single CCXT exchange instance) is used for all symbols to ensure
+        the rate-limit throttler coordinates globally (M4-1.2 invariant).
+
+        Args:
+            symbol: Legacy single-symbol argument (backward compat).
+            timeframe: Candle interval.
+            interval_seconds: Seconds between poll cycles.
+            symbols: Multi-symbol list. If provided, overrides ``symbol``.
+                If both are empty, falls back to config.execution.symbols.
         """
         from quantflow.data.fetcher import DataFetcher
         from quantflow.data.store import DataStore
 
+        # Resolve the symbol list (M4-4.1): explicit arg > config > legacy single.
+        resolved_symbols = symbols or self._config.execution.symbols or []
+        if not resolved_symbols and symbol:
+            resolved_symbols = [symbol]
+        if not resolved_symbols:
+            raise ValueError(
+                "No symbols provided: pass symbol=, symbols=, or set execution.symbols in config."
+            )
+
         if self._config.execution.mode == "paper":
+            # Paper mode: replay local parquet for the first symbol (legacy
+            # behavior). Multi-symbol paper replay uses the live fetcher path
+            # below with local data (future: per-symbol parquet replay).
+            first_symbol = resolved_symbols[0]
             store = DataStore(self._config.data.parquet_dir, ":memory:")
             timeframe_filter: str | None = timeframe
-            pending_frame = store.query(symbol, timeframe=timeframe_filter)
+            pending_frame = store.query(first_symbol, timeframe=timeframe_filter)
             if pending_frame.empty:
                 # Timeframe fallback: the requested timeframe is not in local
                 # parquet. Rather than silently trading a different timeframe
@@ -542,21 +673,21 @@ class TradingSession:
                 # at WARNING and replay whatever IS available so the operator
                 # sees the divergence. The log names both the requested and the
                 # fallback cadence explicitly.
-                pending_frame = store.query(symbol)
+                pending_frame = store.query(first_symbol)
                 if not pending_frame.empty:
                     timeframe_filter = None
                     logger.warning(
                         "Paper session requested %s/%s but only alternate local "
                         "parquet data exists; replaying available bars (timeframe "
                         "divergence from config — verify this is intended).",
-                        symbol,
+                        first_symbol,
                         timeframe,
                     )
             try:
                 if not pending_frame.empty:
                     await self._run_local_data_loop(
                         store=store,
-                        symbol=symbol,
+                        symbol=first_symbol,
                         interval_seconds=interval_seconds,
                         pending_frame=pending_frame,
                         timeframe_filter=timeframe_filter,
@@ -566,7 +697,8 @@ class TradingSession:
                 store.close()
 
         fetcher = DataFetcher(self._config.data)
-        last_timestamp: int | None = None
+        # M4-4.2: per-symbol last_timestamp tracking for the rotation poller.
+        last_timestamps: dict[str, int | None] = {s: None for s in resolved_symbols}
         connected = False
 
         try:
@@ -585,37 +717,42 @@ class TradingSession:
                         await asyncio.sleep(interval_seconds)
                         continue
 
-                # Fetch latest bars
-                try:
-                    df = await fetcher.fetch_ohlcv(
-                        symbol,
-                        timeframe,
-                        start=None,
-                        limit=10,
-                    )
-                    self._last_error = None
+                # M4-4.2: single poller rotates over all symbols each cycle.
+                # The shared fetcher's CCXT throttler coordinates rate limits
+                # globally across all symbols (M4-1.2 invariant).
+                for sym in resolved_symbols:
+                    try:
+                        df = await fetcher.fetch_ohlcv(
+                            sym,
+                            timeframe,
+                            start=None,
+                            limit=10,
+                        )
+                        self._last_error = None
 
-                    if not df.empty and "timestamp" in df.columns:
-                        for row in df.itertuples(index=False):
-                            ts = int(row.timestamp)
-                            if last_timestamp is None or ts > last_timestamp:
-                                bar = Bar(
-                                    symbol=symbol,
-                                    timestamp=ts,
-                                    open=float(row.open),
-                                    high=float(row.high),
-                                    low=float(row.low),
-                                    close=float(row.close),
-                                    volume=float(row.volume),
-                                )
-                                await self.on_bar(bar)
-                                last_timestamp = ts
+                        if not df.empty and "timestamp" in df.columns:
+                            for row in df.itertuples(index=False):
+                                ts = int(row.timestamp)
+                                prev_ts = last_timestamps[sym]
+                                if prev_ts is None or ts > prev_ts:
+                                    bar = Bar(
+                                        symbol=sym,
+                                        timestamp=ts,
+                                        open=float(row.open),
+                                        high=float(row.high),
+                                        low=float(row.low),
+                                        close=float(row.close),
+                                        volume=float(row.volume),
+                                    )
+                                    await self.on_bar(bar)
+                                    last_timestamps[sym] = ts
 
-                except Exception as e:
-                    self._last_error = f"Data feed error: {redact_secrets(str(e))}"
-                    logger.error("%s", self._last_error)
-                    connected = False
-                    await fetcher.disconnect()
+                    except Exception as e:
+                        self._last_error = f"Data feed error ({sym}): {redact_secrets(str(e))}"
+                        logger.error("%s", self._last_error)
+                        # Per-symbol error does not disconnect the shared fetcher;
+                        # other symbols may still succeed. Only a connection-level
+                        # failure (handled below) triggers disconnect.
 
                 # Health check
                 self.check_health()
@@ -624,12 +761,38 @@ class TradingSession:
                 # (odyssey-improve REL-H4): previously the returned ids were
                 # discarded, so an exchange-still-open order could fill later
                 # against a locally-dead id with no position update.
+                # M4-5.7/5.11: quadrant decision matrix for pending release.
                 for oid, sym in self._execution.check_timeouts():
-                    if sym:
-                        try:
-                            await self._execution.cancel(oid, sym)
-                        except Exception as exc:
-                            logger.warning("Timeout cancel failed for %s: %s", oid, exc)
+                    if not sym:
+                        self._portfolio.release(oid)
+                        continue
+                    cancel_ok = False
+                    try:
+                        cancel_ok = await self._execution.cancel(oid, sym)
+                    except Exception as exc:
+                        logger.warning("Timeout cancel failed for %s: %s", oid, exc)
+                    sync_ok = False
+                    with contextlib.suppress(Exception):
+                        sync_ok = await self._execution.sync_positions()
+                    # Quadrant A/B/C: at least one source confirmed state.
+                    if cancel_ok or sync_ok:
+                        self._portfolio.release(oid)
+                    else:
+                        # Quadrant D: completely blind — hold pending (Fail-Closed).
+                        logger.critical(
+                            "Timeout: cancel AND sync both failed for %s (%s) — "
+                            "pending HELD (stale sweeper will resolve)",
+                            oid,
+                            sym,
+                        )
+
+                # M4-5.12/5.13: sweep stale pending entries (last-resort guard).
+                stale = self._portfolio.sweep_stale_pending(max_age_ms=120_000)
+                if stale:
+                    await self._sink.send_alert(
+                        f"Swept {len(stale)} stale pending entries — manual position review needed",
+                        level="critical",
+                    )
 
                 await asyncio.sleep(interval_seconds)
 
@@ -819,7 +982,10 @@ class TradingSession:
         """Activate the kill switch (raises if none configured)."""
         if self._kill_switch is None:
             raise RuntimeError("No active session kill switch is available.")
-        return await self._kill_switch.activate(reason)
+        result = await self._kill_switch.activate(reason)
+        # M4-5.9: release all pending reservations on manual kill switch.
+        self._portfolio.release_all()
+        return result
 
     def adjust_capital(self, capital: float) -> None:
         """Set the portfolio capital atomically (initial capital + peak)."""

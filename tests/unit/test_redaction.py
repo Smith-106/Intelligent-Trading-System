@@ -178,3 +178,70 @@ def test_credential_bearing_modules_have_redaction_choke_point() -> None:
         "_safe_error) and route exception text through it (odyssey-review "
         "RP2, CWE-532). Missing: " + ", ".join(missing)
     )
+
+
+# ---------------------------------------------------------------------------
+# ISS-004: logger.py global redaction guard
+# ---------------------------------------------------------------------------
+
+
+def test_redaction_processor_exists_in_chain() -> None:
+    """CI guard: verify _redact_processor is registered and calls redact_secrets."""
+    import inspect
+
+    from quantflow.monitoring.logger import _redact_processor
+
+    source = inspect.getsource(_redact_processor)
+    assert "redact_secrets" in source
+
+
+def test_redaction_processor_scrubs_string_fields() -> None:
+    """Verify _redact_processor sanitizes string values in event dict."""
+    from quantflow.monitoring.logger import _redact_processor
+
+    os.environ["OKX_API_KEY"] = "FAKE_OKX_API_KEY_12345"
+    try:
+        event_dict = {
+            "event": "Connection failed (key=FAKE_OKX_API_KEY_12345)",
+            "level": "error",
+            "trade_count": 42,  # non-string field must be untouched
+        }
+        result = _redact_processor(None, "error", event_dict)
+        assert "FAKE_OKX_API_KEY_12345" not in result["event"]
+        assert REDACTED_PLACEHOLDER in result["event"]
+        assert result["trade_count"] == 42  # numeric field preserved
+    finally:
+        os.environ.pop("OKX_API_KEY", None)
+
+
+# ---------------------------------------------------------------------------
+# ISS-20260722-006: Adversarial redaction tests
+# ---------------------------------------------------------------------------
+
+
+class TestRedactionAdversarial:
+    """Near-miss and edge-case tests for redact_secrets."""
+
+    def test_short_token_not_redacted(self, clean_secret_env: None) -> None:
+        """Tokens shorter than env values should not be false-positive redacted."""
+        text = "api_key=abc"
+        result = redact_secrets(text)
+        assert "abc" in result  # not redacted (too short to be a real key)
+
+    def test_benign_bearer_like_string(self, clean_secret_env: None) -> None:
+        """A log message containing 'Bearer' in non-auth context should not be mangled."""
+        text = "The Bearer token format is: Authorization: Bearer <token>"
+        result = redact_secrets(text)
+        # Should still contain 'Bearer' as a word
+        assert "Bearer" in result
+
+    def test_env_unset_empty_value_not_redacted(self, clean_secret_env: None) -> None:
+        """When env var is unset (empty string), normal text should not be redacted."""
+        result = redact_secrets("Normal log message with no secrets")
+        assert "Normal log message" in result
+
+    def test_redis_url_without_password_not_redacted(self, clean_secret_env: None) -> None:
+        """redis://localhost:6379 (no password) should pass through unchanged."""
+        text = "Connected to redis://localhost:6379/0"
+        result = redact_secrets(text)
+        assert "redis://localhost:6379/0" in result

@@ -1,3 +1,15 @@
+metadata:
+  title: "Trend Following"
+  description: "MA crossover, MACD, RSI, ATR, volume multi-filter trend strategy"
+
+param_space:
+  fast_ma_period: [3, 15]
+  slow_ma_period: [30, 120]
+  rsi_oversold: [20, 40]
+  rsi_overbought: [60, 85]
+  atr_multiplier: [1.2, 3.0]
+  volume_threshold: [0.8, 2.0]
+
 # Trend Following Strategy Configuration
 strategy:
   name: "trend_following"

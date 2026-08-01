@@ -9,6 +9,7 @@ import duckdb
 import pandas as pd
 
 from quantflow.common.exceptions import DataError
+from quantflow.common.indicator_protocol import IndicatorComputer, NullIndicatorComputer
 from quantflow.common.validators import validate_symbol
 from quantflow.data.store import DataStore
 
@@ -18,10 +19,24 @@ logger = logging.getLogger(__name__)
 class FeatureStore:
     """Time-point-safe feature computation and storage."""
 
-    def __init__(self, parquet_dir: str, duckdb_path: str = ":memory:") -> None:
+    def __init__(
+        self,
+        parquet_dir: str,
+        duckdb_path: str = ":memory:",
+        indicator_computer: IndicatorComputer | None = None,
+    ) -> None:
+        """Initialize FeatureStore.
+
+        Args:
+            parquet_dir: Root directory for Parquet feature storage.
+            duckdb_path: Path to DuckDB file (default: in-memory).
+            indicator_computer: Optional IndicatorComputer for compute_features().
+                Defaults to NullIndicatorComputer (raises ValueError if used).
+        """
         self._parquet_dir = Path(parquet_dir) / "features"
         self._parquet_dir.mkdir(parents=True, exist_ok=True)
         self._db = duckdb.connect(duckdb_path)
+        self._indicator_computer = indicator_computer or NullIndicatorComputer()
 
     def compute_features(
         self,
@@ -38,11 +53,10 @@ class FeatureStore:
         if raw.empty:
             return pd.DataFrame()
 
-        # Import and compute indicators
-        from quantflow.indicators.engine import IndicatorEngine
-
-        engine = IndicatorEngine()
-        features = engine.compute_all(raw, indicator_names)
+        # ISS-002: use injected IndicatorComputer Protocol instead of direct
+        # L1→L2 import. NullIndicatorComputer raises a descriptive error if
+        # no implementation was provided.
+        features = self._indicator_computer.compute_all(raw, indicator_names)
 
         features["symbol"] = symbol
         features["computed_at"] = timestamp

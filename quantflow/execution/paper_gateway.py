@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import inspect
 import logging
 from typing import Any
 
@@ -29,12 +32,23 @@ class PaperGateway(GatewayBase):
         self._maker_fee = max(0.0, float(cfg.get("maker_fee", 0.0008)))
         self._taker_fee = max(0.0, float(cfg.get("taker_fee", 0.001)))
         self._initial_capital = float(cfg.get("initial_capital", 1_000_000.0))
+        # M4-5.15: opt-in partial fill simulation for limit orders. When set
+        # (e.g. 0.3), limit orders fill only that fraction on first submission,
+        # returning PARTIAL status. Default None = all orders fill completely
+        # (existing behavior, byte-for-byte baseline preserved).
+        raw_ratio = cfg.get("partial_fill_ratio")
+        self._partial_fill_ratio: float | None = (
+            max(0.01, min(float(raw_ratio), 0.99)) if raw_ratio is not None else None
+        )
         # ISS-20260720-004 Wave 2: PaperGateway no longer keeps a cash ledger.
         # _positions remains as the gateway's local exchange view (query_positions
         # / reduceOnly caps); cash is owned solely by L4 PortfolioManager.
         self._positions: dict[str, Position] = {}
         self._order_counter = 0
         self._prices: dict[str, float] = {}  # symbol → last known price
+        # ISS-003: mock WebSocket subscription task (paper mode simulates a
+        # push feed by periodically emitting local position state).
+        self._ws_task: asyncio.Task[Any] | None = None
 
     async def connect(self, config: dict[str, Any] | None = None) -> None:
         self._positions.clear()
@@ -45,6 +59,13 @@ class PaperGateway(GatewayBase):
         )
 
     async def disconnect(self) -> None:
+        # ISS-003: cancel any active mock WebSocket loop before tearing down
+        # so no orphaned task keeps emitting after the session ends.
+        if self._ws_task is not None and not self._ws_task.done():
+            self._ws_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._ws_task
+            self._ws_task = None
         logger.info("PaperGateway disconnected. Open positions: %d", len(self._positions))
 
     async def send_order(self, order: Order) -> str:
@@ -131,6 +152,14 @@ class PaperGateway(GatewayBase):
         )
 
         order.order_id = order_id
+        # M4-5.15: simulate partial fill for limit orders when configured.
+        if self._partial_fill_ratio is not None and order.order_type == "limit":
+            fill_qty = quantity * self._partial_fill_ratio
+            order.status = OrderStatus.PARTIAL
+            order.filled_quantity = fill_qty
+            order.filled_price = fill_price
+            order.fee = fill_qty * fill_price * self._taker_fee
+            return order_id
         order.status = OrderStatus.FILLED
         order.filled_quantity = quantity
         order.filled_price = fill_price
@@ -156,6 +185,40 @@ class PaperGateway(GatewayBase):
 
     async def query_positions(self) -> list[Position]:
         return list(self._positions.values())
+
+    async def subscribe(self, channel: str, callback: Any = None) -> None:
+        """Mock WebSocket subscription — pushes local book data periodically.
+
+        For paper trading: simulates a WebSocket feed by emitting the current
+        local position state to *callback* every second.  Works without
+        ccxt.pro (paper mode has no real exchange connection).
+
+        Supported channels: ``'ohlcv'``.  Any other channel is a silent no-op
+        so callers can issue speculative subscribes without error handling.
+        """
+        if channel == "ohlcv" and callback is not None:
+            self._ws_task = asyncio.create_task(self._mock_ohlcv_loop(callback))
+        else:
+            logger.debug("PaperGateway.subscribe('%s'): no-op (channel or callback)", channel)
+
+    async def _mock_ohlcv_loop(self, callback: Any) -> None:
+        """Push synthetic OHLCV bars derived from local position prices.
+
+        Each tick emits one bar per tracked symbol using the last known price
+        as all four OHLC fields — enough for downstream consumers that only
+        read ``close`` (most indicators / signal generators) while making the
+        bar structurally valid for any OHLCV-aware pipeline.
+        """
+        while True:
+            await asyncio.sleep(1.0)
+            ts = int(asyncio.get_event_loop().time() * 1000)
+            for _symbol, pos in list(self._positions.items()):
+                price = pos.current_price
+                bar = [[ts, price, price, price, price, 0.0]]
+                if inspect.iscoroutinefunction(callback):
+                    await callback(bar)
+                else:
+                    callback(bar)
 
     def update_market_price(self, symbol: str, price: float) -> None:
         """Update last known price for a symbol (called by data feed).

@@ -195,7 +195,59 @@ class MeanReversionStrategy(StrategyBase):
         profit_exits = long_profit_exits | short_profit_exits
         exits = exits | profit_exits
 
+        # Stop loss exit — direction-aware (ISS-20260720-003)
+        if self._stop_loss_pct > 0.0:
+            long_stop_exits = self._stop_loss_exit_series(
+                close, long_entries, self._stop_loss_pct, direction=1
+            )
+            short_stop_exits = self._stop_loss_exit_series(
+                close, short_entries, self._stop_loss_pct, direction=-1
+            )
+            exits = exits | long_stop_exits | short_stop_exits
+
         return entries.fillna(False), exits.fillna(False)
+
+    @staticmethod
+    def _stop_loss_exit_series(
+        close: pd.Series,
+        entries: pd.Series,
+        stop_loss_pct: float,
+        direction: int = 1,
+    ) -> pd.Series:
+        """Compute boolean exit series for stop loss.
+
+        Args:
+            close: Close price series.
+            entries: Boolean entry signal series.
+            stop_loss_pct: Maximum tolerated loss as fraction (e.g. 0.05 = 5%).
+            direction: 1 for LONG, -1 for SHORT.
+
+        Returns:
+            Boolean Series where True indicates a stop-loss exit.
+        """
+        n = len(close)
+        exits = pd.Series(False, index=close.index, dtype=bool)
+        entry_price = 0.0
+        in_position = False
+
+        for i in range(n):
+            if entries.iloc[i] and not in_position:
+                entry_price = float(close.iloc[i])
+                in_position = True
+                continue
+            if in_position:
+                if direction == 1:  # LONG
+                    stop_price = entry_price * (1.0 - stop_loss_pct)
+                    if float(close.iloc[i]) <= stop_price:
+                        exits.iloc[i] = True
+                        in_position = False
+                else:  # SHORT
+                    stop_price = entry_price * (1.0 + stop_loss_pct)
+                    if float(close.iloc[i]) >= stop_price:
+                        exits.iloc[i] = True
+                        in_position = False
+
+        return exits
 
     def _compute_rsi(self, close: pd.Series) -> pd.Series:
         delta = close.diff()
@@ -207,7 +259,7 @@ class MeanReversionStrategy(StrategyBase):
         return 100 - (100 / (1 + rs))
 
     def _check_position_exits(self, ctx: StrategyContext, bar: Bar) -> None:
-        """Check profit target and max holding exits in on_bar path."""
+        """Check profit target, stop loss, and max holding exits in on_bar path."""
         if not self._in_position:
             return
 
@@ -230,6 +282,33 @@ class MeanReversionStrategy(StrategyBase):
                 )
                 self._in_position = False
                 return
+
+        # Stop loss exit — direction-aware (ISS-20260720-003)
+        if self._stop_loss_pct > 0.0:
+            if self._entry_direction == Direction.LONG:
+                stop_price = self._entry_price * (1.0 - self._stop_loss_pct)
+                if bar.close <= stop_price:
+                    ctx.emit_signal(
+                        bar.symbol,
+                        Direction.FLAT,
+                        strength=0.8,
+                        price=bar.close,
+                        strategy_id=self.name,
+                    )
+                    self._in_position = False
+                    return
+            elif self._entry_direction == Direction.SHORT:
+                stop_price = self._entry_price * (1.0 + self._stop_loss_pct)
+                if bar.close >= stop_price:
+                    ctx.emit_signal(
+                        bar.symbol,
+                        Direction.FLAT,
+                        strength=0.8,
+                        price=bar.close,
+                        strategy_id=self.name,
+                    )
+                    self._in_position = False
+                    return
 
         # Max holding bars exit
         if self._bars_since_entry >= self._max_holding_bars:

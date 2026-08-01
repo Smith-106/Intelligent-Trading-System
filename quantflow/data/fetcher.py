@@ -6,6 +6,7 @@ Supports both REST API polling and WebSocket streaming for real-time data.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import math
 from collections.abc import Callable
@@ -54,6 +55,16 @@ class DataFetcher:
 
     For real-time data, supports WebSocket streaming via the watch_ methods
     (CCXT pro) or polling fallback.
+
+    .. invariant:: **Single instance per session** (M4-1.2)
+
+       A TradingSession MUST create exactly ONE DataFetcher (and thus one
+       underlying ``ccxt.okx`` exchange instance) shared across all symbols.
+       CCXT's built-in rate-limit throttler is per-instance; multiple
+       DataFetcher instances would each run an independent throttler,
+       causing uncoordinated concurrent requests that trigger OKX HTTP 429
+       rate-limit rejections. The multi-symbol data loop (M4-4) rotates a
+       single poller over all symbols through this shared instance.
     """
 
     def __init__(self, config: DataConfig) -> None:
@@ -306,3 +317,76 @@ class DataFetcher:
             self._ws_task.cancel()
         self._ws_task = None
         logger.info("Bar stream stopped")
+
+    async def watch_ohlcv(
+        self,
+        symbol: str,
+        timeframe: str,
+        callback: Any,
+    ) -> None:
+        """Subscribe to real-time OHLCV candles via WebSocket.
+
+        Proxies to the underlying ``ccxt.okx.watch_ohlcv`` when ccxt.pro is
+        installed.  Falls back to a warning + no-op when the pro extension is
+        absent so callers can issue the call unconditionally.
+
+        This is a *fire-and-forget* subscribe: the watch loop is spawned as
+        an asyncio task managed by :pyattr:`_ws_task` (shared with
+        ``stream_bars`` — only one active stream per DataFetcher instance).
+
+        Args:
+            symbol: Trading pair (e.g. ``"BTC/USDT"``).
+            timeframe: Candle interval (e.g. ``"1m"``).
+            callback: Invoked with each new list of OHLCV bars.
+        """
+        if self._exchange is None:
+            logger.warning("No exchange connected — watch_ohlcv is no-op")
+            return
+        if not hasattr(self._exchange, "watch_ohlcv"):
+            logger.warning(
+                "ccxt.pro not available — watch_ohlcv('%s', '%s') is no-op",
+                symbol,
+                timeframe,
+            )
+            return
+
+        self._ws_running = True
+        self._ws_task = asyncio.ensure_future(self._watch_ohlcv_raw(symbol, timeframe, callback))
+
+    async def _watch_ohlcv_raw(
+        self,
+        symbol: str,
+        timeframe: str,
+        callback: Any,
+    ) -> None:
+        """Raw watch loop that forwards ccxt OHLCV lists to *callback*.
+
+        Unlike ``_stream_ws`` (which wraps each bar in a dict for the
+        DataFetcher stream API), this loop passes the raw ``[[ts, o, h, l,
+        c, v], …]`` list straight through — matching the gateway-level
+        ``subscribe('ohlcv', …)`` contract.
+        """
+        exchange = self._exchange
+        if exchange is None:
+            return
+        backoff = 1.0
+        while self._ws_running:
+            try:
+                ohlcv = await asyncio.wait_for(
+                    exchange.watch_ohlcv(symbol, timeframe), timeout=CALL_TIMEOUT
+                )
+                if ohlcv and callback:
+                    if inspect.iscoroutinefunction(callback):
+                        await callback(ohlcv)
+                    else:
+                        callback(ohlcv)
+                backoff = 1.0
+                await asyncio.sleep(0)  # Yield to event loop
+            except Exception as e:
+                logger.warning(
+                    "watch_ohlcv error: %s, reconnecting in %.0fs",
+                    type(e).__name__,
+                    backoff,
+                )
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, 16.0)

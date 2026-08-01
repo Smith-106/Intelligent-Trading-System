@@ -110,15 +110,17 @@ Source: odyssey-review deepfix session (Pattern 1, CRITICAL fixes 1-3).
 </spec-entry>
 
 
-<spec-entry category="coding" keywords="vectorbt,参数扫描,向量化,multi-asset,broadcasting" date="2026-07-18" sid="S-20260718-sffn" status="contested" contested_by="ISS-20260722-001" title="研究层大规模参数扫描用 vectorbt run_combs/Portfolio.from_signals 多资产 broadcasting" description="用 run_combs/Portfolio.from_signals 多资产 broadcasting 替代 Python 循环做大规模参数扫描" source="harvest:deep-research-20260718">
+<spec-entry category="coding" keywords="vectorbt,参数扫描,向量化,multi-asset,broadcasting" date="2026-07-18" sid="S-20260718-sffn" status="deprecated" superseded_by="ISS-20260722-001" title="研究层大规模参数扫描用 vectorbt run_combs/Portfolio.from_signals 多资产 broadcasting" description="DEPRECATED — vectorbt 因 Python 3.14/numba 不兼容已移除，改用 numpy 向量化+并行化" source="harvest:deep-research-20260718">
 
 ### 研究层大规模参数扫描用 vectorbt run_combs/Portfolio.from_signals 多资产 broadcasting
 
-[CONTESTED — 见条目末冲突说明]
+**[DEPRECATED — ISS-20260722-001 裁决结果]**
 
-研究层应充分利用 vectorbt 的向量化参数扫描:放弃逐 bar 循环,把数千策略配置打包进 NumPy 数组做向量化评估(Numba+Rust 加速热路径),支持多资产 broadcasting 的大规模参数扫描(如 vbt.MA.run_combs(price, window=np.arange(2,101), r=2) 跨 BTC/ETH/XRP,将小时级网格搜索压缩到秒级)。需核实 strategy/research/ 当前是否仍用 Python 循环,若是则迁移到 run_combs/Portfolio.from_signals。注: vectorbt 活跃维护(2026-07 仍有提交);Numba JIT 路径在小数据集上可能产生 cryptic error 与延迟,热路径需基准测试。来源: deep-research-20260718 F6-参考项目 (3-0 verified), polakowo/vectorbt。
+本条目建议迁移到 vectorbt，但架构决策已明确否决：`quantflow/strategy/research/backtest.py:1-4` 注释记录 vectorbt 因 **Python 3.14/numba 不兼容** 被故意移除，全仓零 vectorbt 引用。ISS-20260722-001 审计结论 (a)：撤销迁移方向，本条目 `status` 由 `contested` 改为 `deprecated`。
 
-**[CONFLICT — 待审计裁决]**: 本条目建议迁移到 vectorbt，但 `quantflow/strategy/research/backtest.py:1-4` 注释明确已**故意移除** vectorbt（Python 3.14/numba 不兼容），全仓零 vectorbt 引用。架构决策与 spec 直接矛盾。ISS-20260722-001 待审计三选一：(a) 撤销迁移方向，重定向 numpy 向量化+并行化（与现状一致，本条目应 deprecated）；(b) 重新评估 vectorbt 2026 兼容性；(c) 保留但维持 contested。grill 倾向 (a)。在裁决前，本条目以 `status="contested"` 标注，search 权重 ×0.5，仍注入但不作为实施依据。裁决入口：`/manage-knowledge-audit --scope spec`。
+**当前架构**：研究层参数扫描采用 numpy 向量化 + 并行化（`BacktestEngine` 纯 pandas/numpy 实现），在 Python 3.14+ 环境下稳定运行。本条目的 vectorbt 迁移建议已被架构决策取代，不再作为实施依据。
+
+原始条目保留如下以供历史追溯：研究层应充分利用 vectorbt 的向量化参数扫描...（已废弃）。
 </spec-entry>
 
 <spec-entry category="coding" keywords="compound,strategy_id,allocation,consolidated-signal,exact-lookup,silent-drop" date="2026-07-20" sid="S-20260720-98vs" title="Compound strategy_id 精确查找静默失效" description="compound strategy_id 精确查找静默失效范式——consolidated signal 的 joined key 永远 miss，返回 0.0 致信号丢弃/预算 bypass" source="main@428002d">
@@ -185,4 +187,22 @@ L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需
 
 所有面向用户/日志/快照的异常字符串经 common/redaction.py redact_secrets() 脱敏（CWE-532）；redact_secrets 是公开 API（非 _redact），对齐 arch security-primitive 公开契约。CLI except Exception 路径必经 redact_secrets(str(e)) 再输出。FAIL-CLOSED 例外：配置校验类错误（typer.BadParameter / 缺 env vars / click.ClickException）须在通用 except Exception 前 except: raise 传播到框架 exit handler（非零 exit + usage message），不可被 redact 吞成 exit 0。这是 fail-silent antipattern（S-20260724-elsu）的 CLI analog — exit 0 是合法 success 值，不可复用为错误路径返回。范本：cli/main.py run _run_session（H3 模块级 import redact_secrets + REG-1 加 except typer.BadParameter: raise 在 except Exception 前，commit 4e32c24+74b83d1）。
 
+</spec-entry>
+
+<spec-entry category="coding" keywords="flush-signals,GIL,原子操作,to-thread,emit-signal,线程安全" date="2026-07-31" sid="S-20260731-c4n5" title="flush_signals 引用交换是 CPython GIL 级别的原子操作，无需显式锁" description="to_thread 工作线程的 emit_signal 与主协程的 flush_signals 之间依赖 GIL 原子性" source="phase-6-codereview">
+
+### flush_signals 引用交换的 GIL 原子性契约
+
+`StrategyContext.flush_signals()` 使用引用交换模式：`signals, self._signals = self._signals, []`。这是一个单条字节码级别的赋值操作，在 CPython GIL 下是原子的。
+
+**线程安全模型**：`on_bar` 经 `asyncio.to_thread` 在工作线程中执行，调用 `ctx.emit_signal(signal)` 向 `self._signals` 列表追加。主协程在 `to_thread` future 完成后调用 `ctx.flush_signals()` 清空列表。由于：
+1. `list.append()` 在 CPython 下是单条字节码操作（GIL 原子）
+2. `flush_signals` 的引用交换是单条赋值（GIL 原子）
+3. `to_thread` 保证 `flush_signals` 在所有 worker 线程的 `emit_signal` 完成后才执行
+
+因此无需显式锁（`threading.Lock`）。这是 CPython 特有的线程安全保证，不可移植到 PyPy/Jython。
+
+**禁止修改**：不可将 `flush_signals` 改为 copy-then-clear（如 `signals = list(self._signals); self._signals.clear()`），这会丢失原子性（两步操作之间可能被 `emit_signal` 插入）。也不可添加显式锁（增加复杂度且无必要）。
+
+落地：`quantflow/strategy/base.py` `StrategyContext.flush_signals`。测试：`tests/unit/test_m4_killswitch_threadflush.py` `TestFlushSignalsAtomic` + `TestConcurrentEmitSignal`（50 线程并发 emit + 双 context 隔离）。
 </spec-entry>

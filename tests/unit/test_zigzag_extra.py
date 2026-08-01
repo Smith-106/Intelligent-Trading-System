@@ -74,3 +74,46 @@ class TestZigZagHelpersExtra:
             bar_tolerance=0,
         )
         assert no_consensus.empty
+
+    def test_low_volatility_fallback_uses_median_threshold_when_consensus_empty(
+        self, monkeypatch
+    ) -> None:
+        """ISS-20260613-007: when min_overlap > 80% yields no consensus pivots,
+        fall back to the single ZigZag run with the median parameter value."""
+        indicator = ZigZagIndicator()
+        high = pd.Series([100.0] * 20, dtype=float)
+        low = pd.Series([99.0] * 20, dtype=float)
+        timestamps = pd.Series(list(range(20)), dtype=int)
+
+        # Monkeypatch _merge_pivot_runs to return empty — simulates low-volatility
+        # scenario where no pivot group reaches min_overlap.
+        monkeypatch.setattr(
+            "quantflow.indicators.zigzag._merge_pivot_runs",
+            lambda *args, **kwargs: pd.DataFrame(
+                columns=["pivot_idx", "pivot_price", "pivot_type", "overlap_count"]
+            ),
+        )
+
+        # Patch _zigzag_single to return a known pivot only for the median threshold.
+        median_threshold = 0.08  # middle of [0.03, 0.05, 0.08, 0.12, 0.15]
+        fake_pivot = pd.DataFrame([{"pivot_idx": 5, "pivot_price": 100.0, "pivot_type": 1}])
+
+        def _fake_zigzag(h, low_prices, threshold):
+            if abs(threshold - median_threshold) < 1e-9:
+                return fake_pivot.copy()
+            return pd.DataFrame(columns=["pivot_idx", "pivot_price", "pivot_type"])
+
+        monkeypatch.setattr("quantflow.indicators.zigzag._zigzag_single", _fake_zigzag)
+
+        result = indicator.compute_pivot_sequence(
+            high,
+            low,
+            timestamps,
+            thresholds=[0.03, 0.05, 0.08, 0.12, 0.15],
+            min_overlap_ratio=0.8,
+        )
+
+        # Fallback should produce exactly one pivot from the median-threshold run.
+        assert len(result.pivots) == 1
+        assert result.pivots[0].index == 5
+        assert result.pivots[0].price == 100.0

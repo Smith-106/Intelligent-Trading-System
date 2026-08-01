@@ -11,6 +11,7 @@ import numpy as np
 from quantflow.common.config import RiskConfig
 from quantflow.common.models import Portfolio, RiskDecision, Signal, strategy_id_constituents
 from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
+from quantflow.signal.portfolio import PendingView
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,9 @@ class RiskEngine:
         # Build the check tuple once (odyssey-improve PERF-L1): previously
         # check() allocated a fresh 7-element list of bound methods per signal.
         # A tuple built in __init__ is iterated with zero per-call allocation.
-        self._checks: tuple[Callable[[Signal, Portfolio], RiskDecision], ...] = (
+        self._checks: tuple[
+            Callable[[Signal, Portfolio, PendingView | None], RiskDecision], ...
+        ] = (
             self._check_position_limit,
             self._check_portfolio_limit,
             self._check_strategy_budget,
@@ -83,10 +86,18 @@ class RiskEngine:
         self._weekly_pnl_pct = 0.0
         self._var_cache_len = -1
 
-    def check(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
-        """Run all risk checks on a signal."""
+    def check(
+        self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
+    ) -> RiskDecision:
+        """Run all risk checks on a signal.
+
+        M4-5.4: ``pending`` carries the current pending exposure snapshot so
+        position_limit / portfolio_limit / strategy_budget checks include
+        in-flight (reserved but unfilled) notional. Defaults to None (no
+        pending) for backward compatibility with existing callers/tests.
+        """
         for check_fn in self._checks:
-            result = check_fn(signal, portfolio)
+            result = check_fn(signal, portfolio, pending)
             if not result.passed:
                 # ISS-20260723-011 (OBS-M #5): include the structured details
                 # (pct/limit/exposure/budget) in the rejection log so operators
@@ -113,12 +124,28 @@ class RiskEngine:
         """
         self._sink.record_risk_event(event_type, severity)
 
-    def _check_position_limit(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
+    def _check_position_limit(
+        self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
+    ) -> RiskDecision:
         symbol = signal.symbol
         if symbol in portfolio.positions:
             pos = portfolio.positions[symbol]
             pos_value = abs(pos.quantity) * pos.current_price if pos.current_price > 0 else 0
             total = portfolio.total_value
+            # M4-5.5: include pending exposure for this symbol.
+            if pending:
+                pos_value += pending.by_symbol.get(symbol, 0.0)
+            pos_pct = pos_value / total if total > 0 else 0
+            if pos_pct >= self._config.position_limit_pct:
+                return RiskDecision(
+                    passed=False,
+                    reason="position_limit",
+                    details={"pct": pos_pct, "limit": self._config.position_limit_pct},
+                )
+        elif pending and pending.by_symbol.get(symbol, 0.0) > 0:
+            # No existing position but pending exposure for this symbol.
+            total = portfolio.total_value
+            pos_value = pending.by_symbol[symbol]
             pos_pct = pos_value / total if total > 0 else 0
             if pos_pct >= self._config.position_limit_pct:
                 return RiskDecision(
@@ -128,20 +155,30 @@ class RiskEngine:
                 )
         return RiskDecision(passed=True)
 
-    def _check_portfolio_limit(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
-        if len(portfolio.positions) >= self._config.max_positions:
+    def _check_portfolio_limit(
+        self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
+    ) -> RiskDecision:
+        # M4-5.5: count pending symbols that would open NEW positions.
+        effective_count = len(portfolio.positions)
+        if pending:
+            for sym in pending.by_symbol:
+                if sym not in portfolio.positions:
+                    effective_count += 1
+        if effective_count >= self._config.max_positions:
             if signal.symbol not in portfolio.positions:
                 return RiskDecision(
                     passed=False,
                     reason="max_positions",
                     details={
-                        "count": len(portfolio.positions),
+                        "count": effective_count,
                         "limit": self._config.max_positions,
                     },
                 )
         return RiskDecision(passed=True)
 
-    def _check_strategy_budget(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
+    def _check_strategy_budget(
+        self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
+    ) -> RiskDecision:
         """Check per-strategy risk budget allocation.
 
         A consolidated signal carries a compound ``strategy_id`` (e.g.
@@ -201,7 +238,9 @@ class RiskEngine:
                 )
         return RiskDecision(passed=True)
 
-    def _check_daily_loss(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
+    def _check_daily_loss(
+        self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
+    ) -> RiskDecision:
         # ISS-20260720-004 Wave 3: daily_loss now measures total equity vs the
         # day's opening baseline (anchored by TradingSession.on_bar at the first
         # bar of each calendar day). This includes realized PnL (cash reflects
@@ -223,7 +262,9 @@ class RiskEngine:
             )
         return RiskDecision(passed=True)
 
-    def _check_weekly_loss(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
+    def _check_weekly_loss(
+        self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
+    ) -> RiskDecision:
         if self._weekly_pnl_pct < self._config.weekly_loss_limit:
             return RiskDecision(
                 passed=False,
@@ -232,7 +273,9 @@ class RiskEngine:
             )
         return RiskDecision(passed=True)
 
-    def _check_drawdown(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
+    def _check_drawdown(
+        self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
+    ) -> RiskDecision:
         dd = portfolio.current_drawdown
         if dd < self._config.max_drawdown:
             return RiskDecision(
@@ -242,7 +285,9 @@ class RiskEngine:
             )
         return RiskDecision(passed=True)
 
-    def _check_var(self, signal: Signal, portfolio: Portfolio) -> RiskDecision:
+    def _check_var(
+        self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
+    ) -> RiskDecision:
         """Check VaR (Value at Risk) limit.
 
         The returns history is portfolio-level (fed by TradingSession.on_bar's

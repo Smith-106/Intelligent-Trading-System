@@ -10,8 +10,12 @@ from __future__ import annotations
 
 import logging
 import logging.config
+from collections.abc import Mapping, MutableMapping
+from typing import Any
 
 import structlog
+
+from quantflow.common.redaction import redact_secrets
 
 
 def setup_logging(level: str = "INFO", json_format: bool = False) -> None:
@@ -31,6 +35,7 @@ def setup_logging(level: str = "INFO", json_format: bool = False) -> None:
         structlog.processors.StackInfoRenderer(),
         structlog.dev.set_exc_info,
         timestamper,
+        _redact_processor,
     ]
 
     structlog.configure(
@@ -77,3 +82,33 @@ def setup_logging(level: str = "INFO", json_format: bool = False) -> None:
             },
         }
     )
+
+
+def _redact_processor(
+    logger: Any, method_name: str, event_dict: MutableMapping[str, Any]
+) -> Mapping[str, Any]:
+    """Sanitize sensitive data from log events (ISS-004).
+
+    Security guard that runs on ALL log output to prevent accidental
+    credential leakage. Uses the same ``redact_secrets()`` function
+    already validated in other modules.
+
+    Only string-typed values are scrubbed; structured metrics (ints,
+    floats, dicts) are left untouched to avoid corrupting Prometheus
+    labels or numeric fields.
+
+    .. note:: **Top-level only** — this processor iterates only over
+       top-level string fields in *event_dict*.  Nested structures
+       (dicts / lists within dicts) are **not** traversed.  This is
+       acceptable because:
+
+       * Structured log fields (e.g. Prometheus labels) are typically
+         flat, not nested.
+       * Credential-bearing modules already call ``redact_secrets()``
+         directly on their messages before emitting.
+       * This processor is a **safety net**, not the primary defense.
+    """
+    for key, value in event_dict.items():
+        if isinstance(value, str):
+            event_dict[key] = redact_secrets(value)
+    return event_dict

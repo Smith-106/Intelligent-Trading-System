@@ -442,15 +442,19 @@ class ExecutionEngine:
         """
         return self._order_mgr.check_timeouts()
 
-    async def sync_positions(self) -> None:
+    async def sync_positions(self) -> bool:
         """Sync positions from the exchange.
 
         Fail-closed (odyssey-improve SEC-H5): on GatewayError do NOT zero out
         the local book — a failed query previously overwrote real positions
         with an empty list. Keep last-known state and log for manual sync.
+
+        Returns:
+            True if sync succeeded (L4 overwritten with exchange truth),
+            False if sync failed (L4 retains last-known state). (M4-5.10)
         """
         if not self._gateway:
-            return
+            return False
         try:
             positions = await self._gateway.query_positions()
         except GatewayError as e:
@@ -458,10 +462,11 @@ class ExecutionEngine:
                 "sync_positions skipped — query failed, keeping last-known: %s",
                 redact_secrets(str(e)),
             )
-            return
+            return False
         for pos in positions:
             # Delegate to L4 (ISS-20260720-004 Wave 2): exchange is the source
             # of truth on live sync, so overwrite the local book rather than
             # the prior private-attribute write that left L4 stale.
             self._position_mgr.set_position(pos.symbol, pos)
         logger.info("Synced %d positions from exchange", len(positions))
+        return True
