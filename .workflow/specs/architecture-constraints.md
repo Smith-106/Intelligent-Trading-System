@@ -286,3 +286,46 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 
 落地：trade-main-path odyssey 根因 D（三本账零对账）+ 根因 generalize 扫描（session_manager getattr `_event_bus` / `last_error`）。
 </spec-entry>
+
+<spec-entry category="arch" keywords="redis,fallback,degraded-mode,in-memory,graceful-degradation,state-store,dq-monitor" date="2026-08-02" sid="S-20260802-redis-fallback" title="Redis 依赖必须有 in-memory fallback 降级路径" description="任何依赖 Redis 的运行时组件必须实现透明降级到进程内存储，确保 Redis 不可用时核心功能不中断" source="harvest:ralph-v2-20260802-220000">
+
+### Redis 依赖必须有 in-memory fallback 降级路径
+
+**规则**: 任何依赖 Redis 的运行时组件（DQ Monitor、Feature Store 等）必须实现透明降级到进程内存储（InMemoryStateStore 模式），确保 Redis 不可用时核心功能不中断。
+
+**实现模式**:
+1. `_state_get(key)` / `_state_set(key, value)` 封装所有 Redis 操作
+2. Redis 异常时调用 `_enter_degraded_mode(reason)` 切换标志（仅日志一次）
+3. `is_degraded` 属性暴露当前状态供监控查询
+4. 降级后状态为进程本地，不保证跨进程一致性（已知限制，需文档声明）
+
+**约束**:
+- 降级切换 MUST 为单向（不自动恢复，避免 flapping）
+- 降级事件 MUST 记录 WARNING 日志（仅一次）
+- 配置 `use_in_memory_fallback=True`（默认）启用；`=False` 时 Redis 失败返回 None
+
+落地：`quantflow/data/dq_monitor.py` InMemoryStateStore + _state_get/_state_set。测试：`tests/unit/test_dq_monitor_fallback.py` 14 测试。
+</spec-entry>
+
+<spec-entry category="arch" keywords="alert,deduplication,sliding-window,routing-matrix,alert-fatigue,notification" date="2026-08-02" sid="S-20260802-alert-dedup" title="告警路由矩阵 + 滑动窗口去重必须成对使用" description="AlertManager.send_routed() 必须同时应用 ALERT_ROUTING 路由和 AlertDeduplicator 去重，防止告警疲劳" source="harvest:ralph-v2-20260802-220000">
+
+### 告警路由矩阵 + 滑动窗口去重必须成对使用
+
+**规则**: 所有生产告警 MUST 通过 `AlertManager.send_routed()` 发送（而非原始 `send()`），确保：
+1. ALERT_ROUTING 矩阵决定目标通道（category × priority → channels）
+2. AlertDeduplicator 滑动窗口去重（默认 5 分钟）防止重复轰炸
+
+**ALERT_ROUTING 结构**: `dict[tuple[AlertCategory, AlertPriority], list[str]]`
+- P0_EMERGENCY → ["telegram", "webhook"]（全通道即时）
+- P1_HIGH → ["telegram"]（5 分钟内通知）
+- P2_MEDIUM → ["telegram"]（30 分钟内）
+- P3_LOW → ["webhook"]（批量/下一工作日）
+- 未映射组合 → DEFAULT_ALERT_CHANNELS ["telegram"]
+
+**去重约束**:
+- 去重键 = `f"{category.value}:{symbol}"`
+- 窗口内重复 → 返回空 dict（抑制），不发送
+- `suppressed_count` 属性供监控查询抑制数量
+
+落地：`quantflow/monitoring/alerts.py` ALERT_ROUTING + AlertDeduplicator + send_routed()。测试：`tests/unit/test_alert_routing.py` 18 测试。
+</spec-entry>

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import time
+from collections import defaultdict
 from enum import StrEnum
 from typing import Any
 
@@ -75,6 +77,130 @@ class AlertPriority(StrEnum):
     P3_LOW = "p3_low"  # Batch notification, next business day
 
 
+# ---------------------------------------------------------------------------
+# Alert Routing Matrix (ISS-20260802-005)
+# ---------------------------------------------------------------------------
+
+# Default routing rules: maps (category, priority) → notification channels.
+# Channels: "telegram", "line", "webhook", "pagerduty" (future)
+# Override via YAML config: quantflow/config/alert_routing.yaml
+ALERT_ROUTING: dict[tuple[AlertCategory, AlertPriority], list[str]] = {
+    # P0 Emergency — all channels, immediate
+    (AlertCategory.RECONCILIATION_DRIFT, AlertPriority.P0_EMERGENCY): ["telegram", "webhook"],
+    (AlertCategory.EXECUTION_FAILURE, AlertPriority.P0_EMERGENCY): ["telegram", "webhook"],
+    (AlertCategory.DRAWDOWN_BREACH, AlertPriority.P0_EMERGENCY): ["telegram", "line", "webhook"],
+    (AlertCategory.FEED_INTERRUPT, AlertPriority.P0_EMERGENCY): ["telegram", "webhook"],
+    # P1 High — telegram + webhook
+    (AlertCategory.ORPHAN_ORDER, AlertPriority.P1_HIGH): ["telegram", "webhook"],
+    (AlertCategory.ORDER_TIMEOUT, AlertPriority.P1_HIGH): ["telegram"],
+    (AlertCategory.CONNECTIVITY, AlertPriority.P1_HIGH): ["telegram"],
+    (AlertCategory.VAR_BREACH, AlertPriority.P1_HIGH): ["telegram", "webhook"],
+    # P2 Medium — telegram only
+    (AlertCategory.DATA_STALENESS, AlertPriority.P2_MEDIUM): ["telegram"],
+    (AlertCategory.DATA_ANOMALY, AlertPriority.P2_MEDIUM): ["telegram"],
+    (AlertCategory.PERFORMANCE, AlertPriority.P2_MEDIUM): ["telegram"],
+    (AlertCategory.POSITION_LIMIT, AlertPriority.P2_MEDIUM): ["telegram"],
+    # P3 Low — webhook batch only
+    (AlertCategory.SYSTEM_HEALTH, AlertPriority.P3_LOW): ["webhook"],
+    (AlertCategory.SIGNAL_GENERATION, AlertPriority.P3_LOW): ["webhook"],
+    (AlertCategory.STRATEGY_ERROR, AlertPriority.P3_LOW): ["webhook"],
+}
+
+# Default channels when no specific route matches
+DEFAULT_ALERT_CHANNELS: list[str] = ["telegram"]
+
+
+def resolve_alert_channels(
+    category: AlertCategory,
+    priority: AlertPriority,
+) -> list[str]:
+    """Resolve notification channels for a given alert category + priority.
+
+    Uses ALERT_ROUTING matrix with fallback to DEFAULT_ALERT_CHANNELS.
+
+    Args:
+        category: Alert category enum
+        priority: Alert priority enum
+
+    Returns:
+        List of channel names to notify
+    """
+    return ALERT_ROUTING.get((category, priority), DEFAULT_ALERT_CHANNELS)
+
+
+class AlertDeduplicator:
+    """Sliding window alert deduplication (ISS-20260802-005).
+
+    Prevents alert fatigue by suppressing duplicate alerts within a
+    configurable time window. Each unique alert key (category + symbol)
+    is tracked independently.
+
+    Usage:
+        dedup = AlertDeduplicator(window_seconds=300)  # 5 min window
+
+        if dedup.should_send("reconciliation_drift:BTC/USDT"):
+            await alert_manager.send(...)
+        # Second identical alert within 5 min → suppressed
+    """
+
+    def __init__(self, window_seconds: float = 300.0) -> None:
+        """Initialize deduplicator.
+
+        Args:
+            window_seconds: Time window for deduplication (default 5 min)
+        """
+        self._window = window_seconds
+        self._seen: dict[str, list[float]] = defaultdict(list)
+        self._suppressed_count = 0
+
+    def should_send(self, alert_key: str) -> bool:
+        """Check if alert should be sent (not a duplicate within window).
+
+        Args:
+            alert_key: Unique key for the alert (e.g., "category:symbol")
+
+        Returns:
+            True if alert should be sent, False if suppressed as duplicate
+        """
+        now = time.time()
+
+        # Prune expired entries
+        self._seen[alert_key] = [
+            t for t in self._seen[alert_key] if now - t < self._window
+        ]
+
+        if self._seen[alert_key]:
+            # Duplicate within window — suppress
+            self._suppressed_count += 1
+            return False
+
+        # Record and allow
+        self._seen[alert_key].append(now)
+        return True
+
+    def make_key(self, category: AlertCategory, symbol: str = "") -> str:
+        """Generate a deduplication key from category and symbol.
+
+        Args:
+            category: Alert category
+            symbol: Trading pair (optional)
+
+        Returns:
+            Dedup key string
+        """
+        return f"{category.value}:{symbol}" if symbol else category.value
+
+    @property
+    def suppressed_count(self) -> int:
+        """Total number of alerts suppressed since initialization."""
+        return self._suppressed_count
+
+    def reset(self) -> None:
+        """Clear all deduplication state."""
+        self._seen.clear()
+        self._suppressed_count = 0
+
+
 class AlertManager:
     """Manage alerts with Telegram/LINE/webhook notifications.
 
@@ -82,6 +208,10 @@ class AlertManager:
     - TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID
     - LINE_CHANNEL_ACCESS_TOKEN / LINE_USER_ID
     - WEBHOOK_URL (generic webhook)
+
+    Enhanced with smart routing (ISS-20260802-005):
+    - ALERT_ROUTING matrix maps (category, priority) → channels
+    - AlertDeduplicator prevents alert fatigue
     """
 
     def __init__(
@@ -91,12 +221,14 @@ class AlertManager:
         line_token: str = "",
         line_user_id: str = "",
         webhook_url: str = "",
+        dedup_window_seconds: float = 300.0,
     ):
         self.telegram_token = telegram_token
         self.telegram_chat_id = telegram_chat_id
         self.line_token = line_token
         self.line_user_id = line_user_id
         self.webhook_url = webhook_url
+        self._dedup = AlertDeduplicator(window_seconds=dedup_window_seconds)
 
     async def send(
         self,
@@ -124,6 +256,76 @@ class AlertManager:
             results["webhook"] = await self._send_webhook(message, level, extra)
 
         return results
+
+    async def send_routed(
+        self,
+        message: str,
+        category: AlertCategory,
+        priority: AlertPriority,
+        symbol: str = "",
+        level: AlertLevel | None = None,
+        extra: dict[str, Any] | None = None,
+    ) -> dict[str, bool]:
+        """Send alert with smart routing and deduplication (ISS-20260802-005).
+
+        Routes alert to appropriate channels based on category + priority,
+        and suppresses duplicates within the dedup window.
+
+        Args:
+            message: Alert message text
+            category: Alert category for routing
+            priority: Alert priority for routing
+            symbol: Trading pair (for dedup key)
+            level: AlertLevel override (inferred from priority if None)
+            extra: Additional context dict
+
+        Returns:
+            Dict of {channel: success} for attempted deliveries.
+            Empty dict if alert was deduplicated (suppressed).
+        """
+        # Deduplication check
+        dedup_key = self._dedup.make_key(category, symbol)
+        if not self._dedup.should_send(dedup_key):
+            logger.debug(
+                "Alert suppressed (dedup): %s [%s/%s]",
+                dedup_key, category.value, priority.value,
+            )
+            return {}  # Suppressed
+
+        # Infer AlertLevel from priority if not provided
+        if level is None:
+            level = {
+                AlertPriority.P0_EMERGENCY: AlertLevel.CRITICAL,
+                AlertPriority.P1_HIGH: AlertLevel.CRITICAL,
+                AlertPriority.P2_MEDIUM: AlertLevel.WARNING,
+                AlertPriority.P3_LOW: AlertLevel.INFO,
+            }[priority]
+
+        # Resolve target channels
+        channels = resolve_alert_channels(category, priority)
+
+        # Send only to routed channels
+        results: dict[str, bool] = {}
+        enriched_extra = {
+            **(extra or {}),
+            "category": category.value,
+            "priority": priority.value,
+            "symbol": symbol,
+        }
+
+        if "telegram" in channels and self.telegram_token:
+            results["telegram"] = await self._send_telegram(message, level, enriched_extra)
+        if "line" in channels and self.line_token:
+            results["line"] = await self._send_line(message, level)
+        if "webhook" in channels and self.webhook_url:
+            results["webhook"] = await self._send_webhook(message, level, enriched_extra)
+
+        return results
+
+    @property
+    def deduplicator(self) -> AlertDeduplicator:
+        """Access the alert deduplicator for metrics/inspection."""
+        return self._dedup
 
     async def _send_telegram(
         self,

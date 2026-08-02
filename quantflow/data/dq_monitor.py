@@ -94,6 +94,39 @@ class ValidationResult:
         }
 
 
+class InMemoryStateStore:
+    """In-memory fallback state store when Redis is unavailable.
+
+    ISS-20260802-010: Provides graceful degradation for DataQualityMonitor
+    when Redis connection is lost. State is process-local and non-persistent,
+    but prevents complete DQ monitoring failure.
+
+    Thread Safety:
+    - Single-process only (no cross-process consistency)
+    - Async-safe (no concurrent write protection needed for dict ops in CPython)
+    """
+
+    def __init__(self) -> None:
+        self._store: dict[str, str] = {}
+
+    async def get(self, key: str) -> str | None:
+        """Get value by key (returns None if not found)."""
+        return self._store.get(key)
+
+    async def set(self, key: str, value: Any) -> None:
+        """Set key-value pair."""
+        self._store[key] = str(value)
+
+    def clear(self) -> None:
+        """Clear all stored state."""
+        self._store.clear()
+
+    @property
+    def key_count(self) -> int:
+        """Number of keys currently stored."""
+        return len(self._store)
+
+
 class DataQualityMonitor:
     """Real-time data quality monitoring and validation.
     
@@ -105,6 +138,7 @@ class DataQualityMonitor:
     Thread Safety:
     - All operations are async
     - Uses Redis for shared state across processes
+    - Falls back to in-memory store when Redis unavailable (ISS-20260802-010)
     """
     
     # Configuration constants
@@ -115,17 +149,25 @@ class DataQualityMonitor:
     
     def __init__(
         self,
-        redis_cache: Any,  # RedisCache from quantflow.data
+        redis_cache: Any | None = None,  # RedisCache from quantflow.data (optional)
         enable_prometheus: bool = True,
+        use_in_memory_fallback: bool = True,
     ) -> None:
         """Initialize data quality monitor.
         
         Args:
-            redis_cache: Redis cache for storing last bar timestamps
+            redis_cache: Redis cache for storing last bar timestamps.
+                         If None and use_in_memory_fallback=True, uses in-memory store.
             enable_prometheus: Whether to export Prometheus metrics
+            use_in_memory_fallback: If True, gracefully degrade to in-memory
+                                    state when Redis is unavailable (ISS-20260802-010)
         """
         self._redis = redis_cache
         self._enable_prometheus = enable_prometheus
+        self._use_in_memory_fallback = use_in_memory_fallback
+        self._fallback_store = InMemoryStateStore() if use_in_memory_fallback else None
+        self._redis_available = redis_cache is not None
+        self._degraded_mode = False  # True when operating on fallback
         
         # Initialize Prometheus metrics if enabled
         if self._enable_prometheus:
@@ -261,6 +303,57 @@ class DataQualityMonitor:
         
         return result
     
+    async def _state_get(self, key: str) -> str | None:
+        """Get state value with Redis-first, in-memory fallback.
+
+        ISS-20260802-010: Transparently falls back to in-memory store
+        when Redis operations fail, logging degradation once.
+        """
+        if self._redis_available and not self._degraded_mode:
+            try:
+                return await self._redis.get(key)
+            except Exception as e:
+                self._enter_degraded_mode(f"Redis GET failed: {e}")
+
+        if self._fallback_store is not None:
+            return await self._fallback_store.get(key)
+        return None
+
+    async def _state_set(self, key: str, value: Any) -> None:
+        """Set state value with Redis-first, in-memory fallback.
+
+        ISS-20260802-010: Transparently falls back to in-memory store
+        when Redis operations fail.
+        """
+        if self._redis_available and not self._degraded_mode:
+            try:
+                await self._redis.set(key, value)
+                return
+            except Exception as e:
+                self._enter_degraded_mode(f"Redis SET failed: {e}")
+
+        if self._fallback_store is not None:
+            await self._fallback_store.set(key, value)
+
+    def _enter_degraded_mode(self, reason: str) -> None:
+        """Switch to degraded (in-memory) mode and log once.
+
+        ISS-20260802-010: Logs the degradation event only once to avoid
+        log flooding during sustained Redis outages.
+        """
+        if not self._degraded_mode:
+            self._degraded_mode = True
+            logger.warning(
+                "DataQualityMonitor entering DEGRADED MODE (in-memory fallback): %s. "
+                "Cross-process state consistency is NOT guaranteed.",
+                reason,
+            )
+
+    @property
+    def is_degraded(self) -> bool:
+        """Whether monitor is operating in degraded (in-memory) mode."""
+        return self._degraded_mode
+
     async def _check_freshness(self, bar: Any) -> float:
         """Check data freshness (staleness detection).
         
@@ -271,13 +364,13 @@ class DataQualityMonitor:
             Freshness score (0-1, higher is better)
         """
         try:
-            # Get last bar timestamp from Redis
+            # Get last bar timestamp from state store
             last_bar_key = f"dq:last_bar:{bar.symbol}"
-            last_timestamp = await self._redis.get(last_bar_key)
+            last_timestamp = await self._state_get(last_bar_key)
             
             if last_timestamp is None:
                 # First bar for this symbol - assume fresh
-                await self._redis.set(last_bar_key, bar.timestamp)
+                await self._state_set(last_bar_key, bar.timestamp)
                 return 1.0
             
             # Calculate staleness
@@ -298,7 +391,7 @@ class DataQualityMonitor:
                 freshness = 0.0
             
             # Update last bar timestamp
-            await self._redis.set(last_bar_key, current_ts)
+            await self._state_set(last_bar_key, current_ts)
             
             return freshness
             
@@ -316,13 +409,13 @@ class DataQualityMonitor:
             Continuity score (0-1, higher is better)
         """
         try:
-            # Get last close price from Redis
+            # Get last close price from state store
             last_close_key = f"dq:last_close:{bar.symbol}"
-            last_close = await self._redis.get(last_close_key)
+            last_close = await self._state_get(last_close_key)
             
             if last_close is None:
                 # First bar - assume continuous
-                await self._redis.set(last_close_key, bar.close)
+                await self._state_set(last_close_key, bar.close)
                 return 1.0
             
             last_close = float(last_close)
@@ -334,7 +427,7 @@ class DataQualityMonitor:
             price_change_pct = abs(bar.close - last_close) / last_close
             
             # Update last close
-            await self._redis.set(last_close_key, bar.close)
+            await self._state_set(last_close_key, bar.close)
             
             # Calculate continuity score
             if price_change_pct <= self.PRICE_SPIKE_THRESHOLD:
@@ -363,13 +456,13 @@ class DataQualityMonitor:
             Anomaly score (0-1, higher is better / less anomalous)
         """
         try:
-            # Get average volume from Redis (20-day window)
+            # Get average volume from state store (20-day window)
             avg_volume_key = f"dq:avg_volume:{bar.symbol}"
-            avg_volume = await self._redis.get(avg_volume_key)
+            avg_volume = await self._state_get(avg_volume_key)
             
             if avg_volume is None:
                 # Initialize with current volume
-                await self._redis.set(avg_volume_key, bar.volume)
+                await self._state_set(avg_volume_key, bar.volume)
                 return 1.0
             
             avg_volume = float(avg_volume)
@@ -383,7 +476,7 @@ class DataQualityMonitor:
             # Update average volume (exponential moving average)
             alpha = 0.05  # 5% weight for new observation
             new_avg = avg_volume * (1 - alpha) + bar.volume * alpha
-            await self._redis.set(avg_volume_key, new_avg)
+            await self._state_set(avg_volume_key, new_avg)
             
             # Calculate anomaly score
             if volume_ratio <= self.VOLUME_MULTIPLIER:
@@ -412,18 +505,19 @@ class DataQualityMonitor:
             Dictionary with quality metrics
         """
         try:
-            # Get metrics from Redis
-            last_bar = await self._redis.get(f"dq:last_bar:{symbol}")
-            last_close = await self._redis.get(f"dq:last_close:{symbol}")
-            avg_volume = await self._redis.get(f"dq:avg_volume:{symbol}")
+            # Get metrics from state store (Redis or fallback)
+            last_bar = await self._state_get(f"dq:last_bar:{symbol}")
+            last_close = await self._state_get(f"dq:last_close:{symbol}")
+            avg_volume = await self._state_get(f"dq:avg_volume:{symbol}")
             
             return {
                 "symbol": symbol,
                 "last_bar_timestamp": last_bar,
                 "last_close_price": last_close,
                 "average_volume": avg_volume,
+                "degraded_mode": self._degraded_mode,
                 "report_generated_at": datetime.utcnow().isoformat(),
             }
         except Exception as e:
             logger.error("Failed to get quality report: %s", e)
-            return {"error": str(e)}
+            return {"error": str(e), "degraded_mode": self._degraded_mode}
