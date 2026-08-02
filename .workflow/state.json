@@ -1,9 +1,9 @@
 {
-  "version": "2.0",
   "project_name": "QuantFlow",
   "status": "active",
-  "current_milestone": "M3",
-  "current_task_id": "M3-P2",
+  "version": "2.0",
+  "current_milestone": "M4",
+  "current_task_id": "M4-complete",
   "milestones": [
     {
       "id": "M1",
@@ -49,19 +49,19 @@
       "id": "M3",
       "name": "deep-research 改进分批实施",
       "title": "deep-research 改进分批实施",
-      "status": "in_progress",
+      "status": "completed",
       "phases": [
         {
           "id": 1,
           "name": "P0 数据层防泄漏",
           "slug": "p0-data-leakage",
-          "status": "verify-passed"
+          "status": "completed"
         },
         {
           "id": 2,
           "name": "P1 风控层补齐",
           "slug": "p1-risk-layer",
-          "status": "verify-passed"
+          "status": "completed"
         },
         {
           "id": 3,
@@ -73,6 +73,20 @@
           "id": 4,
           "name": "多 book reconcile 一致性收口",
           "slug": "multi-book-reconcile",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "name": "v0.2 多 Symbol 扩展 + 17 ISS 清零",
+      "title": "v0.2 多 Symbol 扩展 + 17 ISS 清零",
+      "status": "completed",
+      "phases": [
+        {
+          "id": 1,
+          "name": "安全加固 + 架构清理 + 新功能",
+          "slug": "security-arch-features",
           "status": "completed"
         }
       ]
@@ -253,6 +267,17 @@
       "harvested": true,
       "harvested_at": "2026-07-20T00:00:00+08:00",
       "summary": "新策略 brainstorm → 1 knowhow（策略矩阵+互补性+学术依据，4/5 已实现）+ 1 spec arch（跨交易所套利 P5 未实现，S-20260720-5v13）；2 skip-dup（实施顺序+架构兼容性已入库）"
+    },
+    {
+      "id": "REL-002",
+      "type": "release",
+      "status": "completed",
+      "milestone": "M4",
+      "phase": null,
+      "path": "docs/release/v0.2.0",
+      "created_at": "2026-08-02T00:00:00+08:00",
+      "completed_at": "2026-08-02T00:00:00+08:00",
+      "notes": "v0.2.0 release: 17 ISS resolved (security hardening, architecture cleanup, new features). Tag v0.2.0 on HEAD (fe43aeb). pyproject.toml 0.2.0. New modules: common/tracing.py (correlation ID + OpenTelemetry), data/dq_monitor.py (real-time data quality), reconciliation/ (position drift detection + HMAC audit). docs/release/v0.2.0/release-notes.md created."
     }
   ],
   "accumulated_context": {
@@ -351,9 +376,20 @@
       "event": "p0-verify-passed",
       "at": "2026-08-01T00:00:00+08:00",
       "ref": "scripts/establish_p0_baseline.py + tests/unit/test_p0_regression_guard.py"
+    },
+    {
+      "milestone_id": "M4",
+      "event": "started",
+      "at": "2026-07-25T00:00:00+08:00"
+    },
+    {
+      "milestone_id": "M4",
+      "event": "completed",
+      "at": "2026-08-02T00:00:00+08:00",
+      "ref": "commit fe43aeb — release(v0.2.0): resolve 17 issues, security hardening, architecture cleanup, new features"
     }
   ],
-  "last_updated": "2026-07-29T20:30:32+08:00",
+  "last_updated": "2026-08-02T18:56:17+08:00",
   "sessions": [
     {
       "session_id": "maestro-multi-book-reconcile-20260725-113526",
@@ -366,7 +402,7 @@
     {
       "session_id": "maestro-arch-iss003-004-005-011-20260727-131947",
       "intent": "修复 ISS-003/004/005/011：ExecutionEngine SRP 渐进抽2组件 + ScalingPositionSizer 删除 + OKXGateway market_type spot/swap + L6 Protocol 扩展",
-      "status": "running",
+      "status": "sealed",
       "depends_on": [],
       "roadmap_artifact_id": null,
       "seed_ref": null
@@ -382,13 +418,53 @@
     {
       "session_id": "20260728-team-ux-improve-web-cli",
       "intent": "改善 UX 体验：Web Station UI + CLI 全覆盖全管道",
-      "status": "running",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "20260802-maestro-ui-phase5-6-20260802-045644",
+      "intent": "QuantFlow Station UI Phase 5-6：图表集成+UI打磨+字体自托管+旧UI清理",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "20260802-maestro-postphase56-cleanup-20260802-064156",
+      "intent": "Phase 5-6 后续清理：修复24个execution测试失败+vite code-split+亮色主题WCAG审计",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "20260802-maestro-statuswarn-wcag-ci-20260802-075737",
+      "intent": "修复 status-warn 对比度至 AA-normal 4.5:1 + WCAG 审计脚本正式化并集成 CI",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "20260802-team-ui-polish-full",
+      "intent": "全量 UI/UX 修复改进循环：scan->diagnose->optimize->verify",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "20260802-team-ux-improve-full",
+      "intent": "全量 UX 交互改进循环：scan->diagnose->design->implement->test",
+      "status": "sealed",
       "depends_on": [],
       "roadmap_artifact_id": null,
       "seed_ref": null
     }
   ],
-  "active_session_id": "20260728-team-ux-improve-web-cli",
-  "last_drift_realign": "2026-07-29T20:30:32+08:00",
-  "codebase_last_refreshed": "2026-08-01T00:00:00+08:00"
+  "active_session_id": null,
+  "last_drift_realign": "2026-08-02T16:00:00+08:00",
+  "codebase_last_refreshed": "2026-08-02T16:00:00+08:00"
 }

@@ -45,6 +45,9 @@ jobs:
       - name: Ruff lint
         run: python -m ruff check quantflow tests scripts
 
+      - name: WCAG contrast audit
+        run: python scripts/wcag_audit.py
+
       - name: Mypy
         run: python -m mypy quantflow tests
 

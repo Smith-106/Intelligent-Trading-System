@@ -10,7 +10,9 @@
 - **事件驱动**：自建 TradingSession 引擎，回测/模拟/实盘统一架构
 - **27 个因子**：21 基础指标（趋势/动量/波动/成交量）+ 6 个 Elliott Wave 因子，纯 pandas/numpy 实现
 - **AI 增强**：Meta-Labeling + FinBERT 情绪分析（已实现）；Qlib RD-Agent 因子挖掘骨架（CLI 已接线，qlib 为可选依赖）
-- **QuantFlow Station**：aiohttp 业务前端，23 个 REST 端点 + CSRF/Token 安全防护
+- **QuantFlow Station**：React + Vite 现代前端 + aiohttp 业务后端，23 个 REST 端点 + CSRF/Token 安全防护
+- **对账引擎**：持仓漂移检测 + 孤儿订单发现 + 审计日志
+- **数据质量**：实时数据流健康监控
 - **配置驱动**：策略参数、风控规则、交易对全部 YAML 管理，零硬编码
 
 ## 架构
@@ -133,7 +135,8 @@ quantflow/
 │   ├── store.py        #   DuckDB + Parquet 存储（Hive 分区 symbol/year/month）
 │   ├── feature_store.py#   时间点安全特征工程
 │   ├── redis_cache.py  #   Redis 实时数据缓存
-│   └── mtf_aligner.py  #   多时间框架对齐
+│   ├── mtf_aligner.py  #   多时间框架对齐
+│   └── dq_monitor.py   #   数据质量实时监控
 ├── indicators/         # L2 指标因子层（27 个因子）
 │   ├── base.py         #   FactorBase + FactorRegistry 注册表
 │   ├── engine.py       #   因子计算引擎（batch_calculate/compute_all）
@@ -183,15 +186,17 @@ quantflow/
 │   ├── metrics.py      #   Prometheus 指标
 │   ├── alerts.py       #   告警（Telegram/LINE）
 │   └── logger.py       #   结构化日志（structlog）
+├── reconciliation/     # 对账层（持仓漂移/孤儿订单/审计日志）
 ├── common/             # 公共模块
 │   ├── models.py       #   数据模型（Bar/Signal/Order/Position + 6 事件类型）
 │   ├── event_bus.py    #   事件总线（sync + async）
 │   ├── config.py       #   配置加载（CLI > env > YAML）
+│   ├── tracing.py      #   分布式追踪支持
 │   ├── validators.py   #   安全校验（symbol/column，防注入/遍历）
 │   └── exceptions.py   #   自定义异常
 ├── cli/                # CLI 入口
 │   └── main.py         #   Typer + Rich（9 命令）
-├── web/                # QuantFlow Station 业务前端
+├── web/                # QuantFlow Station 业务后端
 │   ├── app.py          #   aiohttp 应用（23 REST 端点）
 │   ├── security.py     #   CSRF + Bearer 认证 + 启动保护
 │   ├── service.py      #   应用服务层
@@ -202,6 +207,8 @@ quantflow/
     ├── default.yaml    #   全局默认配置
     └── strategies/     #   策略专用配置（7 个）
 ```
+
+> 前端应用位于 `frontend/` 目录，使用 React + Vite + TypeScript 构建。
 
 ## 核心接口
 

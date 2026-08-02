@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.3.0] — 2026-08-02
+
+### Features
+- Reconciliation layer (`quantflow/reconciliation/`): position drift detection, orphan order discovery, audit logging
+- `GatewayBase.query_open_orders()` abstract method + `OpenOrder` model for exchange-side order visibility
+- Data quality monitor (`quantflow/data/dq_monitor.py`): real-time data feed health checks
+- Distributed tracing support (`quantflow/common/tracing.py`)
+- Strategy factory (`quantflow/strategy/factory.py`): centralized strategy instantiation
+- React + Vite frontend (`frontend/`) replaces legacy static web assets
+
+### Security & Reliability
+- OrderManager thread-safety hardening (REL-H7): RLock + atomic context manager for concurrent order access
+- OKX/Paper gateway implement `query_open_orders()` for reconciliation
+- Fail-closed gateway contract enforcement
+
+### Monitoring
+- Enhanced alerting pipeline (`quantflow/monitoring/alerts.py`): expanded alert types
+- Operational Grafana dashboards (alert-rules-ops, operational-integrity)
+- WCAG accessibility audit script (`scripts/wcag_audit.py`)
+
+### Documentation
+- Operations guide (`docs/operations-guide.md`)
+- Release docs for v0.2.0
+- Qoder integration docs (`docs/qoder/`)
+
+### Tests
+- New: `test_order_manager_thread_safety.py` — concurrent order lifecycle validation
+- Removed: `test_innerhtml_choke_point.py` (superseded by frontend migration)
+- Updated execution, gateway, and web app tests for new architecture
+
+### Chores
+- Migrated web UI from `quantflow/web/static/` to dedicated `frontend/` React app
+- Repository cleanup: added ignore rules for backups, trash, temp files, PID files
+- Workflow knowledge base expansion (6 new knowhow entries)
+
 ## [0.2.0] — 2026-08-01
 
 ### Security

@@ -11,7 +11,7 @@ from typing import Any
 from quantflow.common.models import Order, OrderSide, OrderStatus, Position
 from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
 from quantflow.common.validators import POSITION_EPSILON, validate_quantity, validate_symbol
-from quantflow.execution.gateway_base import GatewayBase, GatewayError
+from quantflow.execution.gateway_base import GatewayBase, GatewayError, OpenOrder
 
 logger = logging.getLogger(__name__)
 
@@ -331,6 +331,57 @@ class OKXGateway(GatewayBase):
         if self._market_type == "swap":
             return await self._query_swap_positions()
         return await self._query_spot_positions()
+
+    async def query_open_orders(self, symbol: str) -> list[OpenOrder]:
+        """Query currently open orders from OKX exchange.
+
+        ISS-20260720-004 (Reconciliation): Enables detection of orphan orders
+        that exist on the exchange but are not tracked locally. Uses CCXT's
+        fetch_open_orders() with timeout and fail-closed semantics.
+
+        Args:
+            symbol: Trading pair (e.g., "BTC/USDT")
+
+        Returns:
+            List of OpenOrder objects for all open orders.
+
+        Raises:
+            GatewayError: If query fails (network error, timeout, etc.)
+        """
+        if not self._exchange:
+            raise GatewayError("query_open_orders: gateway not connected")
+        validate_symbol(symbol)
+        try:
+            raw = await asyncio.wait_for(
+                self._exchange.fetch_open_orders(symbol=symbol),
+                timeout=CALL_TIMEOUT,
+            )
+        except TimeoutError as e:
+            self._record_disconnect("timeout")
+            logger.error("OKX query_open_orders timed out for %s", symbol)
+            raise GatewayError("fetch_open_orders timed out") from e
+        except Exception as e:
+            self._record_disconnect("error")
+            logger.error("OKX query_open_orders failed: %s", _safe_error(e))
+            raise GatewayError("fetch_open_orders failed") from e
+
+        orders: list[OpenOrder] = []
+        for o in raw:
+            try:
+                orders.append(OpenOrder(
+                    id=str(o.get("id", "")),
+                    symbol=o.get("symbol", symbol),
+                    side=str(o.get("side", "")),
+                    order_type=str(o.get("type", "")),
+                    price=float(o.get("price", 0) or 0),
+                    filled_amount=float(o.get("filled", 0) or 0),
+                    status=str(o.get("status", "open")),
+                    timestamp=float(o.get("timestamp", 0) or 0),
+                ))
+            except (TypeError, ValueError) as e:
+                logger.warning("OKX skipping malformed open order row: %s", _safe_error(e))
+                continue
+        return orders
 
     def _record_disconnect(self, reason: str) -> None:
         """Mark the gateway disconnected + emit OBS-M metrics (ISS-20260723-011).

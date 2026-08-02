@@ -36,6 +36,45 @@ class AlertLevel(StrEnum):
     CRITICAL = "critical"
 
 
+class AlertCategory(StrEnum):
+    """Enhanced alert categories for smart routing (G5)."""
+    
+    # System/Infrastructure
+    SYSTEM_HEALTH = "system_health"
+    CONNECTIVITY = "connectivity"
+    PERFORMANCE = "performance"
+    
+    # Trading Operations
+    EXECUTION_FAILURE = "execution_failure"
+    ORDER_TIMEOUT = "order_timeout"
+    RECONCILIATION_DRIFT = "reconciliation_drift"
+    ORPHAN_ORDER = "orphan_order"
+    
+    # Risk Management
+    RISK_THRESHOLD = "risk_threshold"
+    POSITION_LIMIT = "position_limit"
+    DRAWDOWN_BREACH = "drawdown_breach"
+    VAR_BREACH = "var_breach"
+    
+    # Data Quality
+    DATA_STALENESS = "data_staleness"
+    DATA_ANOMALY = "data_anomaly"
+    FEED_INTERRUPT = "feed_interrupt"
+    
+    # Strategy
+    SIGNAL_GENERATION = "signal_generation"
+    STRATEGY_ERROR = "strategy_error"
+
+
+class AlertPriority(StrEnum):
+    """Alert priority levels for routing decisions (G5)."""
+    
+    P0_EMERGENCY = "p0_emergency"  # Immediate page, trading halt
+    P1_HIGH = "p1_high"  # Page within 5 minutes
+    P2_MEDIUM = "p2_medium"  # Notify within 30 minutes
+    P3_LOW = "p3_low"  # Batch notification, next business day
+
+
 class AlertManager:
     """Manage alerts with Telegram/LINE/webhook notifications.
 

@@ -1,0 +1,175 @@
+{
+  "dashboard": {
+    "title": "QuantFlow Operational Integrity",
+    "uid": "quantflow-ops-integrity",
+    "tags": ["quantflow", "reconciliation", "operational"],
+    "timezone": "utc",
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Reconciliation Status",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "reconciliation_last_run_status",
+            "legendFormat": "Last Run"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"options": {"0": {"text": "PASS", "color": "green"}}, "type": "value"},
+              {"options": {"1": {"text": "FAIL", "color": "red"}}, "type": "value"}
+            ]
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Position Drift (bps)",
+        "type": "gauge",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "reconciliation_drift_bps",
+            "legendFormat": "Drift"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 50},
+                {"color": "red", "value": 100}
+              ]
+            },
+            "max": 500,
+            "min": 0
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Orphan Orders Detected",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "increase(reconciliation_orphan_orders_total[1h])",
+            "legendFormat": "Orphans (1h)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "red", "value": 1}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Data Quality Score",
+        "type": "timeseries",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "dq_quality_score_sum / dq_quality_score_count",
+            "legendFormat": "{{symbol}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 0.5},
+                {"color": "green", "value": 0.7}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "DQ Violations by Type",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "targets": [
+          {
+            "expr": "rate(dq_monitor_violations_total[5m])",
+            "legendFormat": "{{violation_type}} / {{symbol}}"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Data Staleness (seconds)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "targets": [
+          {
+            "expr": "dq_data_staleness_seconds",
+            "legendFormat": "{{symbol}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 30},
+                {"color": "red", "value": 60}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Order Manager Thread Safety",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+        "targets": [
+          {
+            "expr": "rate(orders_submitted_total[5m])",
+            "legendFormat": "Submitted/s"
+          },
+          {
+            "expr": "rate(orders_timed_out_total[5m])",
+            "legendFormat": "Timed Out/s"
+          },
+          {
+            "expr": "order_manager_pending_count",
+            "legendFormat": "Pending Orders"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Alert Activity",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+        "targets": [
+          {
+            "expr": "rate(alerts_sent_total[5m])",
+            "legendFormat": "{{channel}}"
+          }
+        ]
+      }
+    ]
+  }
+}

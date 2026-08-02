@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QuantFlow Station</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+    <script>
+      // 防 FOUC：首帧前同步读取主题偏好，默认 dark，仅显式 light 时不加 .dark
+      try {
+        var t = localStorage.getItem("quantflow-theme");
+        if (t !== "light") document.documentElement.classList.add("dark");
+      } catch (e) {
+        document.documentElement.classList.add("dark");
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

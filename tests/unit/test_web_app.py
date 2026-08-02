@@ -653,37 +653,11 @@ async def test_station_root_and_strategy_api() -> None:
             assert root_response.status == 200
             body = await root_response.text()
             assert "QuantFlow Station" in body
-            assert "session-event-filter-controls" in body
-            assert "platform-workbench-actions" in body
-            assert "当前业务上下文" in body
-            assert "data-workflow-actions" in body
-            assert "data-download-form" in body
-            assert "data-seed-demo" in body
-            assert "strategy-stat-grid" in body
-            assert "strategy-search" in body
-            assert "strategy-timeframe-filter" in body
-            assert "strategy-symbol-filter" in body
-            assert "strategy-list" in body
-            assert "strategy-detail" in body
-            assert "execution-draft-readiness" in body
-            assert "execution-draft-origin" in body
-            assert "execution-draft-validation" in body
-            assert "execution-draft-data" in body
-            assert "execution-draft-source-list" in body
-            assert "execution-draft-risk-list" in body
-            assert "execution-draft-diff-list" in body
-            assert "execution-inspector-summary" in body
-            assert "execution-open-draft-source" in body
-            assert "execution-reset-runtime" in body
-            assert "execution-telemetry-controls" in body
-            assert "execution-telemetry-chart" in body
-            assert "research-decision-board" in body
-            assert "research-ops-board" in body
-            assert "validation-evidence-board" in body
-            assert "session-audit-summary" in body
-            assert "data-inspector-summary" in body
-            assert "monitoring-inspector-summary" in body
-            assert "overview-inspector-summary" in body
+            # React SPA entry point (legacy vanilla UI removed in Phase 5-6 G4):
+            # "/" now serves the Vite build output with the #root mount point
+            # and /static/dist/ asset references.
+            assert 'id="root"' in body
+            assert "/static/dist/assets/" in body
 
             strategies_response = await client.get("/api/strategies")
             assert strategies_response.status == 200

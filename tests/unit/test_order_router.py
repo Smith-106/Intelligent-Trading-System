@@ -37,6 +37,9 @@ class _RecordingGateway(GatewayBase):
     async def query_positions(self):
         return []
 
+    async def query_open_orders(self, symbol: str) -> list:
+        return []
+
 
 # ---------------------------------------------------------------------------
 # route — gateway dispatch

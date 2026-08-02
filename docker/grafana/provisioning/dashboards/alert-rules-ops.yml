@@ -1,0 +1,107 @@
+groups:
+  - name: quantflow_operational_integrity
+    rules:
+      # === Reconciliation Alerts ===
+      - alert: ReconciliationDriftCritical
+        expr: reconciliation_drift_bps > 100
+        for: 2m
+        labels:
+          severity: critical
+          category: reconciliation_drift
+        annotations:
+          summary: "Position drift exceeds 1% threshold"
+          description: "Reconciliation detected {{ $value }}bps drift between L4 and exchange positions."
+          runbook: "docs/operations-guide.md#24-运维手册"
+
+      - alert: OrphanOrderDetected
+        expr: increase(reconciliation_orphan_orders_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: high
+          category: orphan_order
+        annotations:
+          summary: "Orphan order detected on exchange"
+          description: "Orders exist on exchange but are not tracked locally. Immediate investigation required."
+
+      - alert: ReconciliationLoopStopped
+        expr: time() - reconciliation_last_run_timestamp > 600
+        for: 5m
+        labels:
+          severity: high
+          category: system_health
+        annotations:
+          summary: "Reconciliation background loop appears stopped"
+          description: "No reconciliation run in the last 10 minutes."
+
+      # === Data Quality Alerts ===
+      - alert: DataFeedStale
+        expr: dq_data_staleness_seconds > 60
+        for: 2m
+        labels:
+          severity: warning
+          category: data_staleness
+        annotations:
+          summary: "Data feed stale for {{ $labels.symbol }}"
+          description: "Last valid bar was {{ $value }}s ago (threshold: 60s)."
+
+      - alert: DataQualityCritical
+        expr: (dq_quality_score_sum / dq_quality_score_count) < 0.5
+        for: 5m
+        labels:
+          severity: critical
+          category: data_anomaly
+        annotations:
+          summary: "Data quality critically low for {{ $labels.symbol }}"
+          description: "Composite quality score below 0.5 for 5 minutes. Trading decisions may be unreliable."
+
+      - alert: DQViolationsSpike
+        expr: rate(dq_monitor_violations_total[5m]) > 10
+        for: 3m
+        labels:
+          severity: warning
+          category: data_anomaly
+        annotations:
+          summary: "Data quality violations spiking"
+          description: "{{ $value }} violations/sec detected (type: {{ $labels.violation_type }})."
+
+      # === Order Management Alerts ===
+      - alert: OrderTimeoutRateHigh
+        expr: rate(orders_timed_out_total[5m]) / rate(orders_submitted_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: order_timeout
+        annotations:
+          summary: "Order timeout rate exceeds 10%"
+          description: "More than 10% of submitted orders are timing out."
+
+      - alert: PendingOrdersAccumulating
+        expr: order_manager_pending_count > 50
+        for: 10m
+        labels:
+          severity: warning
+          category: execution_failure
+        annotations:
+          summary: "Pending orders accumulating"
+          description: "{{ $value }} orders pending for >10 minutes. Possible gateway connectivity issue."
+
+      # === System Health ===
+      - alert: GatewayDisconnected
+        expr: gateway_connected == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: connectivity
+        annotations:
+          summary: "Exchange gateway disconnected"
+          description: "Gateway connection lost. Trading operations suspended."
+
+      - alert: KillSwitchActivated
+        expr: kill_switch_active == 1
+        for: 0m
+        labels:
+          severity: critical
+          category: risk_threshold
+        annotations:
+          summary: "Kill Switch ACTIVATED"
+          description: "Emergency stop triggered. All trading halted."

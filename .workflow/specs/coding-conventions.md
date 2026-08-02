@@ -206,3 +206,34 @@ L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需
 
 落地：`quantflow/strategy/base.py` `StrategyContext.flush_signals`。测试：`tests/unit/test_m4_killswitch_threadflush.py` `TestFlushSignalsAtomic` + `TestConcurrentEmitSignal`（50 线程并发 emit + 双 context 隔离）。
 </spec-entry>
+
+<spec-entry category="coding" keywords="hot-path,zero-alloc,deque,tuple,cache,per-bar,per-signal,performance" date="2026-08-01" sid="S-20260801-a3f1" title="热路径零分配：per-bar/per-signal 管线用 tuple+deque(maxlen)+缓存" description="风控/信号管线每 bar 执行函数：bound-method tuple 在 __init__ 构建 + deque(maxlen) + 纯函数按失效键缓存" source="harvest:20260723-trade-main-path">
+
+### 热路径零分配模式
+
+每 bar/信号执行管线（如 `risk_engine.check()`）禁止每次调用分配新 list/做切片/重算纯函数。
+
+**三条规则**：
+1. **bound-method tuple**：检查链在 `__init__` 一次性构建为 `tuple`（不可变，零 per-call 分配），不用 `list`
+2. **deque(maxlen=N)**：滑动窗口用 `collections.deque(maxlen=N)`（O(1) 自动驱逐），不用 `list + [-N:]` 切片（O(n) 复制）
+3. **纯函数缓存**：`np.percentile` 等重算函数按失效键（如 history len）缓存，len 变化才重算
+
+**检测方法**：定位每 bar 调用函数 → 检查内部 `new list` / 切片 / 重算 → 改为 `__init__` 构建 + 缓存。
+
+落地：`quantflow/signal/risk_engine.py` — `_checks` tuple + `deque(maxlen=500)` + VaR 缓存 keyed on history len。
+</spec-entry>
+
+<spec-entry category="coding" keywords="state-machine,order,timeout,terminal,partial-fill,cancelled,guard" date="2026-08-01" sid="S-20260801-b7e2" title="订单状态机完整性：timeout 标 terminal+撤单+返回值不弃+terminal guard+partial 建模" description="订单 timeout 必须标 CANCELLED terminal + 触发撤单；update() 加 terminal guard；PARTIAL 状态建模" source="harvest:20260723-trade-main-path">
+
+### 订单生命周期状态机完整性
+
+**四条规则**：
+1. **timeout 标 terminal**：`check_timeouts()` 必须将超时订单 `status` 改为 `CANCELLED`（terminal），不可仅 pop 内部 pending dict
+2. **返回值触发撤单**：`check_timeouts()` 返回 `(id, symbol)` 列表，调用方必须用于触发 `gateway.cancel_order`，返回值不可丢弃
+3. **terminal guard**：`update()` 方法检查 `order.status in TERMINAL` 后拒绝覆盖，防止 late fill 覆盖 timeout 状态
+4. **PARTIAL 建模**：`filled > 0 且 < quantity` 时设 `PARTIAL` 状态并留 pending，不可直接跳到 FILLED 丢部分成交
+
+**检测方法**：状态机遍历 SUBMITTED→PARTIAL→FILLED / →CANCELLED / →REJECTED，检查每条转换是否更新 status + 触发副作用。
+
+落地：`quantflow/execution/order_manager.py` — terminal guard + PARTIAL + check_timeouts 返回契约。
+</spec-entry>

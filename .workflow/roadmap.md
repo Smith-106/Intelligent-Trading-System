@@ -182,10 +182,10 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 ### Milestone 4: v0.2 多 Symbol 扩展
 
 **Target**：将 QuantFlow 从严格单 symbol 架构升级为单进程多 symbol 并发（10-30 交易对），消除存量 TOCTOU 风控竞态，保持 paper/live parity
-**Status**：planned
+**Status**：completed（commit `fe43aeb`，tag `v0.2.0`，2026-08-02）
 **Upstream**：Grill session（6 decisions locked, 6 risks）、Brainstorm session（PendingLedger 详细设计，4 cross-role conflicts resolved）
 **Version tag**：`v0.2.0`
-**Timeline**：降档版（paper only）2-2.5 周 / 完整版（含 live TOCTOU 修复 + sync 兜底）3.5-4.5 周
+**Delivery summary**：17 ISS 清零（安全加固 + 架构清理 + 新功能），pyproject.toml 0.2.0。实际交付以 ISS 清零为主，多 Symbol 扩展基础设施部分落地（per-symbol 工厂化、策略工厂 `strategy/factory.py`、IndicatorComputer Protocol 注入等），完整多 symbol 数据循环和 Pending Exposure 台账作为后续迭代方向。
 
 #### 架构决策（Grill locked）
 
@@ -335,9 +335,4 @@ Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 �
 | 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | **P1-verify PASS** | 2026-07-21 `626b015` |
 | 3. deep-research 改进分批实施 | 2.5 多 book reconcile (Wave 1-5) | **Completed** | 2026-07-25 `7e781a8`→`06a8d93` |
 | 3. deep-research 改进分批实施 | 3. P2 AI 层升级 | Unblocked，未启动 | - |
-| 4. v0.2 多 Symbol 扩展 | 1. 基础设施加固 | Planned | - |
-| 4. v0.2 多 Symbol 扩展 | 2. Per-Symbol 策略实例化 | Planned | - |
-| 4. v0.2 多 Symbol 扩展 | 3. TOCTOU 第一层 (Lock) | Planned | - |
-| 4. v0.2 多 Symbol 扩展 | 4. 多 Symbol 数据循环 | Planned | - |
-| 4. v0.2 多 Symbol 扩展 | 5. Pending Exposure 台账 | Planned | - |
-| 4. v0.2 多 Symbol 扩展 | 6. 集成测试 + 回归 | Planned | - |
+| 4. v0.2 多 Symbol 扩展 | 全量（17 ISS 清零 + 架构清理） | **Completed** | 2026-08-02 `fe43aeb` (tag `v0.2.0`) |

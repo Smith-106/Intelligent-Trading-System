@@ -12,6 +12,36 @@ from typing import Any
 from quantflow.common.models import Order, Position
 
 
+class OpenOrder:
+    """Lightweight representation of an open order from exchange side.
+    
+    Used by ReconciliationEngine to detect orphan orders (ISS-20260720-004).
+    """
+    
+    def __init__(
+        self,
+        id: str,
+        symbol: str,
+        side: str,
+        order_type: str,
+        price: float,
+        filled_amount: float,
+        status: str,
+        timestamp: float,
+    ) -> None:
+        self.id = id
+        self.symbol = symbol
+        self.side = side
+        self.order_type = order_type
+        self.price = price
+        self.filled_amount = filled_amount
+        self.status = status
+        self.timestamp = timestamp
+    
+    def __repr__(self) -> str:
+        return f"OpenOrder(id={self.id}, symbol={self.symbol}, status={self.status})"
+
+
 class GatewayError(RuntimeError):
     """Typed failure for a gateway operation (odyssey-improve SEC-H5/REL-H2).
 
@@ -81,6 +111,31 @@ class GatewayBase(ABC):
 
         Returns:
             List of Position objects for all open positions (empty if none).
+        """
+
+    @abstractmethod
+    async def query_open_orders(self, symbol: str) -> list[OpenOrder]:
+        """Query currently open orders from exchange side.
+        
+        ISS-20260720-004 (Reconciliation): This method enables detection of
+        orphan orders — orders that exist on the exchange but are not tracked
+        locally. Without this capability, position drift can accumulate silently.
+        
+        Args:
+            symbol: Trading pair to query (e.g., "BTC/USDT")
+        
+        Returns:
+            List of OpenOrder objects for all open orders on exchange side.
+            Empty list if no open orders exist.
+        
+        Raises:
+            GatewayError: If query fails (network error, API error, etc.)
+        
+        Implementation Notes:
+            - OKXGateway: Use CCXT's fetch_open_orders() method
+            - PaperGateway: Return locally tracked pending orders
+            - Must handle rate limiting with exponential backoff
+            - Should cache results briefly (5-10s) to avoid excessive API calls
         """
 
     async def disconnect(self) -> None:

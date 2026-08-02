@@ -66,6 +66,9 @@ class _FakeGateway(GatewayBase):
     async def query_positions(self) -> list[Any]:
         return []
 
+    async def query_open_orders(self, symbol: str) -> list:
+        return []
+
 
 class _FakeKillSwitch:
     def __init__(self, active: bool = False) -> None:

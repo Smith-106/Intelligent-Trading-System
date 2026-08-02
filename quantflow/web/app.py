@@ -81,6 +81,11 @@ def _static_dir() -> Path:
     return Path(str(resources.files(STATIC_PACKAGE)))
 
 
+def _dist_dir() -> Path:
+    """Return the Vite build output directory for the React frontend."""
+    return _static_dir() / "dist"
+
+
 # ISS-036 (CWE-200): internal filesystem paths (parquet_dir, duckdb_path,
 # config_path, redis_url) leak the install prefix + user directory to any
 # authenticated viewer. They are needed INTERNALLY (data_snapshot and
@@ -109,7 +114,20 @@ def _redact_paths(value: object) -> object:
 
 
 async def _index(_: web.Request) -> web.FileResponse:
-    return web.FileResponse(_static_dir() / "index.html")
+    """Serve the React SPA entry point.
+
+    Raises HTTPNotFound if the Vite build output is missing — a missing
+    dist/ is a deployment accident and should fail loudly.
+    """
+    dist_index = _dist_dir() / "index.html"
+    if dist_index.exists():
+        return web.FileResponse(dist_index)
+    raise web.HTTPNotFound()
+
+
+async def _spa_fallback(request: web.Request) -> web.FileResponse:
+    """Return the React index.html for any non-API, non-asset path (SPA routing)."""
+    return await _index(request)
 
 
 async def _overview(request: web.Request) -> web.Response:
@@ -349,7 +367,14 @@ def create_app(
     app.router.add_post("/api/session/start", _session_start)
     app.router.add_post("/api/session/stop", _session_stop)
     app.router.add_post("/api/session/kill-switch", _kill_switch)
+    # New React frontend (Vite build output) — served from /static/dist/
+    dist_dir = _dist_dir()
+    if dist_dir.exists():
+        app.router.add_static("/static/dist/", dist_dir)
+    # Primary static assets (favicon)
     app.router.add_static("/static/", _static_dir())
+    # SPA fallback: any non-API path returns index.html for client-side routing
+    app.router.add_get("/{path:.*}", _spa_fallback)
     app.on_cleanup.append(_cleanup)
     return app
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 from aiohttp.test_utils import AioHTTPTestCase
@@ -189,25 +188,3 @@ class TestResidualRiskPaths(AioHTTPTestCase):
         )
         # Origin != Host → 403, DNS rebinding does not bypass CSRF
         assert resp.status == 403
-
-    async def test_static_guard_self_test(self) -> None:
-        """Verify setHTML choke-point function exists in app.js.
-
-        The setHTML function is the single audit-face for all innerHTML
-        assignments. This test verifies the choke-point itself is present
-        so the static guard (grep for raw `.innerHTML =` outside setHTML)
-        remains effective.
-        """
-        app_js_path = (
-            Path(__file__).resolve().parents[2] / "quantflow" / "web" / "static" / "app.js"
-        )
-        content = app_js_path.read_text(encoding="utf-8")
-        # The setHTML choke-point function must be defined
-        assert "function setHTML(node, html)" in content, (
-            "setHTML choke-point function missing from app.js — "
-            "static guard for innerHTML assignments is ineffective"
-        )
-        # The function body must contain the actual innerHTML assignment
-        assert "node.innerHTML = html" in content, (
-            "setHTML function body does not assign innerHTML — choke-point is hollow"
-        )

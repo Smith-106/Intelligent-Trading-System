@@ -519,6 +519,9 @@ class _PartialFillGateway(GatewayBase):
     async def query_positions(self) -> list:
         return []
 
+    async def query_open_orders(self, symbol: str) -> list:
+        return []
+
 
 class TestCumulativeFillContract:
     """ISS-20260720-004 Wave 4 — partial-fill cumulative delta + no double-count."""

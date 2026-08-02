@@ -1,42 +1,152 @@
 {
-  "valid": true,
-  "generated_at": "2026-07-29T06:38:45Z",
-  "generator": "manage-codebase-rebuild via `maestro kg index` (sync --source codegraph)",
-  "storage": {
-    "backend": "maestro.db (MaestroGraph, SQLite)",
-    "path": ".workflow/kg/maestro.db",
-    "schema_version": "v4"
-  },
-  "stats": {
-    "nodes": 1556,
-    "edges": 233,
-    "files": 115,
-    "db_size_kb": 8748.0,
-    "staleness_pct": 0.0,
-    "nodes_by_type": {
-      "class": 145,
-      "codebase_section": 47,
-      "file": 16,
-      "function": 670,
-      "issue": 41,
-      "knowhow_entry": 9,
-      "method": 506,
-      "property": 36,
-      "spec_entry": 86
+  "version": "1.0",
+  "generatedAt": "2026-08-02T16:00:00Z",
+  "project": "QuantFlow",
+  "nodes": [
+    {
+      "id": "n-tracing",
+      "type": "module",
+      "component": "TC-007",
+      "name": "tracing.py",
+      "description": "Distributed tracing foundation with correlation ID propagation and OpenTelemetry integration"
     },
-    "nodes_by_source": {
-      "codebase": 47,
-      "codegraph": 1373,
-      "issue": 41,
-      "knowhow": 9,
-      "spec": 86
+    {
+      "id": "n-dq-monitor",
+      "type": "module",
+      "component": "TC-001",
+      "name": "dq_monitor.py",
+      "description": "Real-time data quality monitoring with freshness/continuity/anomaly detection"
     },
-    "edges_by_type": {
-      "contains": 8,
-      "constrains": 225
+    {
+      "id": "n-reconciliation",
+      "type": "module",
+      "component": "TC-013",
+      "name": "reconciliation/",
+      "description": "Position/order drift detection engine with HMAC audit trail"
+    },
+    {
+      "id": "n-order-manager",
+      "type": "module",
+      "component": "TC-005",
+      "name": "order_manager.py",
+      "description": "Thread-safe order lifecycle management with RLock protection"
+    },
+    {
+      "id": "n-alerts",
+      "type": "module",
+      "component": "TC-012",
+      "name": "alerts.py",
+      "description": "Enhanced alert classification with G5 taxonomy (15 categories × 4 priorities)"
+    },
+    {
+      "id": "f-g1",
+      "type": "feature",
+      "name": "G1 Thread-Safe Order Management",
+      "description": "RLock protection on all order state mutations"
+    },
+    {
+      "id": "f-g2",
+      "type": "feature",
+      "name": "G2 Reconciliation Engine",
+      "description": "Background loop comparing L4 vs gateway positions"
+    },
+    {
+      "id": "f-g3",
+      "type": "feature",
+      "name": "G3 Distributed Tracing",
+      "description": "Correlation ID propagation across async boundaries"
+    },
+    {
+      "id": "f-g4",
+      "type": "feature",
+      "name": "G4 Data Quality Monitoring",
+      "description": "Real-time bar validation gates risk calculations"
+    },
+    {
+      "id": "f-g5",
+      "type": "feature",
+      "name": "G5 Alert Taxonomy",
+      "description": "15-category × 4-priority routing matrix"
     }
-  },
-  "layers": [],
-  "tours": [],
-  "notes": "This maestro version stores the full knowledge graph in .workflow/kg/maestro.db (queryable via `maestro kg context|callers|callees|path|impact|query`). The summary above is the authoritative snapshot for the codebase-rebuild doc set. Wiki virtual entries (kg-*) are indexed lazily on next `maestro wiki` access. Knowledge Graph validation: PASS (0% staleness). Last metadata refresh: 2026-08-01."
+  ],
+  "edges": [
+    {
+      "source": "n-tracing",
+      "target": "n-order-manager",
+      "relationship": "injects_context",
+      "description": "TracingContext provides correlation ID to order submission path"
+    },
+    {
+      "source": "n-dq-monitor",
+      "target": "n-order-manager",
+      "relationship": "gates",
+      "description": "DataQualityMonitor rejects stale bars before order processing"
+    },
+    {
+      "source": "n-reconciliation",
+      "target": "n-order-manager",
+      "relationship": "detects_orphan",
+      "description": "ReconciliationEngine uses query_open_orders() for orphan detection"
+    },
+    {
+      "source": "n-reconciliation",
+      "target": "n-alerts",
+      "relationship": "emits_alerts",
+      "description": "Discrepancies trigger RECONCILIATION_DRIFT alerts via AlertManager"
+    },
+    {
+      "source": "n-order-manager",
+      "target": "f-g1",
+      "relationship": "implements",
+      "description": "OrderManager implements RLock-based thread safety"
+    },
+    {
+      "source": "n-reconciliation",
+      "target": "f-g2",
+      "relationship": "implements",
+      "description": "ReconciliationEngine implements background reconciliation loop"
+    },
+    {
+      "source": "n-tracing",
+      "target": "f-g3",
+      "relationship": "implements",
+      "description": "tracing.py implements distributed tracing with ContextVar"
+    },
+    {
+      "source": "n-dq-monitor",
+      "target": "f-g4",
+      "relationship": "implements",
+      "description": "DataQualityMonitor implements real-time data quality gating"
+    },
+    {
+      "source": "n-alerts",
+      "target": "f-g5",
+      "relationship": "implements",
+      "description": "AlertManager implements G5 taxonomy routing"
+    },
+    {
+      "source": "f-g1",
+      "target": "f-g2",
+      "relationship": "supports",
+      "description": "Thread-safe orders enable reliable reconciliation accounting"
+    },
+    {
+      "source": "f-g3",
+      "target": "f-g4",
+      "relationship": "enhances",
+      "description": "Trace IDs correlate DQ violations with specific signal paths"
+    },
+    {
+      "source": "f-g4",
+      "target": "f-g5",
+      "relationship": "feeds",
+      "description": "DQ anomalies route to appropriate alert channels via G5 matrix"
+    },
+    {
+      "source": "f-g2",
+      "target": "f-g5",
+      "relationship": "routes_via",
+      "description": "Reconciliation drift escalates through P0/P1 priority levels"
+    }
+  ]
 }

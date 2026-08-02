@@ -2,11 +2,12 @@
   "version": "1.0",
   "schema_version": "1.0",
   "project": "QuantFlow",
-  "project_version": "0.1.3",
-  "last_updated": "2026-08-01T00:00:00Z",
+  "project_version": "0.2.0",
+  "last_updated": "2026-08-02T16:00:00Z",
   "rebuild_source": "manage-codebase-rebuild (full, 4 mappers + maestro kg index)",
-  "overview": "Personal Crypto quantitative trading system (OKX) with six-layer architecture (L1 data -> L6 monitoring), self-built event-driven TradingSession engine, anti-overfitting validation pipeline (CPCV+DSR+PBO+WFO), and QuantFlow Station web UI. Phase 1/2/3 complete; M3 deep-research remediation in progress (P0 data-leakage code-complete-await-verify, P1 risk-layer code-complete-await-verify, P2 AI-layer blocked).",
-  "features": [
+  "overview": "Personal Crypto quantitative trading system (OKX) with six-layer architecture (L1 data -> L6 monitoring), self-built event-driven TradingSession engine, anti-overfitting validation pipeline (CPCV+DSR+PBO+WFO), and QuantFlow Station web UI. Phase 1/2/3 complete; M3 deep-research remediation complete (P0 verify-passed, P1 verify-passed, P2 unblocked); M4 v0.2.0 released (17 ISS resolved, security hardening, architecture cleanup). P2 AI-layer upgrade and full multi-symbol data loop are next iteration targets. v0.2.0 includes G1-G5 operational integrity suite: thread-safe OrderManager (RLock), ReconciliationEngine, distributed tracing, DQ monitoring, alert taxonomy.",
+      "features": [
+        "FT-001",
     {
       "id": "FT-001",
       "name": "Strategies",
@@ -116,6 +117,39 @@
       ],
       "phase": "Phase 3 partial (MIXED)",
       "description": "MLEnsembleStrategy ACTIVE (GradientBoosting + triple-barrier meta-labeling, expanding-window OOS, fail-closed reject-all). AIFactorEngine EXPORTED but NOT wired (no strategy/CLI calls it). FinBERT sentiment (SentimentAnalyzer/NewsCollector) IMPLEMENTED but unexported/unwired (orphaned). Qlib RD-Agent CLI skeleton (quantflow ai rdagent) with dependency guard; full LLM factor search = future (blueprint E13-S1)."
+    },
+    {
+      "id": "FT-011",
+      "name": "Data Quality Monitor",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": [
+        "TC-001"
+      ],
+      "phase": "v0.2.0 new feature",
+      "description": "Real-time data quality monitoring (G4): freshness checks (staleness detection), price continuity validation (spike detection), volume anomaly detection. DataQualityMonitor.validate_bar() gates bar publishing. Prometheus metrics (dq_monitor_violations_total, dq_data_staleness_seconds, dq_quality_score). Composite quality score (0-1, weighted: freshness 40% + continuity 30% + anomaly 30%). Redis-backed state."
+    },
+    {
+      "id": "FT-012",
+      "name": "Reconciliation Engine",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": [
+        "TC-011"
+      ],
+      "phase": "v0.2.0 new feature",
+      "description": "Position/order drift detection and resolution (ISS-20260720-004): ReconciliationEngine with background reconciliation loop, AuditLogger with HMAC-signed audit trail for compliance, PositionSnapshot/Discrepancy/DiscrepancySet/DailyReconReport models. Detects L4 PortfolioManager vs gateway position drift."
+    },
+    {
+      "id": "FT-013",
+      "name": "Operational Integrity Dashboards",
+      "status": "active",
+      "requirement_ids": [],
+      "component_ids": [
+        "TC-012"
+      ],
+      "phase": "v0.2.0 new feature",
+      "description": "Grafana dashboards-as-code: operational-integrity.json covering G1 thread-safe order management metrics, G2 reconciliation drift statistics, G3 distributed tracing latency, G4 data quality scores, G5 alert routing matrix. Alert rules in alert-rules-ops.yml. Complete operations guide in docs/operations-guide.md."
     }
   ],
   "components": [
@@ -130,10 +164,12 @@
         "quantflow/data/feature_store.py",
         "quantflow/data/redis_cache.py",
         "quantflow/data/mtf_aligner.py",
+        "quantflow/data/dq_monitor.py",
         "quantflow/data/__init__.py"
       ],
       "feature_ids": [
-        "FT-007"
+        "FT-007",
+        "FT-011"
       ],
       "symbols": [
         "DataFetcher",
@@ -142,10 +178,13 @@
         "MTFAligner",
         "MTFData",
         "RedisCache",
+        "DataQualityMonitor",
+        "DataQualityScore",
+        "ValidationResult",
         "clean_ohlcv",
         "validate_no_future_leak"
       ],
-      "last_updated": "2026-07-29T06:38:45Z"
+      "last_updated": "2026-08-02T12:00:00Z"
     },
     {
       "id": "TC-002",
@@ -368,12 +407,13 @@
         "GatewayError",
         "KillSwitch",
         "OKXGateway",
+        "OpenOrder",
         "OrderManager",
         "OrderRouter",
         "PaperGateway",
         "PositionManager"
       ],
-      "last_updated": "2026-07-29T06:38:45Z"
+      "last_updated": "2026-08-02T14:00:00Z"
     },
     {
       "id": "TC-006",
@@ -388,8 +428,10 @@
       ],
       "feature_ids": [],
       "symbols": [
+        "AlertCategory",
         "AlertLevel",
         "AlertManager",
+        "AlertPriority",
         "DefaultMonitoringSink",
         "create_default_sink",
         "metrics_registry_snapshot",
@@ -398,7 +440,7 @@
         "start_metrics_server",
         "update_portfolio_metrics"
       ],
-      "last_updated": "2026-07-29T06:38:45Z"
+      "last_updated": "2026-08-02T14:00:00Z"
     },
     {
       "id": "TC-007",
@@ -414,6 +456,7 @@
         "quantflow/common/monitoring_sink.py",
         "quantflow/common/indicator_protocol.py",
         "quantflow/common/schema_exposure.py",
+        "quantflow/common/tracing.py",
         "quantflow/common/jsonable.py",
         "quantflow/common/numeric.py",
         "quantflow/common/redaction.py",
@@ -482,9 +525,84 @@
         "validate_columns",
         "validate_outbound_url",
         "validate_quantity",
-        "validate_symbol"
+        "validate_symbol",
+        "get_correlation_id",
+        "set_correlation_id",
+        "get_or_create_correlation_id",
+        "clear_correlation_id",
+        "traced",
+        "CorrelationIdProcessor",
+        "TracingContext",
+        "init_otel_tracer",
+        "create_otel_span",
+        "OTEL_AVAILABLE"
       ],
-      "last_updated": "2026-07-29T06:38:45Z"
+      "last_updated": "2026-08-02T12:00:00Z"
+    },
+    {
+      "id": "TC-011",
+      "name": "ReconciliationLayer",
+      "type": "L5.5-reconciliation",
+      "code_locations": [
+        "quantflow/reconciliation/__init__.py",
+        "quantflow/reconciliation/engine.py",
+        "quantflow/reconciliation/audit_logger.py",
+        "quantflow/reconciliation/models.py"
+      ],
+      "feature_ids": [
+        "FT-012"
+      ],
+      "symbols": [
+        "ReconciliationEngine",
+        "AuditLogger",
+        "PositionSnapshot",
+        "Discrepancy",
+        "DiscrepancySet",
+        "DailyReconReport"
+      ],
+      "last_updated": "2026-08-02T14:30:00Z"
+    },
+    {
+      "id": "TC-013",
+      "name": "ReconciliationLayer",
+      "type": "L5.5-reconciliation",
+      "code_locations": [
+        "docker/grafana/provisioning/dashboards/operational-integrity.json",
+        "docker/grafana/provisioning/dashboards/alert-rules-ops.yml",
+        "docs/operations-guide.md"
+      ],
+      "feature_ids": [
+        "FT-013"
+      ],
+      "symbols": [
+        "OperationalIntegrityDashboard",
+        "AlertRulesOps",
+        "G1_G2_G3_G4_G5_Standards"
+      ],
+      "last_updated": "2026-08-02T16:00:00Z"
+    },
+    {
+      "id": "TC-013",
+      "name": "ReconciliationLayer",
+      "type": "L5.5-reconciliation",
+      "code_locations": [
+        "quantflow/reconciliation/__init__.py",
+        "quantflow/reconciliation/engine.py",
+        "quantflow/reconciliation/audit_logger.py",
+        "quantflow/reconciliation/models.py"
+      ],
+      "feature_ids": [
+        "FT-012"
+      ],
+      "symbols": [
+        "ReconciliationEngine",
+        "AuditLogger",
+        "PositionSnapshot",
+        "Discrepancy",
+        "DiscrepancySet",
+        "DailyReconReport"
+      ],
+      "last_updated": "2026-08-02T14:30:00Z"
     },
     {
       "id": "TC-008",

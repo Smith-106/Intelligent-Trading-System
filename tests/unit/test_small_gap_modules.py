@@ -44,6 +44,9 @@ class _DummyGateway(GatewayBase):
     async def query_positions(self) -> list[Position]:
         return []
 
+    async def query_open_orders(self, symbol: str) -> list:
+        return []
+
 
 def _price_series(length: int = 30) -> tuple[pd.Series, pd.Series, pd.Series]:
     close = pd.Series([100.0 + idx for idx in range(length)], dtype=float)

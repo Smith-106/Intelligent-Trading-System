@@ -23,8 +23,9 @@ Auto-generated from project structure. Update manually as architecture evolves.
   - quantflow/indicators/ — 21 个因子、注册表、指标引擎 (L2)
   - quantflow/strategy/ — 策略基类、回测、优化、验证 (L3)
   - quantflow/signal/ — 信号生成、风险引擎、仓位调整 (L4)
-  - quantflow/execution/ — 网关、执行引擎、订单管理、OrderRouter (L5)。ExecutionEngine 保留 gateway 生命周期 + submit 编排(kill_switch→route→track→metric→event→fill);OrderRouter (ISS-003) 拥有 gateway dispatch + Order/Request 构造。
-  - quantflow/monitoring/ — Prometheus 指标、告警 (L6)
+  - quantflow/execution/ — 网关、执行引擎、订单管理、OrderRouter (L5)。ExecutionEngine 保留 gateway 生命周期 + submit 编排(kill_switch→route→track→metric→event→fill);OrderRouter (ISS-003) 拥有 gateway dispatch + Order/Request 构造。GatewayBase 含 query_open_orders() 抽象方法（orphan order 检测）。
+  - quantflow/reconciliation/ — 仓位/订单漂移检测与对账引擎 (L5.5)。ReconciliationEngine 后台循环 + AuditLogger HMAC 签名审计 + PositionSnapshot/Discrepancy 模型。
+  - quantflow/monitoring/ — Prometheus 指标、告警 (L6)。AlertCategory (15 类) × AlertPriority (4 级) 分类路由。
   - quantflow/common/ — 共享数据模型、事件总线、配置
   - quantflow/cli/ — Typer + Rich CLI
 
@@ -269,4 +270,19 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 **异常吞没**：cancel 抛异常 → cancel_ok 保持 False（不传播）；sync_positions 抛异常 → 经 `contextlib.suppress` 吞没，sync_ok 保持 False。这保证单个 timeout 失败不中断数据循环。
 
 落地：`quantflow/strategy/engine.py` `run_data_loop` ~lines 766-788。测试：`tests/unit/test_m4_timeout_quadrant.py` 9 测试覆盖全四象限 + legacy + 异常 + 交互（D-hold 后下周期 sync 成功 → release）。
+</spec-entry>
+
+<spec-entry category="arch" keywords="getattr,private,cross-layer,encapsulation,public-accessor,shadow-book,single-source" date="2026-08-01" sid="S-20260801-c5d3" title="禁止跨层 getattr 私有属性 + 同域对象单一权威源" description="高层禁止 getattr(low_layer, \"_private\") 绕接口抓私有属性；同域对象禁止 N 类各自维护独立可变账本" source="harvest:20260723-trade-main-path">
+
+### 禁止跨层 getattr 私有属性
+
+**规则 1**: 高层禁止 `getattr(low_layer, "_private", None)` 绕接口抓私有属性。isinstance 守卫使失败静默——目标属性重命名后观察者静默不挂载（如 `session_manager` 抓 `_event_bus`，重命名后 observe 链断开但无报错）。必须由低层暴露 public accessor。
+
+**规则 2**: 同一域对象（如 positions）禁止 N 个类各自维护独立可变账本（如 PaperGateway / PositionManager / PortfolioManager 三本账，avg-entry 公式逐字重复且分叉）。必须单一权威源，其余层持引用/view。
+
+**检测方法**：
+- `grep getattr\(.*,\s*"_` 跨层调用
+- `grep self\._<domain> = {}` 看是否多类镜像同域对象
+
+落地：trade-main-path odyssey 根因 D（三本账零对账）+ 根因 generalize 扫描（session_manager getattr `_event_bus` / `last_error`）。
 </spec-entry>

@@ -10,7 +10,7 @@ from typing import Any
 
 from quantflow.common.models import Order, OrderStatus, Position
 from quantflow.common.validators import POSITION_EPSILON, validate_quantity, validate_symbol
-from quantflow.execution.gateway_base import GatewayBase
+from quantflow.execution.gateway_base import GatewayBase, OpenOrder
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +185,20 @@ class PaperGateway(GatewayBase):
 
     async def query_positions(self) -> list[Position]:
         return list(self._positions.values())
+
+    async def query_open_orders(self, symbol: str) -> list[OpenOrder]:
+        """Query open orders from paper exchange.
+
+        ISS-20260720-004 (Reconciliation): Paper orders fill instantly on
+        submission, so there are never any open orders in paper mode.
+        Returns empty list — symmetric with OKXGateway.fetch_open_orders()
+        which returns exchange-side open orders.
+
+        When partial_fill_ratio is configured (M4-5.15), partially filled
+        limit orders could theoretically remain open, but the current
+        implementation does not track them as persistent open orders.
+        """
+        return []
 
     async def subscribe(self, channel: str, callback: Any = None) -> None:
         """Mock WebSocket subscription — pushes local book data periodically.

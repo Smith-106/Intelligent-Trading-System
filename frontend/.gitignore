@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+
+# TypeScript 编译产物（src 全部为 .ts/.tsx 源码，出现 .js 均为杂散构建产物）
+src/**/*.js
+src/**/*.jsx
+*.tsbuildinfo

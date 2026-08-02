@@ -75,6 +75,10 @@ docker/grafana_data/
 .workflow/sessions/
 .workflow/.team/
 .workflow/.maestro/*/status.json
+.workflow/.backups/
+.workflow/.trash/
+.workflow/issues/.backups/
+*.pid
 
 # MaestroGraph / maestro knowledge-tool local indices and caches.
 # Machine-specific, large, and fully rebuildable — never track.
@@ -83,3 +87,15 @@ docker/grafana_data/
 .workflow/embedding.zvec/
 .workflow/search-cache.json
 .workflow/search-daemon.json
+
+# Frontend (React + Vite)
+frontend/node_modules/
+quantflow/web/static/dist/
+
+# Temporary files and outputs
+temp_output.txt
+outputs/
+artifacts/
+screenshots/
+*-p
+no/

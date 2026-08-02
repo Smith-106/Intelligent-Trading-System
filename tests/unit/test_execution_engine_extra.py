@@ -35,6 +35,9 @@ class _PresetGateway(GatewayBase):
     async def query_positions(self) -> list[Position]:
         return self.positions
 
+    async def query_open_orders(self, symbol: str) -> list:
+        return []
+
 
 class _FilledGateway(_PresetGateway):
     async def send_order(self, order: Order) -> str:
