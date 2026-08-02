@@ -2,8 +2,8 @@
   "version": "1.0",
   "schema_version": "1.0",
   "project": "QuantFlow",
-  "project_version": "0.2.0",
-  "last_updated": "2026-08-02T16:00:00Z",
+  "project_version": "0.3.0",
+  "last_updated": "2026-08-02T18:00:00Z",
   "rebuild_source": "manage-codebase-rebuild (full, 4 mappers + maestro kg index)",
   "overview": "Personal Crypto quantitative trading system (OKX) with six-layer architecture (L1 data -> L6 monitoring), self-built event-driven TradingSession engine, anti-overfitting validation pipeline (CPCV+DSR+PBO+WFO), and QuantFlow Station web UI. Phase 1/2/3 complete; M3 deep-research remediation complete (P0 verify-passed, P1 verify-passed, P2 unblocked); M4 v0.2.0 released (17 ISS resolved, security hardening, architecture cleanup). P2 AI-layer upgrade and full multi-symbol data loop are next iteration targets. v0.2.0 includes G1-G5 operational integrity suite: thread-safe OrderManager (RLock), ReconciliationEngine, distributed tracing, DQ monitoring, alert taxonomy.",
       "features": [
