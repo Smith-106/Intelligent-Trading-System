@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.4.0] — 2026-08-03
+
+### Features (Wave 1: s1-integrity-foundation + s2-multisource-data)
+- Checkpoint state store (quantflow/execution/state_store.py): crash-recovery persistence for trading sessions (atomic tmp+replace, schema versioning, fail-closed restore) — resolves ISS-20260803-004
+- Exchange health monitor (quantflow/execution/exchange_health.py): single-exchange circuit breaker with sliding window error rate + rate-limit streak detection, hysteretic cooldown recovery — resolves ISS-20260803-003
+- Market meta-data fetcher (quantflow/data/market_meta_fetcher.py): funding rate & open interest collection with self rate-limiting + polling floors + exponential backoff — resolves ISS-20260803-001
+- FundingRateStrategy production feed wiring: OKX funding-rate-history 90-day cap + incremental accumulation
+
+### Reliability & Integrity
+- ReconciliationEngine production runtime integration (ISS-20260803-002): drift detection enforced in live/paper session lifecycle
+- Session recovery: TradingSession.start restores checkpoint + verifies via ReconciliationEngine before new entries (fail-closed)
+- Paper/live parity convergence (ISS-20260803-005): partial-fill, regime gate, params parity covered by new integration tests
+- RiskEngine exchange-circuit-open interception: single signal-entry blocking point
+
+### Testing
+- Integration: test_backtest_paper_parity, test_funding_feed, test_meta_backfill, test_session_recovery (20 tests)
+- Unit: test_dq_monitor, test_exchange_health, test_market_meta_fetcher, test_state_store, test_store (68 tests)
+- Regression: execution/risk/reconciliation/alert-routing/order-manager (89 tests)
+- Total: 177 tests passing
+
+### Knowledge & Harvest
+- benchmark-evolve session harvested: 5 wiki entries + S-BM2603-RD0 spec + 6 new issues (ISS-20260803-001..006)
+- New knowhow: gap-grading methodology, data-single-source, HighFlyer principles, benchmark methodology, evolution DAG
+
+## [0.3.1] — 2026-08-02
+
+### Features
+- ReconciliationEngine comprehensive unit tests (20 tests)
+- DQ Monitor InMemoryStateStore Redis fallback (14 tests)
+- ALERT_ROUTING matrix + AlertDeduplicator + send_routed() (18 tests)
+- OrderManager thread-safety tests (5 tests)
+
+### Security & Reliability
+- DQ Monitor graceful degradation: in-memory fallback when Redis unavailable (ISS-20260802-010)
+- Smart alert routing prevents alert fatigue (ISS-20260802-005)
+
+### Cleanup
+- Removed stale dist/ build artifacts from version control
+- Deduplicated issues.jsonl (53 unique issues, all resolved)
+
 ## [0.3.0] — 2026-08-02
 
 ### Features

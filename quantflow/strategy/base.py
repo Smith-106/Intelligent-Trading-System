@@ -130,6 +130,12 @@ class StrategyBase(ABC):
            resolved as design-property): regime = macro market-state gate,
            entry = micro MA-direction signal. For live-faithful validation use
            paper-on_bar replay, not this vectorized path.
+
+           The superset relation is locked as a parity regression assertion
+           (parity 回归断言, T-s1-05): ``paper_entries`` is a subset of
+           ``backtest_entries`` — enforced by
+           ``tests/integration/test_backtest_paper_parity.py`` for both
+           regime-gated templates (trend_following / funding_rate).
         2. **Indicator formula**: a strategy may compute an indicator
            differently in the two paths (e.g. trend_following uses SMA-based
            RSI in ``generate_signals`` and a matching incremental RSI in

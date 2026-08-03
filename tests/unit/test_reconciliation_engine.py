@@ -14,21 +14,17 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from quantflow.execution.gateway_base import GatewayError, OpenOrder
 from quantflow.reconciliation.engine import ReconciliationEngine
 from quantflow.reconciliation.models import (
-    DailyReconReport,
     Discrepancy,
     DiscrepancySet,
     DiscrepancyType,
-    PositionSnapshot,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -110,14 +106,18 @@ def mock_audit_logger():
 @pytest.fixture
 def basic_engine(mock_audit_logger):
     """Create engine with matching positions (no drift)."""
-    portfolio = MockPortfolioManager([
-        MockPosition("BTC/USDT", 1.5, entry_price=50000.0),
-        MockPosition("ETH/USDT", 10.0, entry_price=3000.0),
-    ])
-    gateway = MockGateway(positions=[
-        MockPosition("BTC/USDT", 1.5, entry_price=50000.0),
-        MockPosition("ETH/USDT", 10.0, entry_price=3000.0),
-    ])
+    portfolio = MockPortfolioManager(
+        [
+            MockPosition("BTC/USDT", 1.5, entry_price=50000.0),
+            MockPosition("ETH/USDT", 10.0, entry_price=3000.0),
+        ]
+    )
+    gateway = MockGateway(
+        positions=[
+            MockPosition("BTC/USDT", 1.5, entry_price=50000.0),
+            MockPosition("ETH/USDT", 10.0, entry_price=3000.0),
+        ]
+    )
     return ReconciliationEngine(
         portfolio_manager=portfolio,
         gateway=gateway,
@@ -148,12 +148,16 @@ class TestPositionDriftDetection:
     @pytest.mark.asyncio
     async def test_drift_detected_above_threshold(self, mock_audit_logger):
         """Position drift above threshold (100 bps) generates discrepancy."""
-        portfolio = MockPortfolioManager([
-            MockPosition("BTC/USDT", 1.0),  # Local: 1.0 BTC
-        ])
-        gateway = MockGateway(positions=[
-            MockPosition("BTC/USDT", 1.02),  # Exchange: 1.02 BTC (2% drift = 200 bps)
-        ])
+        portfolio = MockPortfolioManager(
+            [
+                MockPosition("BTC/USDT", 1.0),  # Local: 1.0 BTC
+            ]
+        )
+        gateway = MockGateway(
+            positions=[
+                MockPosition("BTC/USDT", 1.02),  # Exchange: 1.02 BTC (2% drift = 200 bps)
+            ]
+        )
         engine = ReconciliationEngine(
             portfolio_manager=portfolio,
             gateway=gateway,
@@ -173,12 +177,16 @@ class TestPositionDriftDetection:
     @pytest.mark.asyncio
     async def test_drift_below_threshold_ignored(self, mock_audit_logger):
         """Position drift below threshold does not generate discrepancy."""
-        portfolio = MockPortfolioManager([
-            MockPosition("BTC/USDT", 1.0),
-        ])
-        gateway = MockGateway(positions=[
-            MockPosition("BTC/USDT", 1.005),  # 0.5% drift = 50 bps < 100 bps
-        ])
+        portfolio = MockPortfolioManager(
+            [
+                MockPosition("BTC/USDT", 1.0),
+            ]
+        )
+        gateway = MockGateway(
+            positions=[
+                MockPosition("BTC/USDT", 1.005),  # 0.5% drift = 50 bps < 100 bps
+            ]
+        )
         engine = ReconciliationEngine(
             portfolio_manager=portfolio,
             gateway=gateway,
@@ -230,14 +238,18 @@ class TestOrphanPositionDetection:
     @pytest.mark.asyncio
     async def test_orphan_position_local_only(self, mock_audit_logger):
         """Position tracked locally but not on exchange is flagged."""
-        portfolio = MockPortfolioManager([
-            MockPosition("BTC/USDT", 1.0),
-            MockPosition("SOL/USDT", 50.0),  # Only local
-        ])
-        gateway = MockGateway(positions=[
-            MockPosition("BTC/USDT", 1.0),
-            # SOL/USDT missing from exchange
-        ])
+        portfolio = MockPortfolioManager(
+            [
+                MockPosition("BTC/USDT", 1.0),
+                MockPosition("SOL/USDT", 50.0),  # Only local
+            ]
+        )
+        gateway = MockGateway(
+            positions=[
+                MockPosition("BTC/USDT", 1.0),
+                # SOL/USDT missing from exchange
+            ]
+        )
         engine = ReconciliationEngine(
             portfolio_manager=portfolio,
             gateway=gateway,
@@ -254,14 +266,18 @@ class TestOrphanPositionDetection:
     @pytest.mark.asyncio
     async def test_orphan_position_exchange_only(self, mock_audit_logger):
         """Position on exchange but not tracked locally is flagged."""
-        portfolio = MockPortfolioManager([
-            MockPosition("BTC/USDT", 1.0),
-            # ETH/USDT not tracked locally
-        ])
-        gateway = MockGateway(positions=[
-            MockPosition("BTC/USDT", 1.0),
-            MockPosition("ETH/USDT", 5.0),  # Only on exchange
-        ])
+        portfolio = MockPortfolioManager(
+            [
+                MockPosition("BTC/USDT", 1.0),
+                # ETH/USDT not tracked locally
+            ]
+        )
+        gateway = MockGateway(
+            positions=[
+                MockPosition("BTC/USDT", 1.0),
+                MockPosition("ETH/USDT", 5.0),  # Only on exchange
+            ]
+        )
         engine = ReconciliationEngine(
             portfolio_manager=portfolio,
             gateway=gateway,
@@ -482,14 +498,18 @@ class TestReportAndAudit:
     @pytest.mark.asyncio
     async def test_critical_drift_triggers_audit_event(self, mock_audit_logger):
         """Critical drift (>0.8 severity) triggers audit event logging."""
-        portfolio = MockPortfolioManager([
-            MockPosition("BTC/USDT", 1.0),
-        ])
-        gateway = MockGateway(positions=[
-            # Exchange has position we don't track → orphan → severity 1.0
-            MockPosition("BTC/USDT", 1.0),
-            MockPosition("DOGE/USDT", 100000.0),
-        ])
+        portfolio = MockPortfolioManager(
+            [
+                MockPosition("BTC/USDT", 1.0),
+            ]
+        )
+        gateway = MockGateway(
+            positions=[
+                # Exchange has position we don't track → orphan → severity 1.0
+                MockPosition("BTC/USDT", 1.0),
+                MockPosition("DOGE/USDT", 100000.0),
+            ]
+        )
         engine = ReconciliationEngine(
             portfolio_manager=portfolio,
             gateway=gateway,
@@ -587,3 +607,171 @@ class TestDiscrepancySetMetrics:
         critical = ds.filter_by_severity(0.5)
         assert len(critical) == 1
         assert critical[0].symbol == "ETH/USDT"
+
+
+# ---------------------------------------------------------------------------
+# Test: T-s1-01 Production Wiring (sink alerts, order_manager, dict-shaped
+# portfolio) — new parameters default to None so legacy tests stay green.
+# ---------------------------------------------------------------------------
+
+
+class MockOrderManager:
+    """Duck-typed L5 OrderManager double (get_open_orders only)."""
+
+    def __init__(self, orders: list | None = None):
+        self._orders = orders or []
+
+    def get_open_orders(self):
+        return list(self._orders)
+
+
+class MockLocalOrder:
+    """Minimal Order shape: symbol + order_id (what the engine reads)."""
+
+    def __init__(self, symbol: str, order_id: str):
+        self.symbol = symbol
+        self.order_id = order_id
+
+
+class DictPortfolioManager:
+    """Portfolio double shaped like production PortfolioManager.
+
+    No get_positions()/get_symbols()/get_pending_order_ids — exposes the
+    ``positions`` mapping property instead (dual-interface duck-typing).
+    """
+
+    def __init__(self, positions: list[MockPosition] | None = None):
+        self._positions = {p.symbol: p for p in (positions or [])}
+
+    @property
+    def positions(self):
+        return self._positions
+
+
+def _mock_sink() -> MagicMock:
+    sink = MagicMock()
+    sink.send_alert = AsyncMock(return_value={})
+    return sink
+
+
+class TestProductionWiring:
+    """T-s1-01: monitoring_sink alerting + order_manager orphan detection."""
+
+    @pytest.mark.asyncio
+    async def test_drift_triggers_critical_sink_alert(self, mock_audit_logger):
+        """Synthetic drift (1.0 vs 0.5 = 5000bps) emits one critical alert."""
+        portfolio = MockPortfolioManager([MockPosition("BTC/USDT", 1.0)])
+        gateway = MockGateway(positions=[MockPosition("BTC/USDT", 0.5)])
+        sink = _mock_sink()
+        engine = ReconciliationEngine(
+            portfolio_manager=portfolio,
+            gateway=gateway,
+            audit_logger=mock_audit_logger,
+            drift_threshold_bps=100.0,
+            monitoring_sink=sink,
+        )
+
+        report = await engine.run_daily_reconciliation()
+
+        mismatch = report.discrepancies.filter_by_type(DiscrepancyType.POSITION_MISMATCH)
+        assert len(mismatch) == 1
+        assert mismatch[0].details["drift_bps"] == pytest.approx(5000.0, rel=0.01)
+        sink.send_alert.assert_awaited_once()
+        assert sink.send_alert.call_args[1]["level"] == "critical"
+        assert sink.send_alert.call_args[1]["extra"]["category"] == "reconciliation_drift"
+
+    @pytest.mark.asyncio
+    async def test_no_alert_when_clean(self, basic_engine):
+        """Zero discrepancies → no sink alert (Null sink path stays silent)."""
+        sink = _mock_sink()
+        basic_engine._sink = sink
+        report = await basic_engine.run_daily_reconciliation()
+        assert report.passed is True
+        sink.send_alert.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_orphan_order_via_injected_order_manager(self, mock_audit_logger):
+        """Local ids from order_manager.get_open_orders suppress tracked orders."""
+        portfolio = MockPortfolioManager([MockPosition("BTC/USDT", 1.0)])
+        stale_orphan = OpenOrder(
+            id="orphan-002",
+            symbol="BTC/USDT",
+            side="buy",
+            order_type="limit",
+            price=49000.0,
+            filled_amount=0.0,
+            status="open",
+            timestamp=time.time() - 600,
+        )
+        tracked = OpenOrder(
+            id="tracked-002",
+            symbol="BTC/USDT",
+            side="buy",
+            order_type="limit",
+            price=49000.0,
+            filled_amount=0.0,
+            status="open",
+            timestamp=time.time() - 600,
+        )
+        gateway = MockGateway(
+            positions=[MockPosition("BTC/USDT", 1.0)],
+            open_orders={"BTC/USDT": [stale_orphan, tracked]},
+        )
+        order_manager = MockOrderManager([MockLocalOrder("BTC/USDT", "tracked-002")])
+        engine = ReconciliationEngine(
+            portfolio_manager=portfolio,
+            gateway=gateway,
+            audit_logger=mock_audit_logger,
+            order_manager=order_manager,
+        )
+
+        report = await engine.run_daily_reconciliation()
+
+        orphans = report.discrepancies.filter_by_type(DiscrepancyType.ORPHAN_ORDER_EXCHANGE)
+        assert len(orphans) == 1
+        assert orphans[0].details["order_id"] == "orphan-002"
+
+    @pytest.mark.asyncio
+    async def test_local_snapshot_from_positions_property(self, mock_audit_logger):
+        """Dict-shaped portfolio (production PortfolioManager) is readable."""
+        portfolio = DictPortfolioManager([MockPosition("ETH/USDT", 4.0)])
+        gateway = MockGateway(positions=[MockPosition("ETH/USDT", 4.0)])
+        engine = ReconciliationEngine(
+            portfolio_manager=portfolio,
+            gateway=gateway,
+            audit_logger=mock_audit_logger,
+        )
+
+        report = await engine.run_daily_reconciliation()
+
+        assert report.status == "completed"
+        assert report.passed is True
+        assert report.local_snapshot.positions["ETH/USDT"]["amount"] == 4.0
+
+    @pytest.mark.asyncio
+    async def test_positions_mapping_quantity_attribute(self, mock_audit_logger):
+        """L4 Position shape (quantity, not amount) normalizes into snapshot."""
+
+        class QuantityPosition:
+            def __init__(self):
+                self.symbol = "BTC/USDT"
+                self.quantity = 2.5
+                self.entry_price = 50000.0
+                self.unrealized_pnl = 12.0
+
+        class QtyPortfolio:
+            @property
+            def positions(self):
+                return {"BTC/USDT": QuantityPosition()}
+
+        gateway = MockGateway(positions=[MockPosition("BTC/USDT", 2.5)])
+        engine = ReconciliationEngine(
+            portfolio_manager=QtyPortfolio(),
+            gateway=gateway,
+            audit_logger=mock_audit_logger,
+        )
+
+        report = await engine.run_daily_reconciliation()
+
+        assert report.passed is True
+        assert report.local_snapshot.positions["BTC/USDT"]["amount"] == 2.5

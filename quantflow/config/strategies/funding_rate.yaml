@@ -2,6 +2,16 @@ metadata:
   title: "Funding Rate"
   description: "Funding-rate extreme reversal strategy with open-interest filter"
 
+# T-s2-04: 数据接线完成标记（roadmap s1.scope[5] live guard 解除）。
+# 接线前 live 不可用；T-s2-04 完成后 funding/OI 喂数闭环可用。
+live_available: true
+
+# T-s2-04: funding/OI 喂数开关。写权置于本文件（而非 default.yaml）以
+# 避免 wave3 对 default.yaml 的写冲突；映射到
+# AppConfig.execution.funding_feed_enabled（pydantic 默认 false）。
+execution:
+  funding_feed_enabled: false
+
 param_space:
   entry_threshold: [0.0005, 0.002]
   exit_threshold: [0.0001, 0.0005]

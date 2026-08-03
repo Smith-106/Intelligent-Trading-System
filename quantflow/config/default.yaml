@@ -43,6 +43,19 @@ risk:
   var_confidence: 0.95                  # VaR 置信度
   fixed_pct: 0.10                       # fixed-method 仓位比例（原 PositionSizer 硬编码，ISS-012 config-source）
   min_order_notional: 10.0              # PositionSizer 最小下单名义价值阈值（原硬编码，ISS-012 config-source）
+  # T-s1-04: 单所总敞口上限（持仓名义 + pending 占净值的比例；超限拒新开仓，
+  # 放行退出信号以便降敞）。注释掉 = 不设限。
+  exchange_exposure_limit_pct: 0.8
+  # T-s1-04: 交易所健康度监控 + 熔断。enabled 默认 false，既有运行零行为变化；
+  # 开启后 OKX REST 错误/50011/WS 断连喂给 ExchangeHealthMonitor，滑动窗口
+  # 错误率 > 阈值或连续限频 ≥ streak 触发熔断（RiskEngine.check 全拒），
+  # cooldown 后连续 3 次 success 滞回恢复。
+  exchange_health:
+    enabled: false                      # 是否启用交易所熔断（默认关闭）
+    error_rate_threshold: 0.5           # 滑动窗口错误率阈值
+    window_seconds: 60                  # 滑动窗口长度（秒）
+    rate_limit_streak: 3                # 连续 50011 限频触发阈值
+    cooldown_seconds: 300               # 熔断冷却时间（秒）
 
 # ==================== 执行层 ====================
 execution:
@@ -60,6 +73,24 @@ monitoring:
   prometheus_port: 8000                 # Prometheus 指标端口（容器内端口）
   grafana_port: 3000                    # Grafana 仪表板端口
   alert_channels: []                    # 告警渠道配置（见下方示例）
+
+# ==================== 对账层 ====================
+# T-s1-01: ReconciliationEngine 生产化配置。enabled 默认 false，
+# 既有运行零行为变化；TradingSession 接线读取本段（见 common/config.py
+# ReconciliationConfig）。
+reconciliation:
+  enabled: false                        # 是否启用周期对账（默认关闭）
+  interval_minutes: 5                   # 对账执行间隔（分钟）
+  drift_threshold_bps: 100              # 持仓漂移告警阈值（基点，100=1%）
+  order_staleness_seconds: 300          # 孤儿订单滞留判定阈值（秒）
+
+# T-s1-03: 会话 checkpoint 状态恢复配置。enabled 默认 false，
+# 既有运行零行为变化；开启后 paper/live 会话周期保存 L4 状态快照，
+# 重启时恢复并经对账校验，校验通过前拒绝新开仓信号（fail-closed）。
+state:
+  enabled: false                        # 是否启用 checkpoint 恢复（默认关闭）
+  checkpoint_dir: "./data/checkpoints"  # checkpoint 存放目录
+  checkpoint_interval_minutes: 5        # checkpoint 保存间隔（分钟）
 
 # 告警渠道示例（取消注释并填入真实值即可启用）:
 # alert_channels:

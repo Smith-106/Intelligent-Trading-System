@@ -110,6 +110,7 @@ class ExecutionEngine:
         """Initialize gateway based on mode."""
         if self._gateway is not None:
             await self._gateway.connect(gateway_config)
+            await self._maybe_start_order_stream(gateway_config)
             return
 
         if mode == "paper":
@@ -132,7 +133,106 @@ class ExecutionEngine:
         # submit()'s route() calls can dispatch (arch-017 lazy binding).
         self._router.set_gateway(self._gateway)
         await self._gateway.connect(gateway_config)
+        await self._maybe_start_order_stream(gateway_config)
         logger.info("Execution engine started: mode=%s", mode)
+
+    async def _maybe_start_order_stream(self, gateway_config: dict[str, Any] | None) -> None:
+        """Opt-in ws order stream (T-s1-02): subscribe when configured.
+
+        ``gateway_config['ws_order_stream']`` defaults to False so existing
+        runs keep byte-for-byte behavior. Gateways without ``subscribe``
+        (e.g. PaperGateway, or ccxt.pro missing — OKXGateway.subscribe is
+        then a warning no-op itself) degrade to a logged no-op, never raise.
+        """
+        if not gateway_config or not gateway_config.get("ws_order_stream", False):
+            return
+        gateway = self._gateway
+        if gateway is None or getattr(gateway, "subscribe", None) is None:
+            logger.warning("ws_order_stream requested but gateway has no subscribe() — no-op")
+            return
+        await gateway.subscribe("orders", callback=self._on_order_update)
+        logger.info("ws order stream enabled (watch_orders -> _handle_fill)")
+
+    async def _on_order_update(self, orders: list[dict[str, Any]]) -> None:
+        """Handle a ccxt watch_orders push (T-s1-02 ws order stream).
+
+        Each entry is a ccxt unified order dict. Fills reuse the cumulative
+        contract of the REST path: ``filled`` is a running total and
+        ``_handle_fill`` applies only the delta (filled - applied_filled_qty),
+        so a REST response and a ws push describing the same fill are
+        idempotent (no double-booking). Orders already in a local terminal
+        state reject late callbacks (OrderManager terminal-state guard).
+        """
+        for raw in orders:
+            try:
+                await self._apply_order_update(raw)
+            except Exception as e:
+                # One malformed push must not kill the stream consumer.
+                logger.warning("ws order update skipped: %s", redact_secrets(str(e)))
+
+    async def _apply_order_update(self, raw: dict[str, Any]) -> None:
+        oid = str(raw.get("id", "") or "")
+        if not oid:
+            return
+        tracked = self._order_mgr.get_order(oid)
+        if tracked is None:
+            # Not an order this engine submitted — never book positions from
+            # untracked ws orders; ReconciliationEngine flags orphans instead.
+            logger.debug("ws order update for untracked order %s — ignored", oid)
+            return
+        if tracked.status in (
+            OrderStatus.FILLED,
+            OrderStatus.CANCELLED,
+            OrderStatus.REJECTED,
+        ):
+            # Terminal-state guard: a late ws callback cannot resurrect a
+            # finished order (mirrors OrderManager.update's guard).
+            logger.info(
+                "ws update rejected — order %s already terminal (%s)",
+                oid,
+                tracked.status.value,
+            )
+            return
+
+        ccxt_status = str(raw.get("status", "") or "").lower()
+        if ccxt_status in ("canceled", "cancelled", "expired"):
+            self._order_mgr.update(oid, OrderStatus.CANCELLED)
+            if self._event_bus:
+                self._event_bus.publish(
+                    Event(
+                        type=EVENT_ORDER,
+                        data={
+                            "order_id": oid,
+                            "symbol": tracked.symbol,
+                            "side": tracked.side.value,
+                            "status": OrderStatus.CANCELLED.value,
+                        },
+                    )
+                )
+            return
+        if ccxt_status == "rejected":
+            self._order_mgr.update(oid, OrderStatus.REJECTED)
+            return
+
+        filled_qty = float(raw.get("filled", 0.0) or 0.0)
+        if ccxt_status == "closed":
+            new_status = OrderStatus.FILLED
+        elif filled_qty > POSITION_EPSILON:
+            new_status = OrderStatus.PARTIAL
+        else:
+            return  # still open, nothing filled yet
+
+        # Stamp cumulative ccxt values onto the tracked order, then route
+        # through _handle_fill (delta application, idempotent by construction).
+        tracked.filled_quantity = filled_qty
+        avg_price = float(raw.get("average", 0.0) or 0.0)
+        if avg_price > 0:
+            tracked.filled_price = avg_price
+        fee = raw.get("fee") or {}
+        if fee.get("cost") is not None:
+            tracked.fee = float(fee.get("cost") or 0.0)
+        tracked.status = new_status
+        await self._handle_fill(tracked, oid)
 
     async def stop(self) -> None:
         """Stop the execution engine and disconnect gateway.
@@ -316,6 +416,13 @@ class ExecutionEngine:
         # cumulative filled_quantity below the requested qty.
         if order.status in (OrderStatus.FILLED, OrderStatus.PARTIAL):
             await self._handle_fill(order, exchange_id)
+            # T-s1-02: mirror the applied ledger onto the OrderManager's
+            # tracked copy so the ws path (which reads the tracked order)
+            # computes zero delta for a fill the REST response already
+            # booked — REST/ws double reports stay idempotent.
+            tracked = self._order_mgr.get_order(exchange_id)
+            if tracked is not None and tracked is not order:
+                tracked.applied_filled_qty = order.applied_filled_qty
 
         self._record_order_latency(order.symbol, started_at)
         return order

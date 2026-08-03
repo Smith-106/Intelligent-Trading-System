@@ -54,6 +54,12 @@ class FundingRateStrategy(StrategyBase):
         self._entry_direction: Direction | None = None
         self._entry_price: float = 0.0
         self._bars_since_entry: int = 0
+        # T-s2-04: live-feed freshness gate (fail-closed, entries only).
+        # True by default — backtest and feed-disabled runs keep baseline
+        # behavior; TradingSession sets it False when funding/OI data goes
+        # stale (analyze F4 fail_closed contract: block NEW entries, never
+        # exits, so an open position can still be closed on stale data).
+        self._freshness_gate: bool = True
 
     def on_init(self, ctx: StrategyContext) -> None:
         ctx.params = self._params
@@ -96,14 +102,24 @@ class FundingRateStrategy(StrategyBase):
             return
 
         if entries.iloc[last_idx] and not self._in_position:
-            rate = self._funding_rates[-1] if self._funding_rates else 0.0
-            direction = Direction.LONG if rate < -self._entry_threshold else Direction.SHORT
-            ctx.emit_signal(symbol, direction, strength=0.7, price=bar.close, strategy_id=self.name)
-            self._cooldown_counter = self._cooldown_bars
-            self._in_position = True
-            self._entry_direction = direction
-            self._entry_price = bar.close
-            self._bars_since_entry = 0
+            # T-s2-04 fail-closed gate: stale/missing funding/OI feed blocks
+            # NEW entries only — exits above (FLAT) and _check_position_exits
+            # below remain unaffected by design.
+            if not self._freshness_gate:
+                logger.info(
+                    "funding_rate entry skipped: feed stale/missing (fail-closed) %s", symbol
+                )
+            else:
+                rate = self._funding_rates[-1] if self._funding_rates else 0.0
+                direction = Direction.LONG if rate < -self._entry_threshold else Direction.SHORT
+                ctx.emit_signal(
+                    symbol, direction, strength=0.7, price=bar.close, strategy_id=self.name
+                )
+                self._cooldown_counter = self._cooldown_bars
+                self._in_position = True
+                self._entry_direction = direction
+                self._entry_price = bar.close
+                self._bars_since_entry = 0
 
         # on_bar exit mechanisms
         self._check_position_exits(ctx, bar)
@@ -113,6 +129,15 @@ class FundingRateStrategy(StrategyBase):
         self._funding_rates.append(rate)
         if len(self._funding_rates) > self._max_bars:
             self._funding_rates = self._funding_rates[-self._max_bars :]
+
+    def set_freshness_gate(self, fresh: bool) -> None:
+        """T-s2-04: set the live-feed freshness gate.
+
+        ``fresh=False`` blocks NEW entry signals at on_bar time (fail-closed);
+        exit/FLAT signals are never gated so open positions stay closeable.
+        Called by TradingSession based on meta-feed freshness state.
+        """
+        self._freshness_gate = bool(fresh)
 
     def update_open_interest(self, oi: float) -> None:
         """Feed a new open interest observation (called externally by data layer)."""

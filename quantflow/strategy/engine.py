@@ -10,19 +10,30 @@ import asyncio
 import contextlib
 import logging
 import math
+import time
 from collections.abc import Sequence
 from time import perf_counter
 from typing import Any
 
 from quantflow.common.config import AppConfig
 from quantflow.common.event_bus import EVENT_BAR, EVENT_RISK, EVENT_SIGNAL, Event, EventBus
-from quantflow.common.models import Bar, Direction, OrderRequest, OrderSide, OrderStatus, Signal
+from quantflow.common.models import (
+    Bar,
+    Direction,
+    OrderRequest,
+    OrderSide,
+    OrderStatus,
+    Position,
+    Signal,
+)
 from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
 from quantflow.common.redaction import redact_secrets
 from quantflow.common.validators import POSITION_EPSILON
 from quantflow.execution.engine import ExecutionEngine
 from quantflow.execution.kill_switch import KillSwitch
+from quantflow.execution.state_store import SessionSnapshot, StateStore
 from quantflow.indicators.regime import MarketRegimeDetector
+from quantflow.reconciliation.engine import ReconciliationEngine
 from quantflow.signal.generator import SignalGenerator
 from quantflow.signal.portfolio import PortfolioManager
 from quantflow.signal.position_sizer import PositionSizer
@@ -47,6 +58,15 @@ def _ensure_metrics_server_started(port: int) -> None:
 
 
 _WEEK_MS = 7 * 24 * 3600 * 1000
+
+# T-s2-04: meta-feed event types (plan locked: defined locally here; do NOT
+# extend common/event_bus.py with feed-telemetry events).
+EVENT_FUNDING = "funding"
+EVENT_OI = "open_interest"
+#: Idle sleep between meta-feed scheduling cycles (seconds). The actual
+#: per-endpoint cadence is governed by FUNDING_POLL_INTERVAL_S /
+#: OI_POLL_INTERVAL_S deadlines; this only sets the check granularity.
+_META_FEED_SLEEP_S = 5.0
 
 
 def _weekly_base_equity(
@@ -186,6 +206,24 @@ class TradingSession:
         # day rather than a 7-day window.
         self._daily_baseline: float = float("nan")
         self._daily_baseline_day: int | None = None
+        # T-s1-03: crash-recovery state. _recovery_verified gates new-entry
+        # signals after a checkpoint restore until reconciliation proves the
+        # restored book matches the exchange (fail-closed). True by default —
+        # sessions without a restored checkpoint trade normally.
+        self._recovery_verified: bool = True
+        self._session_mode: str = ""
+        self._state_store: StateStore | None = None
+        self._reconciliation_engine: ReconciliationEngine | None = None
+        self._last_reconciliation_at: float = 0.0
+        self._last_checkpoint_at: float = 0.0
+        # T-s2-04: funding/OI meta feed state. _meta_feed_task runs only when
+        # config.execution.funding_feed_enabled (default false → zero change).
+        # _meta_fetcher is injectable so tests can feed scripted snapshots
+        # without touching the network.
+        self._meta_feed_task: asyncio.Task[None] | None = None
+        self._meta_fetcher: Any | None = None
+        self._dq_monitor: Any | None = None
+        self._meta_fresh: dict[str, dict[str, Any]] = {}
 
     async def start(
         self,
@@ -236,6 +274,33 @@ class TradingSession:
         self._daily_baseline_day = None
         self._portfolio.set_daily_baseline(float("nan"))
 
+        # T-s1-03: crash-recovery restore. Contracted order (plan lock):
+        # CORR-M2 reset FIRST (above), then restore, then strategy
+        # instantiation (below) — a restore before the reset would be wiped,
+        # after strategy instantiation would race on_bar state.
+        self._recovery_verified = True
+        self._session_mode = mode
+        if self._config.state.enabled and mode in ("paper", "live"):
+            self._state_store = StateStore(self._config.state.checkpoint_dir)
+            snapshot = self._state_store.load_checkpoint()
+            if snapshot is not None:
+                self._restore_from_snapshot(snapshot)
+                self._recovery_verified = await self._verify_recovery()
+                logger.info(
+                    "Checkpoint restored: verified=%s (cash=%.2f, %d positions)",
+                    self._recovery_verified,
+                    snapshot.cash,
+                    len(snapshot.positions),
+                )
+            elif self._state_store.last_error is not None:
+                # Corrupt checkpoint: fail-closed — refuse new entries until
+                # an operator clears the checkpoint and restarts.
+                self._recovery_verified = False
+                logger.critical("Checkpoint corrupted — new-entry signals blocked (fail-closed)")
+        if self._reconciliation_engine is None and self._config.reconciliation.enabled:
+            # Periodic reconciliation without checkpoint restore (live wiring).
+            self._build_reconciliation_engine()
+
         # Start observability via the injected sink (ISS-019): the sink owns
         # both the metrics-server start (idempotent per port) and the
         # AlertManager wiring — L3 no longer touches monitoring/ concrete
@@ -282,6 +347,12 @@ class TradingSession:
                 self._contexts[(strategy.name, "")] = ctx
 
         self._running = True
+        # T-s2-04: opt-in funding/OI background feed (funding_feed_enabled in
+        # execution config; default false keeps existing runs byte-for-byte).
+        # Spawned AFTER instance creation so (funding_rate, symbol) targets
+        # exist when the first samples land.
+        if self._config.execution.funding_feed_enabled:
+            self._meta_feed_task = asyncio.create_task(self._meta_feed_loop())
         logger.info(
             "Trading session started: %d strategies, %d symbols, mode=%s",
             len(self._strategies),
@@ -418,6 +489,10 @@ class TradingSession:
             ctx = self._contexts.get(key)
             if not ctx:
                 continue
+            # T-s2-04: refresh the funding-feed freshness gate before on_bar so
+            # stale/missing meta data fails closed on NEW entries only. No-op
+            # when the feed is disabled (gate stays at its True default).
+            self._apply_meta_freshness(strategy.name, bar.symbol, instance)
             # M4-4.3: offload strategy computation to a worker thread so CPU-heavy
             # strategies (Elliott Wave, ML ensemble) don't block the event loop
             # and starve other symbols' data fetch / signal processing.
@@ -462,6 +537,24 @@ class TradingSession:
         # opens a brand-new short instead of flattening.
         if signal.direction == Direction.FLAT:
             await self._close_position_for_signal(signal)
+            self._record_signal_latency(signal.strategy_id, started_at)
+            return
+
+        # T-s1-03 fail-closed gate: a restored-but-unverified session may only
+        # close (FLAT handled above); new entries are refused until
+        # reconciliation proves the restored book matches the exchange.
+        if not self._recovery_verified:
+            logger.warning("Signal blocked: recovery_unverified (%s)", signal.strategy_id)
+            self._event_bus.publish(
+                Event(
+                    type=EVENT_RISK,
+                    data={
+                        "type": "signal_blocked",
+                        "reason": "recovery_unverified",
+                        "strategy_id": signal.strategy_id,
+                    },
+                )
+            )
             self._record_signal_latency(signal.strategy_id, started_at)
             return
 
@@ -611,6 +704,144 @@ class TradingSession:
             n_positions=int(snapshot["positions"]),
         )
 
+    # --- T-s1-03: crash-recovery helpers ---
+
+    def _restore_from_snapshot(self, snapshot: SessionSnapshot) -> None:
+        """Restore L4 cash + positions from a checkpoint snapshot.
+
+        Cash is restored as a delta against the freshly constructed portfolio
+        (start() resets per-session state before this runs); positions
+        overwrite via set_position (sync semantics — the checkpoint IS the
+        authoritative record of the previous run's book). Open orders are NOT
+        re-tracked: exchange-side state is re-established by reconciliation
+        and the timeout/sweeper guards, never replayed blindly.
+        """
+        cash_delta = snapshot.cash - self._portfolio.cash
+        if abs(cash_delta) > POSITION_EPSILON:
+            self._portfolio.update_cash(cash_delta)
+        for entry in snapshot.positions:
+            symbol = str(entry.get("symbol", ""))
+            if not symbol:
+                continue
+            self._portfolio.set_position(
+                symbol,
+                Position(
+                    symbol=symbol,
+                    quantity=float(entry.get("quantity", 0.0)),
+                    entry_price=float(entry.get("entry_price", 0.0)),
+                    current_price=float(entry.get("current_price", 0.0)),
+                    unrealized_pnl=float(entry.get("unrealized_pnl", 0.0)),
+                    strategy_id=str(entry.get("strategy_id", "")),
+                ),
+            )
+
+    def _build_reconciliation_engine(self) -> None:
+        """Construct the ReconciliationEngine from live session components."""
+        gateway = self._execution.gateway
+        if gateway is None:
+            logger.warning("ReconciliationEngine not built — gateway unavailable")
+            return
+        self._reconciliation_engine = ReconciliationEngine(
+            portfolio_manager=self._portfolio,
+            gateway=gateway,
+            order_manager=self._execution.order_manager,
+            monitoring_sink=self._sink,
+            drift_threshold_bps=self._config.reconciliation.drift_threshold_bps,
+            order_staleness_threshold_seconds=(self._config.reconciliation.order_staleness_seconds),
+        )
+
+    async def _verify_recovery(self) -> bool:
+        """Verify the restored book against the exchange (fail-closed).
+
+        Returns True only when a reconciliation run completes with zero
+        discrepancies; any error or drift keeps new-entry signals blocked.
+        """
+        self._build_reconciliation_engine()
+        engine = self._reconciliation_engine
+        if engine is None:
+            return False
+        try:
+            report = await engine.run_daily_reconciliation()
+        except Exception as e:
+            logger.error("Recovery verification failed: %s", e)
+            return False
+        if report.status != "completed":
+            logger.error("Recovery verification incomplete: %s", report.error_message)
+            return False
+        if report.discrepancies.total_discrepancies > 0:
+            logger.critical(
+                "Recovery verification found %d discrepancies — entries blocked",
+                report.discrepancies.total_discrepancies,
+            )
+            return False
+        return True
+
+    def _build_snapshot(self) -> SessionSnapshot:
+        """Snapshot the authoritative L4 state + in-flight orders."""
+        positions = [
+            {
+                "symbol": p.symbol,
+                "quantity": p.quantity,
+                "entry_price": p.entry_price,
+                "current_price": p.current_price,
+                "unrealized_pnl": p.unrealized_pnl,
+                "strategy_id": p.strategy_id,
+            }
+            for p in self._portfolio.positions.values()
+        ]
+        open_orders = [
+            {
+                "order_id": o.order_id,
+                "symbol": o.symbol,
+                "side": o.side.value,
+                "order_type": o.order_type,
+                "status": o.status.value,
+                "quantity": o.quantity,
+                "price": o.price,
+                "strategy_id": o.strategy_id,
+            }
+            for o in self._execution.order_manager.get_open_orders()
+        ]
+        return SessionSnapshot(
+            saved_at_ms=int(time.time() * 1000),
+            mode=self._session_mode,
+            cash=self._portfolio.cash,
+            positions=positions,
+            open_orders=open_orders,
+            equity=self._portfolio.total_value,
+        )
+
+    async def _periodic_maintenance(self) -> None:
+        """Time-based reconciliation + checkpoint save (called from data loop).
+
+        Both duties are opt-in via YAML (reconciliation.enabled /
+        state.enabled) and failure-isolated: a failed run never interrupts
+        the data loop.
+        """
+        now = time.time()
+        recon_cfg = self._config.reconciliation
+        if (
+            recon_cfg.enabled
+            and self._reconciliation_engine is not None
+            and now - self._last_reconciliation_at >= recon_cfg.interval_minutes * 60
+        ):
+            self._last_reconciliation_at = now
+            try:
+                await self._reconciliation_engine.run_daily_reconciliation()
+            except Exception as e:
+                logger.error("Periodic reconciliation failed: %s", e)
+        state_cfg = self._config.state
+        if (
+            state_cfg.enabled
+            and self._state_store is not None
+            and now - self._last_checkpoint_at >= state_cfg.checkpoint_interval_minutes * 60
+        ):
+            self._last_checkpoint_at = now
+            try:
+                self._state_store.save_checkpoint(self._build_snapshot())
+            except Exception as e:
+                logger.error("Checkpoint save failed: %s", e)
+
     def _record_bar_latency(self, symbol: str, started_at: float) -> None:
         self._sink.record_bar_latency(symbol, perf_counter() - started_at)
 
@@ -622,6 +853,179 @@ class TradingSession:
         severity = event.data.get("severity", "warn")
         if severity == "emergency" and self._kill_switch and not self._kill_switch.is_active:
             logger.critical("Emergency risk event — will activate kill switch on next cycle")
+
+    # ------------------------------------------------------------------ #
+    # T-s2-04: funding-rate / open-interest meta feed.
+    # Background collector round-robins symbols on the analyze-locked
+    # cadence (funding >=60 s, OI >=30 s; MarketMetaFetcher's shared
+    # RateLimiter keeps adjacent requests >=200 ms apart). Collector
+    # failures are log-only — they MUST NOT interrupt the main data loop.
+    # ------------------------------------------------------------------ #
+    async def _meta_feed_loop(self) -> None:
+        """Background funding/OI collector (opt-in via funding_feed_enabled)."""
+        from quantflow.data.dq_monitor import DataQualityMonitor
+        from quantflow.data.market_meta_fetcher import (
+            FUNDING_POLL_INTERVAL_S,
+            OI_POLL_INTERVAL_S,
+            MarketMetaFetcher,
+        )
+
+        symbols = list(self._symbols or self._config.execution.symbols or [])
+        if not symbols:
+            logger.warning("funding feed enabled but no symbols resolved — feed idle")
+            return
+        if self._meta_fetcher is None:
+            self._meta_fetcher = MarketMetaFetcher(self._config.data)
+        if self._dq_monitor is None:
+            self._dq_monitor = DataQualityMonitor(
+                enable_prometheus=False, monitoring_sink=self._sink
+            )
+        fetcher = self._meta_fetcher
+        try:
+            await fetcher.connect()
+        except Exception as e:
+            # Connection failure must not kill the feed — per-cycle fetch
+            # errors below are isolated and the loop keeps retrying.
+            logger.error("Meta feed connect failed: %s", redact_secrets(str(e)))
+
+        next_funding_at = 0.0
+        next_oi_at = 0.0
+        try:
+            while self._running:
+                now = time.monotonic()
+                try:
+                    if now >= next_funding_at:
+                        await self._meta_poll_funding(symbols)
+                        next_funding_at = time.monotonic() + FUNDING_POLL_INTERVAL_S
+                    if now >= next_oi_at:
+                        await self._meta_poll_oi(symbols)
+                        next_oi_at = time.monotonic() + OI_POLL_INTERVAL_S
+                except Exception as e:
+                    logger.warning("Meta feed cycle error: %s", redact_secrets(str(e)))
+                await asyncio.sleep(_META_FEED_SLEEP_S)
+        except asyncio.CancelledError:
+            logger.info("Meta feed loop cancelled")
+            raise
+
+    async def _meta_poll_funding(self, symbols: list[str]) -> None:
+        """One funding-rate round over all symbols (per-symbol isolation)."""
+        fetcher = self._meta_fetcher
+        dq_monitor = self._dq_monitor
+        if fetcher is None or dq_monitor is None:
+            return
+        for sym in symbols:
+            try:
+                snap = await fetcher.fetch_funding_rate(sym)
+            except Exception as e:
+                logger.warning(
+                    "Meta feed funding fetch failed (%s): %s", sym, redact_secrets(str(e))
+                )
+                continue
+            # dq freshness validation (stale_funding on age > 2x settlement).
+            dq = dq_monitor.validate_funding_rate(
+                {
+                    "symbol": sym,
+                    "fetched_at_ms": snap.fetched_at_ms,
+                    "settled_interval_ms": snap.settlement_interval_ms,
+                }
+            )
+            if not dq.valid:
+                await self._sink.send_alert(
+                    f"Funding feed stale for {sym} — entries gated (fail-closed)",
+                    level="warning",
+                    extra={"violations": dq.violations},
+                )
+            instance = self._instances.get(("funding_rate", sym))
+            if instance is not None and hasattr(instance, "update_funding_rate"):
+                instance.update_funding_rate(snap.funding_rate)
+            meta = self._meta_fresh.setdefault(
+                sym, {"funding": False, "oi": False, "settled_interval_ms": 0}
+            )
+            meta["funding"] = True
+            meta["funding_at_ms"] = snap.fetched_at_ms
+            meta["settled_interval_ms"] = snap.settlement_interval_ms
+            self._event_bus.publish(
+                Event(
+                    type=EVENT_FUNDING,
+                    data={
+                        "symbol": sym,
+                        "funding_rate": snap.funding_rate,
+                        "fetched_at_ms": snap.fetched_at_ms,
+                        "settled_interval_ms": snap.settlement_interval_ms,
+                    },
+                )
+            )
+
+    async def _meta_poll_oi(self, symbols: list[str]) -> None:
+        """One open-interest round over all symbols (per-symbol isolation)."""
+        fetcher = self._meta_fetcher
+        dq_monitor = self._dq_monitor
+        if fetcher is None or dq_monitor is None:
+            return
+        for sym in symbols:
+            try:
+                snap = await fetcher.fetch_open_interest(sym)
+            except Exception as e:
+                logger.warning("Meta feed OI fetch failed (%s): %s", sym, redact_secrets(str(e)))
+                continue
+            dq = dq_monitor.validate_open_interest(
+                {"symbol": sym, "fetched_at_ms": snap.fetched_at_ms}
+            )
+            if not dq.valid:
+                await self._sink.send_alert(
+                    f"OI feed stale for {sym} — entries gated (fail-closed)",
+                    level="warning",
+                    extra={"violations": dq.violations},
+                )
+            instance = self._instances.get(("funding_rate", sym))
+            if instance is not None and hasattr(instance, "update_open_interest"):
+                instance.update_open_interest(snap.open_interest)
+            meta = self._meta_fresh.setdefault(
+                sym, {"funding": False, "oi": False, "settled_interval_ms": 0}
+            )
+            meta["oi"] = True
+            meta["oi_at_ms"] = snap.fetched_at_ms
+            self._event_bus.publish(
+                Event(
+                    type=EVENT_OI,
+                    data={
+                        "symbol": sym,
+                        "open_interest": snap.open_interest,
+                        "fetched_at_ms": snap.fetched_at_ms,
+                    },
+                )
+            )
+
+    def _meta_data_fresh(self, symbol: str) -> bool:
+        """Fail-closed freshness check for a symbol's funding/OI feed.
+
+        False (entries blocked) when the feed never produced data, or when
+        funding age > 2 x settlement interval, or OI age > 600 s — the same
+        thresholds dq_monitor enforces (analyze F4 / locked constants).
+        """
+        meta = self._meta_fresh.get(symbol)
+        if not meta or not meta.get("funding") or not meta.get("oi"):
+            return False
+        now_ms = time.time() * 1000.0
+        interval_ms = float(meta.get("settled_interval_ms") or 0)
+        funding_at = meta.get("funding_at_ms")
+        oi_at = meta.get("oi_at_ms")
+        if interval_ms <= 0 or funding_at is None or oi_at is None:
+            return False
+        if now_ms - float(funding_at) > 2 * interval_ms:
+            return False
+        return now_ms - float(oi_at) <= 600_000.0
+
+    def _apply_meta_freshness(self, strategy_name: str, symbol: str, instance: Any) -> None:
+        """Push the current feed-freshness state into a strategy instance."""
+        if not self._config.execution.funding_feed_enabled:
+            return
+        if strategy_name != "funding_rate":
+            return
+        setter = getattr(instance, "set_freshness_gate", None)
+        if setter is None:
+            return
+        setter(self._meta_data_fresh(symbol))
 
     async def run_data_loop(
         self,
@@ -757,6 +1161,9 @@ class TradingSession:
                 # Health check
                 self.check_health()
 
+                # T-s1-03: periodic reconciliation + checkpoint (both opt-in).
+                await self._periodic_maintenance()
+
                 # Order timeout check — cancel timed-out orders on the exchange
                 # (odyssey-improve REL-H4): previously the returned ids were
                 # discarded, so an exchange-still-open order could fill later
@@ -855,6 +1262,8 @@ class TradingSession:
                     logger.error("%s", self._last_error)
 
                 self.check_health()
+                # T-s1-03: periodic reconciliation + checkpoint (both opt-in).
+                await self._periodic_maintenance()
                 self._execution.check_timeouts()
                 await asyncio.sleep(interval_seconds)
 
@@ -891,6 +1300,11 @@ class TradingSession:
     async def stop(self) -> None:
         """Stop the trading session."""
         self._running = False
+        # T-s2-04: drain the meta feed task so stop() leaves no orphan loop.
+        if self._meta_feed_task is not None and not self._meta_feed_task.done():
+            self._meta_feed_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._meta_feed_task
         await self._execution.stop()
         logger.info("Trading session stopped")
 

@@ -11,8 +11,11 @@
 - **27 个因子**：21 基础指标（趋势/动量/波动/成交量）+ 6 个 Elliott Wave 因子，纯 pandas/numpy 实现
 - **AI 增强**：Meta-Labeling + FinBERT 情绪分析（已实现）；Qlib RD-Agent 因子挖掘骨架（CLI 已接线，qlib 为可选依赖）
 - **QuantFlow Station**：React + Vite 现代前端 + aiohttp 业务后端，23 个 REST 端点 + CSRF/Token 安全防护
-- **对账引擎**：持仓漂移检测 + 孤儿订单发现 + 审计日志
-- **数据质量**：实时数据流健康监控
+- **对账引擎**：持仓漂移检测 + 孤儿订单发现 + 审计日志 + 会话崩溃恢复（Checkpoint 状态存储）
+- **数据质量**：实时数据流健康监控 + Redis 降级 fallback
+- **交易所健康**：单交易所熔断器（滑窗错误率 + 限频检测 + 滞后恢复）
+- **多源数据**：Funding Rate / Open Interest 元数据采集（自限频 + 指数退避）
+- **智能告警**：ALERT_ROUTING 矩阵（15 类别 x 4 优先级）+ 滑动窗口去重
 - **配置驱动**：策略参数、风控规则、交易对全部 YAML 管理，零硬编码
 
 ## 架构

@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import subprocess
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -154,6 +155,123 @@ def download(
             # OKX apiKey/URL — scrub before printing to the operator's terminal.
             console.print(f"[red]✗ Error: {redact_secrets(str(e))}[/]")
             console.print("  Check your internet connection and symbol name.")
+        finally:
+            await fetcher.disconnect()
+            store.close()
+
+    asyncio.run(_run())
+
+
+# T-s2-03: OKX funding-rate-history serves only ~3 months (analyze C2
+# locked). Larger --days windows are truncated to this max with a WARNING —
+# the shortfall is covered by incremental accumulation over time (DEV-1).
+FUNDING_HISTORY_MAX_DAYS = 90
+_OI_HISTORY_PERIODS = {"1H", "1D"}
+
+
+@app.command()
+def download_funding(
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol (OKX swap)"),
+    days: int = typer.Option(90, help="Backfill window in days (OKX max ~90)"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
+) -> None:
+    """Backfill funding-rate history from OKX (limit=400 pagination).
+
+    Examples:
+        quantflow download-funding --symbol BTC/USDT --days 90
+    """
+    from quantflow.data.market_meta_fetcher import MarketMetaFetcher
+    from quantflow.data.store import DataStore
+
+    cfg = _load(config)
+    effective_days = days
+    if days > FUNDING_HISTORY_MAX_DAYS:
+        console.print(
+            f"[yellow]WARNING:[/] OKX funding-rate-history serves a 3-month window only — "
+            f"truncating {days}d request to {FUNDING_HISTORY_MAX_DAYS}d "
+            "(incremental accumulation covers the rest over time)."
+        )
+        effective_days = FUNDING_HISTORY_MAX_DAYS
+
+    async def _run() -> None:
+        fetcher = MarketMetaFetcher(cfg.data)
+        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+        try:
+            with console.status("[bold blue]Connecting to OKX (meta endpoints)..."):
+                await fetcher.connect()
+            since_ms = int(time.time() * 1000) - effective_days * 86_400_000
+            with console.status(
+                f"[bold blue]Backfilling funding history for {symbol} ({effective_days}d)..."
+            ):
+                df = await fetcher.fetch_funding_rate_history(symbol, since_ms)
+            if df.empty:
+                console.print("[red]✗ No funding data fetched. Check the symbol.[/]")
+                return
+            store.save_funding_rates(df, symbol)
+            last_ts = store.get_last_meta_timestamp(symbol, "funding_rate")
+            console.print(
+                f"[green]✓[/] Saved [bold]{len(df)}[/] funding rows for [bold]{symbol}[/]"
+            )
+            if last_ts is not None:
+                last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
+                console.print(f"  Last funding time: {last_date}")
+        except Exception as e:
+            console.print(f"[red]✗ Error: {redact_secrets(str(e))}[/]")
+            raise typer.Exit(code=1) from e
+        finally:
+            await fetcher.disconnect()
+            store.close()
+
+    asyncio.run(_run())
+
+
+@app.command()
+def download_oi(
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol (OKX swap)"),
+    days: int = typer.Option(180, help="Backfill window in days"),
+    period: str = typer.Option("1H", help="OI granularity: 1H or 1D"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
+) -> None:
+    """Backfill open-interest history from OKX (REST, limit=100 pagination).
+
+    Examples:
+        quantflow download-oi --symbol BTC/USDT --days 180 --period 1H
+    """
+    from quantflow.data.market_meta_fetcher import MarketMetaFetcher
+    from quantflow.data.store import DataStore
+
+    if period not in _OI_HISTORY_PERIODS:
+        raise typer.BadParameter(f"period must be one of {sorted(_OI_HISTORY_PERIODS)}")
+
+    cfg = _load(config)
+
+    async def _run() -> None:
+        fetcher = MarketMetaFetcher(cfg.data)
+        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+        try:
+            with console.status("[bold blue]Connecting to OKX (meta endpoints)..."):
+                await fetcher.connect()
+            since_ms = int(time.time() * 1000) - days * 86_400_000
+            with console.status(
+                f"[bold blue]Backfilling OI history for {symbol} ({days}d, {period})..."
+            ):
+                df = await fetcher.fetch_open_interest_history(
+                    symbol, period=period, since_ms=since_ms
+                )
+            if df.empty:
+                console.print("[red]✗ No OI data fetched. Check the symbol.[/]")
+                return
+            store.save_open_interest(df, symbol)
+            last_ts = store.get_last_meta_timestamp(symbol, "open_interest")
+            console.print(
+                f"[green]✓[/] Saved [bold]{len(df)}[/] OI rows for [bold]{symbol}[/] ({period})"
+            )
+            if last_ts is not None:
+                last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
+                console.print(f"  Last OI timestamp: {last_date}")
+        except Exception as e:
+            console.print(f"[red]✗ Error: {redact_secrets(str(e))}[/]")
+            raise typer.Exit(code=1) from e
         finally:
             await fetcher.disconnect()
             store.close()

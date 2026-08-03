@@ -26,6 +26,23 @@ logger = logging.getLogger(__name__)
 _SYMBOL_PATTERN = SYMBOL_PATTERN
 _COLUMN_PATTERN = COLUMN_PATTERN
 
+# T-s2-02: meta data types live in dedicated top-level directories so they
+# can never pollute OHLCV symbol dirs (get_date_range / timeframe queries).
+META_DATA_TYPES: dict[str, str] = {
+    "funding_rate": "meta_funding_rate",
+    "open_interest": "meta_open_interest",
+}
+#: Required columns per meta type (timestamp ms int; T-s2-01 column contract).
+META_REQUIRED_COLUMNS: dict[str, tuple[str, ...]] = {
+    "funding_rate": ("timestamp", "funding_rate", "realized_rate", "funding_time"),
+    "open_interest": (
+        "timestamp",
+        "open_interest",
+        "open_interest_ccy",
+        "open_interest_usd",
+    ),
+}
+
 
 def _validate_symbol(symbol: str) -> str:
     """Back-compat alias for :func:`quantflow.common.validators.validate_symbol`."""
@@ -56,6 +73,15 @@ class DataStore:
         # bare symbol.replace('/', '_'), leaving a path-traversal surface for
         # a future caller passing user input. Mirrors the read-side choke point.
         symbol_name = _validate_symbol(symbol)
+        self._save_partitioned(df, symbol_name, self._parquet_dir)
+        logger.info("Saved %d bars for %s", len(df), symbol)
+
+    def _save_partitioned(self, df: pd.DataFrame, symbol_name: str, base_dir: Path) -> None:
+        """Shared Hive-partition writer (OHLCV save + meta saves, T-s2-02).
+
+        Layout: <base_dir>/<symbol>/YYYY/MM.parquet with append-only fast
+        path + keep='last' merge on overlap (ISS-034 semantics preserved).
+        """
         store_df = df.copy()
         if "datetime" in store_df.columns:
             store_df["year"] = store_df["datetime"].dt.year
@@ -67,7 +93,7 @@ class DataStore:
         else:
             raise ValueError("DataFrame must have 'datetime' or 'timestamp' column")
 
-        symbol_dir = self._parquet_dir / symbol_name
+        symbol_dir = base_dir / symbol_name
         symbol_dir.mkdir(parents=True, exist_ok=True)
 
         # Write partitioned parquet
@@ -117,7 +143,136 @@ class DataStore:
 
             group_data.to_parquet(month_path, index=False, compression="zstd")
 
-        logger.info("Saved %d bars for %s to %s", len(df), symbol, symbol_dir)
+    # ------------------------------------------------------------------
+    # T-s2-02: market meta data (funding rate / open interest)
+    # ------------------------------------------------------------------
+
+    def save_funding_rates(self, df: pd.DataFrame, symbol: str) -> None:
+        """Persist funding-rate history under meta_funding_rate/<symbol>/.
+
+        Column contract: [timestamp, funding_rate, realized_rate,
+        funding_time, next_funding_rate?] with timestamp as ms int.
+        Symbol is validated on the write path (REV-008). Re-save of the same
+        timestamp is keep='last' deduped (incremental replay safe).
+        """
+        self._save_meta(df, symbol, "funding_rate")
+
+    def save_open_interest(self, df: pd.DataFrame, symbol: str) -> None:
+        """Persist open-interest history under meta_open_interest/<symbol>/.
+
+        Column contract: [timestamp, open_interest, open_interest_ccy,
+        open_interest_usd] with timestamp as ms int.
+        """
+        self._save_meta(df, symbol, "open_interest")
+
+    def _save_meta(self, df: pd.DataFrame, symbol: str, data_type: str) -> None:
+        if data_type not in META_DATA_TYPES:
+            raise ValueError(
+                f"Invalid meta data_type: {data_type!r}. Allowed: {sorted(META_DATA_TYPES)}"
+            )
+        if df.empty:
+            return
+        required = META_REQUIRED_COLUMNS[data_type]
+        missing = [c for c in required if c not in df.columns]
+        if missing:
+            raise DataError(f"{data_type} frame missing required columns: {missing}")
+        symbol_name = _validate_symbol(symbol)  # REV-008 write-path validation
+        base_dir = self._parquet_dir / META_DATA_TYPES[data_type]
+        self._save_partitioned(df, symbol_name, base_dir)
+        logger.info("Saved %d %s rows for %s", len(df), data_type, symbol)
+
+    def query_funding_rates(
+        self,
+        symbol: str,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> pd.DataFrame:
+        """Query funding-rate history via DuckDB (point-in-time via ``end``)."""
+        return self._query_meta("funding_rate", symbol, start, end)
+
+    def query_open_interest(
+        self,
+        symbol: str,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> pd.DataFrame:
+        """Query open-interest history via DuckDB (point-in-time via ``end``)."""
+        return self._query_meta("open_interest", symbol, start, end)
+
+    def _query_meta(
+        self,
+        data_type: str,
+        symbol: str,
+        start: int | None,
+        end: int | None,
+    ) -> pd.DataFrame:
+        if data_type not in META_DATA_TYPES:
+            raise ValueError(
+                f"Invalid meta data_type: {data_type!r}. Allowed: {sorted(META_DATA_TYPES)}"
+            )
+        symbol_name = _validate_symbol(symbol)  # SQL-glob injection guard
+        meta_dir = self._parquet_dir / META_DATA_TYPES[data_type] / symbol_name
+        if not meta_dir.exists() or not any(meta_dir.glob("*/*.parquet")):
+            return pd.DataFrame(columns=list(META_REQUIRED_COLUMNS[data_type]))
+        # Escape single quotes so a parquet_dir containing a quote cannot
+        # break the glob literal (mirrors _read_parquet_source / get_date_range).
+        pattern = f"{meta_dir.as_posix()}/**/*.parquet".replace(chr(39), chr(39) * 2)
+        conditions: list[str] = []
+        params: list[int] = []
+        if start is not None:
+            conditions.append("timestamp >= ?")
+            params.append(int(start))
+        if end is not None:
+            conditions.append("timestamp <= ?")
+            params.append(int(end))
+        where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+        try:
+            return self._db.execute(
+                f"""
+                SELECT * FROM read_parquet('{pattern}', union_by_name=true){where}
+                ORDER BY timestamp
+                """,
+                params,
+            ).df()
+        except Exception as e:
+            # Fail-silent distinction (ISS-20260723-013 pattern): storage
+            # error raises DataError; "no data" returned an empty frame above.
+            logger.warning("Meta query failed for %s %s: %s", data_type, symbol, e)
+            raise DataError(f"Meta query failed for {data_type!r} {symbol!r}: {e}") from e
+
+    def get_last_meta_timestamp(self, symbol: str, data_type: str) -> int | None:
+        """Last stored timestamp for a meta data type.
+
+        ``data_type`` is allowlisted (mirrors get_last_timestamp's injection
+        guard). Returns None when no data exists yet (dir probe); raises
+        DataError on storage failure (ISS-20260723-016 fail-silent pattern).
+        """
+        if data_type not in META_DATA_TYPES:
+            raise ValueError(
+                f"Invalid meta data_type: {data_type!r}. Allowed: {sorted(META_DATA_TYPES)}"
+            )
+        symbol_name = _validate_symbol(symbol)
+        meta_dir = self._parquet_dir / META_DATA_TYPES[data_type] / symbol_name
+        if not meta_dir.exists():
+            return None
+        pattern = f"{meta_dir.as_posix()}/**/*.parquet".replace(chr(39), chr(39) * 2)
+        try:
+            result = self._db.query(
+                f"""
+                SELECT MAX(timestamp) as max_ts
+                FROM read_parquet('{pattern}', union_by_name=true)
+                """
+            ).fetchone()
+            if result and result[0] is not None:
+                return int(result[0])
+        except Exception as e:
+            logger.warning(
+                "get_last_meta_timestamp failed for %s %s: %s", data_type, symbol, e
+            )
+            raise DataError(
+                f"get_last_meta_timestamp failed for {data_type!r} {symbol!r}: {e}"
+            ) from e
+        return None
 
     def query(
         self,
@@ -168,10 +323,10 @@ class DataStore:
             raise DataError(f"Query failed for {symbol!r}: {e}") from e
 
     def list_symbols(self) -> list[str]:
-        """List all stored symbols."""
+        """List all stored OHLCV symbols (meta_* data dirs excluded, T-s2-02)."""
         symbols = []
         for d in self._parquet_dir.iterdir():
-            if d.is_dir():
+            if d.is_dir() and d.name not in META_DATA_TYPES.values():
                 symbols.append(d.name)
         return sorted(symbols)
 

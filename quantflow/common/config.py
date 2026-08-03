@@ -47,6 +47,24 @@ class StrategyConfig(BaseModel):
     validation: ValidationConfig = Field(default_factory=ValidationConfig)
 
 
+class ExchangeHealthConfig(BaseModel):
+    """T-s1-04: exchange health monitor + circuit breaker (risk.exchange_health).
+
+    enabled defaults to false — zero behavior change for existing runs.
+    YAML-driven via default.yaml risk.exchange_health (no hardcoding).
+    """
+
+    enabled: bool = False
+    # 滑动窗口错误率阈值（> 阈值触发熔断）
+    error_rate_threshold: float = 0.5
+    # 滑动窗口长度（秒）
+    window_seconds: float = 60.0
+    # 连续 50011（限频）次数阈值（≥ 阈值直接触发，不看错误率）
+    rate_limit_streak: int = 3
+    # 熔断冷却时间（秒）；冷却后需连续 3 次 success 观察窗才恢复（滞回）
+    cooldown_seconds: float = 300.0
+
+
 class RiskConfig(BaseModel):
     position_limit_pct: float = 0.20
     max_positions: int = 5
@@ -85,6 +103,11 @@ class RiskConfig(BaseModel):
     # PositionSizer 最小下单名义价值阈值（原 position_sizer.py 硬编码 10.0，
     # ISS-20260721-012 config-source）。低于此值的订单被跳过。
     min_order_notional: float = 10.0
+    # T-s1-04: 单所总敞口上限（持仓名义 + pending）占 net value 的比例。
+    # pydantic 默认 None（不设限）保既有单测/回测零变化；default.yaml 写 0.8。
+    exchange_exposure_limit_pct: float | None = None
+    # T-s1-04: 交易所健康度监控/熔断（默认关闭）。
+    exchange_health: ExchangeHealthConfig = Field(default_factory=ExchangeHealthConfig)
 
 
 class ExecutionConfig(BaseModel):
@@ -100,6 +123,9 @@ class ExecutionConfig(BaseModel):
     # and reads the contracts schema from fetch_positions. Drives OKXGateway
     # defaultType + query_positions branch.
     market_type: str = "spot"
+    # T-s2-04: funding/OI 喂数接线开关（默认 false 零行为变化）。YAML 写权在
+    # config/strategies/funding_rate.yaml（避免 default.yaml wave3 冲突）。
+    funding_feed_enabled: bool = False
     # M4-2.4: multi-symbol support. When non-empty, TradingSession creates
     # per-(strategy, symbol) instances and the data loop rotates over all
     # symbols. Empty list = legacy single-symbol mode (symbol supplied by
@@ -119,6 +145,32 @@ class MonitoringConfig(BaseModel):
     alert_channels: list[AlertChannelConfig] = Field(default_factory=list)
 
 
+class ReconciliationConfig(BaseModel):
+    """L7 reconciliation loop settings (T-s1-01; wired in TradingSession w2).
+
+    ``enabled`` defaults to False so existing runs keep byte-for-byte behavior;
+    the wave2 TradingSession wiring reads these values when assembling the
+    ReconciliationEngine.
+    """
+
+    enabled: bool = False
+    interval_minutes: float = 5.0
+    drift_threshold_bps: float = 100.0
+    order_staleness_seconds: float = 300.0
+
+
+class StateConfig(BaseModel):
+    """Session checkpoint/restore settings (T-s1-03; default OFF).
+
+    Declared here in wave1 (alongside ReconciliationConfig) so the YAML
+    sections land with a matching pydantic model; wave2 owns the YAML writes.
+    """
+
+    enabled: bool = False
+    checkpoint_dir: str = "./data/checkpoints"
+    checkpoint_interval_minutes: float = 5.0
+
+
 class AppConfig(BaseModel):
     data: DataConfig = Field(default_factory=DataConfig)
     indicators: IndicatorConfig = Field(default_factory=IndicatorConfig)
@@ -126,6 +178,8 @@ class AppConfig(BaseModel):
     risk: RiskConfig = Field(default_factory=RiskConfig)
     execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
+    reconciliation: ReconciliationConfig = Field(default_factory=ReconciliationConfig)
+    state: StateConfig = Field(default_factory=StateConfig)
 
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent.parent

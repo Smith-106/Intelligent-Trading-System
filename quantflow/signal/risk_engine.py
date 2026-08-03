@@ -9,7 +9,13 @@ from collections.abc import Callable
 import numpy as np
 
 from quantflow.common.config import RiskConfig
-from quantflow.common.models import Portfolio, RiskDecision, Signal, strategy_id_constituents
+from quantflow.common.models import (
+    Direction,
+    Portfolio,
+    RiskDecision,
+    Signal,
+    strategy_id_constituents,
+)
 from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
 from quantflow.signal.portfolio import PendingView
 
@@ -27,9 +33,20 @@ class RiskEngine:
         config: RiskConfig,
         strategy_risk_budgets: dict[str, float] | None = None,
         monitoring_sink: MonitoringSink | None = None,
+        exchange_health: object | None = None,
+        exchange_exposure_limit_pct: float | None = None,
     ) -> None:
         self._config = config
         self._strategy_risk_budgets = strategy_risk_budgets or {}
+        # T-s1-04: duck-typed exchange health monitor (L5 ExchangeHealthMonitor).
+        # L4 must not import L5 concrete classes (six-layer one-way dependency),
+        # so the seam is ``object | None`` and only ``circuit_open()`` is used.
+        # Default None = no breaker = existing behavior unchanged.
+        self._exchange_health = exchange_health
+        # T-s1-04: single-exchange total-exposure cap (positions notional +
+        # pending) as a fraction of total value. None = no cap (default keeps
+        # existing tests/backtests byte-for-byte; default.yaml sets 0.8).
+        self._exchange_exposure_limit_pct = exchange_exposure_limit_pct
         # L4→L6 seam (ISS-20260724-044): RiskEngine depends on the MonitoringSink
         # Protocol only. The concrete sink (DefaultMonitoringSink from L6) is
         # injected by TradingSession; defaulting to Null keeps tests/backtest
@@ -54,6 +71,11 @@ class RiskEngine:
         self._checks: tuple[
             Callable[[Signal, Portfolio, PendingView | None], RiskDecision], ...
         ] = (
+            # T-s1-04: exchange-level isolation short-circuits FIRST (plan
+            # locked): a tripped breaker rejects everything; the exposure cap
+            # rejects new entries when the single-exchange book is over cap.
+            self._check_exchange_circuit,
+            self._check_exchange_exposure,
             self._check_position_limit,
             self._check_portfolio_limit,
             self._check_strategy_budget,
@@ -123,6 +145,58 @@ class RiskEngine:
         Protocol (default Null = no-op).
         """
         self._sink.record_risk_event(event_type, severity)
+
+    def _check_exchange_circuit(
+        self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
+    ) -> RiskDecision:
+        """T-s1-04: exchange circuit breaker gate (fail-closed, all signals).
+
+        The single interception point for exchange-health failures is here in
+        RiskEngine.check (the signal single entry), NOT ExecutionEngine.submit
+        — one blocking place, no dual-interception semantic drift. When no
+        monitor is injected (default) this is a no-op.
+        """
+        if self._exchange_health is None:
+            return RiskDecision(passed=True)
+        circuit_open = getattr(self._exchange_health, "circuit_open", None)
+        if circuit_open is None or not circuit_open():
+            return RiskDecision(passed=True)
+        return RiskDecision(
+            passed=False,
+            reason="exchange_circuit_open",
+            details={"circuit_open": True},
+        )
+
+    def _check_exchange_exposure(
+        self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
+    ) -> RiskDecision:
+        """T-s1-04: single-exchange total-exposure cap.
+
+        Exposure = sum(abs(qty) * price) over all positions + pending notional.
+        Breach blocks NEW entries (Direction.LONG) only — FLAT/exit signals
+        must still pass so an over-cap book can unwind; blocking exits would
+        lock the breach in place (fail-closed must not become fail-stuck).
+        """
+        limit = self._exchange_exposure_limit_pct
+        if limit is None:
+            return RiskDecision(passed=True)
+        total = portfolio.total_value
+        if total <= 0:
+            return RiskDecision(passed=True)
+        exposure = 0.0
+        for pos in portfolio.positions.values():
+            if pos.current_price > 0:
+                exposure += abs(pos.quantity) * pos.current_price
+        if pending:
+            exposure += sum(v for v in pending.by_symbol.values() if v > 0)
+        exposure_pct = exposure / total
+        if exposure_pct > limit and signal.direction == Direction.LONG:
+            return RiskDecision(
+                passed=False,
+                reason="exchange_exposure_exceeded",
+                details={"exposure_pct": exposure_pct, "limit": limit},
+            )
+        return RiskDecision(passed=True)
 
     def _check_position_limit(
         self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None

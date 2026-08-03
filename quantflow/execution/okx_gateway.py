@@ -53,6 +53,7 @@ class OKXGateway(GatewayBase):
         sandbox: bool = True,
         market_type: str = "spot",
         monitoring_sink: MonitoringSink | None = None,
+        health_monitor: Any | None = None,
     ) -> None:
         """Initialize the OKX gateway.
 
@@ -67,6 +68,11 @@ class OKXGateway(GatewayBase):
         connectivity gauge + disconnect/reconnect counters (arch-013: L5
         depends on the common/ Protocol, never imports monitoring/). Default
         Null = no observability.
+
+        T-s1-04: ``health_monitor`` is the duck-typed ExchangeHealthMonitor
+        seam — REST errors / 50011 rate limits / WS disconnects are recorded
+        here so the circuit breaker can trip. Default None = zero behavior
+        change (existing constructors/tests unaffected).
         """
         if market_type not in ("spot", "swap"):
             raise ValueError(f"Invalid market_type {market_type!r}: expected 'spot' or 'swap'")
@@ -74,6 +80,8 @@ class OKXGateway(GatewayBase):
         self._market_type = market_type
         self._exchange_obj_label = "okx"
         self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
+        # T-s1-04: exchange health monitor (duck-typed; None = disabled).
+        self._health_monitor: Any | None = health_monitor
         self._exchange: Any = None
         self._connected = False
         self._reconnect_interval = RECONNECT_INTERVAL
@@ -156,6 +164,9 @@ class OKXGateway(GatewayBase):
                 logger.info("Reconnected on attempt %d", attempt)
                 # ISS-20260723-011 (OBS-M): successful reconnect.
                 self._sink.record_gateway_reconnect(self._exchange_obj_label, True)
+                # T-s1-04: a successful reconnect is a healthy exchange
+                # interaction — feeds the breaker's recovery streak.
+                self._health_record_success()
                 return
             except Exception as e:
                 last_err = e
@@ -188,10 +199,10 @@ class OKXGateway(GatewayBase):
         side = "buy" if order.side == OrderSide.BUY else "sell"
         # Forward exchange-specific params (e.g. reduceOnly for FLAT/close orders)
         # so a SELL that flattens a long cannot accidentally open a new short on
-        # the live exchange. NOTE: PaperGateway does NOT yet consume order.params
-        # (reduceOnly is silently ignored in paper mode) — a paper/live parity
-        # gap tracked as an issue; the comment here previously claimed symmetry
-        # which was false (odyssey-review ARCH finding).
+        # the live exchange. ISS-021 (resolved): PaperGateway now honors
+        # order.params reduceOnly too (paper_gateway.py:99-123) — it caps the
+        # fill to the held quantity and rejects when there is nothing to
+        # reduce, matching live exchange semantics (paper/live parity closed).
         params: dict[str, Any] = dict(order.params) if order.params else {}
         # Idempotency (odyssey-improve REL-C2/SEC-H3): inject a clientOrderId so
         # a retried submit after a network ambiguity is deduped by the exchange
@@ -238,6 +249,8 @@ class OKXGateway(GatewayBase):
                 order.symbol,
                 order.quantity,
             )
+            # T-s1-04: a placed order is proof the exchange is healthy.
+            self._health_record_success()
             return order_id
         except TimeoutError as e:
             logger.error(
@@ -251,6 +264,9 @@ class OKXGateway(GatewayBase):
             # + flip liveness gauge so the panel reflects the drop.
             self._sink.record_gateway_disconnect(self._exchange_obj_label, "timeout")
             self._sink.record_gateway_connected(self._exchange_obj_label, False)
+            # T-s1-04: feed the breaker (send_order's timeout branch predates
+            # _record_disconnect, so record explicitly here).
+            self._health_record_error(code="timeout")
             raise GatewayError("create_order timed out") from e
         except Exception as e:
             logger.error(
@@ -264,6 +280,9 @@ class OKXGateway(GatewayBase):
             # ISS-20260723-011 (OBS-M): record the disconnect (reason=error).
             self._sink.record_gateway_disconnect(self._exchange_obj_label, "error")
             self._sink.record_gateway_connected(self._exchange_obj_label, False)
+            # T-s1-04: feed the breaker; 50011/RateLimitExceeded routes to
+            # record_rate_limited (streak trigger), others to the error window.
+            self._health_record_error(e)
             raise
 
     async def cancel_order(self, order_id: str, symbol: str) -> bool:
@@ -368,16 +387,18 @@ class OKXGateway(GatewayBase):
         orders: list[OpenOrder] = []
         for o in raw:
             try:
-                orders.append(OpenOrder(
-                    id=str(o.get("id", "")),
-                    symbol=o.get("symbol", symbol),
-                    side=str(o.get("side", "")),
-                    order_type=str(o.get("type", "")),
-                    price=float(o.get("price", 0) or 0),
-                    filled_amount=float(o.get("filled", 0) or 0),
-                    status=str(o.get("status", "open")),
-                    timestamp=float(o.get("timestamp", 0) or 0),
-                ))
+                orders.append(
+                    OpenOrder(
+                        id=str(o.get("id", "")),
+                        symbol=o.get("symbol", symbol),
+                        side=str(o.get("side", "")),
+                        order_type=str(o.get("type", "")),
+                        price=float(o.get("price", 0) or 0),
+                        filled_amount=float(o.get("filled", 0) or 0),
+                        status=str(o.get("status", "open")),
+                        timestamp=float(o.get("timestamp", 0) or 0),
+                    )
+                )
             except (TypeError, ValueError) as e:
                 logger.warning("OKX skipping malformed open order row: %s", _safe_error(e))
                 continue
@@ -394,6 +415,55 @@ class OKXGateway(GatewayBase):
         self._connected = False
         self._sink.record_gateway_disconnect(self._exchange_obj_label, reason)
         self._sink.record_gateway_connected(self._exchange_obj_label, False)
+        # T-s1-04: every REST connection-loss branch also feeds the exchange
+        # health monitor (shutdown is an operator action, not an outage).
+        if reason != "shutdown":
+            self._health_record_error(code=reason)
+
+    # ------------------------------------------------------------------ #
+    # T-s1-04: exchange health monitor seam.
+    # The monitor MUST NOT break the trading hot path — every call is
+    # wrapped; failures degrade to a debug log, never propagate.
+    # ------------------------------------------------------------------ #
+    def _health_record_success(self) -> None:
+        if self._health_monitor is None:
+            return
+        try:
+            self._health_monitor.record_success()
+        except Exception as e:
+            logger.debug("health monitor record_success failed: %s", e)
+
+    def _health_record_error(self, e: BaseException | None = None, code: str | None = None) -> None:
+        if self._health_monitor is None:
+            return
+        try:
+            # OKX 50011 (Too Many Requests) surfaces as ccxt RateLimitExceeded /
+            # DDoSProtection; count it toward the consecutive rate-limit streak
+            # instead of the generic error-rate window.
+            label = ""
+            if e is not None:
+                label = getattr(e, "name", "") or type(e).__name__
+                is_rate_limit = (
+                    type(e).__name__ in ("RateLimitExceeded", "DDoSProtection")
+                    or "RateLimitExceeded" in label
+                    or "50011" in str(e)
+                )
+            else:
+                is_rate_limit = False
+            if is_rate_limit:
+                self._health_monitor.record_rate_limited()
+            else:
+                self._health_monitor.record_api_error(code or label or None)
+        except Exception as inner:
+            logger.debug("health monitor record_error failed: %s", inner)
+
+    def _health_record_ws_disconnect(self) -> None:
+        if self._health_monitor is None:
+            return
+        try:
+            self._health_monitor.record_ws_disconnect()
+        except Exception as e:
+            logger.debug("health monitor record_ws_disconnect failed: %s", e)
 
     async def _query_swap_positions(self) -> list[Position]:
         """Derivatives positions via ``fetch_positions`` (contracts schema)."""
@@ -566,23 +636,30 @@ class OKXGateway(GatewayBase):
                     type(e).__name__,
                     backoff,
                 )
+                # T-s1-04: WS outage counts against exchange health.
+                self._health_record_ws_disconnect()
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 16.0)
 
     async def _watch_orders_loop(
         self,
         callback: Any,
-        symbol: str = "BTC/USDT",
+        symbol: str = "",
     ) -> None:
         """Continuously watch private order updates via WebSocket.
+
+        T-s1-02: an empty ``symbol`` subscribes the ACCOUNT-WIDE order stream
+        (ccxt ``watch_orders(None)``) so multi-symbol sessions do not miss
+        fills for symbols a single-symbol subscription would drop.
 
         Same exponential-back-off reconnection strategy as ``_watch_ohlcv_loop``
         so a network partition degrades gracefully instead of spamming errors.
         """
         backoff = 1.0
+        watch_symbol = symbol or None
         while self._running:
             try:
-                orders = await self._exchange.watch_orders(symbol)
+                orders = await self._exchange.watch_orders(watch_symbol)
                 if orders and callback:
                     if inspect.iscoroutinefunction(callback):
                         await callback(orders)
@@ -596,6 +673,8 @@ class OKXGateway(GatewayBase):
                     type(e).__name__,
                     backoff,
                 )
+                # T-s1-04: WS outage counts against exchange health.
+                self._health_record_ws_disconnect()
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 16.0)
 

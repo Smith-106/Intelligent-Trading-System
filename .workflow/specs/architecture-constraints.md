@@ -329,3 +329,26 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 
 落地：`quantflow/monitoring/alerts.py` ALERT_ROUTING + AlertDeduplicator + send_routed()。测试：`tests/unit/test_alert_routing.py` 18 测试。
 </spec-entry>
+
+<spec-entry category="arch" keywords="positioning,mid-low-frequency,no-rust-rewrite,execution-performance,scenario-selection" date="2026-08-03" sid="S-BM2603-RD0" title="QuantFlow 接受中低频定位，不追赶 Rust/C++ 执行核心" description="演进路线图 RD-0 决策：执行性能代差为数量级且追赶收益限于订单簿高频/做市场景，接受中低频定位不重写，资源投向多源数据与 AI 管道" source="harvest:maestro-benchmark-evolve-20260803-20260803-045922">
+
+### QuantFlow 接受中低频定位，不追赶 Rust/C++ 执行核心
+
+**决策（roadmap RD-0, accepted）**: 接受个人/小团队中低频 Crypto（OKX）定位，**不追赶** Rust/C++ 执行核心重写。
+
+**理由**:
+1. 纯 Python vs Rust/C++ 核心为数量级性能差距（对标 NautilusTrader Rust 核心纳秒级/百万事件每秒），追赶是全路线图最高成本项。
+2. 性能差距实际影响限于订单簿高频/做市场景——不在 QuantFlow 目标场景内，不阻断中低频。
+3. 现有事件驱动 + 异步架构（TradingSession、gateway 有界重连、WS 退避）+ 场景选择足以规避该代差。
+4. 同等资源投向可追赶且决定 Alpha 的维度：多源数据（最大结构性短板）与 AI 研究管道（最高性价比入口），边际收益远高于性能追赶。
+
+**接受的代价（显式记录）**:
+- 永久放弃订单簿微观结构高频/做市场景。
+- 订单簿数据仅可以低频快照形式用于特征（非 tick 级建模）。
+
+**不变量（配套）**: 尊重六层架构不做破坏性重构；新增防线（对账/熔断/恢复）一律 fail-closed；保持 TradingSession 单一真理源，仅收敛 parity 细节不推翻架构。
+
+**信息边界**: 外部平台性能数字（NautilusTrader 百万级事件/秒等）为用户调研材料二手转述，未独立核验；即便性能差距小于转述，追赶性价比仍低于数据/AI 投入，故方向性结论不依赖外部数字精确性。
+
+来源：session maestro-benchmark-evolve-20260803-20260803-045922 run 20260803-002-roadmap（roadmap.json positioning_decision / report RD-0）。
+</spec-entry>

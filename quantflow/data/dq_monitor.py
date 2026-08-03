@@ -20,7 +20,7 @@ Architecture:
 
 Usage:
     monitor = DataQualityMonitor(redis_cache=redis)
-    
+
     async def on_bar(bar: Bar):
         result = await monitor.validate_bar(bar)
         if result.valid:
@@ -37,30 +37,31 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
+from quantflow.data.market_meta_fetcher import FUNDING_MAX_AGE_FACTOR, OI_MAX_AGE_S
+
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class DataQualityScore:
     """Composite data quality score (0-1 scale).
-    
+
     Higher scores indicate better data quality.
     """
-    
+
     freshness_score: float = 1.0  # 0-1 based on staleness
     continuity_score: float = 1.0  # 0-1 based on gap detection
     anomaly_score: float = 1.0  # 0-1 (inverted) based on spike detection
     overall_score: float = 1.0  # weighted average
-    
+
     def __post_init__(self) -> None:
         """Calculate overall score as weighted average."""
         # Weights: freshness 40%, continuity 30%, anomaly 30%
         self.overall_score = (
-            self.freshness_score * 0.4 +
-            self.continuity_score * 0.3 +
-            self.anomaly_score * 0.3
+            self.freshness_score * 0.4 + self.continuity_score * 0.3 + self.anomaly_score * 0.3
         )
-    
+
     @property
     def is_acceptable(self) -> bool:
         """Check if quality score meets minimum threshold."""
@@ -70,15 +71,15 @@ class DataQualityScore:
 @dataclass
 class ValidationResult:
     """Result of bar validation.
-    
+
     Contains pass/fail status, violations, and quality score.
     """
-    
+
     valid: bool
     violations: list[dict[str, Any]] = field(default_factory=list)
     score: DataQualityScore = field(default_factory=DataQualityScore)
     validated_at: datetime = field(default_factory=datetime.utcnow)
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -129,38 +130,42 @@ class InMemoryStateStore:
 
 class DataQualityMonitor:
     """Real-time data quality monitoring and validation.
-    
+
     This monitor addresses the gap identified in swarm exploration:
     - Batch-only cleaning in cleaner.py (no runtime validation)
     - Silent acceptance of stale/corrupt data feeds
     - No freshness checks or anomaly detection
-    
+
     Thread Safety:
     - All operations are async
     - Uses Redis for shared state across processes
     - Falls back to in-memory store when Redis unavailable (ISS-20260802-010)
     """
-    
+
     # Configuration constants
     MAX_STALENESS_SECONDS = 60.0  # 1 minute max staleness
     PRICE_SPIKE_THRESHOLD = 0.05  # 5% price change threshold
     VOLUME_MULTIPLIER = 10.0  # 10x average volume threshold
     MIN_QUALITY_SCORE = 0.7  # 70% minimum quality
-    
+
     def __init__(
         self,
         redis_cache: Any | None = None,  # RedisCache from quantflow.data (optional)
         enable_prometheus: bool = True,
         use_in_memory_fallback: bool = True,
+        monitoring_sink: MonitoringSink | None = None,
     ) -> None:
         """Initialize data quality monitor.
-        
+
         Args:
             redis_cache: Redis cache for storing last bar timestamps.
                          If None and use_in_memory_fallback=True, uses in-memory store.
             enable_prometheus: Whether to export Prometheus metrics
             use_in_memory_fallback: If True, gracefully degrade to in-memory
                                     state when Redis is unavailable (ISS-20260802-010)
+            monitoring_sink: T-s2-04 — optional L6 observability seam
+                             (common/ Protocol). Meta-feed validators record
+                             violations via record_risk_event; default Null.
         """
         self._redis = redis_cache
         self._enable_prometheus = enable_prometheus
@@ -168,141 +173,137 @@ class DataQualityMonitor:
         self._fallback_store = InMemoryStateStore() if use_in_memory_fallback else None
         self._redis_available = redis_cache is not None
         self._degraded_mode = False  # True when operating on fallback
-        
+        self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
+
         # Initialize Prometheus metrics if enabled
         if self._enable_prometheus:
             self._init_prometheus_metrics()
-    
+
     def _init_prometheus_metrics(self) -> None:
         """Initialize Prometheus metrics for data quality monitoring."""
         try:
             from prometheus_client import Counter, Gauge, Histogram
-            
+
             self.dq_counter = Counter(
                 "dq_monitor_violations_total",
                 "Count of data quality violations by type",
-                ["violation_type", "symbol"]
+                ["violation_type", "symbol"],
             )
-            
+
             self.staleness_gauge = Gauge(
-                "dq_data_staleness_seconds",
-                "Seconds since last valid bar update",
-                ["symbol"]
+                "dq_data_staleness_seconds", "Seconds since last valid bar update", ["symbol"]
             )
-            
+
             self.quality_histogram = Histogram(
                 "dq_quality_score",
                 "Data quality score distribution",
                 ["symbol"],
-                buckets=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+                buckets=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
             )
-            
+
             logger.info("Prometheus metrics initialized for DataQualityMonitor")
-            
+
         except ImportError:
             logger.warning("prometheus_client not available, metrics disabled")
             self._enable_prometheus = False
-    
+
     async def validate_bar(self, bar: Any) -> ValidationResult:
         """Validate incoming bar before publishing.
-        
+
         This is the main entry point for real-time data quality checks.
-        
+
         Args:
             bar: Bar object with symbol, timestamp, open, high, low, close, volume
-            
+
         Returns:
             ValidationResult with pass/fail status and violations
         """
         violations = []
-        
+
         # 1. Freshness check
         freshness_score = await self._check_freshness(bar)
         if freshness_score < 0.5:  # Very stale
-            violations.append({
-                "type": "staleness_exceeded",
-                "symbol": bar.symbol,
-                "severity": "HIGH",
-                "details": {
-                    "freshness_score": freshness_score,
-                    "threshold": 0.5,
+            violations.append(
+                {
+                    "type": "staleness_exceeded",
+                    "symbol": bar.symbol,
+                    "severity": "HIGH",
+                    "details": {
+                        "freshness_score": freshness_score,
+                        "threshold": 0.5,
+                    },
                 }
-            })
-            
+            )
+
             if self._enable_prometheus:
-                self.dq_counter.labels(
-                    violation_type="staleness",
-                    symbol=bar.symbol
-                ).inc()
-        
+                self.dq_counter.labels(violation_type="staleness", symbol=bar.symbol).inc()
+
         # 2. Price continuity check
         continuity_score = await self._check_price_continuity(bar)
         if continuity_score < 0.5:  # Large spike
-            violations.append({
-                "type": "price_spike_anomaly",
-                "symbol": bar.symbol,
-                "severity": "MEDIUM",
-                "details": {
-                    "continuity_score": continuity_score,
-                    "threshold": 0.5,
+            violations.append(
+                {
+                    "type": "price_spike_anomaly",
+                    "symbol": bar.symbol,
+                    "severity": "MEDIUM",
+                    "details": {
+                        "continuity_score": continuity_score,
+                        "threshold": 0.5,
+                    },
                 }
-            })
-            
+            )
+
             if self._enable_prometheus:
-                self.dq_counter.labels(
-                    violation_type="price_spike",
-                    symbol=bar.symbol
-                ).inc()
-        
+                self.dq_counter.labels(violation_type="price_spike", symbol=bar.symbol).inc()
+
         # 3. Volume sanity check
         anomaly_score = await self._check_volume_anomaly(bar)
         if anomaly_score < 0.5:  # Volume anomaly
-            violations.append({
-                "type": "volume_anomaly",
-                "symbol": bar.symbol,
-                "severity": "LOW",
-                "details": {
-                    "anomaly_score": anomaly_score,
-                    "threshold": 0.5,
+            violations.append(
+                {
+                    "type": "volume_anomaly",
+                    "symbol": bar.symbol,
+                    "severity": "LOW",
+                    "details": {
+                        "anomaly_score": anomaly_score,
+                        "threshold": 0.5,
+                    },
                 }
-            })
-            
+            )
+
             if self._enable_prometheus:
-                self.dq_counter.labels(
-                    violation_type="volume_anomaly",
-                    symbol=bar.symbol
-                ).inc()
-        
+                self.dq_counter.labels(violation_type="volume_anomaly", symbol=bar.symbol).inc()
+
         # Calculate overall quality score
         score = DataQualityScore(
             freshness_score=freshness_score,
             continuity_score=continuity_score,
             anomaly_score=anomaly_score,
         )
-        
+
         # Update Prometheus metrics
         if self._enable_prometheus:
             self.quality_histogram.labels(symbol=bar.symbol).observe(score.overall_score)
-        
+
         # Determine validity
         valid = len(violations) == 0 and score.is_acceptable
-        
+
         result = ValidationResult(
             valid=valid,
             violations=violations,
             score=score,
         )
-        
+
         if not valid:
             logger.warning(
                 "Bar validation failed for %s: %d violations, score=%.2f",
                 bar.symbol,
                 len(violations),
-                score.overall_score
+                score.overall_score,
             )
-        
+
         return result
-    
+
     async def _state_get(self, key: str) -> str | None:
         """Get state value with Redis-first, in-memory fallback.
 
@@ -356,10 +357,10 @@ class DataQualityMonitor:
 
     async def _check_freshness(self, bar: Any) -> float:
         """Check data freshness (staleness detection).
-        
+
         Args:
             bar: Bar object
-            
+
         Returns:
             Freshness score (0-1, higher is better)
         """
@@ -367,21 +368,21 @@ class DataQualityMonitor:
             # Get last bar timestamp from state store
             last_bar_key = f"dq:last_bar:{bar.symbol}"
             last_timestamp = await self._state_get(last_bar_key)
-            
+
             if last_timestamp is None:
                 # First bar for this symbol - assume fresh
                 await self._state_set(last_bar_key, bar.timestamp)
                 return 1.0
-            
+
             # Calculate staleness
             last_ts = float(last_timestamp)
-            current_ts = bar.timestamp if hasattr(bar, 'timestamp') else time.time()
+            current_ts = bar.timestamp if hasattr(bar, "timestamp") else time.time()
             staleness = current_ts - last_ts
-            
+
             # Update Prometheus gauge
             if self._enable_prometheus:
                 self.staleness_gauge.labels(symbol=bar.symbol).set(staleness)
-            
+
             # Calculate freshness score (exponential decay)
             if staleness <= 0:
                 freshness = 1.0
@@ -389,22 +390,22 @@ class DataQualityMonitor:
                 freshness = 1.0 - (staleness / self.MAX_STALENESS_SECONDS)
             else:
                 freshness = 0.0
-            
+
             # Update last bar timestamp
             await self._state_set(last_bar_key, current_ts)
-            
+
             return freshness
-            
+
         except Exception as e:
             logger.error("Freshness check failed: %s", e)
             return 0.5  # Neutral score on error
-    
+
     async def _check_price_continuity(self, bar: Any) -> float:
         """Check price continuity (spike detection).
-        
+
         Args:
             bar: Bar object
-            
+
         Returns:
             Continuity score (0-1, higher is better)
         """
@@ -412,46 +413,45 @@ class DataQualityMonitor:
             # Get last close price from state store
             last_close_key = f"dq:last_close:{bar.symbol}"
             last_close = await self._state_get(last_close_key)
-            
+
             if last_close is None:
                 # First bar - assume continuous
                 await self._state_set(last_close_key, bar.close)
                 return 1.0
-            
+
             last_close = float(last_close)
-            
+
             # Calculate price change percentage
             if last_close == 0:
                 return 0.0  # Invalid last close
-            
+
             price_change_pct = abs(bar.close - last_close) / last_close
-            
+
             # Update last close
             await self._state_set(last_close_key, bar.close)
-            
+
             # Calculate continuity score
             if price_change_pct <= self.PRICE_SPIKE_THRESHOLD:
                 continuity = 1.0
             elif price_change_pct <= self.PRICE_SPIKE_THRESHOLD * 2:
                 continuity = 1.0 - (
-                    (price_change_pct - self.PRICE_SPIKE_THRESHOLD) /
-                    self.PRICE_SPIKE_THRESHOLD
+                    (price_change_pct - self.PRICE_SPIKE_THRESHOLD) / self.PRICE_SPIKE_THRESHOLD
                 )
             else:
                 continuity = 0.0
-            
+
             return continuity
-            
+
         except Exception as e:
             logger.error("Price continuity check failed: %s", e)
             return 0.5
-    
+
     async def _check_volume_anomaly(self, bar: Any) -> float:
         """Check volume anomaly (unusual volume detection).
-        
+
         Args:
             bar: Bar object
-            
+
         Returns:
             Anomaly score (0-1, higher is better / less anomalous)
         """
@@ -459,48 +459,164 @@ class DataQualityMonitor:
             # Get average volume from state store (20-day window)
             avg_volume_key = f"dq:avg_volume:{bar.symbol}"
             avg_volume = await self._state_get(avg_volume_key)
-            
+
             if avg_volume is None:
                 # Initialize with current volume
                 await self._state_set(avg_volume_key, bar.volume)
                 return 1.0
-            
+
             avg_volume = float(avg_volume)
-            
+
             if avg_volume == 0:
                 return 1.0 if bar.volume == 0 else 0.0
-            
+
             # Calculate volume ratio
             volume_ratio = bar.volume / avg_volume
-            
+
             # Update average volume (exponential moving average)
             alpha = 0.05  # 5% weight for new observation
             new_avg = avg_volume * (1 - alpha) + bar.volume * alpha
             await self._state_set(avg_volume_key, new_avg)
-            
+
             # Calculate anomaly score
             if volume_ratio <= self.VOLUME_MULTIPLIER:
                 anomaly_score = 1.0
             elif volume_ratio <= self.VOLUME_MULTIPLIER * 2:
                 anomaly_score = 1.0 - (
-                    (volume_ratio - self.VOLUME_MULTIPLIER) /
-                    self.VOLUME_MULTIPLIER
+                    (volume_ratio - self.VOLUME_MULTIPLIER) / self.VOLUME_MULTIPLIER
                 )
             else:
                 anomaly_score = 0.0
-            
+
             return anomaly_score
-            
+
         except Exception as e:
             logger.error("Volume anomaly check failed: %s", e)
             return 0.5
-    
+
+    # ------------------------------------------------------------------ #
+    # T-s2-04: meta-feed (funding rate / open interest) validators.
+    # Fail-closed freshness gates for FundingRateStrategy's live feed:
+    # stale data must block NEW entries upstream (analyze F4 contract).
+    # ------------------------------------------------------------------ #
+    def validate_funding_rate(self, snapshot: dict[str, Any]) -> ValidationResult:
+        """Validate a funding-rate snapshot for freshness.
+
+        Args:
+            snapshot: keys ``symbol``, ``fetched_at_ms`` and
+                ``settled_interval_ms`` (runtime-derived settlement period —
+                never hardcoded 8h; analyze D-lock C3).
+
+        Returns:
+            ValidationResult(valid=False, violations=[{type:'stale_funding'}])
+            when age > FUNDING_MAX_AGE_FACTOR x settlement interval, or when
+            required fields are missing/non-finite (fail-closed).
+        """
+        violations: list[dict[str, Any]] = []
+        symbol = str(snapshot.get("symbol", ""))
+        fetched_at = snapshot.get("fetched_at_ms")
+        interval = snapshot.get("settled_interval_ms")
+        try:
+            fetched_at_ms = float(fetched_at) if fetched_at is not None else float("nan")
+            interval_ms = float(interval) if interval is not None else float("nan")
+        except (TypeError, ValueError):
+            fetched_at_ms = float("nan")
+            interval_ms = float("nan")
+
+        if (
+            fetched_at_ms != fetched_at_ms  # NaN guard
+            or interval_ms != interval_ms  # NaN guard
+            or interval_ms <= 0
+        ):
+            violations.append(
+                {
+                    "type": "stale_funding",
+                    "symbol": symbol,
+                    "severity": "HIGH",
+                    "details": {"reason": "missing_or_invalid_fields"},
+                }
+            )
+        else:
+            age_ms = time.time() * 1000.0 - fetched_at_ms
+            max_age_ms = FUNDING_MAX_AGE_FACTOR * interval_ms
+            if age_ms > max_age_ms:
+                violations.append(
+                    {
+                        "type": "stale_funding",
+                        "symbol": symbol,
+                        "severity": "HIGH",
+                        "details": {"age_ms": age_ms, "max_age_ms": max_age_ms},
+                    }
+                )
+
+        return self._finish_meta_validation(violations, "stale_funding", symbol)
+
+    def validate_open_interest(self, snapshot: dict[str, Any]) -> ValidationResult:
+        """Validate an open-interest snapshot for freshness.
+
+        Args:
+            snapshot: keys ``symbol`` and ``fetched_at_ms``.
+
+        Returns:
+            ValidationResult(valid=False, violations=[{type:'stale_oi'}]) when
+            age > OI_MAX_AGE_S (600 s; OI is REST-only, no WS feed).
+        """
+        violations: list[dict[str, Any]] = []
+        symbol = str(snapshot.get("symbol", ""))
+        fetched_at = snapshot.get("fetched_at_ms")
+        try:
+            fetched_at_ms = float(fetched_at) if fetched_at is not None else float("nan")
+        except (TypeError, ValueError):
+            fetched_at_ms = float("nan")
+
+        if fetched_at_ms != fetched_at_ms:
+            violations.append(
+                {
+                    "type": "stale_oi",
+                    "symbol": symbol,
+                    "severity": "HIGH",
+                    "details": {"reason": "missing_or_invalid_fields"},
+                }
+            )
+        else:
+            age_s = (time.time() * 1000.0 - fetched_at_ms) / 1000.0
+            if age_s > OI_MAX_AGE_S:
+                violations.append(
+                    {
+                        "type": "stale_oi",
+                        "symbol": symbol,
+                        "severity": "HIGH",
+                        "details": {"age_s": age_s, "max_age_s": OI_MAX_AGE_S},
+                    }
+                )
+
+        return self._finish_meta_validation(violations, "stale_oi", symbol)
+
+    def _finish_meta_validation(
+        self, violations: list[dict[str, Any]], violation_type: str, symbol: str
+    ) -> ValidationResult:
+        """Count violations (dq_monitor_violations_total) + sink alert."""
+        if violations:
+            if self._enable_prometheus:
+                self.dq_counter.labels(violation_type=violation_type, symbol=symbol).inc()
+            try:
+                self._sink.record_risk_event(f"dq_{violation_type}", "warning")
+            except Exception as e:  # monitoring must never raise
+                logger.debug("dq sink record_risk_event failed: %s", e)
+            logger.warning(
+                "Meta feed DQ violation (%s) for %s: %s",
+                violation_type,
+                symbol,
+                violations[0].get("details"),
+            )
+        return ValidationResult(valid=not violations, violations=violations)
+
     async def get_quality_report(self, symbol: str) -> dict[str, Any]:
         """Get current data quality report for a symbol.
-        
+
         Args:
             symbol: Trading pair symbol
-            
+
         Returns:
             Dictionary with quality metrics
         """
@@ -509,7 +625,7 @@ class DataQualityMonitor:
             last_bar = await self._state_get(f"dq:last_bar:{symbol}")
             last_close = await self._state_get(f"dq:last_close:{symbol}")
             avg_volume = await self._state_get(f"dq:avg_volume:{symbol}")
-            
+
             return {
                 "symbol": symbol,
                 "last_bar_timestamp": last_bar,

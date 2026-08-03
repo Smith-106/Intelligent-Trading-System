@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 
 from quantflow.common.models import Order, OrderRequest, OrderResult, OrderStatus
@@ -26,7 +27,7 @@ _TERMINAL_STATES = (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJEC
 
 class OrderManager:
     """Track order lifecycle with thread-safe operations.
-    
+
     Thread Safety (REL-H7):
     - Uses RLock to protect all state mutations from race conditions
     - Atomic context manager (_atomic_operation) ensures check-then-act is not vulnerable
@@ -48,9 +49,9 @@ class OrderManager:
         self._lock = threading.RLock()  # Thread safety guard (REL-H7)
 
     @contextmanager
-    def _atomic_order_operation(self, order_id: str):
+    def _atomic_order_operation(self, order_id: str) -> Iterator[Order]:
         """Thread-safe context manager for atomic order operations.
-        
+
         Prevents race conditions in concurrent order access across strategy threads.
         Usage:
             with om._atomic_order_operation(order_id) as order:
@@ -62,7 +63,7 @@ class OrderManager:
             if order_id not in self._orders:
                 raise KeyError(f"Order {order_id} not found")
             yield self._orders[order_id]
-    
+
     def _evict_terminal_if_needed(self) -> None:
         """Evict oldest terminal orders when _orders exceeds the retention cap.
 
@@ -107,7 +108,11 @@ class OrderManager:
                 order.filled_quantity = getattr(result, "filled_quantity", 0.0)
                 order.filled_price = getattr(result, "average_price", 0.0)
                 order.fee = getattr(result, "fee", 0.0)
-                if result.status in (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED):
+                if result.status in (
+                    OrderStatus.FILLED,
+                    OrderStatus.CANCELLED,
+                    OrderStatus.REJECTED,
+                ):
                     pass  # already terminal
                 else:
                     self._pending[order_id] = time.time()
@@ -135,9 +140,12 @@ class OrderManager:
         ExecutionEngine.submit derives the incremental L4 delta as
         ``filled_quantity - order.applied_filled_qty`` and updates
         ``applied_filled_qty`` after applying it, so repeated partial fills do
-        not double-count. OKXGateway has no ws fill-callback, so live partial
-        fills are only sensed from the create_order response — continuous
-        partial-fill tracking needs future ws (watch_orders) integration.
+        not double-count. Live partial fills are sensed from two paths:
+        the create_order REST response (immediate stamp in OKXGateway /
+        PaperGateway) and — when ``gateway.ws_order_stream`` is enabled — the
+        ccxt watch_orders stream consumed by ExecutionEngine._on_order_update,
+        which stamps the same cumulative fields before routing through the
+        identical delta-application path (T-s1-02).
         """
         with self._lock:  # Thread-safe update (REL-H7)
             order = self._orders.get(order_id)
@@ -249,24 +257,27 @@ class OrderManager:
     @property
     def pending_count(self) -> int:
         return len(self._pending)
-    
+
     def cancel_order(self, order_id: str) -> tuple[bool, str]:
         """Atomically cancel an order with status validation.
-        
+
         Returns:
             tuple: (success: bool, reason: str)
             - (True, "OK") if cancellation successful
             - (False, reason) otherwise
-        
+
         Thread Safety (REL-H7): Atomic status transition prevents race conditions.
         """
         with self._atomic_order_operation(order_id) as order:
             if order.status in (OrderStatus.FILLED, OrderStatus.CANCELLED, OrderStatus.REJECTED):
                 return (False, f"Order {order_id} already terminal ({order.status.value})")
-            
+
             if order.status != OrderStatus.SUBMITTED:
-                return (False, f"Only submitted orders can be cancelled (current: {order.status.value})")
-            
+                return (
+                    False,
+                    f"Only submitted orders can be cancelled (current: {order.status.value})",
+                )
+
             # Status would be updated here; in real scenario calls gateway.cancel()
             order.status = OrderStatus.CANCELLED
             self._pending.pop(order_id, None)
