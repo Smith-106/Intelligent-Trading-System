@@ -4,12 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
-## [0.4.0] — 2026-08-03
+## [0.4.0] 鈥?2026-08-03
 
 ### Features (Wave 1: s1-integrity-foundation + s2-multisource-data)
-- Checkpoint state store (quantflow/execution/state_store.py): crash-recovery persistence for trading sessions (atomic tmp+replace, schema versioning, fail-closed restore) — resolves ISS-20260803-004
-- Exchange health monitor (quantflow/execution/exchange_health.py): single-exchange circuit breaker with sliding window error rate + rate-limit streak detection, hysteretic cooldown recovery — resolves ISS-20260803-003
-- Market meta-data fetcher (quantflow/data/market_meta_fetcher.py): funding rate & open interest collection with self rate-limiting + polling floors + exponential backoff — resolves ISS-20260803-001
+- Checkpoint state store (quantflow/execution/state_store.py): crash-recovery persistence for trading sessions (atomic tmp+replace, schema versioning, fail-closed restore) 鈥?resolves ISS-20260803-004
+- Exchange health monitor (quantflow/execution/exchange_health.py): single-exchange circuit breaker with sliding window error rate + rate-limit streak detection, hysteretic cooldown recovery 鈥?resolves ISS-20260803-003
+- Market meta-data fetcher (quantflow/data/market_meta_fetcher.py): funding rate & open interest collection with self rate-limiting + polling floors + exponential backoff 鈥?resolves ISS-20260803-001
 - FundingRateStrategy production feed wiring: OKX funding-rate-history 90-day cap + incremental accumulation
 
 ### Reliability & Integrity
@@ -28,7 +28,7 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - benchmark-evolve session harvested: 5 wiki entries + S-BM2603-RD0 spec + 6 new issues (ISS-20260803-001..006)
 - New knowhow: gap-grading methodology, data-single-source, HighFlyer principles, benchmark methodology, evolution DAG
 
-## [0.3.1] — 2026-08-02
+## [0.3.1] 鈥?2026-08-02
 
 ### Features
 - ReconciliationEngine comprehensive unit tests (20 tests)
@@ -44,7 +44,7 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - Removed stale dist/ build artifacts from version control
 - Deduplicated issues.jsonl (53 unique issues, all resolved)
 
-## [0.3.0] — 2026-08-02
+## [0.3.0] 鈥?2026-08-02
 
 ### Features
 - Reconciliation layer (`quantflow/reconciliation/`): position drift detection, orphan order discovery, audit logging
@@ -70,7 +70,7 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - Qoder integration docs (`docs/qoder/`)
 
 ### Tests
-- New: `test_order_manager_thread_safety.py` — concurrent order lifecycle validation
+- New: `test_order_manager_thread_safety.py` 鈥?concurrent order lifecycle validation
 - Removed: `test_innerhtml_choke_point.py` (superseded by frontend migration)
 - Updated execution, gateway, and web app tests for new architecture
 
@@ -79,15 +79,15 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - Repository cleanup: added ignore rules for backups, trash, temp files, PID files
 - Workflow knowledge base expansion (6 new knowhow entries)
 
-## [0.2.0] — 2026-08-01
+## [0.2.0] 鈥?2026-08-01
 
 ### Security
 - ISS-004: Global `_redact_processor` in structlog pipeline prevents credential leakage
 - ISS-006-retro: Adversarial redaction tests (near-miss, benign-collision, env-unset)
 
 ### Architecture
-- ISS-002: `IndicatorComputer` Protocol injection eliminates L1→L2 layer violation
-- ISS-011: CLI benchmark extracted to `BenchmarkService` (401→35 lines thin shell)
+- ISS-002: `IndicatorComputer` Protocol injection eliminates L1鈫扡2 layer violation
+- ISS-011: CLI benchmark extracted to `BenchmarkService` (401鈫?5 lines thin shell)
 - ISS-010: Strategy metadata migrated from hardcoded Python to YAML config
 
 ### Features
@@ -97,7 +97,7 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - Mean reversion stop_loss_pct parameter (on_bar + vectorized paths)
 
 ### Performance
-- ISS-001: CPCV O(n²) memory optimization (peak memory halved)
+- ISS-001: CPCV O(n虏) memory optimization (peak memory halved)
 - P0-verify: 4-strategy byte-for-byte regression guard baseline established
 
 ### Bug Fixes
@@ -112,7 +112,7 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 - Architecture guard tests (data layer import, redaction processor, catalog YAML)
 
 ### Workflow
-- 17 open issues resolved (17→0)
+- 17 open issues resolved (17鈫?)
 - Roadmap P0-verify passed
 - State blockers cleared
 
@@ -125,10 +125,10 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ### Changed
 - Promoted project version metadata from `0.1.2` to `0.1.3` so source, tag, and release assets can align with the current `HEAD`.
-- Reworked `trend_following`、`mean_reversion` 和 `volatility_breakout` 的 event-driven path to use incremental calculations instead of rebuilding a DataFrame on every bar.
+- Reworked `trend_following`銆乣mean_reversion` 鍜?`volatility_breakout` 鐨?event-driven path to use incremental calculations instead of rebuilding a DataFrame on every bar.
 - Regenerated `requirements-lock.txt` from a clean installed-wheel environment and removed the stale editable Git entry plus host-only development dependencies.
 - Raised the minimum `aiohttp` requirement to `3.14.0`.
-- Restricted Hatch `sdist` selection to release-safe files only, excluding `.workflow`、`.codegraph`、`tests` and other non-release artifacts from source packages.
+- Restricted Hatch `sdist` selection to release-safe files only, excluding `.workflow`銆乣.codegraph`銆乣tests` and other non-release artifacts from source packages.
 
 ### Fixed
 - Refreshed release checksum and manifest generation against the `v0.1.3` artifact names.
@@ -183,3 +183,4 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 ### Known Issues
 - Real exchange execution still requires operator-provided environment variables such as `OKX_API_KEY`, `OKX_SECRET`, and `OKX_PASSPHRASE`.
 - Optional ML extras such as `torch` and `transformers` are not installed by default and must be added explicitly when enabling the corresponding strategy path.
+

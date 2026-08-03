@@ -139,7 +139,8 @@ quantflow/
 │   ├── feature_store.py#   时间点安全特征工程
 │   ├── redis_cache.py  #   Redis 实时数据缓存
 │   ├── mtf_aligner.py  #   多时间框架对齐
-│   └── dq_monitor.py   #   数据质量实时监控
+│   ├── dq_monitor.py   #   数据质量实时监控
+│   └── market_meta_fetcher.py # 市场元数据（资金费率/持仓量）
 ├── indicators/         # L2 指标因子层（27 个因子）
 │   ├── base.py         #   FactorBase + FactorRegistry 注册表
 │   ├── engine.py       #   因子计算引擎（batch_calculate/compute_all）
@@ -184,7 +185,9 @@ quantflow/
 │   ├── engine.py       #   执行引擎
 │   ├── order_manager.py#   订单管理
 │   ├── position_manager.py# 持仓管理
-│   └── kill_switch.py  #   紧急熔断
+│   ├── exchange_health.py#   交易所健康监控（熔断器/滑窗错误率/限频检测）
+│   ├── kill_switch.py  #   紧急熔断
+│   └── state_store.py  #   Checkpoint 状态存储（崩溃恢复）
 ├── monitoring/         # L6 监控运维层
 │   ├── metrics.py      #   Prometheus 指标
 │   ├── alerts.py       #   告警（Telegram/LINE）
