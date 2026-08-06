@@ -22,33 +22,59 @@ _ERROR_SENTINEL = {"positive": float("nan"), "negative": float("nan"), "neutral"
 
 
 class SentimentAnalyzer:
-    """Analyze news/sentiment for trading signals using FinBERT."""
+    """Analyze news/sentiment for trading signals using FinBERT / FinGPT.
+
+    P2.2 (F11): ``model_name`` selects the backend — a sequence-classification
+    model (FinBERT, default) or a generative LM (GPT-2/FinGPT-style causal
+    models such as ``rezacsedu/financial_sentiment_analysis_gpt2_model``).
+    Generative backends score via a label prompt + keyword extraction;
+    unparseable output degrades to the NaN sentinel (ISS-040 contract).
+    """
 
     def __init__(self, model_name: str = "ProsusAI/finbert") -> None:
         self._model_name = model_name
         self._model = None
         self._tokenizer = None
         self._device = "cpu"
+        self._generative = False
 
     def load_model(self, device: str = "cpu") -> None:
-        """Load FinBERT model and tokenizer."""
+        """Load the sentiment model and tokenizer.
+
+        P2.2: generative backends (GPT-2 / FinGPT-style causal LMs) load via
+        ``AutoModelForCausalLM`` and score through ``generate``; everything
+        else keeps the sequence-classification path.
+        """
         try:
-            from transformers import AutoModelForSequenceClassification, AutoTokenizer
+            from transformers import AutoTokenizer
 
             self._device = device
             tokenizer = AutoTokenizer.from_pretrained(self._model_name)
-            model = AutoModelForSequenceClassification.from_pretrained(self._model_name)
+            name = self._model_name.lower()
+            if any(k in name for k in ("gpt2", "gpt", "fingpt", "llama", "qwen", "mistral")):
+                # Stepwise import: generative backends load via CausalLM; the
+                # classification path must not require that class to exist.
+                from transformers import AutoModelForCausalLM
+
+                model = AutoModelForCausalLM.from_pretrained(self._model_name)
+                self._generative = True
+                logger.info("Generative sentiment model loaded on %s", device)
+            else:
+                from transformers import AutoModelForSequenceClassification
+
+                model = AutoModelForSequenceClassification.from_pretrained(self._model_name)
+                self._generative = False
+                logger.info("Sequence-classification sentiment model loaded on %s", device)
             model.to(device)
             model.eval()
             self._tokenizer = tokenizer
             self._model = model
-            logger.info("FinBERT loaded on %s", device)
         except ImportError:
             logger.warning(
                 "transformers/torch not installed. Install: pip install transformers torch"
             )
         except Exception as e:
-            logger.error("Failed to load FinBERT: %s", e)
+            logger.error("Failed to load sentiment model: %s", e)
 
     def analyze_text(self, text: str, reach: float | None = None) -> dict[str, float]:
         """Analyze sentiment of a single text.
@@ -65,6 +91,8 @@ class SentimentAnalyzer:
             raise ValueError(f"reach must be in [0, 1], got {reach!r}")
         if not self._model or not self._tokenizer:
             return _ERROR_SENTINEL
+        if self._generative:
+            return self._analyze_generative(text)
 
         try:
             import torch
@@ -84,6 +112,50 @@ class SentimentAnalyzer:
         except Exception as e:
             logger.error("Sentiment analysis failed: %s", e)
             return _ERROR_SENTINEL
+
+    def _analyze_generative(self, text: str) -> dict[str, float]:
+        """Score via a generative LM (P2.2): label prompt + keyword parse.
+
+        The model completes ``Sentiment:`` with a label word; the answer is
+        mapped to a one-hot distribution over positive/negative/neutral.
+        Unparseable output returns the NaN sentinel (fail-closed — never a
+        fabricated neutral bias, ISS-040 contract).
+        """
+        if not self._model or not self._tokenizer:
+            return _ERROR_SENTINEL
+        try:
+            import torch
+
+            prompt = (
+                "Classify the sentiment of this financial news as positive, "
+                "negative, or neutral.\n"
+                f"News: {text}\nSentiment:"
+            )
+            inputs = self._tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+            inputs = {k: v.to(self._device) for k, v in inputs.items()}
+            with torch.no_grad():
+                outputs = self._model.generate(
+                    **inputs, max_new_tokens=8, do_sample=False, pad_token_id=50256
+                )
+            answer = (
+                self._tokenizer.decode(
+                    outputs[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True
+                )
+                .strip()
+                .lower()
+            )
+        except Exception as e:
+            logger.error("Generative sentiment analysis failed: %s", e)
+            return _ERROR_SENTINEL
+
+        labels = {"positive": 0.0, "negative": 0.0, "neutral": 0.0}
+        for key in labels:
+            if key in answer:
+                labels[key] = 1.0
+        if sum(labels.values()) == 0:
+            logger.warning("Generative sentiment output unparseable: %r (sentinel NaN)", answer)
+            return _ERROR_SENTINEL
+        return labels
 
     def analyze_batch(
         self, texts: list[str], reaches: list[float] | None = None

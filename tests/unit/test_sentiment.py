@@ -388,3 +388,159 @@ class TestReachPropagationBreadth:
         )
         daily = analyzer.compute_sentiment_factor(news)
         assert daily["2026-08-01"] == pytest.approx((0.4 * 0.5 + 0.8 * 0.5) / 1.0)
+
+
+class TestFinGptBackend:
+    """P2.2 (F11): generative-LM backend — load path dispatch, prompt-based
+    scoring, fail-closed unparseable output."""
+
+    def test_generative_model_name_selects_causal_lm(self, monkeypatch) -> None:
+        import sys
+        from types import SimpleNamespace
+
+        from quantflow.strategy.sentiment import SentimentAnalyzer
+
+        loaded: dict = {}
+        fake_tok = SimpleNamespace(decode=lambda ids, **kw: " positive")
+
+        class FakeCausalModel:
+            @classmethod
+            def from_pretrained(cls, name):
+                return cls()
+
+            def __init__(self, *a, **k):
+                loaded["cls"] = "causal"
+
+            def to(self, device):
+                return self
+
+            def eval(self):
+                return self
+
+        class FakeSeqModel(FakeCausalModel):
+            def __init__(self, *a, **k):
+                loaded["cls"] = "seq"
+
+        from types import ModuleType
+
+        fake_transformers = ModuleType("transformers")
+        fake_transformers.AutoModelForCausalLM = FakeCausalModel
+        fake_transformers.AutoModelForSequenceClassification = FakeSeqModel
+        fake_transformers.AutoTokenizer = SimpleNamespace(from_pretrained=lambda name: fake_tok)
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+        analyzer = SentimentAnalyzer(model_name="someorg/fingpt-gpt2-model")
+        analyzer.load_model()
+        assert loaded["cls"] == "causal"
+        assert analyzer._generative is True
+
+        analyzer2 = SentimentAnalyzer(model_name="ProsusAI/finbert")
+        analyzer2.load_model()
+        assert loaded["cls"] == "seq"
+        assert analyzer2._generative is False
+
+    def test_generative_scoring_parses_label(self, monkeypatch) -> None:
+        import contextlib
+        import sys
+        from types import ModuleType, SimpleNamespace
+
+        import numpy as np
+
+        from quantflow.strategy.sentiment import SentimentAnalyzer
+
+        class FakeTensor:
+            """Torch-tensor-shaped stub: .to()/shape/indexing."""
+
+            def __init__(self, arr):
+                self._arr = np.asarray(arr)
+
+            def to(self, device):
+                return self
+
+            @property
+            def shape(self):
+                return self._arr.shape
+
+            def __getitem__(self, key):
+                return self._arr[key]
+
+        answers = iter(["negative"])
+
+        class FakeModel:
+            @staticmethod
+            def from_pretrained(name):
+                return FakeModel()
+
+            def generate(self, **kwargs):
+                # outputs[0][input_len:] -> array([9]); decode is stubbed.
+                return [np.array([1, 2, 3, 9])]
+
+        fake_tok = SimpleNamespace(decode=lambda ids, **kw: next(answers))
+
+        fake_transformers = ModuleType("transformers")
+        fake_transformers.AutoModelForCausalLM = FakeModel
+        fake_transformers.AutoModelForSequenceClassification = FakeModel
+        fake_transformers.AutoTokenizer = SimpleNamespace(from_pretrained=lambda name: fake_tok)
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+        monkeypatch.setitem(
+            sys.modules,
+            "torch",
+            SimpleNamespace(no_grad=contextlib.nullcontext),
+        )
+
+        class FakeTokenizer:
+            def __call__(self, *a, **k):
+                return {
+                    "input_ids": FakeTensor([[1, 2, 3]]),
+                    "attention_mask": FakeTensor([[1, 1, 1]]),
+                }
+
+            def decode(self, ids, **kw):
+                return next(answers)
+
+        analyzer = SentimentAnalyzer(model_name="org/fingpt-gpt2")
+        analyzer.load_model()
+        analyzer._tokenizer = FakeTokenizer()
+        analyzer._model = FakeModel()
+        analyzer._device = "cpu"
+        result = analyzer._analyze_generative("BTC rallies")
+        assert result["negative"] == 1.0
+        assert result["positive"] == 0.0
+
+    def test_generative_unparseable_output_returns_nan(self, monkeypatch) -> None:
+        import numpy as np
+
+        from quantflow.strategy.sentiment import SentimentAnalyzer
+
+        class FakeTensor:
+            def __init__(self, arr):
+                self._arr = np.asarray(arr)
+
+            def to(self, device):
+                return self
+
+            @property
+            def shape(self):
+                return self._arr.shape
+
+            def __getitem__(self, key):
+                return self._arr[key]
+
+        class FakeModel:
+            def generate(self, **kwargs):
+                return [np.array([1, 2, 3, 9])]
+
+        class FakeTokenizer:
+            def __call__(self, *a, **k):
+                return {"input_ids": FakeTensor([[1, 2, 3]])}
+
+            def decode(self, ids, **kw):
+                return "???"
+
+        analyzer = SentimentAnalyzer(model_name="org/fingpt-gpt2")
+        analyzer._generative = True
+        analyzer._model = FakeModel()
+        analyzer._tokenizer = FakeTokenizer()
+        analyzer._device = "cpu"
+        result = analyzer._analyze_generative("gibberish")
+        assert all(v != v for v in result.values())  # NaN sentinel
