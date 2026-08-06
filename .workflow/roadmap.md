@@ -156,7 +156,7 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 - [x] **P2.1.2 train/val/test 时间分割边界**：`DatasetSchema.splits`（SegmentInfo：n_bars + fractional 位置，无绝对时间）+ `from_dataframe(splits=)` 校验（和=1/chronological 无重叠）+ rd_agent 交接统一用显式 train.n_bars（回退 TRAIN_FRACTION）；4 项守卫测试（2026-08-06）
 - [x] **P2.1.3 RD-Agent 接线**：`discover_factors(df, schema: DatasetSchema | None)` 签名改造（向后兼容），CLI 数据文件只写 train 前 70% 行 + schema.json 审计文件；baseline 路径保留全量帧（无 LLM 接触）
 - [x] **P2.1.4 泄漏守卫测试**：原 12 项（值屏蔽/to_dict 序列化/示例值限量）+ 新增 2 项 wiring 测试（train-slice 行数与时间戳边界、legacy 兼容）
-- [ ] **P2.2 FinBERT→FinGPT 升级**（依赖 P2.1）：单卡 RTX 3090/$17.25 微调路径（medium-high，2-1 vote，自报基准）。**blocked-on-environment**（2026-08-06 评估：本机无 GPU/nvidia-smi、无 torch/transformers → 训练与推理均不可验证；前置：GPU 机器 + `pip install torch transformers` + 新闻语料数据准备）
+- [~] **P2.2 FinBERT→FinGPT 升级**（依赖 P2.1）：单卡 RTX 3090/$17.25 微调路径（medium-high，2-1 vote，自报基准）。**环境准备进行中**（2026-08-06）：本机无 NVIDIA GPU（AMD 780M 核显）→ CPU 版 torch 安装后台进行；接口层已交付（生成式 LM 分支 + 3 测试）+ `scripts/finetune_fingpt.py`（设备检测/CPU 警告/7B 需 GPU）；真实推理冒烟待 torch 安装完成
 - [x] **P2.3 情绪传播广度**（依赖 P2.1）：`SentimentAnalyzer` 接收传播广度元数据（reach 0..1 验证 + reach 列加权聚合 _weighted_daily_mean，NaN 跳过），5 项测试（2026-08-06）
 
 **Acceptance**:
