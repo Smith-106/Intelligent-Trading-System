@@ -34,8 +34,16 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    from quantflow.common.schema_exposure import DatasetSchema
+
+#: P2.1 train-only hand-off: the CLI may only see the first TRAIN_FRACTION of
+#: rows (chronological order). val/test bars never leave the process.
+TRAIN_FRACTION = 0.7
 
 logger = logging.getLogger(__name__)
 
@@ -92,15 +100,15 @@ class RDAgentCliUnavailableError(RuntimeError):
 class RDAgentRunner:
     """Run Qlib RD-Agent factor mining.
 
-    This is the integration boundary between QuantFlow and the Qlib/RD-Agent
-ecosystem. It is deliberately thin: QuantFlow owns the data + signal
-pipeline; qlib/RD-Agent owns the factor search.
+        This is the integration boundary between QuantFlow and the Qlib/RD-Agent
+    ecosystem. It is deliberately thin: QuantFlow owns the data + signal
+    pipeline; qlib/RD-Agent owns the factor search.
 
-    Usage::
+        Usage::
 
-        runner = RDAgentRunner()
-        if runner.check_available()[0]:
-            factors = runner.discover_factors(df)
+            runner = RDAgentRunner()
+            if runner.check_available()[0]:
+                factors = runner.discover_factors(df)
     """
 
     INSTALL_HINT = (
@@ -161,7 +169,9 @@ pipeline; qlib/RD-Agent owns the factor search.
             "api_base": base,
         }
 
-    def discover_factors(self, df: pd.DataFrame) -> list[DiscoveredFactor]:
+    def discover_factors(
+        self, df: pd.DataFrame, schema: DatasetSchema | None = None
+    ) -> list[DiscoveredFactor]:
         """Discover/evaluate factors via the Qlib RD-Agent pipeline.
 
         Preference order:
@@ -169,8 +179,18 @@ pipeline; qlib/RD-Agent owns the factor search.
            CLI is on PATH and LLM credentials exist.
         2. Built-in Alpha158-style baseline evaluation otherwise.
 
+        P2.1 (ISS-20260722-003) schema-only boundary: when ``schema`` (a
+        DatasetSchema from common.schema_exposure) is provided, the
+        out-of-process CLI receives the TRAIN slice only (val/test bars never
+        leave the process) plus a schema.json audit file — the LLM designs
+        factors from schema metadata, never from unseen data. The local
+        baseline path keeps the full frame (no LLM contact).
+
         Args:
             df: OHLCV DataFrame (must contain ``close``; indexed by datetime).
+            schema: optional DatasetSchema from common.schema_exposure; when
+                None the CLI keeps the legacy full-frame behavior (backward
+                compatible).
 
         Returns:
             List of evaluated factors with IC metrics. Factors with
@@ -193,11 +213,9 @@ pipeline; qlib/RD-Agent owns the factor search.
         llm_cfg = self._llm_config_from_env()
         if cli_ok and llm_cfg is not None:
             try:
-                cli_factors = self._run_rdagent_cli(df)
+                cli_factors = self._run_rdagent_cli(df, schema)
                 if cli_factors:
-                    logger.info(
-                        "RD-Agent CLI factor search returned %d factors", len(cli_factors)
-                    )
+                    logger.info("RD-Agent CLI factor search returned %d factors", len(cli_factors))
                     return cli_factors
             except RDAgentCliUnavailableError as e:
                 logger.warning("RD-Agent CLI unavailable, degrading to baseline: %s", e)
@@ -209,9 +227,7 @@ pipeline; qlib/RD-Agent owns the factor search.
             except (OSError, ValueError) as e:
                 logger.warning("RD-Agent CLI failed, degrading to baseline: %s", e)
         elif not cli_ok:
-            logger.info(
-                "RD-Agent CLI not available — using built-in baseline evaluation"
-            )
+            logger.info("RD-Agent CLI not available — using built-in baseline evaluation")
         else:
             logger.info(
                 "No LLM credentials in environment (OPENAI_API_KEY/LITELLM_API_KEY) — "
@@ -221,7 +237,9 @@ pipeline; qlib/RD-Agent owns the factor search.
         # Baseline path: evaluate Alpha158-style factors via qlib workflow.
         return self._evaluate_alpha158_factors(df)
 
-    def _run_rdagent_cli(self, df: pd.DataFrame) -> list[DiscoveredFactor]:
+    def _run_rdagent_cli(
+        self, df: pd.DataFrame, schema: DatasetSchema | None = None
+    ) -> list[DiscoveredFactor]:
         """Invoke the rdagent CLI out-of-process and parse its JSON output.
 
         Uses subprocess with a list argument vector (never ``shell=True``) to
@@ -229,8 +247,14 @@ pipeline; qlib/RD-Agent owns the factor search.
         is written to a temp CSV that the CLI consumes via --data; results are
         read back from --output JSON.
 
+        P2.1 schema-only boundary: with ``schema`` the CSV holds the TRAIN
+        slice only and a ``schema.json`` audit file records the schema the
+        LLM is expected to design against — val/test bars never leave the
+        process.
+
         Args:
             df: OHLCV DataFrame (must contain ``close``).
+            schema: optional DatasetSchema (see :meth:`discover_factors`).
 
         Returns:
             Parsed DiscoveredFactor list (may be empty).
@@ -253,11 +277,30 @@ pipeline; qlib/RD-Agent owns the factor search.
             )
 
         # Write OHLCV to a temp CSV for the CLI (data hand-off boundary).
+        # P2.1: with a schema, only the TRAIN slice leaves the process — the
+        # LLM-driven pipeline must never see val/test bars.
         workdir = Path("data/rdagent_work")
         workdir.mkdir(parents=True, exist_ok=True)
         data_path = workdir / "ohlcv_input.csv"
         out_path = workdir / "factors_output.json"
-        df.to_csv(data_path)
+        if schema is not None:
+            # P2.1 train-only hand-off: the first TRAIN_FRACTION of rows (by
+            # chronological order) is all the CLI may see; val/test bars stay
+            # in-process. DatasetSchema carries no split metadata (its
+            # date_range is the full-window metadata by design), so the
+            # split is applied here at the hand-off boundary.
+            train_end = round(len(df) * TRAIN_FRACTION)
+            df.iloc[:train_end].to_csv(data_path)
+            # Audit file: what the LLM was told to design against. Never fed
+            # to the CLI as an argument (unknown external contract) — written
+            # alongside for humans/agents inspecting the run.
+            schema_path = workdir / "schema.json"
+            schema_path.write_text(
+                json.dumps(schema.to_dict(), ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        else:
+            df.to_csv(data_path)
 
         env = os.environ.copy()
         env["LLM_BACKEND"] = llm_cfg["backend"]
