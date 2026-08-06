@@ -65,6 +65,62 @@ class ExchangeHealthConfig(BaseModel):
     cooldown_seconds: float = 300.0
 
 
+class DynamicBudgetConfig(BaseModel):
+    """s4 (T-s4-01): volatility-scaled per-strategy budget (default OFF).
+
+    When ``enabled`` is false (default) the engine keeps the static
+    ``strategy_risk_budgets`` behavior byte-for-byte. When enabled, each
+    budgeted strategy's budget fraction is scaled down by
+    ``max(1, realized_vol / target_vol)`` (EWMA of recent returns), clamped
+    to ``[min_scale, max_scale]``. Rising volatility shrinks the budget
+    (fail-closed); an empty/insufficient return history falls back to the
+    static budget (fail-safe).
+    """
+
+    enabled: bool = False
+    #: EWMA span for realized-volatility estimation (bars).
+    vol_ewma_span: int = 30
+    #: Annualized target volatility fraction (e.g. 0.15 = 15% annual).
+    target_vol_pct: float = 0.15
+    #: Annualization factor (crypto trades 24/7/365).
+    vol_annualization: int = 365
+    #: Minimum/maximum scaling factors applied to the static budget.
+    min_scale: float = 0.5
+    max_scale: float = 1.5
+    #: Minimum return samples before volatility scaling is applied.
+    min_samples: int = 30
+    # s5 (T-s5-02): additionally scale budgets by portfolio CVaR — when the
+    # historical CVaR is worse than cvar_limit, budgets shrink by
+    # max(1, |CVaR| / |cvar_limit|). Default OFF (zero behavior change);
+    # opt-in via risk.dynamic_budget.var_scaling in YAML.
+    var_scaling: bool = False
+
+
+class PortfolioOptimizationConfig(BaseModel):
+    """s5 (T-s5-02): portfolio-level optimization (default OFF).
+
+    When ``enabled`` is false (default) the engine keeps the static
+    per-strategy allocation behavior byte-for-byte. When enabled, the
+    engine tracks per-strategy returns and, every ``rebalance_every_n_bars``
+    bars, recomputes risk-parity weights via ``RiskParityOptimizer`` and
+    pushes them into ``PortfolioManager.set_allocation`` so sizing follows
+    the balanced-risk weights. Any optimization failure degrades to equal
+    weights (fail-closed, never raises).
+    """
+
+    enabled: bool = False
+    #: Allocation method: risk_parity (default) | mean_variance (min-var).
+    method: str = "risk_parity"
+    #: Rolling window (bars) for per-strategy realized-volatility estimation.
+    vol_window: int = 30
+    #: Minimum samples per strategy before its volatility is trusted.
+    min_samples: int = 30
+    #: Rebalance cadence in bars (48 = every ~2 days on 1h bars).
+    rebalance_every_n_bars: int = 48
+    #: Fallback allocation when optimization cannot run (equal or static).
+    fallback: str = "equal"
+
+
 class RiskConfig(BaseModel):
     position_limit_pct: float = 0.20
     max_positions: int = 5
@@ -108,6 +164,12 @@ class RiskConfig(BaseModel):
     exchange_exposure_limit_pct: float | None = None
     # T-s1-04: 交易所健康度监控/熔断（默认关闭）。
     exchange_health: ExchangeHealthConfig = Field(default_factory=ExchangeHealthConfig)
+    # s4 (T-s4-01): volatility-scaled dynamic strategy budget (default OFF).
+    dynamic_budget: DynamicBudgetConfig = Field(default_factory=DynamicBudgetConfig)
+    # s5 (T-s5-02): portfolio-level risk-parity allocation (default OFF).
+    portfolio_optimization: PortfolioOptimizationConfig = Field(
+        default_factory=PortfolioOptimizationConfig
+    )
 
 
 class ExecutionConfig(BaseModel):
@@ -171,6 +233,49 @@ class StateConfig(BaseModel):
     checkpoint_interval_minutes: float = 5.0
 
 
+class RDAgentConfigModel(BaseModel):
+    """RD-Agent factor-mining settings (s3-ai-research-pipeline; default OFF).
+
+    ``enabled`` defaults to False so existing runs keep byte-for-byte
+    behavior. When enabled, ``discover_factors`` prefers a real RD-Agent CLI
+    invocation (LLM-driven factor search) and falls back to the built-in
+    Alpha158-style baseline when the CLI or an LLM key is unavailable.
+    """
+
+    enabled: bool = False
+    llm_backend: str = "litellm"
+    chat_model: str = ""
+    llm_api_base: str = ""
+    llm_timeout_seconds: float = 300.0
+    cli_timeout_seconds: float = 600.0
+
+
+class AutoLoopConfigModel(BaseModel):
+    """s4 (T-s4-02): auto research loop — train → validate → register/reject.
+
+    ``enabled`` defaults to False (zero behavior change). When enabled,
+    ``AutoResearchLoop`` orchestrates one iteration per call: candidate model
+    trained via ``AITrainingPipeline``, validated by ``validation_gate``, then
+    registered (GO → paper) or rejected (NO-GO) in the model registry with an
+    append-only JSONL decision log.
+    """
+
+    enabled: bool = False
+    log_path: str = "./data/ai_loop/decisions.jsonl"
+    validation_kwargs: dict[str, Any] = Field(default_factory=dict)
+    training_kwargs: dict[str, Any] = Field(default_factory=dict)
+
+
+class AIConfig(BaseModel):
+    """AI-layer settings (s3): RD-Agent wiring + model registry (default OFF)."""
+
+    rdagent: RDAgentConfigModel = Field(default_factory=RDAgentConfigModel)
+    model_registry_enabled: bool = False
+    registry_dir: str = "./data/models"
+    # s4 (T-s4-02): auto research loop (default OFF).
+    auto_loop: AutoLoopConfigModel = Field(default_factory=AutoLoopConfigModel)
+
+
 class AppConfig(BaseModel):
     data: DataConfig = Field(default_factory=DataConfig)
     indicators: IndicatorConfig = Field(default_factory=IndicatorConfig)
@@ -180,6 +285,7 @@ class AppConfig(BaseModel):
     monitoring: MonitoringConfig = Field(default_factory=MonitoringConfig)
     reconciliation: ReconciliationConfig = Field(default_factory=ReconciliationConfig)
     state: StateConfig = Field(default_factory=StateConfig)
+    ai: AIConfig = Field(default_factory=AIConfig)
 
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent.parent

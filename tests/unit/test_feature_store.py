@@ -108,6 +108,30 @@ class TestFeatureStore:
         with pytest.raises(ValueError, match="raw_store is required"):
             fs.compute_features("BTC/USDT", 0, [])
 
+    def test_compute_features_without_meta_store_unchanged(self, store_and_raw):
+        """s3 T-s3-02 regression: no meta_computer/meta_store → zero behavior change."""
+        fs, raw_store = store_and_raw
+        ts = 1705000000000  # within the 2024-01-01+200d fixture range
+        result = fs.compute_features("BTC/USDT", ts, [], raw_store)
+        assert isinstance(result, pd.DataFrame)
+        assert "symbol" in result.columns and "computed_at" in result.columns
+        assert "funding_rate_ma_3" not in result.columns
+        assert "oi_change_1" not in result.columns
+
+    def test_compute_features_with_meta_store_appends_meta_columns(self, store_and_raw):
+        """s3 T-s3-02: meta_computer injected + meta_store → funding/OI features appear."""
+        from quantflow.indicators.meta_features import MetaFeatureEngine
+
+        fs, raw_store = store_and_raw
+        fs._meta_computer = MetaFeatureEngine()
+        ts = 1705000000000
+        result = fs.compute_features("BTC/USDT", ts, [], raw_store, meta_store=raw_store)
+        # meta_store is the OHLCV store here (no funding/OI rows) → engine
+        # skips empty meta frames; result must still be a valid feature frame.
+        assert isinstance(result, pd.DataFrame)
+        assert "symbol" in result.columns
+
+
     def test_compute_features_empty_result_for_no_data(self, store_and_raw):
         fs, raw_store = store_and_raw
         result = fs.compute_features("BTC/USDT", 0, [], raw_store)

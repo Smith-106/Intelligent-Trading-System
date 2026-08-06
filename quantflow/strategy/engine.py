@@ -25,6 +25,7 @@ from quantflow.common.models import (
     OrderStatus,
     Position,
     Signal,
+    strategy_id_constituents,
 )
 from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
 from quantflow.common.redaction import redact_secrets
@@ -35,6 +36,7 @@ from quantflow.execution.state_store import SessionSnapshot, StateStore
 from quantflow.indicators.regime import MarketRegimeDetector
 from quantflow.reconciliation.engine import ReconciliationEngine
 from quantflow.signal.generator import SignalGenerator
+from quantflow.signal.optimizer import MeanVarianceOptimizer, RiskParityOptimizer
 from quantflow.signal.portfolio import PortfolioManager
 from quantflow.signal.position_sizer import PositionSizer
 from quantflow.signal.risk_engine import RiskEngine
@@ -156,6 +158,33 @@ class TradingSession:
             fee_rate=config.execution.taker_fee,
         )
         self._portfolio = PortfolioManager(initial_capital=100000.0)
+        # s5 (T-s5-02): portfolio-level risk-parity allocation. Default OFF
+        # (enabled=False) — None optimizer = zero per-bar overhead and the
+        # static allocation path unchanged. When enabled, per-strategy
+        # returns are tracked in the bar loop and weights are recomputed
+        # every ``rebalance_every_n_bars`` bars.
+        _po_cfg = config.risk.portfolio_optimization
+        if _po_cfg.enabled:
+            # s5 follow-up: method-selectable optimizer (risk_parity default,
+            # mean_variance opt-in). Both share the compute() contract and
+            # degrade to equal weights on any failure (fail-closed).
+            if _po_cfg.method == "mean_variance":
+                self._portfolio_optimizer: RiskParityOptimizer | MeanVarianceOptimizer | None = (
+                    MeanVarianceOptimizer(min_samples=_po_cfg.min_samples)
+                )
+            else:
+                self._portfolio_optimizer = RiskParityOptimizer(
+                    min_samples=_po_cfg.min_samples
+                )
+        else:
+            self._portfolio_optimizer = None
+        self._rebalance_every_n_bars: int = (
+            _po_cfg.rebalance_every_n_bars if _po_cfg.enabled else 0
+        )
+        self._bar_count: int = 0
+        # Previous bar's per-strategy notional exposure, for per-strategy
+        # return attribution (s5). Empty dict on the default path.
+        self._strategy_value_prev: dict[str, float] = {}
         # ISS-20260720-004 Wave 2: ExecutionEngine was constructed before
         # PortfolioManager existed; rebind its PositionManager to the shared L4
         # so submit()'s fill updates land on the same book the signal path reads.
@@ -408,6 +437,44 @@ class TradingSession:
             self._risk_engine.add_return(bar_ret)
             self._position_sizer.add_return(bar_ret)
         self._prev_equity = curr_equity
+
+        # s5 (T-s5-02): per-strategy return attribution + risk-parity
+        # rebalance. Only active when portfolio_optimization.enabled — the
+        # default path skips both entirely (zero behavior change).
+        self._bar_count += 1
+        if self._portfolio_optimizer is not None and not math.isnan(prev_equity):
+            # Attribute this bar's return per strategy from notional exposure
+            # changes (positions valued at the updated bar close).
+            per_strategy_value: dict[str, float] = {}
+            for pos in self._portfolio.positions.values():
+                if pos.current_price <= 0:
+                    continue
+                constituents = strategy_id_constituents(pos.strategy_id) or [
+                    pos.strategy_id
+                ]
+                pos_value = abs(pos.quantity) * pos.current_price
+                for c in constituents:
+                    per_strategy_value[c] = per_strategy_value.get(c, 0.0) + pos_value
+            for sid, value in per_strategy_value.items():
+                prev_value = self._strategy_value_prev.get(sid, 0.0)
+                if prev_value > 0:
+                    ret = (value - prev_value) / prev_value
+                    self._portfolio.add_strategy_return(sid, ret)
+            self._strategy_value_prev = per_strategy_value
+
+            # Rebalance cadence: recompute risk-parity weights and push them
+            # into the portfolio allocation consumed by PositionSizer.size().
+            if self._bar_count % self._rebalance_every_n_bars == 0:
+                returns = self._portfolio.get_strategy_returns()
+                weights = self._portfolio_optimizer.compute(returns)
+                self._portfolio.set_allocation(weights)
+                logger.info("s5 rebalance: %s", weights)
+                # s5 follow-up: expose the rebalanced weights to monitoring
+                # (best-effort — sink must never raise into the bar loop).
+                try:
+                    self._sink.record_portfolio_allocation(weights)
+                except Exception:  # sink contract: best-effort only
+                    logger.exception("record_portfolio_allocation failed")
 
         # Weekly-loss gate (ARCH-H1): feed the realized 7-day PnL to the risk
         # engine so _check_weekly_loss is no longer a permanent no-op. Window
@@ -703,6 +770,24 @@ class TradingSession:
             drawdown=float(snapshot["drawdown"]),
             n_positions=int(snapshot["positions"]),
         )
+        # s4 (T-s4-05): strategy-level PnL split. Positions carry strategy_id
+        # (possibly compound "a,b"); attribute unrealized PnL to each
+        # constituent and combine with realized PnL from cash deltas via the
+        # portfolio's realized_pnl tracking. Best-effort — the sink swallows
+        # failures, and zero-strategy positions are skipped.
+        try:
+            per_strategy: dict[str, float] = {}
+            for pos in self._portfolio.positions.values():
+                if pos.strategy_id:
+                    constituents = strategy_id_constituents(pos.strategy_id) or [pos.strategy_id]
+                    leg = pos.unrealized_pnl / len(constituents) if constituents else pos.unrealized_pnl
+                    for c in constituents:
+                        per_strategy[c] = per_strategy.get(c, 0.0) + leg
+            for strategy_id, pnl in per_strategy.items():
+                self._sink.record_strategy_pnl(strategy_id=strategy_id, pnl=float(pnl))
+        except Exception:
+            # Observability is best-effort — never break the trading loop.
+            logger.warning("strategy_pnl observability push failed", exc_info=True)
 
     # --- T-s1-03: crash-recovery helpers ---
 

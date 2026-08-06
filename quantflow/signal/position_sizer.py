@@ -132,6 +132,13 @@ class PositionSizer:
 
         if self._method == "fixed":
             base = total_value * self._fixed_pct
+        elif self._method == "risk_parity":
+            # s5 (T-s5-02): weight-driven sizing. The portfolio-level
+            # risk-parity weight is carried by ``allocation`` (engine passes
+            # the strategy's allocation weight into size()); base = total
+            # value so ``target = base * strength * allocation`` yields
+            # ``total_value * strength * weight`` — the risk-parity notional.
+            base = total_value
         else:
             base = self._kelly_base_notional(total_value, actual_win_rate, win_loss_ratio)
 

@@ -83,6 +83,16 @@ class DataStore:
         path + keep='last' merge on overlap (ISS-034 semantics preserved).
         """
         store_df = df.copy()
+        # Timestamp column contract: int64 epoch-milliseconds in ALL partitions
+        # (matching the historical 1d files). clean_ohlcv converts to datetime;
+        # normalize back to ms int so a mixed month never holds BIGINT next to
+        # TIMESTAMP (DuckDB multi-partition reads then fail to cast).
+        if "timestamp" in store_df.columns and pd.api.types.is_datetime64_any_dtype(
+            store_df["timestamp"]
+        ):
+            store_df["timestamp"] = (
+                store_df["timestamp"].values.astype("datetime64[ms]").astype("int64")
+            )
         if "datetime" in store_df.columns:
             store_df["year"] = store_df["datetime"].dt.year
             store_df["month"] = store_df["datetime"].dt.month

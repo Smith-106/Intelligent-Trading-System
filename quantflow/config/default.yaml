@@ -56,6 +56,28 @@ risk:
     window_seconds: 60                  # 滑动窗口长度（秒）
     rate_limit_streak: 3                # 连续 50011 限频触发阈值
     cooldown_seconds: 300               # 熔断冷却时间（秒）
+  # s4 (T-s4-01): 波动率自适应策略预算。enabled 默认 false，静态预算零行为变化；
+  # 开启后按近期收益 EWMA 波动率缩放各策略预算（波动升高预算缩减，fail-closed），
+  # 缩放因子 clamp 到 [min_scale, max_scale]，收益样本不足时回退静态预算。
+  dynamic_budget:
+    enabled: false                      # 是否启用动态预算（默认关闭）
+    vol_ewma_span: 30                   # 波动率 EWMA 窗口（bar 数）
+    target_vol_pct: 0.15                # 年化目标波动率（15%）
+    vol_annualization: 365              # 年化因子（7x24 市场）
+    min_scale: 0.5                      # 缩放下限（预算最多缩半）
+    max_scale: 1.5                      # 缩放上限（预算最多放大 1.5 倍）
+    min_samples: 30                     # 波动率估计最少样本数
+    var_scaling: false                  # s5：组合 CVaR 恶化时额外缩放预算（默认关闭）
+  # s5 (T-s5-02): 组合级风险平价分配。enabled 默认 false，静态 allocation 零行为变化；
+  # 开启后引擎跟踪每策略收益，每 rebalance_every_n_bars 根 bar 用 RiskParityOptimizer
+  # 重算风险平价权重并推入 PortfolioManager.set_allocation（优化失败降级等权）。
+  portfolio_optimization:
+    enabled: false                      # 是否启用组合优化（默认关闭）
+    method: risk_parity                 # 分配方法（risk_parity | mean_variance）
+    vol_window: 30                      # 每策略波动率估计窗口（bar 数）
+    min_samples: 30                     # 每策略最少样本数（不足则降级等权）
+    rebalance_every_n_bars: 48          # 再平衡周期（1h bar 约每 2 天）
+    fallback: equal                     # 降级策略（equal/static）
 
 # ==================== 执行层 ====================
 execution:
@@ -91,6 +113,26 @@ state:
   enabled: false                        # 是否启用 checkpoint 恢复（默认关闭）
   checkpoint_dir: "./data/checkpoints"  # checkpoint 存放目录
   checkpoint_interval_minutes: 5        # checkpoint 保存间隔（分钟）
+
+# ==================== AI 层 ====================
+# s3-ai-research-pipeline (wave2): RD-Agent 因子挖掘 + 模型注册。
+# enabled 默认 false，既有运行零行为变化。API key 只从环境变量读取
+# （OPENAI_API_KEY / LITELLM_API_KEY / CHAT_MODEL），不写入配置/日志。
+ai:
+  rdagent:
+    enabled: false                      # 是否启用 RD-Agent 真实因子挖掘（默认关闭）
+    llm_backend: "litellm"              # LLM 后端：litellm（OpenAI 兼容）
+    chat_model: ""                      # 对话模型（如 gpt-4o；留空则用环境 CHAT_MODEL）
+    llm_api_base: ""                    # LLM API 端点（留空则用环境 OPENAI_API_BASE）
+    llm_timeout_seconds: 300            # LLM 调用超时（秒）
+    cli_timeout_seconds: 600            # rdagent CLI 进程超时（秒）
+  model_registry_enabled: false         # 是否启用模型注册（默认关闭）
+  registry_dir: "./data/models"        # 模型注册目录
+  # s4 (T-s4-02): 自动回测闭环（训练 → 验证 → 注册/淘汰 + 决策日志）。
+  # enabled 默认 false；开启后由 AutoResearchLoop 编排一轮完整迭代。
+  auto_loop:
+    enabled: false                      # 是否启用自动回测闭环（默认关闭）
+    log_path: "./data/ai_loop/decisions.jsonl"  # 决策日志（JSONL 追加）
 
 # 告警渠道示例（取消注释并填入真实值即可启用）:
 # alert_channels:

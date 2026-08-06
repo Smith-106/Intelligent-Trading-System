@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import pandas as pd
@@ -24,6 +25,7 @@ class FeatureStore:
         parquet_dir: str,
         duckdb_path: str = ":memory:",
         indicator_computer: IndicatorComputer | None = None,
+        meta_computer: Any | None = None,
     ) -> None:
         """Initialize FeatureStore.
 
@@ -32,11 +34,17 @@ class FeatureStore:
             duckdb_path: Path to DuckDB file (default: in-memory).
             indicator_computer: Optional IndicatorComputer for compute_features().
                 Defaults to NullIndicatorComputer (raises ValueError if used).
+            meta_computer: Optional L2 meta-feature computer (s3 T-s3-02,
+                ``MetaFeatureComputer`` protocol: compute_meta_features(features,
+                funding, open_interest) -> features+meta columns). Injected to
+                keep L1→L2 one-way dependency. Defaults to None = no meta
+                features (zero behavior change).
         """
         self._parquet_dir = Path(parquet_dir) / "features"
         self._parquet_dir.mkdir(parents=True, exist_ok=True)
         self._db = duckdb.connect(duckdb_path)
         self._indicator_computer = indicator_computer or NullIndicatorComputer()
+        self._meta_computer = meta_computer
 
     def compute_features(
         self,
@@ -44,8 +52,20 @@ class FeatureStore:
         timestamp: int,
         indicator_names: list[str],
         raw_store: DataStore | None = None,
+        meta_store: DataStore | None = None,
     ) -> pd.DataFrame:
-        """Compute features up to a given timestamp (no future data leak)."""
+        """Compute features up to a given timestamp (no future data leak).
+
+        Args:
+            symbol: Trading symbol.
+            timestamp: Point-in-time cutoff (ms).
+            indicator_names: Indicators to compute.
+            raw_store: OHLCV DataStore (required).
+            meta_store: Optional DataStore for funding-rate / open-interest
+                meta features (s3 T-s3-02). When provided AND a
+                ``meta_computer`` was injected at construction, funding/OI
+                features are appended via as-of join at ``timestamp``.
+        """
         if raw_store is None:
             raise ValueError("raw_store is required for feature computation")
 
@@ -58,9 +78,32 @@ class FeatureStore:
         # no implementation was provided.
         features = self._indicator_computer.compute_all(raw, indicator_names)
 
+        # s3 T-s3-02: meta-market features (funding_rate / open interest),
+        # point-in-time via meta_store.query_*_rates(end=timestamp).
+        if self._meta_computer is not None and meta_store is not None:
+            features = self._append_meta_features(features, symbol, timestamp, meta_store)
+
         features["symbol"] = symbol
         features["computed_at"] = timestamp
         return features
+
+    def _append_meta_features(
+        self,
+        features: pd.DataFrame,
+        symbol: str,
+        timestamp: int,
+        meta_store: DataStore,
+    ) -> pd.DataFrame:
+        """Append funding/OI features with as-of join at ``timestamp``."""
+        funding = meta_store.query_funding_rates(symbol, end=timestamp)
+        oi = meta_store.query_open_interest(symbol, end=timestamp)
+        computer = self._meta_computer
+        if computer is None:
+            return features
+        out = computer.compute_meta_features(features, funding, oi)
+        if "timestamp" not in out.columns and "timestamp" in features.columns:
+            out["timestamp"] = features["timestamp"]
+        return out
 
     def save_features(self, symbol: str, features: pd.DataFrame) -> None:
         """Persist computed features to Parquet."""

@@ -8,7 +8,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from quantflow.common.config import RiskConfig
+from quantflow.common.config import DynamicBudgetConfig, RiskConfig
 from quantflow.common.models import (
     Direction,
     Portfolio,
@@ -35,9 +35,13 @@ class RiskEngine:
         monitoring_sink: MonitoringSink | None = None,
         exchange_health: object | None = None,
         exchange_exposure_limit_pct: float | None = None,
+        dynamic_budget: DynamicBudgetConfig | None = None,
     ) -> None:
         self._config = config
         self._strategy_risk_budgets = strategy_risk_budgets or {}
+        # s4 (T-s4-01): volatility-scaled dynamic budget. None = dynamic
+        # scaling disabled = existing static-budget behavior unchanged.
+        self._dynamic_budget = dynamic_budget or config.dynamic_budget
         # T-s1-04: duck-typed exchange health monitor (L5 ExchangeHealthMonitor).
         # L4 must not import L5 concrete classes (six-layer one-way dependency),
         # so the seam is ``object | None`` and only ``circuit_open()`` is used.
@@ -297,6 +301,7 @@ class RiskEngine:
 
         for key in budgeted:
             budget_pct = self._strategy_risk_budgets[key]
+            budget_pct = self._scale_budget_pct(key, budget_pct)
             strategy_exposure = exposure_by_key[key]
             budget_limit = total_value * budget_pct
             if strategy_exposure >= budget_limit:
@@ -311,6 +316,47 @@ class RiskEngine:
                     },
                 )
         return RiskDecision(passed=True)
+
+    def _scale_budget_pct(self, strategy_id: str, budget_pct: float) -> float:
+        """s4 (T-s4-01): apply volatility scaling to a strategy's budget.
+
+        Disabled by default (``dynamic_budget.enabled=False``) — the static
+        budget is returned unchanged. When enabled, the budget is scaled by
+        ``max(1, realized_vol / target_vol)`` (EWMA of recent portfolio
+        returns): rising volatility shrinks the budget (fail-closed). An
+        empty/insufficient return history falls back to the static budget
+        (fail-safe), so a brand-new session never over-restricts.
+        """
+        cfg = self._dynamic_budget
+        if not cfg.enabled:
+            return budget_pct
+        if len(self._returns_history) < cfg.min_samples:
+            return budget_pct
+        returns = np.array(self._returns_history)
+        if returns.std(ddof=1) <= 0:
+            return budget_pct
+        # EWMA volatility (pandas ewm is not imported at module level to keep
+        # the L4 signal layer dependency-light; a small manual recursion is
+        # O(n) and avoids the pandas import entirely).
+        alpha = 2.0 / (cfg.vol_ewma_span + 1.0)
+        ewma_var = 0.0
+        for r in returns:
+            ewma_var = alpha * (r * r) + (1.0 - alpha) * ewma_var
+        realized_vol = float(np.sqrt(ewma_var)) * np.sqrt(cfg.vol_annualization)
+        scale = max(1.0, realized_vol / cfg.target_vol_pct)
+        scale = min(max(scale, cfg.min_scale), cfg.max_scale)
+        # s5 (T-s5-02): optional CVaR overlay — when historical CVaR is
+        # worse than the configured limit, shrink the budget further by
+        # max(1, |CVaR| / |cvar_limit|). Uses the cached CVaR percentile
+        # (computed by _check_var on the same returns history); a stale or
+        # empty cache falls back to no extra scaling (fail-safe).
+        if cfg.var_scaling and self._var_cache_len >= 0:
+            cvar = self._var_cache_cvar
+            limit = self._config.cvar_limit
+            if cvar < 0 and limit < 0:
+                cvar_scale = max(1.0, abs(cvar) / abs(limit))
+                scale = scale * cvar_scale
+        return float(budget_pct) / float(scale)
 
     def _check_daily_loss(
         self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None

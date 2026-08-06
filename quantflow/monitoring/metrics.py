@@ -103,6 +103,29 @@ POSITIONS_COUNT = Gauge(
     "Number of open positions",
 )
 
+# s4 (T-s4-05): strategy-level PnL split (realized + unrealized attribution)
+# and budget utilization. Fed by MonitoringSink.record_strategy_pnl; strategy
+# granularity matches the strategy_id labels already on signal/order metrics.
+STRATEGY_PNL = Gauge(
+    "quantflow_strategy_pnl",
+    "Cumulative PnL by strategy (realized + unrealized attribution)",
+    ["strategy_id"],
+)
+
+STRATEGY_BUDGET_UTILIZATION = Gauge(
+    "quantflow_strategy_budget_utilization",
+    "Strategy budget utilization fraction (exposure / budget limit)",
+    ["strategy_id"],
+)
+
+# s5 follow-up: portfolio-level allocation weights (risk-parity / min-variance).
+# Fed by MonitoringSink.record_portfolio_allocation after each rebalance.
+PORTFOLIO_ALLOCATION = Gauge(
+    "quantflow_portfolio_allocation",
+    "Portfolio allocation weight by strategy (rebalanced)",
+    ["strategy_id"],
+)
+
 # Histograms
 ORDER_LATENCY = Histogram(
     "quantflow_order_latency_seconds",

@@ -1,0 +1,27 @@
+metadata:
+  title: "Spot-Perp Arbitrage (prototype)"
+  description: "Funding-rate extreme symmetric spot-perp prototype — synthetic-data validated only (s4 T-s4-04)"
+
+param_space:
+  entry_threshold: [0.0005, 0.002]
+  exit_threshold: [0.0001, 0.0005]
+  oi_lookback: [2, 6]
+  oi_change_threshold: [0.02, 0.1]
+
+# spot-perp 对称性原型配置（s4 T-s4-04）
+#
+# 研究原型：仅合成数据验证信号逻辑（真实 funding/OI 覆盖受限，见 s4 analyze F7）。
+# 不构成交易建议；on_bar 事件路径暂不接线（先验证向量化逻辑）。
+#
+# 信号设计：funding rate 极值 + OI 变化确认 → 对称信号对
+#   - funding < -entry_threshold 且 |OI 变化| > 阈值 → long perp / short spot
+#   - funding > +entry_threshold 且 |OI 变化| > 阈值 → short perp / long spot
+#   - funding 回到中性带（±exit_threshold）→ 离场
+strategy:
+  name: "spot_perp_arb"
+  enabled: false                       # 默认关闭（原型，不参与实盘）
+  params:
+    entry_threshold: 0.001             # 入场 funding 绝对值阈值（1bp 小时费率）
+    exit_threshold: 0.0003             # 离场 funding 中性带（0.3bp）
+    oi_lookback: 3                     # OI 变化回看 bar 数
+    oi_change_threshold: 0.05          # OI 变化确认阈值（5%）

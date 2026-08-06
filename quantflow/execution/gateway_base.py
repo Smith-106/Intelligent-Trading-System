@@ -14,10 +14,10 @@ from quantflow.common.models import Order, Position
 
 class OpenOrder:
     """Lightweight representation of an open order from exchange side.
-    
+
     Used by ReconciliationEngine to detect orphan orders (ISS-20260720-004).
     """
-    
+
     def __init__(
         self,
         id: str,
@@ -37,7 +37,7 @@ class OpenOrder:
         self.filled_amount = filled_amount
         self.status = status
         self.timestamp = timestamp
-    
+
     def __repr__(self) -> str:
         return f"OpenOrder(id={self.id}, symbol={self.symbol}, status={self.status})"
 
@@ -116,21 +116,21 @@ class GatewayBase(ABC):
     @abstractmethod
     async def query_open_orders(self, symbol: str) -> list[OpenOrder]:
         """Query currently open orders from exchange side.
-        
+
         ISS-20260720-004 (Reconciliation): This method enables detection of
         orphan orders — orders that exist on the exchange but are not tracked
         locally. Without this capability, position drift can accumulate silently.
-        
+
         Args:
             symbol: Trading pair to query (e.g., "BTC/USDT")
-        
+
         Returns:
             List of OpenOrder objects for all open orders on exchange side.
             Empty list if no open orders exist.
-        
+
         Raises:
             GatewayError: If query fails (network error, API error, etc.)
-        
+
         Implementation Notes:
             - OKXGateway: Use CCXT's fetch_open_orders() method
             - PaperGateway: Return locally tracked pending orders

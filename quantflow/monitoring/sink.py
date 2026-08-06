@@ -29,9 +29,12 @@ from quantflow.monitoring.metrics import (
     ORDERS_FILLED,
     ORDERS_TIMED_OUT,
     ORDERS_TOTAL,
+    PORTFOLIO_ALLOCATION,
     RISK_EVENTS,
     SIGNAL_PROCESSING_LATENCY,
     SIGNALS_GENERATED,
+    STRATEGY_BUDGET_UTILIZATION,
+    STRATEGY_PNL,
     start_metrics_server,
     update_portfolio_metrics,
 )
@@ -145,6 +148,20 @@ class DefaultMonitoringSink:
         # L5 order_manager seam (ISS-20260723-011 OBS-M): stale-order churn
         # counter — orders that exceeded the watchdog window and were cancelled.
         ORDERS_TIMED_OUT.labels(symbol=symbol, side=side).inc()
+
+    def record_strategy_pnl(self, strategy_id: str, pnl: float, budget_utilization: float | None = None) -> None:
+        # s4 (T-s4-05): strategy-level PnL attribution + budget utilization.
+        # Strategy granularity matches the strategy_id labels on signal/order
+        # metrics, so a single Grafana strategy panel can join them.
+        STRATEGY_PNL.labels(strategy_id=strategy_id).set(float(pnl))
+        if budget_utilization is not None:
+            STRATEGY_BUDGET_UTILIZATION.labels(strategy_id=strategy_id).set(float(budget_utilization))
+
+    def record_portfolio_allocation(self, weights: dict[str, float]) -> None:
+        # s5 follow-up: per-strategy allocation weight gauge, updated after
+        # each rebalance. Best-effort — a sink must never raise.
+        for strategy_id, w in weights.items():
+            PORTFOLIO_ALLOCATION.labels(strategy_id=strategy_id).set(float(w))
 
     async def send_alert(
         self,

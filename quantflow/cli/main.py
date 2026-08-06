@@ -500,8 +500,8 @@ def validate(
         from quantflow.strategy.validation.lookahead import scan_strategy
 
         console.print("[bold blue]Running static look-ahead leak scan on generate_signals...[/]")
-        report = scan_strategy(strategy_instance)
-        _display_lookahead(report)
+        lookahead_report = scan_strategy(strategy_instance)
+        _display_lookahead(lookahead_report)
         store.close()
         return
 
@@ -509,8 +509,8 @@ def validate(
         from quantflow.strategy.validation.recursive import scan_recursive
 
         console.print("[bold blue]Running recursive indicator dependency scan...[/]")
-        report = scan_recursive(type(strategy_instance))
-        _display_recursive(report)
+        recursive_report = scan_recursive(type(strategy_instance))
+        _display_recursive(recursive_report)
         store.close()
         return
 
@@ -1052,20 +1052,42 @@ def station(
 @app.command()
 def ai(
     action: str = typer.Argument(
-        "rdagent", help="AI action: 'rdagent' (Qlib RD-Agent factor mining)"
+        "rdagent",
+        help=(
+            "AI action: 'rdagent' (factor mining), 'research' (discovery→IC), "
+            "'train' (train→validate), 'register' (gated registration)"
+        ),
     ),
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol for factor evaluation"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
+    model_id: str = typer.Option("", help="Model id for 'register' action"),
+    registry_dir: str = typer.Option("", help="Model registry dir override"),
+    features_csv: str = typer.Option("", help="CSV path with feature columns for 'train'"),
+    close_csv: str = typer.Option("", help="CSV path with 'close' column for 'train'"),
 ) -> None:
-    """Run AI-layer workflows (Qlib RD-Agent factor mining).
+    """Run AI-layer workflows (RD-Agent factor mining / train / register).
 
     Examples:
         quantflow ai rdagent --symbol BTC/USDT
+        quantflow ai research --symbol BTC/USDT
+        quantflow ai train --symbol BTC/USDT
+        quantflow ai register --model-id model-xxx
     """
-    if action != "rdagent":
-        console.print(f"[red]Unknown AI action: {action}. Available: rdagent[/]")
-        return
+    if action == "rdagent" or action == "research":
+        _ai_factor_mining(action, symbol, config)
+    elif action == "train":
+        _ai_train(symbol, config, features_csv, close_csv)
+    elif action == "register":
+        _ai_register(model_id, config, registry_dir)
+    else:
+        console.print(
+            f"[red]Unknown AI action: {action}. "
+            "Available: rdagent, research, train, register[/]"
+        )
 
+
+def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
+    """Factor discovery (rdagent) or discovery→IC pipeline (research)."""
     from quantflow.data.store import DataStore
     from quantflow.strategy.rd_agent import QlibNotAvailableError, RDAgentRunner
 
@@ -1087,7 +1109,7 @@ def ai(
         if "datetime" in df.columns:
             df = df.set_index("datetime")
 
-        console.print(f"[bold blue]Running RD-Agent factor mining on {symbol}[/]")
+        console.print(f"[bold blue]Running factor mining on {symbol}[/]")
         try:
             factors = runner.discover_factors(df)
         except QlibNotAvailableError as e:
@@ -1115,6 +1137,109 @@ def ai(
         )
     finally:
         store.close()
+
+
+def _ai_train(
+    symbol: str,
+    config: str,
+    features_csv: str = "",
+    close_csv: str = "",
+) -> None:
+    """Train an AI model from features + close and run the validation gate."""
+    import pandas as pd
+
+    from quantflow.strategy.ai_training import AITrainingPipeline
+
+    cfg = _load(config)
+    if features_csv and close_csv:
+        features = pd.read_csv(features_csv)
+        close = pd.read_csv(close_csv)["close"]
+        console.print(f"[bold blue]Training from CSVs ({len(features)} rows)[/]")
+    else:
+        from quantflow.data.feature_store import FeatureStore
+        from quantflow.data.store import DataStore
+        from quantflow.indicators.engine import IndicatorEngine
+
+        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+        try:
+            df = store.query(symbol)
+            if df.empty:
+                console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+                return
+            engine = IndicatorEngine()
+            fs = FeatureStore(cfg.data.parquet_dir, indicator_computer=engine)
+            features = fs.compute_features(symbol, int(df["timestamp"].max()), [], store)
+            close = df["close"]
+            console.print(f"[bold blue]Training on {symbol} ({len(features)} feature rows)[/]")
+        finally:
+            store.close()
+
+    if "timestamp" in features.columns and "close" not in features.columns:
+        features = features.drop(columns=["timestamp", "symbol", "computed_at"], errors="ignore")
+
+    pipe = AITrainingPipeline(validation_kwargs={"cpcv_groups": 4, "cpcv_test_groups": 1, "wfo_windows": 3})
+    report = pipe.train(features, close, None, n_estimators=50, max_depth=3)
+
+    # Persist the training report so 'ai register --model-id <id>' can consume it.
+    import json
+    from pathlib import Path
+
+
+    model_id = f"model-{report.features_hash}"
+    report_dir = Path("data/ai_reports")
+    report_dir.mkdir(parents=True, exist_ok=True)
+    report_path = report_dir / f"{model_id}.json"
+    report_payload = report.to_dict()
+    report_payload["model_id"] = model_id
+    report_path.write_text(json.dumps(report_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    verdict = "[green]GO[/]" if report.decision == "GO" else "[red]NO-GO[/]"
+    console.print(f"\n[bold]Validation gate: {verdict}[/]")
+    console.print(f"  reason: {report.reason}")
+    console.print(f"  samples: {report.n_samples} · features_hash: {report.features_hash}")
+    console.print(f"  model: {report.model_cls}")
+    console.print(f"  model_id: {model_id} (use 'ai register --model-id {model_id}')")
+    if report.feature_importance:
+        top = list(report.feature_importance.items())[:5]
+        console.print("  top features: " + ", ".join(f"{k}={v:.3f}" for k, v in top))
+
+
+def _ai_register(model_id: str, config: str, registry_dir: str = "") -> None:
+    """Register a trained model (fail-closed: only GO reports register)."""
+    import json
+    from pathlib import Path
+
+    from quantflow.strategy.model_registry import ModelRegistry
+
+    cfg = _load(config)
+    reg_dir = registry_dir or cfg.ai.registry_dir
+    if not model_id:
+        console.print("[red]--model-id is required for 'register' action[/]")
+        return
+
+    # Locate the latest training report (from 'train' action output dir).
+    report_path = Path("data/ai_reports") / f"{model_id}.json"
+    if not report_path.exists():
+        # Fall back: any registry-style JSON with decision in registry dir.
+        candidates = sorted(Path(reg_dir).glob(f"{model_id}.json"))
+        if candidates:
+            report_path = candidates[-1]
+    if not report_path.exists():
+        console.print(f"[red]No training report found for {model_id}. Run 'ai train' first.[/]")
+        return
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    reg = ModelRegistry(reg_dir)
+    entry = reg.register(
+        model_id=model_id,
+        model_cls=str(report.get("model_cls", "unknown")),
+        features_hash=str(report.get("features_hash", "")),
+        validation_report=report.get("validation", report),
+    )
+    color = "green" if entry["status"] == "paper" else "red"
+    console.print(f"[{color}]model {model_id} status={entry['status']}[/]")
+    console.print(f"  reason: {entry.get('reason', '')}")
+
 
 
 @app.command()

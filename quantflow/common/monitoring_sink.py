@@ -150,6 +150,23 @@ class MonitoringSink(Protocol):
         """
         ...
 
+    def record_strategy_pnl(self, strategy_id: str, pnl: float, budget_utilization: float | None = None) -> None:
+        """s4 (T-s4-05): push strategy-level PnL + budget utilization.
+
+        Used by L4/TradingSession for the strategy-factory monitoring split
+        (strategy PnL attribution, budget utilization panel).
+        """
+        ...
+
+    def record_portfolio_allocation(self, weights: dict[str, float]) -> None:
+        """s5 follow-up: push rebalanced portfolio allocation weights.
+
+        Used by TradingSession after each risk-parity / min-variance
+        rebalance so the allocation is observable (per-strategy gauge).
+        Best-effort like every sink method — must never raise.
+        """
+        ...
+
     async def send_alert(
         self,
         message: str,
@@ -221,6 +238,12 @@ class NullMonitoringSink:
         """No-op."""
 
     def record_order_timed_out(self, symbol: str, side: str) -> None:
+        """No-op."""
+
+    def record_strategy_pnl(self, strategy_id: str, pnl: float, budget_utilization: float | None = None) -> None:
+        """No-op."""
+
+    def record_portfolio_allocation(self, weights: dict[str, float]) -> None:
         """No-op."""
 
     async def send_alert(

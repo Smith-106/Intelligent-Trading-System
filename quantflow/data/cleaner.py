@@ -34,9 +34,12 @@ def clean_ohlcv(
 
     df = df.copy()
 
-    # Ensure timestamp column is datetime
+    # Ensure timestamp column is datetime. CCXT returns epoch-MILLISECOND ints;
+    # without unit="ms" pandas interprets them as nanoseconds (values collapse
+    # into 1970). The stored 1d partitions keep int64 ms timestamps; the 1h
+    # download path goes through this conversion, so the unit matters.
     if "timestamp" in df.columns and not pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
-        df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
     if "datetime" in df.columns and not pd.api.types.is_datetime64_any_dtype(df["datetime"]):
         df["datetime"] = pd.to_datetime(df["datetime"], utc=True)
 

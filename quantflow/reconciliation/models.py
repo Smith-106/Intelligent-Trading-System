@@ -14,7 +14,7 @@ from typing import Any
 
 class DiscrepancyType(Enum):
     """Types of discrepancies that can be detected during reconciliation."""
-    
+
     POSITION_MISMATCH = "position_mismatch"
     ORPHAN_POSITION_LOCAL = "orphan_position_local"
     ORPHAN_POSITION_EXCHANGE = "orphan_position_exchange"
@@ -26,14 +26,14 @@ class DiscrepancyType(Enum):
 @dataclass
 class PositionSnapshot:
     """Snapshot of portfolio positions at a point in time.
-    
+
     Used to capture state before/after reconciliation for comparison.
     """
-    
+
     positions: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.utcnow)
     source: str = "unknown"  # "local" or "exchange"
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -41,7 +41,7 @@ class PositionSnapshot:
             "timestamp": self.timestamp.isoformat(),
             "source": self.source,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PositionSnapshot:
         """Create from dictionary."""
@@ -55,29 +55,29 @@ class PositionSnapshot:
 @dataclass
 class Discrepancy:
     """A single discrepancy detected during reconciliation.
-    
+
     Represents a difference between local state and exchange state.
     """
-    
+
     type: DiscrepancyType
     symbol: str
     local_value: float | None = None
     exchange_value: float | None = None
     details: dict[str, Any] = field(default_factory=dict)
     detected_at: datetime = field(default_factory=datetime.utcnow)
-    
+
     @property
     def severity_score(self) -> float:
         """Calculate severity score (0-1) based on discrepancy magnitude."""
         if self.local_value is None or self.exchange_value is None:
             return 1.0  # Orphan positions are high severity
-        
+
         if self.local_value == 0:
             return 1.0 if self.exchange_value != 0 else 0.0
-        
+
         relative_diff = abs(self.local_value - self.exchange_value) / abs(self.local_value)
         return min(relative_diff, 1.0)
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -94,33 +94,32 @@ class Discrepancy:
 @dataclass
 class DiscrepancySet:
     """Collection of discrepancies detected in a reconciliation run.
-    
+
     Provides aggregate metrics and filtering capabilities.
     """
-    
+
     items: list[Discrepancy] = field(default_factory=list)
     total_discrepancies: int = 0
     max_severity: float = 0.0
     total_value_at_risk: float = 0.0
-    
+
     def __post_init__(self) -> None:
         """Calculate aggregate metrics after initialization."""
         self.total_discrepancies = len(self.items)
         if self.items:
             self.max_severity = max(d.severity_score for d in self.items)
             self.total_value_at_risk = sum(
-                abs(d.local_value or 0) + abs(d.exchange_value or 0)
-                for d in self.items
+                abs(d.local_value or 0) + abs(d.exchange_value or 0) for d in self.items
             )
-    
+
     def filter_by_type(self, discrepancy_type: DiscrepancyType) -> list[Discrepancy]:
         """Filter discrepancies by type."""
         return [d for d in self.items if d.type == discrepancy_type]
-    
+
     def filter_by_severity(self, min_severity: float) -> list[Discrepancy]:
         """Filter discrepancies by minimum severity score."""
         return [d for d in self.items if d.severity_score >= min_severity]
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -134,10 +133,10 @@ class DiscrepancySet:
 @dataclass
 class DailyReconReport:
     """Complete report from a daily reconciliation run.
-    
+
     Contains snapshots, discrepancies, and metadata for audit purposes.
     """
-    
+
     local_snapshot: PositionSnapshot
     exchange_snapshot: PositionSnapshot
     discrepancies: DiscrepancySet
@@ -146,17 +145,17 @@ class DailyReconReport:
     duration_seconds: float = 0.0
     status: str = "completed"  # "completed", "failed", "partial"
     error_message: str | None = None
-    
+
     @property
     def has_critical_issues(self) -> bool:
         """Check if report contains critical discrepancies."""
         return self.discrepancies.max_severity > 0.8
-    
+
     @property
     def passed(self) -> bool:
         """Check if reconciliation passed (no critical issues)."""
         return not self.has_critical_issues and self.status == "completed"
-    
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -171,7 +170,7 @@ class DailyReconReport:
             "has_critical_issues": self.has_critical_issues,
             "passed": self.passed,
         }
-    
+
     def summary(self) -> str:
         """Generate human-readable summary."""
         status_icon = "✅" if self.passed else "❌"

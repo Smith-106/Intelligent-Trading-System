@@ -6,12 +6,20 @@ Python importable module inside qlib — it ships its own CLI and requires an
 LLM backend. qlib itself (the runtime it drives) is an optional ``[ml]``
 extra in this project.
 
-This module provides a callable skeleton so the CLI can expose
+This module provides a callable runner so the CLI can expose
 ``quantflow ai rdagent`` today. When qlib is not installed, calls fail fast
 with a clear install hint instead of crashing at import time. When qlib IS
 installed, ``discover_factors`` runs a qlib Alpha158 workflow as a baseline
-factor evaluation path — a placeholder that can later be swapped for a real
-RD-Agent CLI invocation once the rdagent tool + LLM key are configured.
+factor evaluation path.
+
+Since wave2 (s3-ai-research-pipeline), ``discover_factors`` prefers a real
+RD-Agent CLI invocation (subprocess, list args — never ``shell=True``): the
+LLM-driven factor search runs out-of-process via the ``rdagent`` executable
+with LLM credentials read from the environment (OPENAI_API_KEY /
+LITELLM_API_KEY / CHAT_MODEL). When the CLI is missing, LLM credentials are
+absent, or the invocation fails/times out, the runner degrades to the
+built-in baseline evaluation with an explicit warning log — never a silent
+empty result (fail-closed).
 
 Design follows the same lazy-import + graceful-degradation pattern as
 ``strategy/sentiment.py``.
@@ -19,8 +27,13 @@ Design follows the same lazy-import + graceful-degradation pattern as
 
 from __future__ import annotations
 
+import json
 import logging
+import os
+import shutil
+import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
 import pandas as pd
 
@@ -47,24 +60,41 @@ class RDAgentConfig:
             (blueprint E13-S1 acceptance: 5+ factors with IC > 0.03).
         min_selected: target number of selected factors.
         forecast_horizon: forward-return horizon (bars) for IC evaluation.
+        llm_backend: LLM backend name (default ``litellm``, the RD-Agent
+            default; OpenAI-compatible endpoints are accepted).
+        chat_model: chat model name; empty falls back to the CHAT_MODEL
+            environment variable.
+        llm_api_base: LLM API endpoint override; empty falls back to
+            OPENAI_API_BASE env.
+        llm_timeout_seconds: per-LLM-call timeout.
+        cli_timeout_seconds: rdagent CLI process timeout.
     """
 
     ic_threshold: float = 0.03
     min_selected: int = 5
     forecast_horizon: int = 5
     qlib_provider_uri: str = ""  # set to a qlib data dir to init qlib
+    llm_backend: str = "litellm"
+    chat_model: str = ""
+    llm_api_base: str = ""
+    llm_timeout_seconds: float = 300.0
+    cli_timeout_seconds: float = 600.0
 
 
 class QlibNotAvailableError(RuntimeError):
     """Raised when qlib is required but not installed."""
 
 
+class RDAgentCliUnavailableError(RuntimeError):
+    """Raised when the rdagent CLI executable is required but missing."""
+
+
 class RDAgentRunner:
     """Run Qlib RD-Agent factor mining.
 
     This is the integration boundary between QuantFlow and the Qlib/RD-Agent
-    ecosystem. It is deliberately thin: QuantFlow owns the data + signal
-    pipeline; qlib/RD-Agent owns the factor search.
+ecosystem. It is deliberately thin: QuantFlow owns the data + signal
+pipeline; qlib/RD-Agent owns the factor search.
 
     Usage::
 
@@ -79,6 +109,9 @@ class RDAgentRunner:
         "  RD-Agent tool itself:  https://github.com/microsoft/rdagent\n"
         '  Then initialize qlib data:  python -c "import qlib; qlib.init(provider_uri=<data_dir>)"'
     )
+
+    #: Environment variables consumed for LLM credentials (never logged).
+    LLM_ENV_KEYS = ("OPENAI_API_KEY", "LITELLM_API_KEY", "CHAT_MODEL", "OPENAI_API_BASE")
 
     def __init__(self, config: RDAgentConfig | None = None) -> None:
         self.config = config or RDAgentConfig()
@@ -97,8 +130,44 @@ class RDAgentRunner:
             return False, RDAgentRunner.INSTALL_HINT
         return True, ""
 
+    @staticmethod
+    def cli_available() -> tuple[bool, str]:
+        """Probe whether the rdagent CLI executable is on PATH."""
+        path = shutil.which("rdagent")
+        if path is None:
+            return False, (
+                "rdagent CLI not found on PATH. Install the RD-Agent tool:\n"
+                "  https://github.com/microsoft/rdagent\n"
+                "Then ensure 'rdagent' is on PATH for subprocess invocation."
+            )
+        return True, path
+
+    def _llm_config_from_env(self) -> dict[str, str] | None:
+        """Build LLM config from environment; None when no usable credentials.
+
+        Returns:
+            dict with backend/model/base keys, or None when neither
+            OPENAI_API_KEY nor LITELLM_API_KEY is set (triggers degradation
+            to the baseline path).
+        """
+        api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("LITELLM_API_KEY")
+        if not api_key:
+            return None
+        model = self.config.chat_model or os.environ.get("CHAT_MODEL", "")
+        base = self.config.llm_api_base or os.environ.get("OPENAI_API_BASE", "")
+        return {
+            "backend": self.config.llm_backend or "litellm",
+            "model": model,
+            "api_base": base,
+        }
+
     def discover_factors(self, df: pd.DataFrame) -> list[DiscoveredFactor]:
         """Discover/evaluate factors via the Qlib RD-Agent pipeline.
+
+        Preference order:
+        1. Real RD-Agent CLI invocation (LLM-driven factor search) when the
+           CLI is on PATH and LLM credentials exist.
+        2. Built-in Alpha158-style baseline evaluation otherwise.
 
         Args:
             df: OHLCV DataFrame (must contain ``close``; indexed by datetime).
@@ -119,11 +188,132 @@ class RDAgentRunner:
             logger.warning("discover_factors: empty DataFrame or missing 'close' column")
             return []
 
+        # Real CLI path first: LLM-driven factor search out-of-process.
+        cli_ok, _ = self.cli_available()
+        llm_cfg = self._llm_config_from_env()
+        if cli_ok and llm_cfg is not None:
+            try:
+                cli_factors = self._run_rdagent_cli(df)
+                if cli_factors:
+                    logger.info(
+                        "RD-Agent CLI factor search returned %d factors", len(cli_factors)
+                    )
+                    return cli_factors
+            except RDAgentCliUnavailableError as e:
+                logger.warning("RD-Agent CLI unavailable, degrading to baseline: %s", e)
+            except subprocess.TimeoutExpired:
+                logger.warning(
+                    "RD-Agent CLI timed out after %.0fs, degrading to baseline",
+                    self.config.cli_timeout_seconds,
+                )
+            except (OSError, ValueError) as e:
+                logger.warning("RD-Agent CLI failed, degrading to baseline: %s", e)
+        elif not cli_ok:
+            logger.info(
+                "RD-Agent CLI not available — using built-in baseline evaluation"
+            )
+        else:
+            logger.info(
+                "No LLM credentials in environment (OPENAI_API_KEY/LITELLM_API_KEY) — "
+                "using built-in baseline evaluation"
+            )
+
         # Baseline path: evaluate Alpha158-style factors via qlib workflow.
-        # This is a real, working qlib integration (not a mock) that produces
-        # IC scores. A full RD-Agent LLM-driven factor search is a future
-        # enhancement layered on top of this qlib runtime — see blueprint E13-S1.
         return self._evaluate_alpha158_factors(df)
+
+    def _run_rdagent_cli(self, df: pd.DataFrame) -> list[DiscoveredFactor]:
+        """Invoke the rdagent CLI out-of-process and parse its JSON output.
+
+        Uses subprocess with a list argument vector (never ``shell=True``) to
+        avoid shell injection from data or LLM-derived strings. The DataFrame
+        is written to a temp CSV that the CLI consumes via --data; results are
+        read back from --output JSON.
+
+        Args:
+            df: OHLCV DataFrame (must contain ``close``).
+
+        Returns:
+            Parsed DiscoveredFactor list (may be empty).
+
+        Raises:
+            RDAgentCliUnavailableError: CLI missing.
+            subprocess.TimeoutExpired: CLI exceeded cli_timeout_seconds.
+        """
+        cli_ok, cli_path = self.cli_available()
+        if not cli_ok:
+            raise RDAgentCliUnavailableError(
+                "rdagent CLI not found on PATH; install RD-Agent tool to enable "
+                "LLM-driven factor search"
+            )
+
+        llm_cfg = self._llm_config_from_env()
+        if llm_cfg is None:
+            raise RDAgentCliUnavailableError(
+                "No LLM credentials in environment (OPENAI_API_KEY/LITELLM_API_KEY)"
+            )
+
+        # Write OHLCV to a temp CSV for the CLI (data hand-off boundary).
+        workdir = Path("data/rdagent_work")
+        workdir.mkdir(parents=True, exist_ok=True)
+        data_path = workdir / "ohlcv_input.csv"
+        out_path = workdir / "factors_output.json"
+        df.to_csv(data_path)
+
+        env = os.environ.copy()
+        env["LLM_BACKEND"] = llm_cfg["backend"]
+        if llm_cfg["model"]:
+            env["CHAT_MODEL"] = llm_cfg["model"]
+        if llm_cfg["api_base"]:
+            env["OPENAI_API_BASE"] = llm_cfg["api_base"]
+
+        cmd = [
+            cli_path,
+            "factor",
+            "--data",
+            str(data_path),
+            "--output",
+            str(out_path),
+            "--horizon",
+            str(self.config.forecast_horizon),
+            "--ic-threshold",
+            str(self.config.ic_threshold),
+        ]
+        # TimeoutExpired propagates to discover_factors (degrade to baseline).
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=self.config.cli_timeout_seconds,
+            env=env,
+            check=False,
+        )
+
+        if result.returncode != 0:
+            stderr_tail = (result.stderr or "").strip()[-500:]
+            raise ValueError(f"rdagent CLI exited {result.returncode}: {stderr_tail}")
+
+        try:
+            payload = json.loads(out_path.read_text(encoding="utf-8") or "[]")
+        except (json.JSONDecodeError, FileNotFoundError) as e:
+            raise ValueError(f"rdagent CLI output unreadable: {e}") from e
+
+        factors: list[DiscoveredFactor] = []
+        for item in payload if isinstance(payload, list) else []:
+            name = str(item.get("name", ""))
+            if not name:
+                continue
+            ic = float(item.get("ic", 0.0) or 0.0)
+            rank_ic = float(item.get("rank_ic", 0.0) or 0.0)
+            factors.append(
+                DiscoveredFactor(
+                    name=name,
+                    formula=str(item.get("formula", "")),
+                    ic=ic,
+                    rank_ic=rank_ic,
+                    selected=abs(ic) > self.config.ic_threshold,
+                )
+            )
+        return factors
 
     def _evaluate_alpha158_factors(self, df: pd.DataFrame) -> list[DiscoveredFactor]:
         """Evaluate a baseline factor set against forward returns.

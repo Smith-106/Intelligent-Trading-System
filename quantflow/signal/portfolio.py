@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import deque
 from dataclasses import dataclass
 from typing import Any
 
@@ -59,6 +60,10 @@ class PortfolioManager:
         # M4-5.1: pending exposure ledger. Maps order_id → PendingEntry.
         # Reserve before submit, confirm on fill, release on reject/timeout.
         self._pending: dict[str, PendingEntry] = {}
+        # s5 (T-s5-02): per-strategy return histories for risk-parity
+        # estimation. Populated only when the engine feeds add_strategy_return
+        # (portfolio optimization enabled); empty on the default path.
+        self._strategy_returns: dict[str, deque[float]] = {}
 
     # --- Core properties ---
 
@@ -251,8 +256,12 @@ class PortfolioManager:
         self._daily_baseline = baseline
 
     def set_allocation(self, allocation: dict[str, float]) -> None:
-        """Set target allocation weights per strategy."""
-        self._allocation = allocation
+        """Set target allocation weights per strategy.
+
+        s5 (T-s5-02): also called on every rebalance tick with the freshly
+        computed risk-parity weights — no longer a one-time static set.
+        """
+        self._allocation = dict(allocation)
 
     def get_strategy_allocation(self, strategy_id: str) -> float:
         """Get allocation weight for a strategy, or 0 if not set.
@@ -275,6 +284,55 @@ class PortfolioManager:
     @property
     def allocation(self) -> dict[str, float]:
         return self._allocation
+
+    # --- s5 (T-s5-02): per-strategy return tracking + budget utilization ---
+
+    def add_strategy_return(self, strategy_id: str, ret: float, window: int = 30) -> None:
+        """Record a realized per-strategy return for risk-parity estimation.
+
+        Isolated per strategy_id (deque maxlen=window) so one strategy's
+        history never pollutes another's volatility estimate. No-op effect
+        on the default path: the tracker is only consumed when
+        ``portfolio_optimization.enabled`` is true.
+        """
+        if not strategy_id:
+            return
+        bucket = self._strategy_returns.get(strategy_id)
+        if bucket is None:
+            bucket = deque(maxlen=max(window, 2))
+            self._strategy_returns[strategy_id] = bucket
+        bucket.append(float(ret))
+
+    def get_strategy_returns(self) -> dict[str, list[float]]:
+        """Snapshot of per-strategy return histories (optimizer input)."""
+        return {k: list(v) for k, v in self._strategy_returns.items()}
+
+    def budget_utilization(self) -> dict[str, dict[str, float]]:
+        """Per-strategy exposure vs allocation budget (s5 report).
+
+        Returns {strategy_id: {allocated_notional, exposure_notional,
+        utilization_pct}}. Utilization > 1.0 means the strategy's current
+        positions exceed its allocated budget share.
+        """
+        total_value = self.total_value
+        report: dict[str, dict[str, float]] = {}
+        exposure: dict[str, float] = {}
+        for pos in self._positions.values():
+            if pos.current_price <= 0:
+                continue
+            constituents = strategy_id_constituents(pos.strategy_id) or [pos.strategy_id]
+            pos_value = abs(pos.quantity) * pos.current_price
+            for c in constituents:
+                exposure[c] = exposure.get(c, 0.0) + pos_value
+        for key, weight in self._allocation.items():
+            allocated = total_value * weight
+            expo = exposure.get(key, 0.0)
+            report[key] = {
+                "allocated_notional": allocated,
+                "exposure_notional": expo,
+                "utilization_pct": expo / allocated if allocated > 0 else 0.0,
+            }
+        return report
 
     # --- Risk checks ---
 

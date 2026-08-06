@@ -40,29 +40,29 @@ class AlertLevel(StrEnum):
 
 class AlertCategory(StrEnum):
     """Enhanced alert categories for smart routing (G5)."""
-    
+
     # System/Infrastructure
     SYSTEM_HEALTH = "system_health"
     CONNECTIVITY = "connectivity"
     PERFORMANCE = "performance"
-    
+
     # Trading Operations
     EXECUTION_FAILURE = "execution_failure"
     ORDER_TIMEOUT = "order_timeout"
     RECONCILIATION_DRIFT = "reconciliation_drift"
     ORPHAN_ORDER = "orphan_order"
-    
+
     # Risk Management
     RISK_THRESHOLD = "risk_threshold"
     POSITION_LIMIT = "position_limit"
     DRAWDOWN_BREACH = "drawdown_breach"
     VAR_BREACH = "var_breach"
-    
+
     # Data Quality
     DATA_STALENESS = "data_staleness"
     DATA_ANOMALY = "data_anomaly"
     FEED_INTERRUPT = "feed_interrupt"
-    
+
     # Strategy
     SIGNAL_GENERATION = "signal_generation"
     STRATEGY_ERROR = "strategy_error"
@@ -70,7 +70,7 @@ class AlertCategory(StrEnum):
 
 class AlertPriority(StrEnum):
     """Alert priority levels for routing decisions (G5)."""
-    
+
     P0_EMERGENCY = "p0_emergency"  # Immediate page, trading halt
     P1_HIGH = "p1_high"  # Page within 5 minutes
     P2_MEDIUM = "p2_medium"  # Notify within 30 minutes
@@ -165,9 +165,7 @@ class AlertDeduplicator:
         now = time.time()
 
         # Prune expired entries
-        self._seen[alert_key] = [
-            t for t in self._seen[alert_key] if now - t < self._window
-        ]
+        self._seen[alert_key] = [t for t in self._seen[alert_key] if now - t < self._window]
 
         if self._seen[alert_key]:
             # Duplicate within window — suppress
@@ -288,7 +286,9 @@ class AlertManager:
         if not self._dedup.should_send(dedup_key):
             logger.debug(
                 "Alert suppressed (dedup): %s [%s/%s]",
-                dedup_key, category.value, priority.value,
+                dedup_key,
+                category.value,
+                priority.value,
             )
             return {}  # Suppressed
 

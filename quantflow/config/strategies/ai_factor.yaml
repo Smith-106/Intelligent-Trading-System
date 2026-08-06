@@ -1,0 +1,26 @@
+metadata:
+  title: "AI Factor"
+  description: "Registry-driven AI factor strategy — model P(up) gates momentum signals (s4 T-s4-03)"
+
+param_space:
+  fast_ma_period: [5, 20]
+  slow_ma_period: [20, 60]
+  ai_entry_threshold: [0.5, 0.7]
+  ai_exit_threshold: [0.3, 0.5]
+
+# AI 因子策略配置（s4 T-s4-03）：消费 s3 ModelRegistry 中 paper/live 模型
+# 的预测概率作为因子，与基础动量信号融合。
+#
+# 降级链：registry 无可用模型 / 模型类不在 allowlist / 预测失败 →
+# 纯动量信号（fail-open 于信号层）；registry 目录不可读 → 按无模型处理
+# （registry 访问本身 fail-closed，不抛异常）。
+strategy:
+  name: "ai_factor"
+  enabled: false                       # 默认关闭（registry 需先有 paper 模型）
+  params:
+    fast_ma_period: 10                 # 基础信号：快线 MA 周期
+    slow_ma_period: 30                 # 基础信号：慢线 MA 周期
+    ai_entry_threshold: 0.55           # AI 入场阈值：P(up) >= 阈值才顺势入场
+    ai_exit_threshold: 0.45            # AI 离场阈值：P(up) <= 阈值触发反向离场
+    registry_dir: "./data/models"      # s3 ModelRegistry 目录
+    model_id: null                     # null = 自动选择（live 优先，其次最新 paper）
