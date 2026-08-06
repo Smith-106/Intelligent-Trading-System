@@ -67,6 +67,14 @@ BASE_BACKOFF_S = 1.0
 CALL_TIMEOUT = 30.0
 #: Safety cap for history pagination loops (guards against endless paging).
 MAX_HISTORY_PAGES = 100
+#: OKX funding-rate-history single-page cap (endpoint max is 100; a larger
+#: requested limit is rejected with 51000 "Parameter limit error").
+FUNDING_HISTORY_PAGE_MAX = 100
+#: OKX rubik OI-volume: the endpoint returns the full begin..end window
+#: (1H ~= 720 rows) and ignores the limit for the response size, but ccxt
+#: slices the parsed rows by the ``limit`` argument — request a generous
+#: cap so the window is not truncated client-side.
+OI_HISTORY_PAGE_MAX = 1000
 
 FUNDING_HISTORY_COLUMNS = ["timestamp", "funding_rate", "realized_rate", "funding_time"]
 OI_HISTORY_COLUMNS = ["timestamp", "open_interest", "open_interest_ccy", "open_interest_usd"]
@@ -196,6 +204,12 @@ class MarketMetaFetcher:
             self._exchange = exchange
             logger.info("MarketMetaFetcher connected to OKX (meta endpoints)")
         except Exception as e:
+            # Close the local instance on failure — otherwise the aiohttp
+            # connector leaks (connect() raised before self._exchange was set).
+            try:
+                await exchange.close()
+            except Exception:  # pragma: no cover - best-effort cleanup
+                logger.debug("Meta fetcher close after connect failure", exc_info=True)
             raise GatewayConnectionError(f"Failed to connect meta fetcher: {e}") from e
 
     async def disconnect(self) -> None:
@@ -277,13 +291,16 @@ class MarketMetaFetcher:
         )
 
     async def fetch_funding_rate_history(
-        self, symbol: str, since_ms: int, limit: int = 400
+        self, symbol: str, since_ms: int, limit: int = 100
     ) -> pd.DataFrame:
-        """Backfill funding-rate history with limit=400 pagination.
+        """Backfill funding-rate history with limit pagination.
 
         OKX only serves ~3 months of funding history (analyze C2 locked);
         callers truncate ``since_ms`` accordingly. Rows are de-duplicated by
         timestamp (incremental replay safe) and non-finite rates dropped.
+
+        The page size is clamped to ``FUNDING_HISTORY_PAGE_MAX`` (100 — the
+        endpoint's hard cap; larger values are rejected with OKX 51000).
 
         Returns:
             DataFrame[timestamp, funding_rate, realized_rate, funding_time],
@@ -293,11 +310,18 @@ class MarketMetaFetcher:
         exchange = self._require_exchange()
         rows: dict[int, dict[str, Any]] = {}
         since = int(since_ms)
+        effective_limit = min(limit, FUNDING_HISTORY_PAGE_MAX)
         for _ in range(MAX_HISTORY_PAGES):
             page_since = since
 
             async def _call(s: int = page_since) -> Any:
-                return await exchange.fetchFundingRateHistory(symbol, s, {"limit": limit})
+                # fetchFundingRateHistory(symbol, since, limit, params) — the
+                # limit argument must be an int, not a params dict (the old
+                # spelling URL-encoded the dict into the limit query param,
+                # which OKX rejects with 51000).
+                return await exchange.fetchFundingRateHistory(
+                    symbol, s, effective_limit, {}
+                )
 
             page: list[dict[str, Any]] = await self._retry_call(
                 _call, f"fetch_funding_rate_history({symbol})"
@@ -320,7 +344,7 @@ class MarketMetaFetcher:
                     "funding_time": _to_int(info.get("fundingTime"), default=ts),
                 }
                 last_ts = max(last_ts, ts)
-            if len(page) < limit:
+            if len(page) < effective_limit:
                 break
             since = last_ts + 1
 
@@ -357,63 +381,77 @@ class MarketMetaFetcher:
         )
 
     async def fetch_open_interest_history(
-        self, symbol: str, period: str = "1H", since_ms: int = 0, limit: int = 100
+        self,
+        symbol: str,
+        period: str = "1H",
+        since_ms: int = 0,
+        limit: int = 100,
+        end_ms: int | None = None,
     ) -> pd.DataFrame:
-        """Backfill OI history (period>=1H keeps page count bounded).
+        """Backfill OI history via the OKX rubik contracts OI-volume endpoint.
 
-        Pagination: limit=100/page; advance ``since`` past the last
-        timestamp. De-duplicated by timestamp, non-finite OI dropped.
+        OKX requires the begin+end pair for this endpoint: begin-only or
+        end-only requests are rejected with 50030 "Illegal time range"
+        (verified against the live API). ccxt maps ``since`` -> ``begin`` and
+        the ``until`` params entry -> ``end``, so a windowed fetch must pass
+        both. The endpoint serves newest-first and caps coverage by period
+        (observed: 1H ~= recent 30 days, 1D ~= 180 days); a requested window
+        wider than the cap silently returns the accessible slice — the caller
+        should check the returned row span rather than assume full coverage.
 
         Returns:
             DataFrame[timestamp, open_interest, open_interest_ccy,
-            open_interest_usd] sorted by timestamp (ms int).
+            open_interest_usd] sorted by timestamp (ms int, ascending).
+            Empty frame keeps the column contract.
         """
         exchange = self._require_exchange()
         rows: dict[int, dict[str, Any]] = {}
-        since = int(since_ms) if since_ms else None
-        for _ in range(MAX_HISTORY_PAGES):
-            page_since = since
+        window_start = int(since_ms) if since_ms and since_ms > 0 else None
+        window_end = int(end_ms) if end_ms else int(time.time() * 1000)
+        effective_limit = max(limit, OI_HISTORY_PAGE_MAX)
 
-            async def _call(s: int | None = page_since) -> Any:
-                return await exchange.fetchOpenInterestHistory(
-                    symbol, period, s, limit, {}
-                )
-
-            page: list[dict[str, Any]] = await self._retry_call(
-                _call, f"fetch_open_interest_history({symbol})"
+        async def _call() -> Any:
+            params: dict[str, Any] = {"until": window_end} if window_start is not None else {}
+            return await exchange.fetchOpenInterestHistory(
+                symbol, period, window_start, effective_limit, params
             )
-            if not page:
-                break
-            last_ts = since or 0
-            for entry in page:
-                ts = _to_int(entry.get("timestamp"), default=-1)
-                if ts < 0:
-                    continue
-                info = entry.get("info") or {}
-                oi = _to_float(
-                    entry.get("openInterestAmount")
-                    or entry.get("openInterest")
-                    or info.get("oi"),
-                    math.nan,
-                )
-                rows[ts] = {
-                    "timestamp": ts,
-                    "open_interest": oi,
-                    "open_interest_ccy": _to_float(info.get("oiCcy"), math.nan),
-                    "open_interest_usd": _to_float(
-                        entry.get("openInterestUsd") or info.get("oiUsd"), math.nan
-                    ),
-                }
-                last_ts = max(last_ts, ts)
-            if len(page) < limit:
-                break
-            since = last_ts + 1
+
+        page: list[dict[str, Any]] = await self._retry_call(
+            _call, f"fetch_open_interest_history({symbol})"
+        )
+        for entry in page:
+            ts = _to_int(entry.get("timestamp"), default=-1)
+            if ts < 0:
+                continue
+            # ccxt rubik contracts OI-volume entries: the value lives in
+            # ``openInterestValue`` (USD); ``openInterestAmount`` (coin) is
+            # unset for contracts, and ``info`` is a raw LIST (no .get).
+            oi_amount = _to_float(entry.get("openInterestAmount"), math.nan)
+            if not math.isfinite(oi_amount):
+                oi_amount = _to_float(entry.get("openInterest"), math.nan)
+            oi_value = _to_float(entry.get("openInterestValue"), math.nan)
+            rows[ts] = {
+                "timestamp": ts,
+                "open_interest": oi_value if math.isfinite(oi_value) else oi_amount,
+                "open_interest_ccy": oi_amount,
+                "open_interest_usd": oi_value,
+            }
 
         if not rows:
             return pd.DataFrame(columns=OI_HISTORY_COLUMNS)
         df = pd.DataFrame(sorted(rows.values(), key=lambda r: r["timestamp"]))
         df = df[df["open_interest"].apply(math.isfinite)]
-        return df.reset_index(drop=True)
+        df = df.reset_index(drop=True)
+        if window_start is not None and len(df) and int(df["timestamp"].min()) > window_start:
+            logger.warning(
+                "OI coverage for %s %s starts at %d (requested %d) — OKX period "
+                "cap (1H ~= 30d, 1D ~= 180d)",
+                symbol,
+                period,
+                int(df["timestamp"].min()),
+                window_start,
+            )
+        return df
 
 
 # ---------------------------------------------------------------------------

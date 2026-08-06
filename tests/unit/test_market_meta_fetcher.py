@@ -32,7 +32,6 @@ from quantflow.data.market_meta_fetcher import (
     is_oi_fresh,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -67,8 +66,10 @@ class MockExchange:
         self.calls.append("fetchFundingRate")
         return self.funding_rate_response
 
-    async def fetchFundingRateHistory(self, symbol: str, since, params):
+    async def fetchFundingRateHistory(self, symbol: str, since, limit, params):
         self.calls.append("fetchFundingRateHistory")
+        self.last_funding_limit = limit
+        self.last_funding_params = params
         if self.funding_history_pages:
             return self.funding_history_pages.pop(0)
         return []
@@ -181,9 +182,7 @@ class TestRetryBackoff:
 class TestFundingRateSnapshot:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("interval_hours", [8, 6, 4, 2, 1])
-    async def test_settlement_interval_runtime_derived(
-        self, fake_clock, interval_hours: int
-    ):
+    async def test_settlement_interval_runtime_derived(self, fake_clock, interval_hours: int):
         """settlement_interval_ms = nextFundingTime - fundingTime (no 8h hardcode)."""
         funding_time = 1_700_000_000_000
         interval_ms = interval_hours * 3600 * 1000
@@ -205,17 +204,17 @@ class TestFundingRateSnapshot:
 
     @pytest.mark.asyncio
     async def test_history_pagination_advance_dedupe_and_filter(self, fake_clock):
-        """limit=400 pages advance by last_ts+1, dedupe, drop non-finite."""
+        """Pages advance by last_ts+1, dedupe, drop non-finite, clamp limit."""
         base = 1_700_000_000_000
-        page1 = [_funding_entry(base + i) for i in range(400)]
-        page2 = [_funding_entry(base + 400 + i) for i in range(99)]
+        page1 = [_funding_entry(base + i) for i in range(100)]
+        page2 = [_funding_entry(base + 100 + i) for i in range(49)]
         # Duplicate of an existing ts (replay) + a non-finite rate row.
         page2.append(_funding_entry(base + 5))
         page2.append({"timestamp": base + 900, "fundingRate": None, "info": {}})
 
         sinces: list[int] = []
 
-        async def paged_history(symbol: str, since, params):
+        async def paged_history(symbol: str, since, limit, params):
             sinces.append(since)
             return [page1, page2][len(sinces) - 1]
 
@@ -223,14 +222,31 @@ class TestFundingRateSnapshot:
         exchange.fetchFundingRateHistory = paged_history  # type: ignore[method-assign]
         fetcher = MarketMetaFetcher(DataConfig(), exchange=exchange)
 
-        df = await fetcher.fetch_funding_rate_history("BTC/USDT:USDT", since_ms=base)
+        # Requested limit 400 must be clamped to the endpoint cap (100).
+        df = await fetcher.fetch_funding_rate_history("BTC/USDT:USDT", since_ms=base, limit=400)
 
-        assert sinces == [base, base + 400]  # pagination advances past last ts
-        assert len(df) == 499  # 400 + 99 new; duplicate merged, NaN dropped
+        assert sinces == [base, base + 100]  # pagination advances past last ts
+        assert len(df) == 149  # 100 + 49 new; duplicate merged, NaN dropped
         assert list(df.columns) == mmf.FUNDING_HISTORY_COLUMNS
         assert df["timestamp"].is_monotonic_increasing
         assert df["timestamp"].is_unique
         assert df["funding_rate"].apply(math.isfinite).all()
+
+    @pytest.mark.asyncio
+    async def test_history_limit_clamped_to_endpoint_cap(self, fake_clock):
+        """The ccxt call receives an int limit clamped to 100, never a dict."""
+        base = 1_700_000_000_000
+        exchange = MockExchange()
+        exchange.funding_history_pages = [[_funding_entry(base + i) for i in range(50)]]
+        fetcher = MarketMetaFetcher(DataConfig(), exchange=exchange)
+
+        df = await fetcher.fetch_funding_rate_history("BTC/USDT:USDT", since_ms=base, limit=400)
+
+        assert len(df) == 50
+        assert exchange.last_funding_limit == 100  # clamped to OKX page cap
+        assert exchange.last_funding_params == {}  # params dict is separate
+        # The 4-arg call form must be what ccxt sees (int limit, dict params).
+        assert not isinstance(exchange.last_funding_limit, dict)
 
     @pytest.mark.asyncio
     async def test_history_empty_returns_column_contract(self, fake_clock):
@@ -265,39 +281,63 @@ class TestOpenInterest:
         assert snap.fetched_at_ms > 0
 
     @pytest.mark.asyncio
-    async def test_oi_history_pagination_period_1h(self, fake_clock):
+    async def test_oi_history_window_single_call_period_1h(self, fake_clock):
+        """Windowed OI: begin+end pair, single call, dedupe, ascending sort."""
         base = 1_700_000_000_000
-        page1 = [
-            {"timestamp": base + i * 3600_000, "openInterestAmount": 100.0 + i, "info": {}}
-            for i in range(100)
-        ]
-        page2 = [
-            {
-                "timestamp": base + (100 + i) * 3600_000,
-                "openInterestAmount": 200.0 + i,
-                "openInterestUsd": 1_000_000.0,
-                "info": {},
-            }
+        # Endpoint serves newest-first; include a duplicate + non-finite row.
+        page = [
+            {"timestamp": base + (50 + i) * 3600_000, "openInterestAmount": 200.0 + i, "info": {}}
             for i in range(50)
         ]
-        periods: list[str] = []
+        page += [
+            {"timestamp": base + i * 3600_000, "openInterestAmount": 100.0 + i, "info": {}}
+            for i in range(50)
+        ]
+        page.append({"timestamp": base + 5 * 3600_000, "openInterestAmount": 999.0, "info": {}})
+        page.append({"timestamp": base + 999 * 3600_000, "openInterestAmount": None, "info": {}})
+
+        calls: list[tuple] = []
 
         async def paged(symbol, timeframe, since, limit, params):
-            periods.append(timeframe)
-            return [page1, page2][0] if len(periods) == 1 else page2
+            calls.append((symbol, timeframe, since, limit, params))
+            return page
 
         exchange = MockExchange()
         exchange.fetchOpenInterestHistory = paged  # type: ignore[method-assign]
         fetcher = MarketMetaFetcher(DataConfig(), exchange=exchange)
 
         df = await fetcher.fetch_open_interest_history(
-            "BTC/USDT:USDT", period="1H", since_ms=base
+            "BTC/USDT:USDT", period="1H", since_ms=base, end_ms=base + 100 * 3600_000
         )
 
-        assert periods == ["1H", "1H"]
-        assert len(df) == 150
+        assert len(calls) == 1  # single begin+end window call, no paging
+        _, tf, since, _, params = calls[0]
+        assert tf == "1H"
+        assert since == base  # begin
+        assert params == {"until": base + 100 * 3600_000}  # end
+        assert len(df) == 100  # duplicate merged, NaN dropped
         assert list(df.columns) == mmf.OI_HISTORY_COLUMNS
-        assert df["timestamp"].is_monotonic_increasing
+        assert df["timestamp"].is_monotonic_increasing  # ascending sort
+        assert df["timestamp"].is_unique
+
+    @pytest.mark.asyncio
+    async def test_oi_history_no_since_omits_until(self, fake_clock):
+        """No window -> no begin/end (OKX rejects begin-only/end-only)."""
+        calls: list[tuple] = []
+
+        async def paged(symbol, timeframe, since, limit, params):
+            calls.append((since, params))
+            return []
+
+        exchange = MockExchange()
+        exchange.fetchOpenInterestHistory = paged  # type: ignore[method-assign]
+        fetcher = MarketMetaFetcher(DataConfig(), exchange=exchange)
+
+        df = await fetcher.fetch_open_interest_history("BTC/USDT:USDT")
+
+        assert df.empty
+        assert list(df.columns) == mmf.OI_HISTORY_COLUMNS
+        assert calls == [(None, {})]  # neither begin nor end
 
     @pytest.mark.asyncio
     async def test_no_websocket_calls_ever(self, fake_clock):
@@ -330,13 +370,16 @@ class TestFreshnessGates:
 
     def test_funding_fresh_within_window(self):
         snap = self._funding_snap(1_000_000)
-        assert is_funding_fresh(snap, now_ms=1_000_000 + 3600_000, settlement_interval_ms=8 * 3600_000)
+        assert is_funding_fresh(
+            snap, now_ms=1_000_000 + 3600_000, settlement_interval_ms=8 * 3600_000
+        )
 
     def test_funding_stale_beyond_factor(self):
         snap = self._funding_snap(1_000_000)
         # age = 2.5 x interval > 2 x interval -> stale (fail-closed)
         assert not is_funding_fresh(
-            snap, now_ms=1_000_000 + int(2.5 * 8 * 3600_000),
+            snap,
+            now_ms=1_000_000 + int(2.5 * 8 * 3600_000),
             settlement_interval_ms=8 * 3600_000,
         )
 

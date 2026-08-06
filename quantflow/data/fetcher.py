@@ -23,6 +23,15 @@ logger = logging.getLogger(__name__)
 
 TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"]
 
+# OKX kline API caps a single response at 300 bars regardless of the limit
+# param (ccxt truncates silently). Pagination must compare against this page
+# size, not the caller's limit.
+OKX_KLINE_PAGE_MAX = 300
+
+# Safety cap on pagination loops (defensive; 500 pages ≈ 150k bars per call
+# at the OKX page size — far beyond any realistic date window).
+MAX_PAGINATION_PAGES = 500
+
 # Per-call timeout for every CCXT network call (odyssey-improve GP2).
 # A bare ``await exchange.<method>`` has no timeout floor, so a TCP stall /
 # network partition hangs the data loop indefinitely — the same unbounded-hang
@@ -114,14 +123,34 @@ class DataFetcher:
         if start:
             since = self._exchange.parse8601(f"{start}T00:00:00Z")
 
+        # OKX kline API caps a single response at 300 bars regardless of the
+        # requested limit; ccxt silently truncates. The page-full test must
+        # therefore use the EXCHANGE page size, not the requested limit —
+        # otherwise a 300-bar page is mistaken for the last page and the
+        # loop exits after one fetch (only 300 bars downloaded).
+        effective_limit = min(limit, OKX_KLINE_PAGE_MAX)
+        end_ts = (
+            self._exchange.parse8601(f"{end}T23:59:59Z") if end else None
+        )
+
         all_bars: list[list[Any]] = []
+        pages = 0
         while True:
+            pages += 1
+            if pages > MAX_PAGINATION_PAGES:
+                logger.warning(
+                    "Pagination exceeded %d pages for %s/%s; stopping",
+                    MAX_PAGINATION_PAGES,
+                    symbol,
+                    timeframe,
+                )
+                break
             bars = await asyncio.wait_for(
                 self._exchange.fetch_ohlcv(
                     symbol,
                     timeframe,
                     since=since,
-                    limit=limit,
+                    limit=effective_limit,
                 ),
                 timeout=CALL_TIMEOUT,
             )
@@ -139,13 +168,17 @@ class DataFetcher:
                 break
             all_bars.extend(bars)
             last_ts = bars[-1][0]
-            if end:
-                end_ts = self._exchange.parse8601(f"{end}T23:59:59Z")
+            if end_ts is not None:
                 if last_ts >= end_ts:
                     all_bars = [b for b in all_bars if b[0] <= end_ts]
                     break
+                # end-date window not yet covered: keep paginating even when
+                # the page is short (OKX may return fewer bars than the page
+                # cap in a partial window, but more pages may still exist).
+                since = last_ts + 1
+                continue
             since = last_ts + 1
-            if len(bars) < limit:
+            if len(bars) < effective_limit:
                 break
 
         df = pd.DataFrame(all_bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
