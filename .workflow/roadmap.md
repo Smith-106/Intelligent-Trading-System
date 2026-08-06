@@ -147,17 +147,17 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 #### Phase 3: P2 AI 层升级（milestone-gate: P2-verify）
 
-**Status**：in_progress（P2.1 接线完成 2026-08-06 — schema 层本体早已落地于 `quantflow/common/schema_exposure.py`（`SchemaExposure.from_dataframe` + 12 测试，实现位置与 issue-003 标注的 data/ 有偏差但已验收），本次补齐 rd_agent 接线缺口：`discover_factors(df, schema: DatasetSchema | None)` + CLI train-slice 边界（TRAIN_FRACTION=0.7，val/test bar 不出进程）+ schema.json 审计；P2.1.2 三段分割边界规则仍为部分（CLI 单阈值切分））
+**Status**：in_progress（P2.1 全链完成 2026-08-06：schema 层 + rd_agent 接线 + 三段分割元数据；P2.3 情绪传播广度完成；P2.2 FinGPT **blocked-on-environment**（本机无 GPU/torch））
 **Scope**：F6 schema-only 暴露层（P2 内部硬约束）、F11 FinGPT、F12 情绪传播广度
 **Target files**：`common/schema_exposure.py`（已存在，SchemaExposure/DatasetSchema）、`strategy/rd_agent.py`（discover_factors 签名已改）
 
 **Tasks**:
 - [x] **P2.1.1 schema 暴露层实现**：`common/schema_exposure.py` 已落地（from_dataframe → DatasetSchema：列名/类型/non_null_count/前 3 示例值，to_dict 序列化不含示例值）；12 项测试已验收（值屏蔽断言）
-- [~] **P2.1.2 train/val/test 时间分割边界**：CLI 交接边界用 TRAIN_FRACTION=0.7 单阈值切分（train-only 交接已实现）；显式三段分割元数据（val/test 段边界规则）未实现，待 P2.2 前补齐
+- [x] **P2.1.2 train/val/test 时间分割边界**：`DatasetSchema.splits`（SegmentInfo：n_bars + fractional 位置，无绝对时间）+ `from_dataframe(splits=)` 校验（和=1/chronological 无重叠）+ rd_agent 交接统一用显式 train.n_bars（回退 TRAIN_FRACTION）；4 项守卫测试（2026-08-06）
 - [x] **P2.1.3 RD-Agent 接线**：`discover_factors(df, schema: DatasetSchema | None)` 签名改造（向后兼容），CLI 数据文件只写 train 前 70% 行 + schema.json 审计文件；baseline 路径保留全量帧（无 LLM 接触）
 - [x] **P2.1.4 泄漏守卫测试**：原 12 项（值屏蔽/to_dict 序列化/示例值限量）+ 新增 2 项 wiring 测试（train-slice 行数与时间戳边界、legacy 兼容）
-- [ ] **P2.2 FinBERT→FinGPT 升级**（依赖 P2.1）：单卡 RTX 3090/$17.25 微调路径（medium-high，2-1 vote，自报基准）
-- [ ] **P2.3 情绪传播广度**（依赖 P2.1）：`SentimentAnalyzer.analyze` 接收传播广度元数据（聚类触达+影响力注入 prompt，+8 百分点，AAAI 2025）
+- [ ] **P2.2 FinBERT→FinGPT 升级**（依赖 P2.1）：单卡 RTX 3090/$17.25 微调路径（medium-high，2-1 vote，自报基准）。**blocked-on-environment**（2026-08-06 评估：本机无 GPU/nvidia-smi、无 torch/transformers → 训练与推理均不可验证；前置：GPU 机器 + `pip install torch transformers` + 新闻语料数据准备）
+- [x] **P2.3 情绪传播广度**（依赖 P2.1）：`SentimentAnalyzer` 接收传播广度元数据（reach 0..1 验证 + reach 列加权聚合 _weighted_daily_mean，NaN 跳过），5 项测试（2026-08-06）
 
 **Acceptance**:
 - schema-only 隔离层屏蔽原始数据/时间分割（值泄漏守卫测试绿）
