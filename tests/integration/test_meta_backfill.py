@@ -3,8 +3,8 @@
 Scenarios (plan test_plan):
 - download-funding --days 90 persists rows; get_last_meta_timestamp != None
 - download-funding --days 180 -> WARNING (3-month window) truncated to 90d
-- download-oi --days 180 -> >=3 pages with >=200ms RateLimiter spacing,
-  deduped save
+- download-oi --days 180 -> single windowed call (begin+end pair, 8de8b22
+  contract — OKX caps coverage by period instead of paginating), deduped save
 - download-funding --help exits 0
 """
 
@@ -36,6 +36,7 @@ class FakeOkxExchange:
         self.opts = opts
         self.funding_calls: list[int] = []  # since args
         self.oi_call_times: list[float] = []  # monotonic stamps
+        self.oi_calls: list[int] = []  # since args
         self.oi_pages: list[list[dict]] = list(FakeOkxExchange.oi_pages_script)
         # Rows must live inside the 90d backfill window or the since filter
         # drops them; anchor to now like a real exchange response.
@@ -60,13 +61,19 @@ class FakeOkxExchange:
     async def close(self) -> None:
         pass
 
-    async def fetchFundingRateHistory(self, symbol, since, params):
+    async def fetchFundingRateHistory(self, symbol, since, limit, params):  # noqa: N802 — ccxt API mirror
+        """Mirror the fixed fetcher call: (symbol, since, limit, params).
+
+        The limit is a positional int (8de8b22 fix — the old dict-in-limit
+        spelling was rejected with OKX 51000).
+        """
         self.funding_calls.append(int(since))
         rows = [r for r in self.funding_rows if r["timestamp"] >= int(since)]
-        return rows  # < limit=400 -> single page
+        return rows
 
-    async def fetchOpenInterestHistory(self, symbol, period, since, limit, params):
+    async def fetchOpenInterestHistory(self, symbol, period, since, limit, params):  # noqa: N802 — ccxt API mirror
         self.oi_call_times.append(time_mod.monotonic())
+        self.oi_calls.append(int(since))
         idx = len(self.oi_call_times) - 1
         if idx < len(self.oi_pages):
             return self.oi_pages[idx]
@@ -75,6 +82,17 @@ class FakeOkxExchange:
 
 class FakeCcxt:
     okx = FakeOkxExchange
+
+    # market_meta_fetcher._is_retryable references these ccxt module-level
+    # exception classes (8de8b22); the double must mirror the real ccxt API.
+    class RateLimitExceeded(Exception):  # noqa: N818 — ccxt exception mirror
+        pass
+
+    class DDoSProtection(Exception):  # noqa: N818 — ccxt exception mirror
+        pass
+
+    class NetworkError(Exception):
+        pass
 
 
 @pytest.fixture(autouse=True)
@@ -136,38 +154,21 @@ class TestDownloadFunding:
 
 
 class TestDownloadOi:
-    def test_days_180_paginates_with_rate_limit(self, patched):
-        """At least 3 pages, consecutive pages spaced >=200ms (RateLimiter),
-        saved rows deduped (unique timestamps)."""
-        full_page = [
+    def test_days_180_single_windowed_call_saves_rows(self, patched):
+        """8de8b22 contract: one windowed call (begin+end pair), not a page
+        loop — OKX caps OI coverage by period (1H ~= 30d) and rejects
+        begin-only requests with 50030. Rows saved + deduped."""
+        page = [
             {
                 "timestamp": BASE_TS + i * HOUR_MS,
+                # ccxt-normalized rubik contracts fields (info is a raw list).
                 "openInterestAmount": 1000.0 + i,
-                "openInterestUsd": 40_000_000.0 + i,
-                "info": {"oi": 1000.0 + i, "oiCcy": 900.0 + i, "oiUsd": 40_000_000.0 + i},
+                "openInterestValue": 40_000_000.0 + i,
             }
             for i in range(100)
-        ]
-        second_page = [
-            {
-                "timestamp": BASE_TS + (100 + i) * HOUR_MS,
-                "openInterestAmount": 1100.0 + i,
-                "openInterestUsd": 44_000_000.0 + i,
-                "info": {"oi": 1100.0 + i, "oiCcy": 990.0 + i, "oiUsd": 44_000_000.0 + i},
-            }
-            for i in range(100)
-        ]
-        short_page = [
-            {
-                "timestamp": BASE_TS + (200 + i) * HOUR_MS,
-                "openInterestAmount": 1200.0 + i,
-                "openInterestUsd": 48_000_000.0 + i,
-                "info": {"oi": 1200.0 + i, "oiCcy": 1080.0 + i, "oiUsd": 48_000_000.0 + i},
-            }
-            for i in range(50)
         ]
 
-        FakeOkxExchange.oi_pages_script = [full_page, second_page, short_page]
+        FakeOkxExchange.oi_pages_script = [page]
         result = runner.invoke(
             app,
             ["download-oi", "--symbol", "BTC/USDT", "--days", "180", "--period", "1H"],
@@ -175,14 +176,17 @@ class TestDownloadOi:
 
         assert result.exit_code == 0, result.output
         ex = FakeOkxExchange.instances[-1]
-        assert len(ex.oi_call_times) >= 3, f"expected >=3 pages, got {len(ex.oi_call_times)}"
-        gaps = [b - a for a, b in zip(ex.oi_call_times, ex.oi_call_times[1:])]
-        assert all(g >= 0.2 for g in gaps), f"rate-limit gaps too small: {gaps}"
+        assert len(ex.oi_call_times) == 1, "windowed fetch must be a single call"
+        since = ex.oi_calls[0]
+        now_ms = int(time_mod.time() * 1000)
+        delta_ms = now_ms - since
+        # since anchored at the requested window start (now - 180d).
+        assert 179 * 86_400_000 <= delta_ms <= 180 * 86_400_000 + 60_000
 
         store = _open_store(patched)
         try:
             df = store.query_open_interest("BTC/USDT")
-            assert len(df) == 250  # 100+100+50, merged + deduped
+            assert len(df) == 100
             assert df["timestamp"].is_unique
             assert store.get_last_meta_timestamp("BTC/USDT", "open_interest") is not None
         finally:

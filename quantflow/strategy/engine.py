@@ -126,15 +126,35 @@ class TradingSession:
         # constructing ExecutionEngine/RiskEngine so it can be threaded down
         # to the L4/L5 siblings (ISS-20260724-044).
         self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
+        # T-s1-04: exchange-level circuit breaker (opt-in via
+        # config.risk.exchange_health.enabled; None = disabled keeps existing
+        # runs byte-for-byte). One shared instance feeds RiskEngine (checks)
+        # and ExecutionEngine → OKXGateway (REST/WS outcome recording).
+        self._exchange_health: Any | None = None
+        eh_cfg = config.risk.exchange_health
+        if eh_cfg.enabled:
+            from quantflow.execution.exchange_health import ExchangeHealthMonitor
+
+            self._exchange_health = ExchangeHealthMonitor(
+                window_seconds=eh_cfg.window_seconds,
+                error_rate_threshold=eh_cfg.error_rate_threshold,
+                rate_limit_streak_threshold=eh_cfg.rate_limit_streak,
+                cooldown_seconds=eh_cfg.cooldown_seconds,
+                monitoring_sink=self._sink,
+                event_bus=self._event_bus,
+            )
         self._execution = ExecutionEngine(
             event_bus=self._event_bus,
             timeout=config.execution.order_timeout,
             monitoring_sink=self._sink,
+            health_monitor=self._exchange_health,
         )
         self._risk_engine = RiskEngine(
             config.risk,
             strategy_risk_budgets=strategy_risk_budgets,
             monitoring_sink=self._sink,
+            exchange_health=self._exchange_health,
+            exchange_exposure_limit_pct=config.risk.exchange_exposure_limit_pct,
         )
         self._position_sizer = PositionSizer(
             method="kelly",
@@ -173,14 +193,10 @@ class TradingSession:
                     MeanVarianceOptimizer(min_samples=_po_cfg.min_samples)
                 )
             else:
-                self._portfolio_optimizer = RiskParityOptimizer(
-                    min_samples=_po_cfg.min_samples
-                )
+                self._portfolio_optimizer = RiskParityOptimizer(min_samples=_po_cfg.min_samples)
         else:
             self._portfolio_optimizer = None
-        self._rebalance_every_n_bars: int = (
-            _po_cfg.rebalance_every_n_bars if _po_cfg.enabled else 0
-        )
+        self._rebalance_every_n_bars: int = _po_cfg.rebalance_every_n_bars if _po_cfg.enabled else 0
         self._bar_count: int = 0
         # Previous bar's per-strategy notional exposure, for per-strategy
         # return attribution (s5). Empty dict on the default path.
@@ -449,9 +465,7 @@ class TradingSession:
             for pos in self._portfolio.positions.values():
                 if pos.current_price <= 0:
                     continue
-                constituents = strategy_id_constituents(pos.strategy_id) or [
-                    pos.strategy_id
-                ]
+                constituents = strategy_id_constituents(pos.strategy_id) or [pos.strategy_id]
                 pos_value = abs(pos.quantity) * pos.current_price
                 for c in constituents:
                     per_strategy_value[c] = per_strategy_value.get(c, 0.0) + pos_value
@@ -780,7 +794,11 @@ class TradingSession:
             for pos in self._portfolio.positions.values():
                 if pos.strategy_id:
                     constituents = strategy_id_constituents(pos.strategy_id) or [pos.strategy_id]
-                    leg = pos.unrealized_pnl / len(constituents) if constituents else pos.unrealized_pnl
+                    leg = (
+                        pos.unrealized_pnl / len(constituents)
+                        if constituents
+                        else pos.unrealized_pnl
+                    )
                     for c in constituents:
                         per_strategy[c] = per_strategy.get(c, 0.0) + leg
             for strategy_id, pnl in per_strategy.items():

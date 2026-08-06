@@ -49,8 +49,13 @@ class ExecutionEngine:
         kill_switch: KillSwitch | None = None,
         monitoring_sink: MonitoringSink | None = None,
         portfolio: PortfolioManager | None = None,
+        health_monitor: Any | None = None,
     ) -> None:
         self._gateway = gateway
+        # T-s1-04: duck-typed ExchangeHealthMonitor seam forwarded to
+        # OKXGateway at start() so REST errors / 50011 / WS disconnects feed
+        # the circuit breaker. None = disabled (zero behavior change).
+        self._health_monitor = health_monitor
         # ISS-20260723-003: OrderRouter owns gateway dispatch + Order/Request
         # construction (the two order-shaping concerns submit/submit_order/
         # close_position previously inlined). arch-017 lazy binding — the
@@ -125,6 +130,9 @@ class ExecutionEngine:
                 # connectivity gauge + disconnect/reconnect counters land on the
                 # same MonitoringSink as the engine's order metrics.
                 monitoring_sink=self._sink,
+                # T-s1-04: forward the session-level exchange health monitor so
+                # REST/WS outcomes feed the circuit breaker (None = disabled).
+                health_monitor=self._health_monitor,
             )
         else:
             self._gateway = PaperGateway(gateway_config)
