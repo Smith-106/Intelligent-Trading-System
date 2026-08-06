@@ -2,8 +2,8 @@
   "project_name": "QuantFlow",
   "status": "active",
   "version": "2.0",
-  "current_milestone": "M4",
-  "current_task_id": "M4-complete",
+  "current_milestone": "M3",
+  "current_task_id": "M3-P2.1",
   "milestones": [
     {
       "id": "M1",
@@ -49,7 +49,7 @@
       "id": "M3",
       "name": "deep-research 改进分批实施",
       "title": "deep-research 改进分批实施",
-      "status": "completed",
+      "status": "in_progress",
       "phases": [
         {
           "id": 1,
@@ -87,6 +87,32 @@
           "id": 1,
           "name": "安全加固 + 架构清理 + 新功能",
           "slug": "security-arch-features",
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "M5",
+      "name": "生产安全接线与回放验证（A2+C1）",
+      "title": "生产安全接线与回放验证（A2+C1）",
+      "status": "completed",
+      "phases": [
+        {
+          "id": 1,
+          "name": "A2 生产安全接线",
+          "slug": "a2-production-wiring",
+          "status": "completed"
+        },
+        {
+          "id": 2,
+          "name": "C1 30 天 paper 回放",
+          "slug": "c1-paper-replay",
+          "status": "completed"
+        },
+        {
+          "id": 3,
+          "name": "附带闭环（001 修复/004 NO-GO）",
+          "slug": "misc-closures",
           "status": "completed"
         }
       ]

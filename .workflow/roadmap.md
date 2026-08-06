@@ -6,7 +6,13 @@
 
 - `M1` 已完成：4 个新增策略的实现与验证
 - `M2` 进行中：`v0.1.3` 发布候选准备，目标是对齐版本、治理打包内容、重建制品校验信息，并为后续 tag / release 对齐铺平状态
-- `M3` 进行中：按 deep-research 研究文档（ANL-002）分批里程碑实施 P0 数据层防泄漏 → P1 风控层补齐 → P2 AI 层升级，每批独立实盘验证后才进下一批。**P0 已 P0-verify PASS（2026-08-01，4 策略回归守卫基线重立）**，**P1 已 P1-verify PASS（2026-07-21，commit `626b015`）**，**P2 unblocked 未启动**（P2.1 schema-only 隔离层为下一步）。2026-07-25 另完成 Wave 1-5 多 book reconcile 一致性收口（L4 单一权威 + L5 薄路由 + realized_pnl 翻仓归因 + daily_loss total-vs-baseline + partial-fill cumulative 契约）——该 reconcile 契约现为新 load-bearing 架构不变量，后续成功标准须引用（drift-realign DFT-6f8d5a9b, 2026-07-26）
+- `M3` 进行中：按 deep-research 研究文档（ANL-002）分批里程碑实施 P0 数据层防泄漏 → P1 风控层补齐 → P2 AI 层升级，每批独立实盘验证后才进下一批。**P0 已 P0-verify PASS（2026-08-01，4 策略回归守卫基线重立）**，**P1 已 P1-verify PASS（2026-07-21，commit `626b015`）**，**P2 unblocked 未启动**（P2.1 schema-only 隔离层为下一步，详见 Phase 3 细化）。2026-07-25 另完成 Wave 1-5 多 book reconcile 一致性收口（L4 单一权威 + L5 薄路由 + realized_pnl 翻仓归因 + daily_loss total-vs-baseline + partial-fill cumulative 契约）——该 reconcile 契约现为新 load-bearing 架构不变量，后续成功标准须引用（drift-realign DFT-6f8d5a9b, 2026-07-26）
+
+**2026-08-06 快照（生产安全接线 + 回放验证）**：
+
+- `M5` 已完成：生产安全接线与回放验证（A2 + C1）——ISS-20260803-002（对账接入生产）与 ISS-20260803-003（交易所风险隔离）闭环：ExchangeHealthMonitor 熔断器 + 单所敞口上限注入 RiskEngine / OKXGateway 生产路径（enabled=false 零行为变化），周期对账漂移告警集成验证；30 天 paper 回放工具落地（`quantflow/strategy/research/paper_replay.py` + `scripts/replay_paper_30d.py`），并修复 2 个静默零交易断链（M4 contexts key 回归 + set_portfolio 未重绑定）。
+- 附带闭环：ISS-20260803-001（swap 市场解析修复）、ISS-20260804-003（spot-perp 真实数据验证 → **NO-GO**：90 天窗口 funding 极值零发生，原型保持 disabled）。
+- **下一步：M3-P2.1 schema-only 隔离层**（P2 AI 层升级启动，串行约束闸门已开；P2.1 任务分解见 Phase 3）。
 
 ## Milestones
 
@@ -141,20 +147,25 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 #### Phase 3: P2 AI 层升级（milestone-gate: P2-verify）
 
-**Status**：unblocked（P1-verify PASS 2026-07-21），未启动 — P2.1 schema-only 隔离层是下一步；串行约束闸门已开（drift-realign DFT-2b8e1d47, 2026-07-26）
+**Status**：unblocked（P1-verify PASS 2026-07-21），未启动 — P2.1 schema-only 隔离层是下一步；串行约束闸门已开（drift-realign DFT-2b8e1d47, 2026-07-26）。2026-08-06 完成 P2.1 任务分解细化（见下），AI 基础件已就位：`strategy/rd_agent.py`（RD-Agent CLI runner + qlib Alpha158 baseline 降级）、`strategy/sentiment.py`（SentimentAnalyzer，默认 ProsusAI/finbert）、`strategy/ai_loop.py` / `model_registry.py` / `ai_training.py` / `ai_factors.py`。
 **Scope**：F6 schema-only 暴露层（P2 内部硬约束）、F11 FinGPT、F12 情绪传播广度
-**Target files**：`strategy/sentiment.py`、新建 schema 暴露层
+**Target files**：`strategy/sentiment.py`、新建 schema 暴露层（`strategy/schema_exposure.py` 候选）
 
 **Tasks**:
-- [ ] **P2.1 schema-only 隔离层**：新建 schema 暴露层屏蔽原始市场数据 + train/val/test 时间分割边界，LLM 只看 schema 不看数据值/时间点（RD-Agent(Q) NeurIPS 2025 范式，先于真实 LLM loop）
-- [ ] **P2.2 FinBERT→FinGPT 升级**：单卡 RTX 3090/$17.25 微调路径（medium-high，2-1 vote，自报基准）
-- [ ] **P2.3 情绪传播广度**：`SentimentAnalyzer.analyze` 接收传播广度元数据（聚类触达+影响力注入 prompt，+8 百分点，AAAI 2025）
+- [ ] **P2.1 schema-only 隔离层**（依赖：无；解锁：P2.2/P2.3 全部）
+  - [ ] **P2.1.1 schema 暴露层实现**：新建 `strategy/schema_exposure.py`，对外暴露数据 schema（列名/类型/含义/单位），不暴露任何数据值——LLM 因子搜索/模型设计只看 schema（RD-Agent(Q) NeurIPS 2025 范式）
+  - [ ] **P2.1.2 train/val/test 时间分割边界**：时间分割规则显式化（禁止穿越：val/test 起点晚于 train 终点，窗口宽度/滚动步长入参），分割边界元数据只进 schema 不进数据值
+  - [ ] **P2.1.3 RD-Agent(Q) 接线**：`rd_agent.py` runner 输入切换为 schema-only（屏蔽原始行情/时间点），LLM 输出约束为 schema 引用（列名 + 因子表达式），防 prompt 注入
+  - [ ] **P2.1.4 泄漏守卫测试**：schema 层单测（值泄漏检测：任意输入不包含实际行情值/时间戳）+ 分割边界穿越测试（train 结束时间 > val 开始时间 断言）
+- [ ] **P2.2 FinBERT→FinGPT 升级**（依赖 P2.1）：单卡 RTX 3090/$17.25 微调路径（medium-high，2-1 vote，自报基准）
+- [ ] **P2.3 情绪传播广度**（依赖 P2.1）：`SentimentAnalyzer.analyze` 接收传播广度元数据（聚类触达+影响力注入 prompt，+8 百分点，AAAI 2025）
 
 **Acceptance**:
-- schema-only 隔离层屏蔽原始数据/时间分割
-- 情绪 analyze 接收传播广度元数据
+- schema-only 隔离层屏蔽原始数据/时间分割（值泄漏守卫测试绿）
+- RD-Agent 输入仅 schema（无原始行情/时间点）；train/val/test 边界无穿越
+- 情绪 analyze 接收传播广度元数据（P2.3）
 
-**Done when**: `verification.json` + `review.json` passed
+**Done when**: `verification.json` + `review.json` passed；全量回归绿（当前基线 2041）
 
 #### Phase 4: 多 book reconcile 一致性收口（Wave 1-5，2026-07-25 已落地）
 
@@ -317,10 +328,29 @@ Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 �
 
 **Done when**: 全量测试绿 + benchmark 达标 + 覆盖率 ≥ 70%
 
+### Milestone 5: 生产安全接线与回放验证（A2 + C1）
+
+**Target**：将存量实现接入生产运行时并闭环验证——对账引擎周期执行 + 交易所级熔断/单所敞口上限纳入 RiskEngine（ISS-20260803-002/003），30 天 paper 回放工具驱动真实数据验证生产路径
+**Status**：completed（2026-08-06，commit `6257b7c` + `7aded16`）
+**Upstream**：analyze 维度4/F6（交易所信用风险隔离）、维度5/R5（对账恢复）、P1 live-verification checklist（paper 回放路径）
+
+#### Phases
+
+- [x] **Phase 1: A2 生产安全接线**：ExchangeHealthMonitor 按 `risk.exchange_health.enabled` 构建并注入 RiskEngine（熔断拦截 + 单所敞口上限）+ ExecutionEngine→OKXGateway（REST/WS 结果喂数）；周期对账漂移告警集成验证（enabled=false 零行为变化；全量 2038 passed）— commit `6257b7c`
+- [x] **Phase 2: C1 30 天 paper 回放**：`quantflow/strategy/research/paper_replay.py`（build_session/replay/aggregate）+ `scripts/replay_paper_30d.py`；修复 2 个静默零交易断链（M4 contexts key 回归 → `(name, "")`；set_portfolio 未重绑定 → fills 落私有 book）；真实数据 30 天验证：mean_reversion 37 单 +0.18%/Sharpe 1.54，trend_following 9 单 -0.26%（regime gate 对照）；harness 回归守卫 3 项 — commit `7aded16`
+- [x] **Phase 3: 附带闭环**：ISS-20260803-001 swap 解析修复（commit `3035421`/`3ba219b`）；ISS-20260804-003 spot-perp 真实数据验证 **NO-GO**（funding 极值零发生，原型保持 disabled）
+
+**Acceptance**:
+- 003：OKX 健康度指标 + 交易所级熔断 + 单所敞口上限纳入 RiskEngine ✅（6 项 wiring 测试）
+- 002：周期对账人工漂移 → critical 告警捕获 ✅（3 项集成测试）
+- C1：30 天回放报告（fills/equity/risk events/Sharpe/maxDD）✅
+
+**Done when**: 全量 2041 passed；ruff/mypy clean；002/003 issue → resolved
+
 ## Scope Decisions
 
-- **In scope**：版本抬升到 `v0.1.3`、发布文档、`.workflow` 发布里程碑、maestro 会话、打包治理、哈希与 manifest 刷新；**v0.2 多 symbol 扩展（M4）**
-- **Deferred**：GitHub tag / release 真实发布、远端资产上传、paper / live 运行证据补齐；**WebSocket 实时推送（ccxt.pro 切换，50+ symbol 终态）**；**Redis 分布式状态共享（阶段二）**
+- **In scope**：版本抬升到 `v0.1.3`、发布文档、`.workflow` 发布里程碑、maestro 会话、打包治理、哈希与 manifest 刷新；**v0.2 多 symbol 扩展（M4）**；**M5 生产安全接线与回放验证（A2/C1，已完成）**；**M3-P2.1 schema-only 隔离层（下一阶段）**
+- **Deferred**：GitHub tag / release 真实发布、远端资产上传、paper / live 运行证据补齐；**WebSocket 实时推送（ccxt.pro 切换，50+ symbol 终态）**；**Redis 分布式状态共享（阶段二）**；**P2.2 FinGPT / P2.3 情绪传播广度（依赖 P2.1 schema 层）**；**spot-perp 配对策略（ISS-20260804-003 NO-GO，原型 disabled）**
 - **Out of scope**：新增 Gateway、新数据源、前端 UI、部署拓扑重构、多用户/多租户
 
 ## Progress
@@ -334,5 +364,8 @@ Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 �
 | 3. deep-research 改进分批实施 | 1. P0 数据层防泄漏 | **P0-verify PASS**（P0.3 基线已重立，4/4 绿） | `01f05fb` `99795b2` |
 | 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | **P1-verify PASS** | 2026-07-21 `626b015` |
 | 3. deep-research 改进分批实施 | 2.5 多 book reconcile (Wave 1-5) | **Completed** | 2026-07-25 `7e781a8`→`06a8d93` |
-| 3. deep-research 改进分批实施 | 3. P2 AI 层升级 | Unblocked，未启动 | - |
+| 3. deep-research 改进分批实施 | 3. P2 AI 层升级 | Unblocked，未启动（P2.1 任务分解已细化，2026-08-06） | - |
 | 4. v0.2 多 Symbol 扩展 | 全量（17 ISS 清零 + 架构清理） | **Completed** | 2026-08-02 `fe43aeb` (tag `v0.2.0`) |
+| 5. 生产安全接线与回放验证（A2+C1） | 1. A2 生产安全接线 | **Completed** | 2026-08-06 `6257b7c` |
+| 5. 生产安全接线与回放验证（A2+C1） | 2. C1 30 天 paper 回放 | **Completed** | 2026-08-06 `7aded16` |
+| 5. 生产安全接线与回放验证（A2+C1） | 3. 附带闭环（001 修复/004 NO-GO） | **Completed** | 2026-08-06 `3035421`/`3ba219b` |
