@@ -50,11 +50,19 @@ class SentimentAnalyzer:
         except Exception as e:
             logger.error("Failed to load FinBERT: %s", e)
 
-    def analyze_text(self, text: str) -> dict[str, float]:
+    def analyze_text(self, text: str, reach: float | None = None) -> dict[str, float]:
         """Analyze sentiment of a single text.
+
+        P2.3 (F12, AAAI 2025): ``reach`` is the propagation-breadth metadata
+        (cluster reach / influence weight, 0..1). The FinBERT classification
+        itself is text-only — reach is validated here and consumed by the
+        weighted aggregation paths (``compute_sentiment_factor`` with a
+        ``reach`` column). Default None = zero behavior change.
 
         Returns dict with positive, negative, neutral scores.
         """
+        if reach is not None and not (0.0 <= reach <= 1.0):
+            raise ValueError(f"reach must be in [0, 1], got {reach!r}")
         if not self._model or not self._tokenizer:
             return _ERROR_SENTINEL
 
@@ -77,22 +85,51 @@ class SentimentAnalyzer:
             logger.error("Sentiment analysis failed: %s", e)
             return _ERROR_SENTINEL
 
-    def analyze_batch(self, texts: list[str]) -> list[dict[str, float]]:
-        """Analyze sentiment for a batch of texts."""
+    def analyze_batch(
+        self, texts: list[str], reaches: list[float] | None = None
+    ) -> list[dict[str, float]]:
+        """Analyze sentiment for a batch of texts.
+
+        P2.3: ``reaches`` optionally carries the per-text propagation breadth;
+        None = no metadata (existing callers unaffected).
+        """
+        if reaches is not None:
+            if len(reaches) != len(texts):
+                raise ValueError("reaches must align with texts (same length)")
+            return [self.analyze_text(t, reach=r) for t, r in zip(texts, reaches, strict=True)]
         return [self.analyze_text(t) for t in texts]
 
-    def sentiment_score(self, text: str) -> float:
+    def sentiment_score(self, text: str, reach: float | None = None) -> float:
         """Get a single sentiment score: positive - negative.
 
-        Range: [-1.0, 1.0]
+        Range: [-1.0, 1.0]. ``reach`` is validated but does not alter the
+        single-text score (propagation breadth applies at aggregation).
         """
-        scores = self.analyze_text(text)
+        scores = self.analyze_text(text, reach=reach)
         return scores["positive"] - scores["negative"]
+
+    @staticmethod
+    def _weighted_daily_mean(frame: pd.DataFrame, reach_col: str = "reach") -> pd.Series:
+        """Reach-weighted daily mean (P2.3): high-influence items dominate.
+
+        weight = score * reach; weighted mean = sum(weight) / sum(reach) per
+        group. NaN scores are skipped (existing NaN-sentinel contract).
+        """
+        valid = frame["score"].notna()
+        frame = frame[valid]
+        if frame.empty:
+            return pd.Series(dtype=float)
+        reach = frame[reach_col].fillna(0.0)
+        weighted = frame["score"] * reach
+        grouped = weighted.groupby(frame["date"]).sum() / reach.groupby(frame["date"]).sum()
+        return grouped.replace([float("inf"), float("-inf")], float("nan"))
 
     def compute_sentiment_factor(self, news_df: pd.DataFrame) -> pd.Series:
         """Compute daily sentiment factor from news DataFrame.
 
-        Expected columns: 'date', 'title' or 'text'
+        Expected columns: 'date', 'title' or 'text'. P2.3: when a ``reach``
+        column exists (propagation breadth 0..1), the daily mean is weighted
+        by it; otherwise the plain daily mean (backward compatible).
         """
         text_col = "title" if "title" in news_df.columns else "text"
         if text_col not in news_df.columns:
@@ -101,11 +138,13 @@ class SentimentAnalyzer:
 
         scores = news_df[text_col].apply(self.sentiment_score)
 
-        if "date" in news_df.columns:
-            daily = pd.DataFrame({"date": news_df["date"], "score": scores})
-            daily = daily.groupby("date")["score"].mean()
-            return daily
-        return scores
+        if "date" not in news_df.columns:
+            return scores
+        daily = pd.DataFrame({"date": news_df["date"], "score": scores})
+        if "reach" in news_df.columns:
+            daily["reach"] = news_df["reach"]
+            return self._weighted_daily_mean(daily)
+        return daily.groupby("date")["score"].mean()
 
 
 class NewsCollector:

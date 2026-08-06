@@ -304,3 +304,87 @@ class TestNewsCollector:
         result = await nc.fetch_news()
 
         assert result.empty
+
+
+class TestReachPropagationBreadth:
+    """P2.3 (F12): propagation-breadth metadata — validated, aggregation
+    weighted, zero behavior change when absent."""
+
+    def test_analyze_text_accepts_reach_and_validates(self) -> None:
+        from quantflow.strategy.sentiment import SentimentAnalyzer
+
+        analyzer = SentimentAnalyzer()
+        # No model loaded: reach is validated first, then the NaN sentinel.
+        result = analyzer.analyze_text("any text", reach=0.5)
+        assert all(v != v for v in result.values())  # NaN sentinel (no model)
+        with pytest.raises(ValueError):
+            analyzer.analyze_text("any text", reach=1.5)
+        with pytest.raises(ValueError):
+            analyzer.analyze_text("any text", reach=-0.1)
+
+    def test_analyze_batch_reaches_alignment(self) -> None:
+        from quantflow.strategy.sentiment import SentimentAnalyzer
+
+        analyzer = SentimentAnalyzer()
+        results = analyzer.analyze_batch(["a", "b"], reaches=[0.1, 0.9])
+        assert len(results) == 2
+        with pytest.raises(ValueError):
+            analyzer.analyze_batch(["a", "b"], reaches=[0.1])
+
+    def test_compute_sentiment_factor_reach_weighted_mean(self, monkeypatch) -> None:
+        """High-reach items dominate the daily mean; NaN scores skipped."""
+
+        from quantflow.strategy.sentiment import SentimentAnalyzer
+
+        analyzer = SentimentAnalyzer()
+        # Fake model-less score path: sentiment_score returns NaN -> we stub
+        # sentiment_score directly so the aggregation math is testable.
+        monkeypatch.setattr(
+            analyzer,
+            "sentiment_score",
+            lambda text, reach=None: float(text),  # score == numeric text
+        )
+        news = pd.DataFrame(
+            {
+                "date": ["2026-08-01", "2026-08-01", "2026-08-01", "2026-08-02"],
+                "text": ["1.0", "0.0", "0.5", "0.5"],  # scores
+                "reach": [0.9, 0.1, 0.5, 1.0],
+            }
+        )
+        daily = analyzer.compute_sentiment_factor(news)
+        assert "2026-08-01" in daily.index
+        # weighted = (1.0*0.9 + 0.0*0.1 + 0.5*0.5) / (0.9+0.1+0.5) = 1.15/1.5
+        assert daily["2026-08-01"] == pytest.approx(1.15 / 1.5)
+        # Plain mean would be (1.0+0.0+0.5)/3 = 0.5 — weighted differs.
+        assert daily["2026-08-02"] == pytest.approx(0.5)
+
+    def test_compute_sentiment_factor_without_reach_unchanged(self) -> None:
+        """No reach column -> plain daily mean (backward compatible)."""
+        from quantflow.strategy.sentiment import SentimentAnalyzer
+
+        analyzer = SentimentAnalyzer()
+        news = pd.DataFrame(
+            {"date": ["2026-08-01", "2026-08-01", "2026-08-02"], "text": ["x", "y", "z"]}
+        )
+        daily = analyzer.compute_sentiment_factor(news)
+        assert set(daily.index) == {"2026-08-01", "2026-08-02"}
+        assert daily["2026-08-01"] != daily["2026-08-01"]  # NaN sentinel -> NaN
+
+    def test_weighted_mean_skips_nan_scores(self) -> None:
+        """NaN scores (error sentinel) must not poison the weighted mean."""
+
+        from quantflow.strategy.sentiment import SentimentAnalyzer
+
+        analyzer = SentimentAnalyzer()
+        analyzer.sentiment_score = lambda text, reach=None: (  # type: ignore[method-assign]
+            float("nan") if text == "bad" else float(text)
+        )
+        news = pd.DataFrame(
+            {
+                "date": ["2026-08-01", "2026-08-01", "2026-08-01"],
+                "text": ["bad", "0.4", "0.8"],
+                "reach": [1.0, 0.5, 0.5],
+            }
+        )
+        daily = analyzer.compute_sentiment_factor(news)
+        assert daily["2026-08-01"] == pytest.approx((0.4 * 0.5 + 0.8 * 0.5) / 1.0)

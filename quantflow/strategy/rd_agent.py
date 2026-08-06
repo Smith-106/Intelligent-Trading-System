@@ -284,13 +284,14 @@ class RDAgentRunner:
         data_path = workdir / "ohlcv_input.csv"
         out_path = workdir / "factors_output.json"
         if schema is not None:
-            # P2.1 train-only hand-off: the first TRAIN_FRACTION of rows (by
-            # chronological order) is all the CLI may see; val/test bars stay
-            # in-process. DatasetSchema carries no split metadata (its
-            # date_range is the full-window metadata by design), so the
-            # split is applied here at the hand-off boundary.
-            train_end = round(len(df) * TRAIN_FRACTION)
-            df.iloc[:train_end].to_csv(data_path)
+            # P2.1.2 train-only hand-off: the CLI may only see the train
+            # segment (explicit when schema.splits is set, else the legacy
+            # TRAIN_FRACTION threshold); val/test bars stay in-process.
+            train_n = next(
+                (s.n_bars for s in schema.splits if s.segment == "train"),
+                round(len(df) * TRAIN_FRACTION),
+            )
+            df.iloc[:train_n].to_csv(data_path)
             # Audit file: what the LLM was told to design against. Never fed
             # to the CLI as an argument (unknown external contract) — written
             # alongside for humans/agents inspecting the run.

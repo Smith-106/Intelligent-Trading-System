@@ -140,9 +140,7 @@ class TestRdAgentSchemaWiring:
             }
         )
 
-    def test_discover_factors_with_schema_writes_train_slice(
-        self, monkeypatch
-    ) -> None:
+    def test_discover_factors_with_schema_writes_train_slice(self, monkeypatch) -> None:
         """CLI path with a DatasetSchema: CSV holds the train slice only and
         schema.json records what the LLM designs against."""
         import json
@@ -157,12 +155,8 @@ class TestRdAgentSchemaWiring:
         schema = SchemaExposure.from_dataframe(df, "BTC/USDT")
         fake_run = Mock(return_value=sp.CompletedProcess([], 0, stdout="", stderr=""))
 
-        monkeypatch.setattr(
-            RDAgentRunner, "check_available", staticmethod(lambda: (True, ""))
-        )
-        monkeypatch.setattr(
-            RDAgentRunner, "cli_available", staticmethod(lambda: (True, "rdagent"))
-        )
+        monkeypatch.setattr(RDAgentRunner, "check_available", staticmethod(lambda: (True, "")))
+        monkeypatch.setattr(RDAgentRunner, "cli_available", staticmethod(lambda: (True, "rdagent")))
         monkeypatch.setattr("quantflow.strategy.rd_agent.subprocess.run", fake_run)
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
 
@@ -192,15 +186,80 @@ class TestRdAgentSchemaWiring:
         df = self._ohlcv()
         fake_run = Mock(return_value=sp.CompletedProcess([], 0, stdout="", stderr=""))
 
-        monkeypatch.setattr(
-            RDAgentRunner, "check_available", staticmethod(lambda: (True, ""))
-        )
-        monkeypatch.setattr(
-            RDAgentRunner, "cli_available", staticmethod(lambda: (True, "rdagent"))
-        )
+        monkeypatch.setattr(RDAgentRunner, "check_available", staticmethod(lambda: (True, "")))
+        monkeypatch.setattr(RDAgentRunner, "cli_available", staticmethod(lambda: (True, "rdagent")))
         monkeypatch.setattr("quantflow.strategy.rd_agent.subprocess.run", fake_run)
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
 
         RDAgentRunner().discover_factors(df)
         data = pd.read_csv(Path("data/rdagent_work/ohlcv_input.csv"))
         assert len(data) == len(df)
+
+
+class TestSplitLayout:
+    """P2.1.2: explicit train/val/test segment metadata — fractional layout,
+    chronological and non-overlapping, never absolute times."""
+
+    def test_splits_metadata_shape(self) -> None:
+        df = pd.DataFrame(
+            {"close": range(300)},
+            index=pd.date_range("2024-01-01", periods=300, freq="1h"),
+        )
+        schema = SchemaExposure.from_dataframe(df, "BTC/USDT", splits=(0.7, 0.15, 0.15))
+        assert [s.segment for s in schema.splits] == ["train", "val", "test"]
+        assert sum(s.n_bars for s in schema.splits) == schema.row_count
+        # Chronological, non-overlapping, positive spans.
+        prev_end = 0.0
+        for seg in schema.splits:
+            assert seg.start_frac >= prev_end - 1e-9
+            assert seg.end_frac > seg.start_frac
+            prev_end = seg.end_frac
+        # No absolute time may appear in the serialized layout.
+        payload = schema.to_dict()
+        assert "splits" in payload
+        assert all("2024" not in str(s) for s in payload["splits"])
+
+    def test_no_splits_when_not_requested(self) -> None:
+        df = pd.DataFrame({"close": range(10)})
+        schema = SchemaExposure.from_dataframe(df, "BTC/USDT")
+        assert schema.splits == ()
+        assert "splits" not in schema.to_dict()
+
+    def test_invalid_splits_rejected(self) -> None:
+        df = pd.DataFrame({"close": range(10)})
+        with pytest.raises(ValueError):
+            SchemaExposure.from_dataframe(df, "BTC/USDT", splits=(0.5, 0.5, 0.5))
+        with pytest.raises(ValueError):
+            SchemaExposure.from_dataframe(df, "BTC/USDT", splits=(0.9, 0.1, 0.1))
+
+    def test_rdagent_handoff_uses_explicit_train_segment(self, monkeypatch) -> None:
+        """CLI hand-off honors the explicit train n_bars from schema.splits
+        (not the legacy TRAIN_FRACTION threshold)."""
+        import json
+        import subprocess as sp
+        from pathlib import Path
+        from unittest.mock import Mock
+
+        from quantflow.strategy.rd_agent import RDAgentRunner
+
+        df = pd.DataFrame(
+            {
+                "timestamp": [1_780_000_000_000 + i * 3_600_000 for i in range(200)],
+                "close": [100.0 + i for i in range(200)],
+                "volume": [10.0] * 200,
+            }
+        )
+        schema = SchemaExposure.from_dataframe(df, "BTC/USDT", splits=(0.6, 0.2, 0.2))
+        fake_run = Mock(return_value=sp.CompletedProcess([], 0, stdout="", stderr=""))
+        monkeypatch.setattr(RDAgentRunner, "check_available", staticmethod(lambda: (True, "")))
+        monkeypatch.setattr(RDAgentRunner, "cli_available", staticmethod(lambda: (True, "rdagent")))
+        monkeypatch.setattr("quantflow.strategy.rd_agent.subprocess.run", fake_run)
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+
+        RDAgentRunner().discover_factors(df, schema=schema)
+        data = pd.read_csv(Path("data/rdagent_work/ohlcv_input.csv"))
+        train_n = next(s.n_bars for s in schema.splits if s.segment == "train")
+        assert len(data) == train_n  # 0.6 x 200 = 120, not the 0.7 default
+        # Audit file carries the explicit layout.
+        audit = json.loads((Path("data/rdagent_work/schema.json")).read_text(encoding="utf-8"))
+        assert [s["segment"] for s in audit["splits"]] == ["train", "val", "test"]
