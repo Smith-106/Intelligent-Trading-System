@@ -147,16 +147,15 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 #### Phase 3: P2 AI 层升级（milestone-gate: P2-verify）
 
-**Status**：unblocked（P1-verify PASS 2026-07-21），未启动 — P2.1 schema-only 隔离层是下一步；串行约束闸门已开（drift-realign DFT-2b8e1d47, 2026-07-26）。2026-08-06 完成 P2.1 任务分解细化（见下），AI 基础件已就位：`strategy/rd_agent.py`（RD-Agent CLI runner + qlib Alpha158 baseline 降级）、`strategy/sentiment.py`（SentimentAnalyzer，默认 ProsusAI/finbert）、`strategy/ai_loop.py` / `model_registry.py` / `ai_training.py` / `ai_factors.py`。
+**Status**：in_progress（P2.1 接线完成 2026-08-06 — schema 层本体早已落地于 `quantflow/common/schema_exposure.py`（`SchemaExposure.from_dataframe` + 12 测试，实现位置与 issue-003 标注的 data/ 有偏差但已验收），本次补齐 rd_agent 接线缺口：`discover_factors(df, schema: DatasetSchema | None)` + CLI train-slice 边界（TRAIN_FRACTION=0.7，val/test bar 不出进程）+ schema.json 审计；P2.1.2 三段分割边界规则仍为部分（CLI 单阈值切分））
 **Scope**：F6 schema-only 暴露层（P2 内部硬约束）、F11 FinGPT、F12 情绪传播广度
-**Target files**：`strategy/sentiment.py`、新建 schema 暴露层（`strategy/schema_exposure.py` 候选）
+**Target files**：`common/schema_exposure.py`（已存在，SchemaExposure/DatasetSchema）、`strategy/rd_agent.py`（discover_factors 签名已改）
 
 **Tasks**:
-- [ ] **P2.1 schema-only 隔离层**（依赖：无；解锁：P2.2/P2.3 全部）
-  - [ ] **P2.1.1 schema 暴露层实现**：新建 `strategy/schema_exposure.py`，对外暴露数据 schema（列名/类型/含义/单位），不暴露任何数据值——LLM 因子搜索/模型设计只看 schema（RD-Agent(Q) NeurIPS 2025 范式）
-  - [ ] **P2.1.2 train/val/test 时间分割边界**：时间分割规则显式化（禁止穿越：val/test 起点晚于 train 终点，窗口宽度/滚动步长入参），分割边界元数据只进 schema 不进数据值
-  - [ ] **P2.1.3 RD-Agent(Q) 接线**：`rd_agent.py` runner 输入切换为 schema-only（屏蔽原始行情/时间点），LLM 输出约束为 schema 引用（列名 + 因子表达式），防 prompt 注入
-  - [ ] **P2.1.4 泄漏守卫测试**：schema 层单测（值泄漏检测：任意输入不包含实际行情值/时间戳）+ 分割边界穿越测试（train 结束时间 > val 开始时间 断言）
+- [x] **P2.1.1 schema 暴露层实现**：`common/schema_exposure.py` 已落地（from_dataframe → DatasetSchema：列名/类型/non_null_count/前 3 示例值，to_dict 序列化不含示例值）；12 项测试已验收（值屏蔽断言）
+- [~] **P2.1.2 train/val/test 时间分割边界**：CLI 交接边界用 TRAIN_FRACTION=0.7 单阈值切分（train-only 交接已实现）；显式三段分割元数据（val/test 段边界规则）未实现，待 P2.2 前补齐
+- [x] **P2.1.3 RD-Agent 接线**：`discover_factors(df, schema: DatasetSchema | None)` 签名改造（向后兼容），CLI 数据文件只写 train 前 70% 行 + schema.json 审计文件；baseline 路径保留全量帧（无 LLM 接触）
+- [x] **P2.1.4 泄漏守卫测试**：原 12 项（值屏蔽/to_dict 序列化/示例值限量）+ 新增 2 项 wiring 测试（train-slice 行数与时间戳边界、legacy 兼容）
 - [ ] **P2.2 FinBERT→FinGPT 升级**（依赖 P2.1）：单卡 RTX 3090/$17.25 微调路径（medium-high，2-1 vote，自报基准）
 - [ ] **P2.3 情绪传播广度**（依赖 P2.1）：`SentimentAnalyzer.analyze` 接收传播广度元数据（聚类触达+影响力注入 prompt，+8 百分点，AAAI 2025）
 
@@ -364,7 +363,7 @@ Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 �
 | 3. deep-research 改进分批实施 | 1. P0 数据层防泄漏 | **P0-verify PASS**（P0.3 基线已重立，4/4 绿） | `01f05fb` `99795b2` |
 | 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | **P1-verify PASS** | 2026-07-21 `626b015` |
 | 3. deep-research 改进分批实施 | 2.5 多 book reconcile (Wave 1-5) | **Completed** | 2026-07-25 `7e781a8`→`06a8d93` |
-| 3. deep-research 改进分批实施 | 3. P2 AI 层升级 | Unblocked，未启动（P2.1 任务分解已细化，2026-08-06） | - |
+| 3. deep-research 改进分批实施 | 3. P2 AI 层升级 | **P2.1 接线完成**（schema 层已落地 + rd_agent 签名改造 + train-slice 边界，2026-08-06）；P2.1.2 三段分割待补；P2.2/P2.3 依赖 P2.1 未启动 | 2026-08-06 `feat(ai) P2.1` |
 | 4. v0.2 多 Symbol 扩展 | 全量（17 ISS 清零 + 架构清理） | **Completed** | 2026-08-02 `fe43aeb` (tag `v0.2.0`) |
 | 5. 生产安全接线与回放验证（A2+C1） | 1. A2 生产安全接线 | **Completed** | 2026-08-06 `6257b7c` |
 | 5. 生产安全接线与回放验证（A2+C1） | 2. C1 30 天 paper 回放 | **Completed** | 2026-08-06 `7aded16` |
