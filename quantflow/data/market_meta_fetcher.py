@@ -163,9 +163,7 @@ def _is_retryable(exc: Exception) -> bool:
         return True
     if isinstance(exc, (asyncio.TimeoutError, ConnectionError, OSError)):
         return True
-    return isinstance(
-        exc, (ccxt.RateLimitExceeded, ccxt.DDoSProtection, ccxt.NetworkError)
-    )
+    return isinstance(exc, (ccxt.RateLimitExceeded, ccxt.DDoSProtection, ccxt.NetworkError))
 
 
 class MarketMetaFetcher:
@@ -250,7 +248,7 @@ class MarketMetaFetcher:
                 last_exc = e
                 if attempt >= MAX_RETRIES:
                     break
-                jitter = random.uniform(0.0, 0.1 * delay)  # noqa: S311
+                jitter = random.uniform(0.0, 0.1 * delay)
                 logger.warning(
                     "%s retryable failure (%s); backoff %.2fs (attempt %d/%d)",
                     op,
@@ -267,19 +265,59 @@ class MarketMetaFetcher:
     # Funding rate
     # ------------------------------------------------------------------
 
+    def _resolve_swap_symbol(self, symbol: str) -> str:
+        """Resolve a possibly spot-format symbol to its linear swap market.
+
+        OKX funding/OI endpoints only serve swap markets. The configured
+        symbol is usually the spot form shared with kline fetches (e.g.
+        ``BTC/USDT``), which ccxt resolves to the spot market even with
+        defaultType=swap — funding/OI calls then fail with "only valid for
+        swap markets". This resolves to the linear swap market (e.g.
+        ``BTC/USDT:USDT``). Falls back to the input unchanged when
+        resolution is impossible (mock exchanges, unknown symbols) so the
+        endpoint call raises normally instead of masking the error.
+        """
+        exchange = self._require_exchange()
+        markets = getattr(exchange, "markets", None)
+        try:
+            m = exchange.market(symbol)
+        except Exception:
+            m = None
+        if m is not None and m.get("type") == "swap":
+            return symbol
+        base, sep, quote = symbol.partition("/")
+        if sep and isinstance(markets, dict):
+            for mkt in markets.values():
+                if (
+                    mkt.get("type") == "swap"
+                    and mkt.get("base") == base
+                    and mkt.get("quote") == quote
+                ):
+                    resolved = mkt.get("symbol")
+                    return str(resolved) if resolved else symbol
+        # Last resort: treat the input as a market id (e.g. BTC-USDT-SWAP).
+        try:
+            by_id = getattr(exchange, "markets_by_id", {}) or {}
+            hits = by_id.get(symbol, []) or []
+            if hits and hits[0].get("type") == "swap":
+                resolved = hits[0].get("symbol")
+                return str(resolved) if resolved else symbol
+        except Exception:
+            pass
+        return symbol
+
     async def fetch_funding_rate(self, symbol: str) -> FundingRateSnapshot:
         """Fetch the current funding rate (ccxt /public/funding-rate)."""
         exchange = self._require_exchange()
+        resolved = self._resolve_swap_symbol(symbol)
 
         async def _call() -> Any:
-            return await exchange.fetchFundingRate(symbol)
+            return await exchange.fetchFundingRate(resolved)
 
         raw: dict[str, Any] = await self._retry_call(_call, f"fetch_funding_rate({symbol})")
         info: dict[str, Any] = raw.get("info") or {}
         funding_time = _to_int(raw.get("fundingTimestamp") or info.get("fundingTime"))
-        next_funding_time = _to_int(
-            raw.get("nextFundingTimestamp") or info.get("nextFundingTime")
-        )
+        next_funding_time = _to_int(raw.get("nextFundingTimestamp") or info.get("nextFundingTime"))
         return FundingRateSnapshot(
             symbol=symbol,
             funding_rate=_to_float(raw.get("fundingRate") or info.get("fundingRate")),
@@ -311,6 +349,7 @@ class MarketMetaFetcher:
         rows: dict[int, dict[str, Any]] = {}
         since = int(since_ms)
         effective_limit = min(limit, FUNDING_HISTORY_PAGE_MAX)
+        resolved = self._resolve_swap_symbol(symbol)
         for _ in range(MAX_HISTORY_PAGES):
             page_since = since
 
@@ -319,9 +358,7 @@ class MarketMetaFetcher:
                 # limit argument must be an int, not a params dict (the old
                 # spelling URL-encoded the dict into the limit query param,
                 # which OKX rejects with 51000).
-                return await exchange.fetchFundingRateHistory(
-                    symbol, s, effective_limit, {}
-                )
+                return await exchange.fetchFundingRateHistory(resolved, s, effective_limit, {})
 
             page: list[dict[str, Any]] = await self._retry_call(
                 _call, f"fetch_funding_rate_history({symbol})"
@@ -362,9 +399,10 @@ class MarketMetaFetcher:
     async def fetch_open_interest(self, symbol: str) -> OpenInterestSnapshot:
         """Fetch current open interest (ccxt fetchOpenInterest, REST)."""
         exchange = self._require_exchange()
+        resolved = self._resolve_swap_symbol(symbol)
 
         async def _call() -> Any:
-            return await exchange.fetchOpenInterest(symbol)
+            return await exchange.fetchOpenInterest(resolved)
 
         raw: dict[str, Any] = await self._retry_call(_call, f"fetch_open_interest({symbol})")
         info: dict[str, Any] = raw.get("info") or {}
@@ -373,9 +411,7 @@ class MarketMetaFetcher:
             symbol=symbol,
             open_interest=_to_float(raw.get("openInterest") or info.get("oi")),
             open_interest_ccy=_to_float(info.get("oiCcy")),
-            open_interest_usd=_to_float(
-                raw.get("openInterestValue") or info.get("oiUsd")
-            ),
+            open_interest_usd=_to_float(raw.get("openInterestValue") or info.get("oiUsd")),
             timestamp=_to_int(raw.get("timestamp") or info.get("ts"), default=fetched_at),
             fetched_at_ms=fetched_at,
         )
@@ -409,11 +445,12 @@ class MarketMetaFetcher:
         window_start = int(since_ms) if since_ms and since_ms > 0 else None
         window_end = int(end_ms) if end_ms else int(time.time() * 1000)
         effective_limit = max(limit, OI_HISTORY_PAGE_MAX)
+        resolved = self._resolve_swap_symbol(symbol)
 
         async def _call() -> Any:
             params: dict[str, Any] = {"until": window_end} if window_start is not None else {}
             return await exchange.fetchOpenInterestHistory(
-                symbol, period, window_start, effective_limit, params
+                resolved, period, window_start, effective_limit, params
             )
 
         page: list[dict[str, Any]] = await self._retry_call(

@@ -411,3 +411,95 @@ def test_polling_constants_locked():
     assert FUNDING_POLL_INTERVAL_S >= 60.0
     assert OI_POLL_INTERVAL_S >= 30.0
     assert mmf.MIN_ENDPOINT_INTERVAL_S >= 0.2
+
+
+# ---------------------------------------------------------------------------
+# Swap-market symbol resolution (ISS-20260803-001 live-feed gap)
+# ---------------------------------------------------------------------------
+
+
+class MarketsMockExchange(MockExchange):
+    """MockExchange with ccxt-style markets + market() resolution."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls: list[str] = []
+        self._markets = {
+            "BTC/USDT": {
+                "id": "BTC-USDT",
+                "symbol": "BTC/USDT",
+                "base": "BTC",
+                "quote": "USDT",
+                "type": "spot",
+            },
+            "BTC/USDT:USDT": {
+                "id": "BTC-USDT-SWAP",
+                "symbol": "BTC/USDT:USDT",
+                "base": "BTC",
+                "quote": "USDT",
+                "type": "swap",
+            },
+            "ETH/USDT": {
+                "id": "ETH-USDT",
+                "symbol": "ETH/USDT",
+                "base": "ETH",
+                "quote": "USDT",
+                "type": "spot",
+            },
+        }
+        self.markets = self._markets
+        self.markets_by_id = {m["id"]: [m] for m in self._markets.values()}
+        self.funding_called_with: list[str] = []
+        self.oi_called_with: list[str] = []
+
+    def market(self, symbol: str) -> dict:
+        if symbol in self._markets:
+            return self._markets[symbol]
+        raise ValueError(f"symbol not found: {symbol}")
+
+    async def fetchFundingRate(self, symbol: str):  # noqa: N802
+        self.funding_called_with.append(symbol)
+        return {
+            "fundingRate": -0.002,
+            "fundingTimestamp": 1_700_000_000_000,
+            "info": {"nextFundingTime": 1_700_000_000_000 + 8 * 3600_000},
+        }
+
+    async def fetchOpenInterest(self, symbol: str):  # noqa: N802
+        self.oi_called_with.append(symbol)
+        return {"openInterest": 100.0, "timestamp": 1_700_000_000_000, "info": {}}
+
+
+class TestSwapSymbolResolution:
+    @pytest.mark.asyncio
+    async def test_funding_rate_spot_symbol_resolves_to_swap(self, fake_clock):
+        """'BTC/USDT' (spot form) must hit the swap market endpoint."""
+        exchange = MarketsMockExchange()
+        fetcher = MarketMetaFetcher(DataConfig(), exchange=exchange)
+        snap = await fetcher.fetch_funding_rate("BTC/USDT")
+        assert exchange.funding_called_with == ["BTC/USDT:USDT"]
+        assert snap.symbol == "BTC/USDT"  # caller-facing symbol preserved
+
+    @pytest.mark.asyncio
+    async def test_open_interest_spot_symbol_resolves_to_swap(self, fake_clock):
+        exchange = MarketsMockExchange()
+        fetcher = MarketMetaFetcher(DataConfig(), exchange=exchange)
+        snap = await fetcher.fetch_open_interest("BTC/USDT")
+        assert exchange.oi_called_with == ["BTC/USDT:USDT"]
+        assert snap.open_interest == pytest.approx(100.0)
+
+    @pytest.mark.asyncio
+    async def test_explicit_swap_symbol_passes_through(self, fake_clock):
+        exchange = MarketsMockExchange()
+        fetcher = MarketMetaFetcher(DataConfig(), exchange=exchange)
+        await fetcher.fetch_funding_rate("BTC/USDT:USDT")
+        assert exchange.funding_called_with == ["BTC/USDT:USDT"]
+
+    @pytest.mark.asyncio
+    async def test_resolution_unavailable_falls_back_to_input(self, fake_clock):
+        """Plain MockExchange (no markets) -> symbol passed through unchanged."""
+        exchange = MockExchange()
+        exchange.funding_rate_response = {"fundingRate": 0.0, "fundingTimestamp": 1, "info": {}}
+        fetcher = MarketMetaFetcher(DataConfig(), exchange=exchange)
+        await fetcher.fetch_funding_rate("BTC/USDT")
+        assert exchange.calls == ["fetchFundingRate"]
