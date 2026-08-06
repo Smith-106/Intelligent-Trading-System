@@ -439,6 +439,59 @@ class TestFinGptBackend:
         assert loaded["cls"] == "seq"
         assert analyzer2._generative is False
 
+    def test_architecture_override_forces_classification(self, monkeypatch) -> None:
+        """Model names are unreliable architecture signals: a name containing
+        ``gpt2`` may ship a classification head (e.g. rezacsedu GPT-2
+        sentiment checkpoints) — an explicit ``architecture`` override must
+        win over keyword sniffing.
+        """
+        import sys
+        from types import ModuleType, SimpleNamespace
+
+        from quantflow.strategy.sentiment import SentimentAnalyzer
+
+        loaded: dict = {}
+        fake_tok = SimpleNamespace(decode=lambda ids, **kw: " positive")
+
+        class FakeCausalModel:
+            @classmethod
+            def from_pretrained(cls, name):
+                return cls()
+
+            def __init__(self, *a, **k):
+                loaded["cls"] = "causal"
+
+            def to(self, device):
+                return self
+
+            def eval(self):
+                return self
+
+        class FakeSeqModel(FakeCausalModel):
+            def __init__(self, *a, **k):
+                loaded["cls"] = "seq"
+
+        fake_transformers = ModuleType("transformers")
+        fake_transformers.AutoModelForCausalLM = FakeCausalModel
+        fake_transformers.AutoModelForSequenceClassification = FakeSeqModel
+        fake_transformers.AutoTokenizer = SimpleNamespace(from_pretrained=lambda name: fake_tok)
+        monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+        analyzer = SentimentAnalyzer(
+            model_name="someorg/fingpt-gpt2-model", architecture="classification"
+        )
+        analyzer.load_model()
+        assert loaded["cls"] == "seq"
+        assert analyzer._generative is False
+
+        # Explicit causal override on a finbert-looking name.
+        analyzer2 = SentimentAnalyzer(
+            model_name="org/finbert", architecture="causal"
+        )
+        analyzer2.load_model()
+        assert loaded["cls"] == "causal"
+        assert analyzer2._generative is True
+
     def test_generative_scoring_parses_label(self, monkeypatch) -> None:
         import contextlib
         import sys

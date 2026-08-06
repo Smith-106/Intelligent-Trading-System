@@ -7,6 +7,7 @@ as a trading signal factor.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import pandas as pd
 
@@ -29,12 +30,22 @@ class SentimentAnalyzer:
     models such as ``rezacsedu/financial_sentiment_analysis_gpt2_model``).
     Generative backends score via a label prompt + keyword extraction;
     unparseable output degrades to the NaN sentinel (ISS-040 contract).
+
+    ``architecture`` overrides model-name keyword sniffing: model names are
+    unreliable architecture signals (e.g. ``rezacsedu/..._gpt2_model`` ships a
+    classification head despite the name) — pass ``"causal"`` or
+    ``"classification"`` explicitly to force the load path.
     """
 
-    def __init__(self, model_name: str = "ProsusAI/finbert") -> None:
+    def __init__(
+        self,
+        model_name: str = "ProsusAI/finbert",
+        architecture: str | None = None,
+    ) -> None:
         self._model_name = model_name
-        self._model = None
-        self._tokenizer = None
+        self._architecture = architecture
+        self._model: Any = None
+        self._tokenizer: Any = None
         self._device = "cpu"
         self._generative = False
 
@@ -43,7 +54,8 @@ class SentimentAnalyzer:
 
         P2.2: generative backends (GPT-2 / FinGPT-style causal LMs) load via
         ``AutoModelForCausalLM`` and score through ``generate``; everything
-        else keeps the sequence-classification path.
+        else keeps the sequence-classification path. An explicit
+        ``architecture`` constructor argument wins over keyword sniffing.
         """
         try:
             from transformers import AutoTokenizer
@@ -51,12 +63,16 @@ class SentimentAnalyzer:
             self._device = device
             tokenizer = AutoTokenizer.from_pretrained(self._model_name)
             name = self._model_name.lower()
-            if any(k in name for k in ("gpt2", "gpt", "fingpt", "llama", "qwen", "mistral")):
+            causal = self._architecture == "causal" or (
+                self._architecture is None
+                and any(k in name for k in ("gpt2", "gpt", "fingpt", "llama", "qwen", "mistral"))
+            )
+            if causal:
                 # Stepwise import: generative backends load via CausalLM; the
                 # classification path must not require that class to exist.
                 from transformers import AutoModelForCausalLM
 
-                model = AutoModelForCausalLM.from_pretrained(self._model_name)
+                model: Any = AutoModelForCausalLM.from_pretrained(self._model_name)
                 self._generative = True
                 logger.info("Generative sentiment model loaded on %s", device)
             else:
