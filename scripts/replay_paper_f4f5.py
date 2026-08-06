@@ -107,6 +107,10 @@ def build_session(strategy_name: str = "trend_following") -> TradingSession:
         gateway=PaperGateway({"initial_capital": 100_000.0, "taker_fee": cfg.execution.taker_fee}),
         timeout=cfg.execution.order_timeout,
     )
+    # Rebind the L5 PositionManager to the session's shared L4 portfolio —
+    # start() normally does this; without it fills update a private default
+    # book and session._portfolio (read by on_bar/equity) never moves.
+    session._execution.set_portfolio(session._portfolio)
     # start() sets a uniform per-strategy allocation; since we bypass start(),
     # replicate it here. Without this, get_strategy_allocation() returns 0.0
     # for every strategy → position_sizer size * 0 = 0 → every signal is
@@ -128,7 +132,9 @@ async def replay(session: TradingSession, bars_df: pd.DataFrame, symbol: str) ->
     for strategy in session._strategies:
         ctx = StrategyContext()
         strategy.on_init(ctx)
-        session._contexts[strategy.name] = ctx
+        # M4: legacy single-symbol contexts are keyed by (name, "") — a bare
+        # name key is never found by on_bar, silently gating every strategy out.
+        session._contexts[(strategy.name, "")] = ctx
 
     for row in bars_df.itertuples(index=False):
         bar = Bar(
