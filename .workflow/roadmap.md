@@ -55,7 +55,7 @@
 
 - [x] **Phase 1: 版本与工作流对齐**：更新版本元数据，建立发布里程碑与 maestro 会话，准备 `docs/release/v0.1.3/`
 - [x] **Phase 2: 打包治理与制品重建**：限制 sdist / wheel 内容，重建 `SHA256SUMS.txt` 与 `release-manifest.json`
-- [~] **Phase 3: 发布证据与远端对齐**：tag `v0.1.3` + GitHub Release「QuantFlow v0.1.3」已创建（commit `4bc72cd`，2026-06-07），dist 制品已封存。**部分完成**：远端资产闭环扫描证据归档状态未确认（保留待办，对齐 state.json phase3=release-evidence:in_progress）
+- [x] **Phase 3: 发布证据与远端对齐**：tag `v0.1.3` + GitHub Release「QuantFlow v0.1.3」已创建（commit `4bc72cd`，2026-06-07），dist 制品已封存。**已核验完成**（2026-08-06）：gh CLI 下载 6 资产闭环核验 PASS——whl `bf89a85c` / tar.gz `3ed19f7c` / manifest `a67a8bf7`，文件本体 hash = 官方 .sha256 = GitHub Release digest = SHA256SUMS.txt 四源一致
 
 #### Delivery Summary
 
@@ -73,7 +73,7 @@
 #### Blocking Findings
 
 - ~~`v0.1.3` 远端 tag / release 尚未创建~~ — **已解决**：tag `v0.1.3`（target `4bc72cd`）+ GitHub Release「QuantFlow v0.1.3」已创建于 2026-06-07（drift-realign DFT-4d1a3b69, 2026-07-26）
-- ~~安全扫描与发布证据仍未归档~~ — 待核验：远端资产闭环扫描证据归档状态未确认（保留待办）
+- ~~安全扫描与发布证据仍未归档~~ — **已核验完成**：2026-08-06 gh CLI 下载 6 资产闭环核验 PASS（whl `bf89a85c` / tar.gz `3ed19f7c` / manifest `a67a8bf7`，文件 hash = 官方 .sha256 = GitHub digest = SHA256SUMS.txt 四源一致）
 
 ### Milestone 3: deep-research 改进分批实施（P0/P1/P2）
 
@@ -360,7 +360,7 @@ Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 �
 | 1. 四策略实现 | 1. 策略实现与验证 | Completed | 2026-06-02 |
 | 2. v0.1.3 发布候选准备 | 1. 版本与工作流对齐 | Completed | 2026-06-07 |
 | 2. v0.1.3 发布候选准备 | 2. 打包治理与制品重建 | Completed | 2026-06-07 |
-| 2. v0.1.3 发布候选准备 | 3. 发布证据与远端对齐 | In progress（tag/Release 已建，远端扫描证据归档待核验） | 2026-06-07 (tag `4bc72cd` + Release) |
+| 2. v0.1.3 发布候选准备 | 3. 发布证据与远端对齐 | **Completed**（2026-08-06 核验 PASS：6 资产四源 digest 一致） | 2026-06-07 (tag `4bc72cd` + Release) |
 | 3. deep-research 改进分批实施 | 1. P0 数据层防泄漏 | **P0-verify PASS**（P0.3 基线已重立，4/4 绿） | `01f05fb` `99795b2` |
 | 3. deep-research 改进分批实施 | 2. P1 风控层补齐 | **P1-verify PASS** | 2026-07-21 `626b015` |
 | 3. deep-research 改进分批实施 | 2.5 多 book reconcile (Wave 1-5) | **Completed** | 2026-07-25 `7e781a8`→`06a8d93` |

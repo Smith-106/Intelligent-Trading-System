@@ -23,7 +23,7 @@
       "id": "M2",
       "name": "v0.1.3 发布候选准备",
       "title": "v0.1.3 发布候选准备",
-      "status": "in_progress",
+      "status": "completed",
       "phases": [
         {
           "id": 1,
@@ -41,7 +41,7 @@
           "id": 3,
           "name": "发布证据与远端对齐",
           "slug": "release-evidence",
-          "status": "in_progress"
+          "status": "completed"
         }
       ]
     },
