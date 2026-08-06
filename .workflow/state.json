@@ -389,7 +389,7 @@
       "ref": "commit fe43aeb — release(v0.2.0): resolve 17 issues, security hardening, architecture cleanup, new features"
     }
   ],
-  "last_updated": "2026-08-03T19:32:07+08:00",
+  "last_updated": "2026-08-06T18:46:13+08:00",
   "sessions": [
     {
       "session_id": "maestro-multi-book-reconcile-20260725-113526",
@@ -482,13 +482,85 @@
     {
       "session_id": "maestro-wave1-precheck-20260803-20260803-075540",
       "intent": "s1/s2实施前补充核验ccxt限额与FreqAI文档，随后实施wave1（地基补强∥多源数据）",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "maestro-wave2-s3-20260803-20260804-040400",
+      "intent": "wave2 s3 AI 研究管道实施：RD-Agent 接线 + 特征工程 + 训练-验证-交付闭环",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "maestro-wave3-s4-20260804-20260804-054608",
+      "intent": "wave3 s4 策略工厂实施：多策略编排 + 动态预算分配 + 自动回测闭环 + 因子组合 + 策略监控",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "maestro-smoke-llm-20260804-20260804-065343",
+      "intent": "ISS-20260804-001 冒烟验证：真实 LLM 端到端（LLM 端点连通性 + rd_agent 接线 + quantflow ai research 降级链）",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "maestro-cleanup-s5-20260804-20260804-074705",
+      "intent": "快速清理：ISS-20260804-002 mypy + ISS-20260804-004 ruff 空白 + s5 预分析",
       "status": "running",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "maestro-s5-portfolio-20260804-20260804-082039",
+      "intent": "s5 组合优化：risk parity sizing + 组合预算 + VaR 联动",
+      "status": "running",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "maestro-s5-followup-20260804-20260804-085516",
+      "intent": "s5 后续：paper 回放验证 + mean_variance + 监控指标 + 知识沉淀",
+      "status": "running",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "maestro-n1-pagination-20260804-20260804-102422",
+      "intent": "N1 volatility_breakout 路由排查 + fetcher 分页增强",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "20260805-maestro-knowledge-sync-20260805-052529",
+      "intent": "更新项目知识库：codebase 增量刷新 + harvest 知识收割 + wiki 健康 + kg 图谱同步",
+      "status": "sealed",
+      "depends_on": [],
+      "roadmap_artifact_id": null,
+      "seed_ref": null
+    },
+    {
+      "session_id": "20260806-iss-20260804-003-spot-perp",
+      "intent": "ISS-20260804-003 spot-perp 真实数据验证",
+      "status": "sealed",
       "depends_on": [],
       "roadmap_artifact_id": null,
       "seed_ref": null
     }
   ],
-  "active_session_id": "maestro-wave1-precheck-20260803-20260803-075540",
+  "active_session_id": null,
   "last_drift_realign": "2026-08-02T16:00:00+08:00",
-  "codebase_last_refreshed": "2026-08-02T16:00:00+08:00"
+  "codebase_last_refreshed": "2026-08-05T13:40:00+08:00"
 }

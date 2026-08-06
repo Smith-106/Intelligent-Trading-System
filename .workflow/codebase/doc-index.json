@@ -2,12 +2,11 @@
   "version": "1.0",
   "schema_version": "1.0",
   "project": "QuantFlow",
-  "project_version": "0.3.0",
-  "last_updated": "2026-08-02T18:00:00Z",
-  "rebuild_source": "manage-codebase-rebuild (full, 4 mappers + maestro kg index)",
+  "project_version": "0.4.0",
+  "last_updated": "2026-08-05T05:37:59Z",
+  "rebuild_source": "manage-codebase-rebuild (full, 4 mappers + maestro kg index) | codebase-refresh 2026-08-05",
   "overview": "Personal Crypto quantitative trading system (OKX) with six-layer architecture (L1 data -> L6 monitoring), self-built event-driven TradingSession engine, anti-overfitting validation pipeline (CPCV+DSR+PBO+WFO), and QuantFlow Station web UI. Phase 1/2/3 complete; M3 deep-research remediation complete (P0 verify-passed, P1 verify-passed, P2 unblocked); M4 v0.2.0 released (17 ISS resolved, security hardening, architecture cleanup). P2 AI-layer upgrade and full multi-symbol data loop are next iteration targets. v0.2.0 includes G1-G5 operational integrity suite: thread-safe OrderManager (RLock), ReconciliationEngine, distributed tracing, DQ monitoring, alert taxonomy.",
-      "features": [
-        "FT-001",
+  "features": [
     {
       "id": "FT-001",
       "name": "Strategies",
@@ -146,7 +145,7 @@
       "status": "active",
       "requirement_ids": [],
       "component_ids": [
-        "TC-012"
+        "TC-013"
       ],
       "phase": "v0.2.0 new feature",
       "description": "Grafana dashboards-as-code: operational-integrity.json covering G1 thread-safe order management metrics, G2 reconciliation drift statistics, G3 distributed tracing latency, G4 data quality scores, G5 alert routing matrix. Alert rules in alert-rules-ops.yml. Complete operations guide in docs/operations-guide.md."
@@ -165,26 +164,50 @@
         "quantflow/data/redis_cache.py",
         "quantflow/data/mtf_aligner.py",
         "quantflow/data/dq_monitor.py",
-        "quantflow/data/__init__.py"
+        "quantflow/data/__init__.py",
+        "quantflow/data/market_meta_fetcher.py"
       ],
       "feature_ids": [
         "FT-007",
         "FT-011"
       ],
       "symbols": [
+        "BASE_BACKOFF_S",
+        "CALL_TIMEOUT",
+        "DEFAULT_TIMEFRAMES",
         "DataFetcher",
-        "DataStore",
-        "FeatureStore",
-        "MTFAligner",
-        "MTFData",
-        "RedisCache",
         "DataQualityMonitor",
         "DataQualityScore",
+        "DataStore",
+        "FUNDING_HISTORY_COLUMNS",
+        "FUNDING_MAX_AGE_FACTOR",
+        "FUNDING_POLL_INTERVAL_S",
+        "FeatureStore",
+        "FundingRateSnapshot",
+        "InMemoryStateStore",
+        "MAX_HISTORY_PAGES",
+        "MAX_PAGINATION_PAGES",
+        "MAX_RETRIES",
+        "MIN_ENDPOINT_INTERVAL_S",
+        "MTFAligner",
+        "MTFData",
+        "MarketMetaFetcher",
+        "OI_HISTORY_COLUMNS",
+        "OI_MAX_AGE_S",
+        "OI_POLL_INTERVAL_S",
+        "OKX_KLINE_PAGE_MAX",
+        "OpenInterestSnapshot",
+        "RATE_LIMIT_ERROR_CODE",
+        "RedisCache",
+        "RateLimiter",
+        "TICKER_TTL",
+        "TIMEFRAMES",
+        "TIMEFRAME_MAP",
         "ValidationResult",
         "clean_ohlcv",
         "validate_no_future_leak"
       ],
-      "last_updated": "2026-08-02T12:00:00Z"
+      "last_updated": "2026-08-05T13:40:00Z"
     },
     {
       "id": "TC-002",
@@ -274,6 +297,8 @@
         "BacktestEngine",
         "BacktestResult",
         "DiscoveredFactor",
+        "EVENT_FUNDING",
+        "EVENT_OI",
         "ElliottWaveStrategy",
         "FundingRateStrategy",
         "LiuYudongWaveStrategy",
@@ -286,6 +311,7 @@
         "MonteCarloResult",
         "NewsCollector",
         "QlibNotAvailableError",
+        "RDAgentCliUnavailableError",
         "RDAgentConfig",
         "RDAgentRunner",
         "RecursiveReport",
@@ -321,6 +347,7 @@
         "lows",
         "minimum_track_record_length",
         "monte_carlo_stress",
+        "probability_of_overfitting",
         "profit_target_exit",
         "profit_target_exit_series",
         "returns_bootstrap_stress",
@@ -345,7 +372,7 @@
         "volumes",
         "walk_forward_optimization"
       ],
-      "last_updated": "2026-08-01T00:00:00Z"
+      "last_updated": "2026-08-05T05:37:59Z"
     },
     {
       "id": "TC-004",
@@ -358,7 +385,8 @@
         "quantflow/signal/portfolio.py",
         "quantflow/signal/risk_metrics.py",
         "quantflow/signal/wave_signal_generator.py",
-        "quantflow/signal/__init__.py"
+        "quantflow/signal/__init__.py",
+        "quantflow/signal/optimizer.py"
       ],
       "feature_ids": [
         "FT-006"
@@ -366,9 +394,13 @@
       "symbols": [
         "InvalidationEvent",
         "InvalidationSeverity",
+        "MeanVarianceOptimizer",
+        "PendingEntry",
+        "PendingView",
         "PortfolioManager",
         "PositionSizer",
         "RiskEngine",
+        "RiskParityOptimizer",
         "SignalGenerator",
         "WaveInvalidationChecker",
         "WaveSignal",
@@ -381,7 +413,7 @@
         "sortino_ratio",
         "value_at_risk"
       ],
-      "last_updated": "2026-07-29T06:38:45Z"
+      "last_updated": "2026-08-05T05:37:59Z"
     },
     {
       "id": "TC-005",
@@ -396,24 +428,39 @@
         "quantflow/execution/order_manager.py",
         "quantflow/execution/position_manager.py",
         "quantflow/execution/kill_switch.py",
-        "quantflow/execution/__init__.py"
+        "quantflow/execution/__init__.py",
+        "quantflow/execution/state_store.py",
+        "quantflow/execution/exchange_health.py"
       ],
       "feature_ids": [
         "FT-005"
       ],
       "symbols": [
+        "CHECKPOINT_FILENAME",
+        "CALL_TIMEOUT",
+        "CURRENT_SCHEMA_VERSION",
+        "DEFAULT_TIMEOUT",
+        "EVENT_FILL",
+        "EVENT_ORDER",
+        "ExchangeHealthMonitor",
         "ExecutionEngine",
         "GatewayBase",
         "GatewayError",
         "KillSwitch",
+        "MAX_RECONNECT_ATTEMPTS",
+        "MAX_TRACKED_ORDERS",
         "OKXGateway",
         "OpenOrder",
         "OrderManager",
         "OrderRouter",
         "PaperGateway",
-        "PositionManager"
+        "PositionManager",
+        "RECONNECT_INTERVAL",
+        "RECOVERY_SUCCESS_STREAK",
+        "SessionSnapshot",
+        "StateStore"
       ],
-      "last_updated": "2026-08-02T14:00:00Z"
+      "last_updated": "2026-08-05T13:40:00Z"
     },
     {
       "id": "TC-006",
@@ -429,18 +476,40 @@
       "feature_ids": [],
       "symbols": [
         "AlertCategory",
+        "AlertDeduplicator",
         "AlertLevel",
         "AlertManager",
         "AlertPriority",
+        "BAR_PROCESSING_LATENCY",
         "DefaultMonitoringSink",
+        "GATEWAY_CONNECTED",
+        "GATEWAY_DISCONNECTS",
+        "GATEWAY_RECONNECTS",
+        "KILL_SWITCH_ACTIVATIONS",
+        "KILL_SWITCH_STEP_FAILURES",
+        "ORDERS_FILLED",
+        "ORDERS_TIMED_OUT",
+        "ORDERS_TOTAL",
+        "ORDER_LATENCY",
+        "PORTFOLIO_ALLOCATION",
+        "PORTFOLIO_CASH",
+        "PORTFOLIO_DRAWDOWN",
+        "PORTFOLIO_VALUE",
+        "POSITIONS_COUNT",
+        "RISK_EVENTS",
+        "SIGNALS_GENERATED",
+        "SIGNAL_PROCESSING_LATENCY",
+        "STRATEGY_BUDGET_UTILIZATION",
+        "STRATEGY_PNL",
         "create_default_sink",
         "metrics_registry_snapshot",
         "metrics_server_status",
+        "resolve_alert_channels",
         "setup_logging",
         "start_metrics_server",
         "update_portfolio_metrics"
       ],
-      "last_updated": "2026-08-02T14:00:00Z"
+      "last_updated": "2026-08-05T05:37:59Z"
     },
     {
       "id": "TC-007",
@@ -466,19 +535,31 @@
       ],
       "feature_ids": [],
       "symbols": [
+        "AIConfig",
         "AlertChannelConfig",
         "AppConfig",
+        "AutoLoopConfigModel",
         "Bar",
+        "COLUMN_PATTERN",
         "ColumnSchema",
         "ConfigError",
+        "CorrelationIdProcessor",
         "DataConfig",
         "DataError",
         "DataNotFoundError",
         "DataValidationError",
         "DatasetSchema",
         "Direction",
+        "DynamicBudgetConfig",
+        "EVENT_BAR",
+        "EVENT_FILL",
+        "EVENT_ORDER",
+        "EVENT_RISK",
+        "EVENT_SIGNAL",
+        "EVENT_TICK",
         "Event",
         "EventBus",
+        "ExchangeHealthConfig",
         "ExecutionConfig",
         "ExecutionError",
         "GatewayConnectionError",
@@ -489,6 +570,7 @@
         "MonitoringSink",
         "NullIndicatorComputer",
         "NullMonitoringSink",
+        "OTEL_AVAILABLE",
         "Order",
         "OrderError",
         "OrderRequest",
@@ -499,20 +581,33 @@
         "OrderType",
         "POSITION_EPSILON",
         "Portfolio",
+        "PortfolioOptimizationConfig",
         "Position",
         "QuantFlowError",
+        "RDAgentConfigModel",
+        "REDACTED_PLACEHOLDER",
+        "ReconciliationConfig",
         "RiskBreachError",
         "RiskConfig",
         "RiskDecision",
         "RunMode",
+        "SENSITIVE_FIELDS",
+        "SYMBOL_PATTERN",
         "SchemaExposure",
         "Signal",
         "SignalError",
+        "StateConfig",
         "StrategyConfig",
         "StrategyConfigError",
         "StrategyError",
+        "TracingContext",
         "UnsafeUrlError",
         "ValidationConfig",
+        "clear_correlation_id",
+        "create_otel_span",
+        "get_correlation_id",
+        "get_or_create_correlation_id",
+        "init_otel_tracer",
         "load_config",
         "redact_secrets",
         "resolve_config_path",
@@ -520,24 +615,16 @@
         "safe_number",
         "save_config",
         "series_payload",
+        "set_correlation_id",
         "strategy_id_constituents",
         "to_jsonable",
+        "traced",
         "validate_columns",
         "validate_outbound_url",
         "validate_quantity",
-        "validate_symbol",
-        "get_correlation_id",
-        "set_correlation_id",
-        "get_or_create_correlation_id",
-        "clear_correlation_id",
-        "traced",
-        "CorrelationIdProcessor",
-        "TracingContext",
-        "init_otel_tracer",
-        "create_otel_span",
-        "OTEL_AVAILABLE"
+        "validate_symbol"
       ],
-      "last_updated": "2026-08-02T12:00:00Z"
+      "last_updated": "2026-08-05T05:37:59Z"
     },
     {
       "id": "TC-011",
@@ -553,14 +640,15 @@
         "FT-012"
       ],
       "symbols": [
-        "ReconciliationEngine",
         "AuditLogger",
-        "PositionSnapshot",
+        "DailyReconReport",
         "Discrepancy",
         "DiscrepancySet",
-        "DailyReconReport"
+        "DiscrepancyType",
+        "PositionSnapshot",
+        "ReconciliationEngine"
       ],
-      "last_updated": "2026-08-02T14:30:00Z"
+      "last_updated": "2026-08-05T05:37:59Z"
     },
     {
       "id": "TC-013",
@@ -582,29 +670,6 @@
       "last_updated": "2026-08-02T16:00:00Z"
     },
     {
-      "id": "TC-013",
-      "name": "ReconciliationLayer",
-      "type": "L5.5-reconciliation",
-      "code_locations": [
-        "quantflow/reconciliation/__init__.py",
-        "quantflow/reconciliation/engine.py",
-        "quantflow/reconciliation/audit_logger.py",
-        "quantflow/reconciliation/models.py"
-      ],
-      "feature_ids": [
-        "FT-012"
-      ],
-      "symbols": [
-        "ReconciliationEngine",
-        "AuditLogger",
-        "PositionSnapshot",
-        "Discrepancy",
-        "DiscrepancySet",
-        "DailyReconReport"
-      ],
-      "last_updated": "2026-08-02T14:30:00Z"
-    },
-    {
       "id": "TC-008",
       "name": "CliEntry",
       "type": "cli",
@@ -618,9 +683,13 @@
         "FT-002"
       ],
       "symbols": [
+        "DEFAULT_CONFIG_PATH",
+        "FUNDING_HISTORY_MAX_DAYS",
         "ai",
         "benchmark",
         "download",
+        "download_funding",
+        "download_oi",
         "optimize",
         "research",
         "run",
@@ -628,7 +697,7 @@
         "status",
         "validate"
       ],
-      "last_updated": "2026-07-29T06:38:45Z"
+      "last_updated": "2026-08-05T05:37:59Z"
     },
     {
       "id": "TC-009",

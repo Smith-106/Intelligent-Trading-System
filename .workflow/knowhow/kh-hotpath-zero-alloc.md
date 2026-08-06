@@ -1,10 +1,20 @@
 ---
 id: kh-hotpath-zero-alloc
-title: "热路径零分配模式 — per-bar/per-signal 管线优化"
-tags: [performance, hot-path, deque, tuple, cache, risk-engine, allocation]
-source: harvest:20260723-improve-odyssey-trade-main-path
+title: 热路径零分配模式 — per-bar/per-signal 管线优化
+tags:
+  - performance
+  - hot-path
+  - deque
+  - tuple
+  - cache
+  - risk-engine
+  - allocation
+source: "harvest:20260723-improve-odyssey-trade-main-path"
 created: 2026-08-01
+related:
+  - "spec:project:coding-conventions-016"
 ---
+
 
 # 热路径零分配模式
 

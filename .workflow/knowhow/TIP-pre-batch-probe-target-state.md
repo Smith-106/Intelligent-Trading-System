@@ -1,3 +1,7 @@
+---
+related:
+  - "spec:project:learnings-012"
+---
 # TIP — scoping fix batch 前先 probe 目标状态
 
 - **Source**: retrospective security-hardening-20260722 (process lens)

@@ -1,10 +1,20 @@
 ---
 id: kh-order-statemachine-completeness
-title: "订单生命周期状态机完整性 — terminal guard + partial modeling"
-tags: [state-machine, order, timeout, partial-fill, terminal, order-manager, lifecycle]
-source: harvest:20260723-improve-odyssey-trade-main-path
+title: 订单生命周期状态机完整性 — terminal guard + partial modeling
+tags:
+  - state-machine
+  - order
+  - timeout
+  - partial-fill
+  - terminal
+  - order-manager
+  - lifecycle
+source: "harvest:20260723-improve-odyssey-trade-main-path"
 created: 2026-08-01
+related:
+  - "spec:project:coding-conventions-017"
 ---
+
 
 # 订单生命周期状态机完整性
 

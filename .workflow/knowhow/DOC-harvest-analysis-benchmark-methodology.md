@@ -3,7 +3,10 @@ title: 对标分析方法论：四级差距分级 + 外部事实源边界
 category: knowhow
 createdBy: harvest
 sourceRef: 20260803-001-analyze
+related:
+  - session-run-maestro-benchmark-evolve-20260803-20260803-045922-20260803-001-analyze
 ---
+
 # 对标分析方法论：四级差距分级 + 外部事实源边界
 
 **Source**: 20260803-001-analyze（decisions[]，locked；risk-matrix R6/R8）

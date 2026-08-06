@@ -1186,3 +1186,6 @@
 {"type":"injection","id":"SINJ-1785328054430-1","timestamp":"2026-07-29T12:27:34.430Z","source":"keyword-spec-injector","promptSnippet":"是否全部按建议执行","categories":[],"specCount":0,"contentLength":789,"inject":true,"matchedKeywords":[],"matchedEntries":0,"totalPromptKeywords":21,"domainTermsMatched":0,"searchSource":"daemon"}
 {"type":"hook","id":"HOOK-1785328054432-2","timestamp":"2026-07-29T12:27:34.432Z","hookName":"keyword-spec-injector","pluginName":"subprocess","outcome":"success","durationMs":146,"data":{"event":"UserPromptSubmit","session_id":"1f606fb7-59fc-408d-881f-f4a7cca88e18","hook_event_name":"UserPromptSubmit","prompt_snippet":"是否全部按建议执行"}}
 {"type":"cli","id":"CLI-1785328167462-1","timestamp":"2026-07-29T12:29:27.462Z","command":"load","args":{"type":"spec","id":"p1-live-verification-checklist"}}
+{"type":"cli","id":"CLI-1785907910813-1","timestamp":"2026-08-05T05:31:50.813Z","command":"spec load","args":{"category":"arch","stdin":false}}
+{"type":"cli","id":"CLI-1786008289707-1","timestamp":"2026-08-06T09:24:49.707Z","command":"load","args":{"type":"knowhow","id":"knowhow-doc-okx-pagination-pattern"}}
+{"type":"cli","id":"CLI-1786008289707-1","timestamp":"2026-08-06T09:24:49.707Z","command":"load","args":{"type":"issue","id":"issue-ISS-20260804-003"}}

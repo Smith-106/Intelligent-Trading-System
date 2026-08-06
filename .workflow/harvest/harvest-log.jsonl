@@ -37,3 +37,31 @@
 {"fragment_id": "HRV-b30a080a", "source_type": "analysis", "source_id": "20260803-001-analyze", "routed_to": "issue", "target_id": "ISS-20260803-004", "timestamp": "2026-08-03T13:25:00+08:00", "title": "è¿›ç¨‹å´©æºƒåæŒä»“/è®¢å•çŠ¶æ€æ— æŒä¹…åŒ–æ¢å¤æœºåˆ¶", "confidence": 0.9}
 {"fragment_id": "HRV-b30a080b", "source_type": "analysis", "source_id": "20260803-001-analyze", "routed_to": "issue", "target_id": "ISS-20260803-005", "timestamp": "2026-08-03T13:25:00+08:00", "title": "paper/live parity æ”¶æ•›ï¼ˆpartial-fill ws å¢é‡/regime gate/PaperGateway paramsï¼‰", "confidence": 0.85}
 {"fragment_id": "HRV-b30a080c", "source_type": "analysis", "source_id": "20260803-001-analyze", "routed_to": "issue", "target_id": "ISS-20260803-006", "timestamp": "2026-08-03T13:25:00+08:00", "title": "RD-Agent/qlib AI ç ”ç©¶ç®¡é“å®è£…ï¼ˆCLI æ¥çº¿ + LLM åç«¯ï¼‰", "confidence": 0.95}
+
+{"confidence":0.85,"source_id":"maestro-n1-pagination-20260804-20260804-102422","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"OKX KLine ·ÖÒ³À­È¡Ä£Ê½£ºeffective_limit + end ÊØÎÀ + MAX_PAGES ±£»¤","target_id":"knowhow-doc-okx-pagination-pattern","fragment_id":"HRV-n1p-001","routed_to":"wiki"}
+
+{"confidence":0.8,"source_id":"maestro-n1-pagination-20260804-20260804-102422","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"P0 Baseline Guard ¸¡¶¯»ùÏß»úÖÆ£ºÊı¾İ´°¿Ú±ä»¯Ê±×Ô¶¯ÖØ½¨","target_id":"knowhow-doc-p0-baseline-float-guard","fragment_id":"HRV-n1p-002","routed_to":"wiki"}
+
+{"confidence":0.85,"source_id":"maestro-smoke-llm-20260804-20260804-065343","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"LLM ¶ËµãÑéÖ¤ÈıÒªËØÄ£Ê½£ºendpoint/key/model triple ÑéÖ¤ + Æ¾Ö¤°²È«Éó¼Æ","target_id":"knowhow-doc-llm-endpoint-triple-verify","fragment_id":"HRV-sml-001","routed_to":"wiki"}
+
+{"confidence":0.7,"source_id":"maestro-smoke-llm-20260804-20260804-065343","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"È«Á¿ pytest »ùÏßÎ´ÔÚ mise python ÏÂÖØĞÂÑéÖ¤","target_id":"ISS-20260804-008","fragment_id":"HRV-sml-002","routed_to":"issue"}
+
+{"confidence":0.9,"source_id":"maestro-wave1-precheck-20260803-20260803-075540","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"×´Ì¬´æ´¢ StateStore Ô­×ÓĞ´ÈëÄ£Ê½£ºtmp + os.replace °²È«Ğ´Èë","target_id":"knowhow-doc-state-store-atomic-write","fragment_id":"HRV-w1p-001","routed_to":"wiki"}
+
+{"confidence":0.9,"source_id":"maestro-wave1-precheck-20260803-20260803-075540","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"½»Ò×ÒıÇæ»Ö¸´Á´¼Ü¹¹£ºreset ¡ú restore ¡ú _verify_recovery","target_id":"knowhow-doc-engine-recovery-chain","fragment_id":"HRV-w1p-002","routed_to":"wiki"}
+
+{"confidence":0.9,"source_id":"maestro-wave1-precheck-20260803-20260803-075540","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"ExchangeHealthMonitor ÖÍºó¶ÏÂ·Æ÷Éè¼ÆÄ£Ê½","target_id":"knowhow-doc-exchange-health-breaker","fragment_id":"HRV-w1p-003","routed_to":"wiki"}
+
+{"confidence":0.9,"source_id":"maestro-wave2-s3-20260803-20260804-040400","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"ModelRegistry Ä£ĞÍ×¢²áÉè¼Æ£ºGO ×´Ì¬³Ö¾Ã»¯ + path ±éÀú·À»¤","target_id":"knowhow-doc-model-registry-design","fragment_id":"HRV-w2s-001","routed_to":"wiki"}
+
+{"confidence":0.85,"source_id":"maestro-wave2-s3-20260803-20260804-040400","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"MetaFeatures ¾²Ì¬Òò×Ó¼ÆËã£ºÁãÆ«ÒÆÊØÎÀ + merge_asof ·½Ïò¿ØÖÆ","target_id":"knowhow-doc-meta-features-zero-shift","fragment_id":"HRV-w2s-002","routed_to":"wiki"}
+
+{"confidence":0.9,"source_id":"maestro-wave2-s3-20260803-20260804-040400","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"AI Ä£¿é²ã¼äÒıÓÃÔ¼Êø£ºL1-only µ¼Èë + Áã L2/L3 ÒıÓÃ","target_id":"S-20260804-w2s3-ai","fragment_id":"HRV-w2s-003","routed_to":"spec"}
+
+{"confidence":0.9,"source_id":"maestro-wave3-s4-20260804-20260804-054608","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"DynamicBudget EWMA ¶¯Ì¬Ô¤ËãËõ·Å£ºÊÖ¶¯ O(n) µİ¹é + clamp","target_id":"knowhow-doc-dynamic-budget-ewma","fragment_id":"HRV-w3s-001","routed_to":"wiki"}
+
+{"confidence":0.9,"source_id":"maestro-wave3-s4-20260804-20260804-054608","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"AIFactorStrategy Ä£ĞÍÊµÀı»¯°×Ãûµ¥°²È«Éè¼Æ£º½öÔÊĞí RF/LogReg/GBM","target_id":"S-20260804-w3s4-ai-allowlist","fragment_id":"HRV-w3s-002","routed_to":"spec"}
+
+{"confidence":0.85,"source_id":"maestro-wave3-s4-20260804-20260804-054608","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"MonitoringSink Protocol À©Õ¹£ºProtocol/Null/Default Èı²ã½âñî","target_id":"knowhow-doc-monitoring-sink-protocol","fragment_id":"HRV-w3s-003","routed_to":"wiki"}
+
+{"confidence":0.75,"source_id":"maestro-wave3-s4-20260804-20260804-054608","timestamp":"2026-08-05T13:53:57+08:00","source_type":"session","title":"È«ÏîÄ¿ ruff 140 ²ĞÁô¿Õ°×¸ñÊ½ÎÊÌâ","target_id":"ISS-20260804-009","fragment_id":"HRV-w3s-004","routed_to":"issue"}

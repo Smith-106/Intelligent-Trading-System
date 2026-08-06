@@ -1,4 +1,11 @@
-﻿# Project: QuantFlow
+﻿---
+title: QuantFlow Project
+related:
+  - knowhow-doc-knowledge-hub
+  - roadmap-roadmap
+  - spec:project:architecture-constraints
+---
+# Project: QuantFlow
 
 ## What This Is
 

@@ -352,3 +352,410 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 
 来源：session maestro-benchmark-evolve-20260803-20260803-045922 run 20260803-002-roadmap（roadmap.json positioning_decision / report RD-0）。
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-665be00842577168" title="审查方式：三维审查代理（正确性 Ryan/回归影响 Daniel）仅返回 diff 转储无结论文本，完整性维度连续 3 次派发失败（Mark 空输出、Kim/Ray 上下文取消、Tina 仅转储报告）→ 改由 supervisor 以清单核" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-665be00842577168">
+
+### 审查方式：三维审查代理（正确性 Ryan/回归影响 Daniel）仅返回 diff 转储无结论文本，完整性维度连续 3 次派发失败（Mark 空输出、Kim/Ray 上下文取消、Tina 仅转储报告）→ 改由 supervisor 以清单核
+
+审查方式：三维审查代理（正确性 Ryan/回归影响 Daniel）仅返回 diff 转储无结论文本，完整性维度连续 3 次派发失败（Mark 空输出、Kim/Ray 上下文取消、Tina 仅转储报告）→ 改由 supervisor 以清单核对 + 代码抽查方式完成三维审查，结论基于提交 a3c7bdd 实际变更与测试证据
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-0057e42d4d93880e" title="T-s2-04 meta feed 以截止时间制调度（next_funding_at/next_oi_at），采集异常仅日志不中断；EVENT_FUNDING/EVENT_OI 定义在 strategy/engine.py 本地（不改 co" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-0057e42d4d93880e">
+
+### T-s2-04 meta feed 以截止时间制调度（next_funding_at/next_oi_at），采集异常仅日志不中断；EVENT_FUNDING/EVENT_OI 定义在 strategy/engine.py 本地（不改 co
+
+T-s2-04 meta feed 以截止时间制调度（next_funding_at/next_oi_at），采集异常仅日志不中断；EVENT_FUNDING/EVENT_OI 定义在 strategy/engine.py 本地（不改 common/event_bus.py）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-0d1c433b69fe755e" title="X3（ExchangeHealthMonitor 生产组装缺失）维持 execute 报告定级 medium 不阻塞本次 PASS：当前行为=默认关闭零变化，回退路径完整；作为 wave1 收尾遗留项登记，由后续集成任务补齐并做 kill " description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-0d1c433b69fe755e">
+
+### X3（ExchangeHealthMonitor 生产组装缺失）维持 execute 报告定级 medium 不阻塞本次 PASS：当前行为=默认关闭零变化，回退路径完整；作为 wave1 收尾遗留项登记，由后续集成任务补齐并做 kill 
+
+X3（ExchangeHealthMonitor 生产组装缺失）维持 execute 报告定级 medium 不阻塞本次 PASS：当前行为=默认关闭零变化，回退路径完整；作为 wave1 收尾遗留项登记，由后续集成任务补齐并做 kill switch 端到端演练
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-203718bb460c54f3" title="fail-closed 语义抽查通过：熔断开启全拒（含 FLAT）、恢复未验证拒新单放行 FLAT、funding/OI 过期只拦 entry 放行 exit、corrupt checkpoint 拒恢复" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-203718bb460c54f3">
+
+### fail-closed 语义抽查通过：熔断开启全拒（含 FLAT）、恢复未验证拒新单放行 FLAT、funding/OI 过期只拦 entry 放行 exit、corrupt checkpoint 拒恢复
+
+fail-closed 语义抽查通过：熔断开启全拒（含 FLAT）、恢复未验证拒新单放行 FLAT、funding/OI 过期只拦 entry 放行 exit、corrupt checkpoint 拒恢复
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-4e7d96a73533ce47" title="六层架构单向依赖无违规：exchange_health 在 L5 只依赖 common/（MonitoringSink Protocol/EventBus）；RiskEngine 以 duck-type 注入接收 monitor；dq_mo" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-4e7d96a73533ce47">
+
+### 六层架构单向依赖无违规：exchange_health 在 L5 只依赖 common/（MonitoringSink Protocol/EventBus）；RiskEngine 以 duck-type 注入接收 monitor；dq_mo
+
+六层架构单向依赖无违规：exchange_health 在 L5 只依赖 common/（MonitoringSink Protocol/EventBus）；RiskEngine 以 duck-type 注入接收 monitor；dq_monitor/strategy 走 monitoring_sink Protocol
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-7f2d4046179eb872" title="T-s1-04 熔断拦截点放 RiskEngine.check 的 _checks 元组最前（信号单一入口），kill switch 联动复用 EVENT_RISK severity=emergency 既有路径（monitor 触发时 p" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-7f2d4046179eb872">
+
+### T-s1-04 熔断拦截点放 RiskEngine.check 的 _checks 元组最前（信号单一入口），kill switch 联动复用 EVENT_RISK severity=emergency 既有路径（monitor 触发时 p
+
+T-s1-04 熔断拦截点放 RiskEngine.check 的 _checks 元组最前（信号单一入口），kill switch 联动复用 EVENT_RISK severity=emergency 既有路径（monitor 触发时 publish）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-8198c2cd469921f2" title="byte-for-byte backtest baseline：generate_signals 语义零变化（base.py 仅 docstring）；parity 测试 paper_entries ⊆ backtest_entries 超" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-8198c2cd469921f2">
+
+### byte-for-byte backtest baseline：generate_signals 语义零变化（base.py 仅 docstring）；parity 测试 paper_entries ⊆ backtest_entries 超
+
+byte-for-byte backtest baseline：generate_signals 语义零变化（base.py 仅 docstring）；parity 测试 paper_entries ⊆ backtest_entries 超集断言 3 通过
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-97caee9923769e31" title="T-s2-04 新鲜度 gate 双实现同源：TradingSession._meta_data_fresh 与 dq_monitor validator 共用 market_meta_fetcher 常量（FUNDING_MAX_AGE_" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-97caee9923769e31">
+
+### T-s2-04 新鲜度 gate 双实现同源：TradingSession._meta_data_fresh 与 dq_monitor validator 共用 market_meta_fetcher 常量（FUNDING_MAX_AGE_
+
+T-s2-04 新鲜度 gate 双实现同源：TradingSession._meta_data_fresh 与 dq_monitor validator 共用 market_meta_fetcher 常量（FUNDING_MAX_AGE_FACTOR=2×结算周期运行时判定、OI_MAX_AGE_S=600）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-b0f01838ff52ee67" title="funding 历史回填按 OKX 已核验 3 个月窗口截断（roadmap 180 天字面要求不可达），OI 180 天经 period=1H 分页可达" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-b0f01838ff52ee67">
+
+### funding 历史回填按 OKX 已核验 3 个月窗口截断（roadmap 180 天字面要求不可达），OI 180 天经 period=1H 分页可达
+
+funding 历史回填按 OKX 已核验 3 个月窗口截断（roadmap 180 天字面要求不可达），OI 180 天经 period=1H 分页可达
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-d3702539fcfc1f69" title="T-s1-05 regime gate 分歧按核验降级为可测试断言 paper_entries ⊆ backtest_entries（不把 regime 过滤引入 generate_signals，保护 backtest 基线）；paper" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-d3702539fcfc1f69">
+
+### T-s1-05 regime gate 分歧按核验降级为可测试断言 paper_entries ⊆ backtest_entries（不把 regime 过滤引入 generate_signals，保护 backtest 基线）；paper
+
+T-s1-05 regime gate 分歧按核验降级为可测试断言 paper_entries ⊆ backtest_entries（不把 regime 过滤引入 generate_signals，保护 backtest 基线）；paper 重放走真实 TradingSession 而非引擎复刻
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-d9b47940cad9e286" title="所有新行为默认关闭（exchange_health.enabled=false / state.enabled=false / reconciliation.enabled=false / funding_feed_enabled=fals" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-d9b47940cad9e286">
+
+### 所有新行为默认关闭（exchange_health.enabled=false / state.enabled=false / reconciliation.enabled=false / funding_feed_enabled=fals
+
+所有新行为默认关闭（exchange_health.enabled=false / state.enabled=false / reconciliation.enabled=false / funding_feed_enabled=false / exchange_exposure_limit_pct=None 默认），回退=改配置
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-e7acc7e6a03b34ea" title="s2 采集器自限频：funding 轮询 ≥60s、OI ≥30s、RateLimiter 单端点 ≥200ms、50011/网络错误指数退避 3 次；OI 只走 REST" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-e7acc7e6a03b34ea">
+
+### s2 采集器自限频：funding 轮询 ≥60s、OI ≥30s、RateLimiter 单端点 ≥200ms、50011/网络错误指数退避 3 次；OI 只走 REST
+
+s2 采集器自限频：funding 轮询 ≥60s、OI ≥30s、RateLimiter 单端点 ≥200ms、50011/网络错误指数退避 3 次；OI 只走 REST
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-134ac997f0b29090" title="核验步骤只读，不改项目源码；本轮不实施 s2" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-134ac997f0b29090">
+
+### 核验步骤只读，不改项目源码；本轮不实施 s2
+
+核验步骤只读，不改项目源码；本轮不实施 s2
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-23823e0b270277af" title="公共 REST 限频按 IP + Instrument ID 计，超限返回 50011（HTTP 200/429）" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-23823e0b270277af">
+
+### 公共 REST 限频按 IP + Instrument ID 计，超限返回 50011（HTTP 200/429）
+
+公共 REST 限频按 IP + Instrument ID 计，超限返回 50011（HTTP 200/429）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-346ec75d383fcf49" title="任务粒度：9 任务（s1×5 + s2×4），3 wave（4+2+3），每 wave 内写文件零交集；critical path = T-s2-01→T-s2-03→T-s2-04" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-346ec75d383fcf49">
+
+### 任务粒度：9 任务（s1×5 + s2×4），3 wave（4+2+3），每 wave 内写文件零交集；critical path = T-s2-01→T-s2-03→T-s2-04
+
+任务粒度：9 任务（s1×5 + s2×4），3 wave（4+2+3），每 wave 内写文件零交集；critical path = T-s2-01→T-s2-03→T-s2-04
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-547c27618bfb4e29" title="default.yaml 按 wave 分配写权（w1=T-s1-01, w2=T-s1-03, w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 置于 funding_rate.yaml 规避 w3 冲" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-547c27618bfb4e29">
+
+### default.yaml 按 wave 分配写权（w1=T-s1-01, w2=T-s1-03, w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 置于 funding_rate.yaml 规避 w3 冲
+
+default.yaml 按 wave 分配写权（w1=T-s1-01, w2=T-s1-03, w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 置于 funding_rate.yaml 规避 w3 冲突
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-5de35c18bea3a7f2" title="T-s1-04 敞口 gate 仅拦 Direction.LONG 新开仓，FLAT/退出放行以便降敞（fail-closed 不能变 fail-stuck）；exposure = Σ|qty|×price + pending 正值和" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-5de35c18bea3a7f2">
+
+### T-s1-04 敞口 gate 仅拦 Direction.LONG 新开仓，FLAT/退出放行以便降敞（fail-closed 不能变 fail-stuck）；exposure = Σ|qty|×price + pending 正值和
+
+T-s1-04 敞口 gate 仅拦 Direction.LONG 新开仓，FLAT/退出放行以便降敞（fail-closed 不能变 fail-stuck）；exposure = Σ|qty|×price + pending 正值和
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-807c564e121dad83" title="T-s1-02 write 清单含 tests/unit/test_order_manager.py 但提交未改该文件（ws 接线测试落在 test_execution_engine.py）— 轻微偏差，验收口径不受影响（8 态路径已由执行" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-807c564e121dad83">
+
+### T-s1-02 write 清单含 tests/unit/test_order_manager.py 但提交未改该文件（ws 接线测试落在 test_execution_engine.py）— 轻微偏差，验收口径不受影响（8 态路径已由执行
+
+T-s1-02 write 清单含 tests/unit/test_order_manager.py 但提交未改该文件（ws 接线测试落在 test_execution_engine.py）— 轻微偏差，验收口径不受影响（8 态路径已由执行报告测试覆盖），登记为流程偏差不追责
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-a19f4a62f2a03b9d" title="资金费率结算周期通常 8h，但 OKX 可对个别币种调整为 6/4/2/1h，必须以 fundingTime/nextFundingTime 差值为准" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-a19f4a62f2a03b9d">
+
+### 资金费率结算周期通常 8h，但 OKX 可对个别币种调整为 6/4/2/1h，必须以 fundingTime/nextFundingTime 差值为准
+
+资金费率结算周期通常 8h，但 OKX 可对个别币种调整为 6/4/2/1h，必须以 fundingTime/nextFundingTime 差值为准
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-a7ecff81ad00735f" title="不越界 s3/s4，不改 frontend；API Key 只走环境变量" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-a7ecff81ad00735f">
+
+### 不越界 s3/s4，不改 frontend；API Key 只走环境变量
+
+不越界 s3/s4，不改 frontend；API Key 只走环境变量
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-c32d2aa259bb210d" title="采集能力落新模块 quantflow/data/market_meta_fetcher.py（共享 ccxt 实例注入接口），fetcher.py 全 wave 只读，避免 OHLCV 主路径互扰" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-c32d2aa259bb210d">
+
+### 采集能力落新模块 quantflow/data/market_meta_fetcher.py（共享 ccxt 实例注入接口），fetcher.py 全 wave 只读，避免 OHLCV 主路径互扰
+
+采集能力落新模块 quantflow/data/market_meta_fetcher.py（共享 ccxt 实例注入接口），fetcher.py 全 wave 只读，避免 OHLCV 主路径互扰
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-278bb5b69ff9e27d" title="六层架构单向依赖：reconciliation/risk_engine 对 L4/L5 一律 duck-type/Protocol 注入，不新增跨层 import" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-278bb5b69ff9e27d">
+
+### 六层架构单向依赖：reconciliation/risk_engine 对 L4/L5 一律 duck-type/Protocol 注入，不新增跨层 import
+
+六层架构单向依赖：reconciliation/risk_engine 对 L4/L5 一律 duck-type/Protocol 注入，不新增跨层 import
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-3c582f3d4af02b8d" title="byte-for-byte backtest baseline：generate_signals 语义零变化（T-s1-05 parity 回归 + 既有基线全绿证明）；strategy/engine.py 按 w2→w3 串行写" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-3c582f3d4af02b8d">
+
+### byte-for-byte backtest baseline：generate_signals 语义零变化（T-s1-05 parity 回归 + 既有基线全绿证明）；strategy/engine.py 按 w2→w3 串行写
+
+byte-for-byte backtest baseline：generate_signals 语义零变化（T-s1-05 parity 回归 + 既有基线全绿证明）；strategy/engine.py 按 w2→w3 串行写
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-4318900fbe468be3" title="byte-for-byte backtest baseline：generate_signals 默认语义不变；strategy/engine.py 双写者 wave 串行（w2→w3）" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-4318900fbe468be3">
+
+### byte-for-byte backtest baseline：generate_signals 默认语义不变；strategy/engine.py 双写者 wave 串行（w2→w3）
+
+byte-for-byte backtest baseline：generate_signals 默认语义不变；strategy/engine.py 双写者 wave 串行（w2→w3）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-44d14b841c80fa2f" title="YAML 配置驱动且所有新行为默认关闭（state.enabled/reconciliation.enabled/funding_feed_enabled/exchange_health.enabled 均默认 false），回退=改配置" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-44d14b841c80fa2f">
+
+### YAML 配置驱动且所有新行为默认关闭（state.enabled/reconciliation.enabled/funding_feed_enabled/exchange_health.enabled 均默认 false），回退=改配置
+
+YAML 配置驱动且所有新行为默认关闭（state.enabled/reconciliation.enabled/funding_feed_enabled/exchange_health.enabled 均默认 false），回退=改配置
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-6200a89a62431482" title="s2 采集器自限频（≥200ms 单端点间隔 + IP 级串行），不依赖 ccxt 内置节流；OI 只走 REST 轮询（无 watchOpenInterest）" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-6200a89a62431482">
+
+### s2 采集器自限频（≥200ms 单端点间隔 + IP 级串行），不依赖 ccxt 内置节流；OI 只走 REST 轮询（无 watchOpenInterest）
+
+s2 采集器自限频（≥200ms 单端点间隔 + IP 级串行），不依赖 ccxt 内置节流；OI 只走 REST 轮询（无 watchOpenInterest）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-73ea6ff39c99071a" title="default.yaml 写权按 wave 分配（w1=T-s1-01、w2=T-s1-03、w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 落 funding_rate.yaml；fetcher.py" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-73ea6ff39c99071a">
+
+### default.yaml 写权按 wave 分配（w1=T-s1-01、w2=T-s1-03、w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 落 funding_rate.yaml；fetcher.py
+
+default.yaml 写权按 wave 分配（w1=T-s1-01、w2=T-s1-03、w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 落 funding_rate.yaml；fetcher.py 全 wave 只读
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-85cb098b6fd32559" title="熔断拦截点选 RiskEngine.check（信号单一入口）而非 ExecutionEngine.submit；kill switch 联动复用 EVENT_RISK emergency 既有路径" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-85cb098b6fd32559">
+
+### 熔断拦截点选 RiskEngine.check（信号单一入口）而非 ExecutionEngine.submit；kill switch 联动复用 EVENT_RISK emergency 既有路径
+
+熔断拦截点选 RiskEngine.check（信号单一入口）而非 ExecutionEngine.submit；kill switch 联动复用 EVENT_RISK emergency 既有路径
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-8b9b705c3c8f0f9a" title="六层架构单向依赖：RiskEngine 对 exchange_health 用 object duck-type（只依赖 circuit_open() 形状），dq_monitor/strategy 对 L6 用 common/monito" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-8b9b705c3c8f0f9a">
+
+### 六层架构单向依赖：RiskEngine 对 exchange_health 用 object duck-type（只依赖 circuit_open() 形状），dq_monitor/strategy 对 L6 用 common/monito
+
+六层架构单向依赖：RiskEngine 对 exchange_health 用 object duck-type（只依赖 circuit_open() 形状），dq_monitor/strategy 对 L6 用 common/monitoring_sink Protocol，无新增跨层 import
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-95335dff0c90b74c" title="fail-closed：熔断开启全拒（含 FLAT）、恢复未验证拒新单、funding/OI 过期只拦新开仓不拦退出、feed 无数据视为过期" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-95335dff0c90b74c">
+
+### fail-closed：熔断开启全拒（含 FLAT）、恢复未验证拒新单、funding/OI 过期只拦新开仓不拦退出、feed 无数据视为过期
+
+fail-closed：熔断开启全拒（含 FLAT）、恢复未验证拒新单、funding/OI 过期只拦新开仓不拦退出、feed 无数据视为过期
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-a7ab06d97fac0da2" title="YAML 配置驱动且所有新行为默认关闭（exchange_health.enabled=false、funding_feed_enabled=false、exchange_exposure_limit_pct pydantic 默认 Non" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-a7ab06d97fac0da2">
+
+### YAML 配置驱动且所有新行为默认关闭（exchange_health.enabled=false、funding_feed_enabled=false、exchange_exposure_limit_pct pydantic 默认 Non
+
+YAML 配置驱动且所有新行为默认关闭（exchange_health.enabled=false、funding_feed_enabled=false、exchange_exposure_limit_pct pydantic 默认 None），回退=改配置
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-b0360407cccb1371" title="funding-rate-history 仅覆盖近 3 个月；OI history 数据最早到 2024 年初且单端点最多 1440 条" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-b0360407cccb1371">
+
+### funding-rate-history 仅覆盖近 3 个月；OI history 数据最早到 2024 年初且单端点最多 1440 条
+
+funding-rate-history 仅覆盖近 3 个月；OI history 数据最早到 2024 年初且单端点最多 1440 条
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-ed55f2ed3be32d6d" title="R1: 审查代理连续失效后改 supervisor 清单核对+代码抽查模式完成三维审查" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-ed55f2ed3be32d6d">
+
+### R1: 审查代理连续失效后改 supervisor 清单核对+代码抽查模式完成三维审查
+
+R1: 审查代理连续失效后改 supervisor 清单核对+代码抽查模式完成三维审查
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-f7dd4c2353e6ee9b" title="fail-closed：对账失败保留 last-known、恢复未验证拒新单、数据过期暂停新开仓、熔断全拒+滞回恢复" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-f7dd4c2353e6ee9b">
+
+### fail-closed：对账失败保留 last-known、恢复未验证拒新单、数据过期暂停新开仓、熔断全拒+滞回恢复
+
+fail-closed：对账失败保留 last-known、恢复未验证拒新单、数据过期暂停新开仓、熔断全拒+滞回恢复
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="ai,module,layer,import" date="2026-08-04" sid="S-20260804-w2s3-ai" title="AI 模块层间引用约束：L1-only 导入 + 零 L2/L3 引用" description="AI 模块严格遵循层间引用约束：feature_store.py 仅导入 common/ + data/（L1 内部），零 L2/L3 引用；meta_features.py 零 quantflow 导入（纯 pandas L2 计算器）；ai_training.py 唯一 quantflow 导入 = validation.gate（L3 同级，函数局部）。" source="harvest:maestro-wave2-s3-20260803-20260804-040400">
+
+### AI 模块层间引用约束：L1-only 导入 + 零 L2/L3 引用
+
+AI 模块严格遵循层间引用约束：
+- feature_store.py 仅导入 common/ + data/（L1 内部），零 L2/L3 引用
+- meta_features.py 零 quantflow 导入（纯 pandas L2 计算器）
+- ai_training.py 唯一 quantflow 导入 = validation.gate（L3 同级，函数局部）
+- 所有新模块默认关闭（ai.rdagent.enabled=false / model_registry_enabled=false）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="ai,model,allowlist,security" date="2026-08-04" sid="S-20260804-w3s4-ai-allowlist" title="AIFactorStrategy 模型实例化白名单安全设计：仅允许 RF/LogReg/GBM" description="AIFactorStrategy 模型实例化使用白名单仅允许 RF/LogReg/GBM，禁止 eval 执行，未知类 → None + warning。P(up) gates momentum 阈值（>=entry threshold 做多 / <=exit threshold 退出）。" source="harvest:maestro-wave3-s4-20260804-20260804-054608">
+
+### AIFactorStrategy 模型实例化白名单安全设计
+
+- 白名单：仅允许 RF/LogReg/GBM，禁止 eval 执行
+- 未知类 → 返回 None + warning
+- P(up) gates momentum 阈值做多/退出
+- 能力退化：空 registry / corrupt JSON / 未知 id / predict 失败 → momentum 降级，永不 raise
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-135d47ea99bb1e07" title="新文件（market_meta_fetcher/exchange_health/state_store）仅报告不自动加入 code_locations" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-135d47ea99bb1e07">
+
+### 新文件（market_meta_fetcher/exchange_health/state_store）仅报告不自动加入 code_locations
+
+新文件（market_meta_fetcher/exchange_health/state_store）仅报告不自动加入 code_locations
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-199fcb4c946d1f68" title="AST 全组件扫描（不只变更文件）以获得准确组件级符号 diff；仅收录公开符号（类/公开函数/全大写常量），_ 私有符号不入 symbols[]" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-199fcb4c946d1f68">
+
+### AST 全组件扫描（不只变更文件）以获得准确组件级符号 diff；仅收录公开符号（类/公开函数/全大写常量），_ 私有符号不入 symbols[]
+
+AST 全组件扫描（不只变更文件）以获得准确组件级符号 diff；仅收录公开符号（类/公开函数/全大写常量），_ 私有符号不入 symbols[]
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-2d44af414372d808" title="TC-004 注册 quantflow/signal/optimizer.py（已存在但未记录，TradingSession 依赖）" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-2d44af414372d808">
+
+### TC-004 注册 quantflow/signal/optimizer.py（已存在但未记录，TradingSession 依赖）
+
+TC-004 注册 quantflow/signal/optimizer.py（已存在但未记录，TradingSession 依赖）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-4519939fd1d503f8" title="仅写入 .workflow/knowhow/（wiki update frontmatter），未修改源码、未 commit" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-4519939fd1d503f8">
+
+### 仅写入 .workflow/knowhow/（wiki update frontmatter），未修改源码、未 commit
+
+仅写入 .workflow/knowhow/（wiki update frontmatter），未修改源码、未 commit
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-49225c5b3b0a2724" title="3 个 sourceRef=20260802-team-ui-polish-continuous 的 knowhow 链接到 session-20260802-team-ui-polish-full：continuous 为 running" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-49225c5b3b0a2724">
+
+### 3 个 sourceRef=20260802-team-ui-polish-continuous 的 knowhow 链接到 session-20260802-team-ui-polish-full：continuous 为 running
+
+3 个 sourceRef=20260802-team-ui-polish-continuous 的 knowhow 链接到 session-20260802-team-ui-polish-full：continuous 为 running session（未入 wiki 索引，链接会变 broken），full 为同系列已入索引 session，语义等价
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-642e67983de99b4c" title="为 FT-011/FT-012 创建缺失的 feature-map（组件已刷新、文档缺失），_index.md 全量重建补齐 TC-013/FT-011/012/013 行" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-642e67983de99b4c">
+
+### 为 FT-011/FT-012 创建缺失的 feature-map（组件已刷新、文档缺失），_index.md 全量重建补齐 TC-013/FT-011/012/013 行
+
+为 FT-011/FT-012 创建缺失的 feature-map（组件已刷新、文档缺失），_index.md 全量重建补齐 TC-013/FT-011/012/013 行
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-92ec22de14bd264e" title="仅修改 .workflow/codebase/ 与 .workflow/state.json，未触碰源码（git status 源码变更均为先前存在的未提交工作区状态）" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-92ec22de14bd264e">
+
+### 仅修改 .workflow/codebase/ 与 .workflow/state.json，未触碰源码（git status 源码变更均为先前存在的未提交工作区状态）
+
+仅修改 .workflow/codebase/ 与 .workflow/state.json，未触碰源码（git status 源码变更均为先前存在的未提交工作区状态）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-9451480316a389fd" title="Step 3.6 KG 分析因 CLI 命令缺失降级为基于 knowledge-graph.json 的推理（[LOW CONFIDENCE]）" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-9451480316a389fd">
+
+### Step 3.6 KG 分析因 CLI 命令缺失降级为基于 knowledge-graph.json 的推理（[LOW CONFIDENCE]）
+
+Step 3.6 KG 分析因 CLI 命令缺失降级为基于 knowledge-graph.json 的推理（[LOW CONFIDENCE]）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-9c1f3702f0da5f33" title="4 个 kh/TIP 条目经 BM25 语义验证后链接到 spec 子条目（arch-020/cc-016/cc-017/learnings-012），与 source 语义一一对应" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-9c1f3702f0da5f33">
+
+### 4 个 kh/TIP 条目经 BM25 语义验证后链接到 spec 子条目（arch-020/cc-016/cc-017/learnings-012），与 source 语义一一对应
+
+4 个 kh/TIP 条目经 BM25 语义验证后链接到 spec 子条目（arch-020/cc-016/cc-017/learnings-012），与 source 语义一一对应
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-cec2635fa99302a5" title="19 broken links 与 project-project missing title 均超出写边界（sealed sessions/ 与 .workflow/project.md），仅记录不修复" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-cec2635fa99302a5">
+
+### 19 broken links 与 project-project missing title 均超出写边界（sealed sessions/ 与 .workflow/project.md），仅记录不修复
+
+19 broken links 与 project-project missing title 均超出写边界（sealed sessions/ 与 .workflow/project.md），仅记录不修复
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-d5329264bb31753e" title="kh-multi-symbol-patterns 无语义匹配目标（arch-019 不匹配、roadmap 无 multi-symbol 内容），跳过链接避免弱语义边" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-d5329264bb31753e">
+
+### kh-multi-symbol-patterns 无语义匹配目标（arch-019 不匹配、roadmap 无 multi-symbol 内容），跳过链接避免弱语义边
+
+kh-multi-symbol-patterns 无语义匹配目标（arch-019 不匹配、roadmap 无 multi-symbol 内容），跳过链接避免弱语义边
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-dbc4a1cbcae4520e" title="KG 同步必须覆盖新写入的 wiki/spec/knowhow：已执行 kg sync 全源同步，staleness 0.0%" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-dbc4a1cbcae4520e">
+
+### KG 同步必须覆盖新写入的 wiki/spec/knowhow：已执行 kg sync 全源同步，staleness 0.0%
+
+KG 同步必须覆盖新写入的 wiki/spec/knowhow：已执行 kg sync 全源同步，staleness 0.0%
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-ddff395ff1a3fe6b" title="doc-index 修复：删除 TC-013 reconciliation 重复条目（保留 dashboards TC-013）、FT-013 component_ids TC-012→TC-013、features 数组脏字符串清理、pr" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-ddff395ff1a3fe6b">
+
+### doc-index 修复：删除 TC-013 reconciliation 重复条目（保留 dashboards TC-013）、FT-013 component_ids TC-012→TC-013、features 数组脏字符串清理、pr
+
+doc-index 修复：删除 TC-013 reconciliation 重复条目（保留 dashboards TC-013）、FT-013 component_ids TC-012→TC-013、features 数组脏字符串清理、project_version 0.3.0→0.4.0
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-e3af3239aa24e3a9" title="未执行 git commit" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-e3af3239aa24e3a9">
+
+### 未执行 git commit
+
+未执行 git commit
+
+</spec-entry>

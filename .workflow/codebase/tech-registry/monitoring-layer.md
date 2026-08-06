@@ -4,33 +4,58 @@
 |-------|-------|
 | **ID** | TC-006 |
 | **Type** | L6-monitoring |
-| **Features** | (cross-cutting; not a single FT) |
-| **Last Updated** | 2026-08-02T14:30:00Z |
+| **Features** |  |
+| **Last Updated** | 2026-08-05T05:37:59Z |
 
 ## Code Locations
 
-- `quantflow/monitoring/metrics.py` — Prometheus metrics registry + server
-- `quantflow/monitoring/alerts.py` — `AlertManager` (Telegram/LINE/webhook), `AlertCategory` (15 types: system/trading/risk/data/strategy), `AlertPriority` (P0-P3 routing levels)
-- `quantflow/monitoring/logger.py` — `setup_logging` (structlog)
-- `quantflow/monitoring/sink.py` — `DefaultMonitoringSink`, `create_default_sink`
+- `quantflow/monitoring/metrics.py`
+- `quantflow/monitoring/alerts.py`
+- `quantflow/monitoring/logger.py`
+- `quantflow/monitoring/sink.py`
 - `quantflow/monitoring/__init__.py`
 
 ## Exported Symbols
 
-`AlertCategory`, `AlertLevel`, `AlertManager`, `AlertPriority`, `DefaultMonitoringSink`, `create_default_sink`,
-`metrics_registry_snapshot`, `metrics_server_status`, `setup_logging`, `start_metrics_server`, `update_portfolio_metrics`.
-
-### Alert Taxonomy (G5)
-
-- `AlertCategory`: 15 categories across 5 domains (System/Infrastructure, Trading Operations, Risk Management, Data Quality, Strategy)
-- `AlertPriority`: P0_EMERGENCY (immediate page, trading halt) → P1_HIGH (5 min) → P2_MEDIUM (30 min) → P3_LOW (batch, next business day)
+- `AlertCategory`
+- `AlertDeduplicator` — Alert deduplication (v0.3.1 alert routing)
+- `AlertLevel`
+- `AlertManager`
+- `AlertPriority`
+- `BAR_PROCESSING_LATENCY` — Prometheus metric name constant
+- `DefaultMonitoringSink`
+- `GATEWAY_CONNECTED` — Prometheus metric name constant
+- `GATEWAY_DISCONNECTS` — Prometheus metric name constant
+- `GATEWAY_RECONNECTS` — Prometheus metric name constant
+- `KILL_SWITCH_ACTIVATIONS` — Prometheus metric name constant
+- `KILL_SWITCH_STEP_FAILURES` — Prometheus metric name constant
+- `ORDERS_FILLED` — Prometheus metric name constant
+- `ORDERS_TIMED_OUT` — Prometheus metric name constant
+- `ORDERS_TOTAL` — Prometheus metric name constant
+- `ORDER_LATENCY` — Prometheus metric name constant
+- `PORTFOLIO_ALLOCATION` — Prometheus metric name constant
+- `PORTFOLIO_CASH` — Prometheus metric name constant
+- `PORTFOLIO_DRAWDOWN` — Prometheus metric name constant
+- `PORTFOLIO_VALUE` — Prometheus metric name constant
+- `POSITIONS_COUNT` — Prometheus metric name constant
+- `RISK_EVENTS` — Prometheus metric name constant
+- `SIGNALS_GENERATED` — Prometheus metric name constant
+- `SIGNAL_PROCESSING_LATENCY` — Prometheus metric name constant
+- `STRATEGY_BUDGET_UTILIZATION` — Prometheus metric name constant
+- `STRATEGY_PNL` — Prometheus metric name constant
+- `create_default_sink`
+- `metrics_registry_snapshot`
+- `metrics_server_status`
+- `resolve_alert_channels` — Resolve alert channel configs per category/level
+- `setup_logging`
+- `start_metrics_server`
+- `update_portfolio_metrics`
 
 ## Dependencies
 
-- Upstream: `quantflow/common` (`MonitoringSink` Protocol — injected into L3/L4/L5 to avoid direct `monitoring/` import; arch-013 audit-evasion fix).
-- Downstream consumers: L3/L4/L5 emit via `MonitoringSink` Protocol; CLI/Web surface metrics; Prometheus + Grafana + Telegram/LINE for observability.
-- External: Prometheus client, structlog, Grafana (deployment).
+- Upstream: `quantflow/common` (models, exceptions, config).
+- Downstream consumers: see feature maps for consumer wiring.
 
 ---
 
-*Refreshed by codebase-refresh at 2026-08-02T14:30:00Z*
+*Refreshed by codebase-refresh at 2026-08-05T05:39:39Z*

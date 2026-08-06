@@ -5,7 +5,7 @@
 | **ID** | TC-001 |
 | **Type** | L1-data |
 | **Features** | FT-007 (Data Layer), FT-011 (Data Quality Monitor) |
-| **Last Updated** | 2026-08-02T14:30:00Z |
+| **Last Updated** | 2026-08-05T13:40:00Z |
 
 ## Code Locations
 
@@ -15,29 +15,52 @@
 - `quantflow/data/feature_store.py`
 - `quantflow/data/redis_cache.py`
 - `quantflow/data/mtf_aligner.py`
-- `quantflow/data/dq_monitor.py` — `DataQualityMonitor` (real-time bar validation: freshness/price-continuity/volume-anomaly), `DataQualityScore`, `ValidationResult`
+- `quantflow/data/dq_monitor.py`
 - `quantflow/data/__init__.py`
+- `quantflow/data/market_meta_fetcher.py`
 
 ## Exported Symbols
 
-- `DataFetcher` — CCXT async OKX fetcher (REST + WebSocket), pagination, non-finite bar rejection, `CALL_TIMEOUT`, sandbox mode.
-- `DataStore` — Parquet Hive-partitioned storage (`symbol/year/month`, zstd) + DuckDB zero-copy query with path-traversal & SQL-injection guards.
-- `FeatureStore` — point-in-time safe feature compute (`end=timestamp`, no future leak), Hive-mirrored save/load.
-- `MTFAligner` — multi-timeframe alignment (1W→4H→1H→15m) with leak-safe HTF shift.
-- `MTFData` — aligned multi-timeframe container.
-- `RedisCache` — real-time ticker/bar cache with TTL; raises `DataError` when unconnected.
-- `clean_ohlcv` — dedup, gap-fill, OHLC repair, outlier z-score, future-timestamp rejection.
-- `validate_no_future_leak` — raises `ValueError` on future-timestamp leak.
-- `DataQualityMonitor` — real-time data quality gating: freshness (60s staleness), price continuity (5% spike), volume anomaly (10x avg). Composite score (0-1, weighted 40/30/30). Prometheus metrics: `dq_monitor_violations_total`, `dq_data_staleness_seconds`, `dq_quality_score`. Redis-backed cross-process state.
-- `DataQualityScore` — composite quality score dataclass (freshness/continuity/anomaly/overall).
-- `ValidationResult` — bar validation result (valid flag + violations list + score).
+- `BASE_BACKOFF_S` — Retry backoff base (s)
+- `CALL_TIMEOUT` — HTTP call timeout (s) for OKX requests
+- `DEFAULT_TIMEFRAMES` — Default supported timeframes
+- `DataFetcher`
+- `DataQualityMonitor`
+- `DataQualityScore`
+- `DataStore`
+- `FUNDING_HISTORY_COLUMNS` — Funding rate history DataFrame columns
+- `FUNDING_MAX_AGE_FACTOR` — Funding max age multiplier
+- `FUNDING_POLL_INTERVAL_S` — Minimum funding-rate poll interval (s)
+- `FeatureStore`
+- `FundingRateSnapshot` — Funding rate snapshot dataclass
+- `InMemoryStateStore` — DQ monitor in-memory state store (fallback when Redis unavailable, v0.3.1)
+- `MAX_HISTORY_PAGES` — Max fetch-history pages
+- `MAX_PAGINATION_PAGES` — Max pagination pages for fetch loops
+- `MAX_RETRIES` — Max retries for rate-limited requests
+- `MIN_ENDPOINT_INTERVAL_S` — Minimum interval between any two endpoint calls
+- `MTFAligner`
+- `MTFData`
+- `MarketMetaFetcher` — Funding rate & open interest fetcher (T-s2-01)
+- `OI_HISTORY_COLUMNS` — Open interest history DataFrame columns
+- `OI_MAX_AGE_S` — Open interest max age (s)
+- `OI_POLL_INTERVAL_S` — Minimum OI poll interval (s)
+- `OKX_KLINE_PAGE_MAX` — OKX kline max page size
+- `OpenInterestSnapshot` — Open interest snapshot dataclass
+- `RATE_LIMIT_ERROR_CODE` — OKX rate limit error code
+- `RedisCache`
+- `RateLimiter` — Self rate-limiter for meta-data endpoints
+- `TICKER_TTL` — Redis ticker cache TTL (s)
+- `TIMEFRAMES` — Supported timeframe set
+- `TIMEFRAME_MAP` — Timeframe alias/period mapping
+- `ValidationResult`
+- `clean_ohlcv`
+- `validate_no_future_leak`
 
 ## Dependencies
 
 - Upstream: `quantflow/common` (models, exceptions, config).
-- Downstream consumers: L2 Indicators (`IndicatorEngine`), L3 Strategy (`DataFetcher`/`FeatureStore` via `TradingSession`), L5 Execution (rare, market price).
-- External: CCXT, DuckDB, pandas, Redis client.
+- Downstream consumers: see feature maps for consumer wiring.
 
 ---
 
-*Refreshed by codebase-refresh at 2026-08-02T14:30:00Z*
+*Refreshed by codebase-refresh at 2026-08-05T05:39:39Z*

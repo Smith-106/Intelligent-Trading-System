@@ -1,10 +1,20 @@
 ---
 id: kh-failclosed-gateway-contract
-title: "Fail-Closed 网关安全契约 — 防紧急制动假报成功"
-tags: [fail-closed, gateway, idempotency, reduceOnly, wait_for, security, kill-switch]
-source: harvest:20260723-improve-odyssey-trade-main-path
+title: Fail-Closed 网关安全契约 — 防紧急制动假报成功
+tags:
+  - fail-closed
+  - gateway
+  - idempotency
+  - reduceOnly
+  - wait_for
+  - security
+  - kill-switch
+source: "harvest:20260723-improve-odyssey-trade-main-path"
 created: 2026-08-01
+related:
+  - "spec:project:architecture-constraints-020"
 ---
+
 
 # Fail-Closed 网关安全契约
 

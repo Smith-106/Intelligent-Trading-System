@@ -99,3 +99,8 @@ artifacts/
 screenshots/
 *-p
 no/
+
+# Runtime validation datasets & reports (rebuildable via scripts/)
+data/spot_perp_real/
+data/s4_verify/
+.venv_old/

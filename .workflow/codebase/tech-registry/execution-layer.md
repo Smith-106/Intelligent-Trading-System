@@ -5,40 +5,53 @@
 | **ID** | TC-005 |
 | **Type** | L5-execution |
 | **Features** | FT-005 (Execution) |
-| **Last Updated** | 2026-08-02T14:30:00Z |
+| **Last Updated** | 2026-08-05T13:40:00Z |
 
 ## Code Locations
 
-- `quantflow/execution/gateway_base.py` — `GatewayBase` (ABC), `GatewayError`, `OpenOrder` (lightweight exchange-side order representation for reconciliation)
-- `quantflow/execution/okx_gateway.py` — `OKXGateway` (CCXT async, spot/swap, reconnect)
-- `quantflow/execution/paper_gateway.py` — `PaperGateway` (local simulation)
-- `quantflow/execution/engine.py` — `ExecutionEngine` (kill-switch gate → route → track → metric → event → fill)
-- `quantflow/execution/order_router.py` — `OrderRouter` (dispatch + `build_order`/`build_close_request`, extracted from engine)
-- `quantflow/execution/order_manager.py` — `OrderManager` (lifecycle + timeout + RLock thread safety + atomic context manager + terminal-state guard)
-- `quantflow/execution/position_manager.py` — `PositionManager` (per-route reconciliation)
-- `quantflow/execution/kill_switch.py` — `KillSwitch` (emergency flatten, fail-closed)
+- `quantflow/execution/gateway_base.py`
+- `quantflow/execution/okx_gateway.py`
+- `quantflow/execution/paper_gateway.py`
+- `quantflow/execution/engine.py`
+- `quantflow/execution/order_router.py`
+- `quantflow/execution/order_manager.py`
+- `quantflow/execution/position_manager.py`
+- `quantflow/execution/kill_switch.py`
 - `quantflow/execution/__init__.py`
+- `quantflow/execution/state_store.py`
+- `quantflow/execution/exchange_health.py`
 
 ## Exported Symbols
 
-`ExecutionEngine`, `GatewayBase`, `GatewayError`, `KillSwitch`, `OKXGateway`, `OpenOrder`, `OrderManager`,
-`OrderRouter`, `PaperGateway`, `PositionManager`.
-
-### Key Abstract Methods (GatewayBase)
-
-- `connect(config)` / `disconnect()`
-- `send_order(order) -> str`
-- `cancel_order(id, symbol) -> bool`
-- `query_positions() -> list[Position]`
-- `query_open_orders(symbol) -> list[OpenOrder]` — orphan order detection for ReconciliationEngine (ISS-20260720-004)
+- `CHECKPOINT_FILENAME` — Checkpoint file name
+- `CALL_TIMEOUT` — HTTP call timeout (s) for OKX requests
+- `CURRENT_SCHEMA_VERSION` — StateStore checkpoint schema version
+- `DEFAULT_TIMEOUT` — Default gateway timeout (s)
+- `EVENT_FILL` — Fill event type constant (common event bus)
+- `EVENT_ORDER` — Order event type constant (common event bus)
+- `ExchangeHealthMonitor` — Single-exchange circuit breaker (T-s1-04)
+- `ExecutionEngine`
+- `GatewayBase`
+- `GatewayError`
+- `KillSwitch`
+- `MAX_RECONNECT_ATTEMPTS` — Max WebSocket reconnect attempts
+- `MAX_TRACKED_ORDERS` — OrderManager max tracked order count
+- `OKXGateway`
+- `OpenOrder`
+- `OrderManager`
+- `OrderRouter`
+- `PaperGateway`
+- `PositionManager`
+- `RECONNECT_INTERVAL` — WebSocket reconnect interval (s)
+- `RECOVERY_SUCCESS_STREAK` — Consecutive successes needed to close breaker
+- `SessionSnapshot` — Serializable session state dataclass
+- `StateStore` — Checkpoint state store for crash-recovery
 
 ## Dependencies
 
-- Upstream: `quantflow/common` (models, exceptions), `quantflow/signal` (`PositionRequest`), `quantflow/strategy` (`TradingSession` drives submit).
-- Downstream consumers: L3 `TradingSession`, CLI (`run` command), Web Station (`/api/session`, `/api/execution`).
-- External: CCXT (OKX), Redis (optional state).
-- Security: OKX creds from `OKX_API_KEY`/`OKX_SECRET`/`OKX_PASSPHRASE` env only; KillSwitch mandatory in live mode.
+- Upstream: `quantflow/common` (models, exceptions, config).
+- Downstream consumers: see feature maps for consumer wiring.
 
 ---
 
-*Refreshed by codebase-refresh at 2026-08-02T14:30:00Z*
+*Refreshed by codebase-refresh at 2026-08-05T05:39:39Z*
