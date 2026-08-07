@@ -21,6 +21,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -62,7 +63,7 @@ def load_bars(
     return df
 
 
-def print_summary(report: dict) -> None:
+def print_summary(report: Any) -> None:
     print("\n=== 30-day paper replay — production path ===")
     print(f"bars replayed       : {report['bars']} (1h)")
     print(f"orders / fills      : {report['orders']} / {report['fills']}")
@@ -97,6 +98,13 @@ def main() -> int:
         "yields a dense book; trend_following is regime-gated on real data)",
     )
     ap.add_argument("--capital", type=float, default=100_000.0)
+    ap.add_argument(
+        "--direction-gate",
+        action="store_true",
+        help="A/B switch: suppress mean-reversion entries while close < SMA(200) "
+        "(bear-regime protection). Default off = byte-for-byte baseline.",
+    )
+    ap.add_argument("--gate-sma-period", type=int, default=200)
     ap.add_argument("--parquet-dir", default="./data/parquet")
     ap.add_argument(
         "--out",
@@ -109,9 +117,19 @@ def main() -> int:
     bars_df = load_bars(args.parquet_dir, args.symbol, args.timeframe, args.days, end_ms)
     sink = RecordingSink()
     session = build_session(args.strategy, args.capital, sink)
-    fills: list[dict] = []
-    risk_events: list[dict] = []
-    curve = asyncio.run(replay(session, bars_df, args.symbol, fills, risk_events))
+    fills: list[dict[str, object]] = []
+    risk_events: list[dict[str, object]] = []
+    curve = asyncio.run(
+        replay(
+            session,
+            bars_df,
+            args.symbol,
+            fills,
+            risk_events,
+            direction_gate=args.direction_gate,
+            gate_sma_period=args.gate_sma_period,
+        )
+    )
     report = aggregate(curve, fills, risk_events, sink.alerts, args.capital)
     report["meta"] = {
         "symbol": args.symbol,

@@ -109,3 +109,83 @@ async def test_replay_report_aggregation() -> None:
 async def test_replay_unknown_strategy_rejected() -> None:
     with pytest.raises(ValueError):
         build_session("no_such_strategy")
+
+
+# ---------------------------------------------------------------------------
+# Direction gate A/B (P2 regime work): wrapper semantics + byte-for-byte default
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_direction_gate_suppresses_entries_below_sma() -> None:
+    """With direction_gate on, bars whose close < SMA(200) must NOT emit;
+    bars above the SMA keep trading (orders drop, curve still moves)."""
+    from quantflow.strategy.research.paper_replay import _DirectionGateWrapper
+    from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+
+    inner = MeanReversionStrategy()
+    # Falling market: close monotonically down → below SMA after warm-up.
+    bars = pd.DataFrame(
+        {
+            "timestamp": [1_700_000_000_000 + i * 3_600_000 for i in range(250)],
+            "open": [100.0 - i * 0.1 for i in range(250)],
+            "high": [100.0 - i * 0.1 + 1.0 for i in range(250)],
+            "low": [100.0 - i * 0.1 - 1.0 for i in range(250)],
+            "close": [100.0 - i * 0.1 for i in range(250)],
+            "volume": [100.0 for _ in range(250)],
+        }
+    )
+    sma = bars["close"].rolling(200).mean()
+    wrapper = _DirectionGateWrapper(inner, sma)
+    assert wrapper.required_regime == inner.required_regime
+
+    ctx = _CtxStub()
+    wrapper.on_init(ctx)
+    emitted = 0
+    for _i, row in enumerate(bars.itertuples(index=False)):
+        bar = _bar_from_row(row)
+        wrapper.on_bar(ctx, bar)
+        emitted += len(ctx.signals)
+        ctx.signals.clear()
+    # Post warm-up (bar >= 200) the market is below SMA → suppressed.
+    assert emitted < 50, f"expected heavy suppression, got {emitted}"
+
+
+class _CtxStub:
+    """Minimal StrategyContext stand-in collecting emitted signals."""
+
+    def __init__(self) -> None:
+        self.signals: list[object] = []
+
+    def emit_signal(self, *a: object, **k: object) -> None:
+        self.signals.append((a, k))
+
+
+def _bar_from_row(row: object) -> Bar:
+    from quantflow.common.models import Bar
+
+    return Bar(
+        symbol="BTC/USDT",
+        timestamp=int(row.timestamp),
+        open=float(row.open),
+        high=float(row.high),
+        low=float(row.low),
+        close=float(row.close),
+        volume=float(row.volume),
+    )
+
+
+@pytest.mark.asyncio
+async def test_direction_gate_off_is_byte_for_byte_baseline() -> None:
+    """direction_gate=False (explicit) must produce the exact same curve/fills
+    as the pre-feature call (A/B switch is opt-in; default path unchanged)."""
+    sink_a, sink_b = RecordingSink(), RecordingSink()
+    session_a = build_session("mean_reversion", 100_000.0, sink_a)
+    session_b = build_session("mean_reversion", 100_000.0, sink_b)
+    bars = _synthetic_bars(200)
+    fills_a: list[dict] = []
+    fills_b: list[dict] = []
+    curve_a = await replay(session_a, bars, SYMBOL, fills_a, [])
+    curve_b = await replay(session_b, bars, SYMBOL, fills_b, [], direction_gate=False)
+    assert curve_a == curve_b
+    assert fills_a == fills_b

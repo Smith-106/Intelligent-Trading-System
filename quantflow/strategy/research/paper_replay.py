@@ -33,7 +33,7 @@ from quantflow.common.models import Bar
 from quantflow.common.monitoring_sink import NullMonitoringSink
 from quantflow.execution.engine import ExecutionEngine
 from quantflow.execution.paper_gateway import PaperGateway
-from quantflow.strategy.base import StrategyContext
+from quantflow.strategy.base import StrategyBase, StrategyContext
 from quantflow.strategy.engine import TradingSession
 from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
 from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
@@ -114,14 +114,27 @@ async def replay(
     symbol: str,
     fills: list[dict[str, object]] | None = None,
     risk_events: list[dict[str, object]] | None = None,
+    direction_gate: bool = False,
+    gate_sma_period: int = 200,
 ) -> list[dict[str, float]]:
     """Feed each bar through on_bar; return the per-bar equity curve.
 
     ``fills`` / ``risk_events`` are appended to in place (caller-owned) so the
     caller can inspect the raw event streams alongside the curve.
+
+    ``direction_gate`` (A/B research switch, default off = byte-for-byte):
+    wraps the strategy so it does NOT emit signals while ``close`` is below its
+    simple moving average (SMA period ``gate_sma_period``) — i.e. mean-reversion
+    stops catching falling knives in bear regimes. The gate is evaluated on the
+    bar that precedes the strategy's on_bar (same bar), and is inactive while
+    the SMA is undefined (warm-up window).
     """
     fills = fills if fills is not None else []
     risk_events = risk_events if risk_events is not None else []
+
+    if direction_gate:
+        sma = bars_df["close"].rolling(gate_sma_period).mean()
+        session._strategies[0] = _DirectionGateWrapper(session._strategies[0], sma)
 
     session._running = True
     for strategy in session._strategies:
@@ -154,6 +167,39 @@ async def replay(
             }
         )
     return curve
+
+
+class _DirectionGateWrapper(StrategyBase):
+    """Strategy decorator: suppress signal emission while close < SMA.
+
+    A/B research switch for the direction-gate experiment (bear-regime
+    mean-reversion protection). Keeps the inner strategy's state updates
+    untouched; only emission is suppressed.
+    """
+
+    def __init__(self, inner: StrategyBase, sma: pd.Series) -> None:
+        super().__init__(name=inner.name)
+        self._inner = inner
+        self._sma = sma
+        self._idx = 0
+        # Preserve regime gating: the engine skips strategies whose
+        # required_regime mismatches the detected regime; a wrapper that
+        # resets this to "any" would bypass the gate and trade trending
+        # bars the inner strategy is supposed to sit out.
+        self.required_regime = inner.required_regime
+
+    def on_init(self, ctx: StrategyContext) -> None:
+        self._inner.on_init(ctx)
+
+    def on_bar(self, ctx: StrategyContext, bar: Bar) -> None:
+        sma_value = self._sma.iloc[self._idx] if self._idx < len(self._sma) else math.nan
+        self._idx += 1
+        if not math.isnan(float(sma_value)) and bar.close < float(sma_value):
+            return  # bear regime: suppress mean-reversion entries
+        self._inner.on_bar(ctx, bar)
+
+    def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+        return self._inner.generate_signals(df)
 
 
 def _max_drawdown(curve: list[dict[str, float]]) -> float:
