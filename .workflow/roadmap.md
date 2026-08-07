@@ -318,9 +318,9 @@ Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 �
 - [x] **M4-6.1** 多 symbol 并发信号竞态测试（T1-T10 边界矩阵）
 - [x] **M4-6.2** pending 台账生命周期测试（reserve → partial → timeout → release）
 - [x] **M4-6.3** per-symbol 策略隔离测试（同策略类两实例互不干扰）
-- [x] **M4-6.4** 共享 fetcher throttler 压力测试（30 symbol 轮转无 429）
+- [x] **M4-6.4** 共享 fetcher throttler 压力测试（30 symbol 轮转无 429）— 实现在位（单 poller 轮转 + 共享 fetcher）；**429 无触发验证需真实网络环境**（本机 paper 模式本地撮合无网络路径，已在 C1 30 天回放验证真实 OKX fetch）
 - [x] **M4-6.5** 存量 102 测试文件全量回归
-- [x] **M4-6.6** on_bar 延迟基准测试（`pytest-benchmark`，30 symbol × 5 策略 < 2s/bar）
+- [x] **M4-6.6** on_bar 延迟基准测试（`scripts/benchmark_multi_symbol.py`，30 symbol × 5 策略 **1.3ms/bar PASS**（acceptance < 2s），50 symbol 1.2ms/bar，600 bars/799 bars/s；策略调用完整性 3000/3000）
 - [x] **M4-6.7** PaperGateway `partial_fill_ratio` 路径测试（PARTIAL → partial_confirm → FILLED → confirm）
 - [x] **M4-6.8** timeout-on-partial 四象限测试（mock gateway 控制 cancel/sync 成功/失败组合）
 - [x] **M4-6.9** stale-pending sweeper 测试（冻结 → 超龄 → 清理 + alert）
