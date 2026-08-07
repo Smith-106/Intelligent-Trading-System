@@ -36,7 +36,7 @@ CANDIDATES = [
 BASELINE = "ProsusAI/finbert"
 
 # Hand-labeled gold set (Financial PhraseBank-style short headlines).
-GOLD: list[tuple[str, str]] = [
+FIN_GOLD: list[tuple[str, str]] = [
     # positive
     ("Operating profit increased to EUR 22.5 million from EUR 19.4 million in 2007", "positive"),
     ("The company reported record quarterly profits and raised its dividend", "positive"),
@@ -58,25 +58,39 @@ GOLD: list[tuple[str, str]] = [
     ("The acquisition is subject to regulatory approval", "neutral"),
 ]
 
+GOLD = FIN_GOLD
 
-def _predict(model: Any, tok: Any, text: str) -> str:
+
+def _predict(model: Any, tok: Any, text: str, neutral_floor: float = 0.0) -> str:
+    """Argmax prediction; with neutral_floor > 0, re-label high-neutral
+    outputs as the stronger of positive/negative (domain calibration for
+    conservative checkpoints)."""
     ids = tok(text, return_tensors="pt", truncation=True, max_length=512)
     with torch.no_grad():
         logits = model(**ids).logits
-    idx = int(torch.softmax(logits, dim=-1).argmax(dim=-1)[0])
+    probs = torch.softmax(logits, dim=-1)[0]
     id2label = model.config.id2label
-    # Some checkpoints key by int, others by str.
-    return str(id2label.get(idx) or id2label.get(str(idx), str(idx)))
+    labels = {i: str(id2label.get(i) or id2label.get(str(i), str(i))) for i in range(probs.shape[0])}
+    neutral_idx = next((i for i, lbl in labels.items() if lbl == "neutral"), None)
+    if neutral_floor > 0.0 and neutral_idx is not None:
+        pn = float(probs[neutral_idx])
+        if pn < neutral_floor:
+            pos_idx = next((i for i, lbl in labels.items() if lbl == "positive"), None)
+            neg_idx = next((i for i, lbl in labels.items() if lbl == "negative"), None)
+            if pos_idx is not None and neg_idx is not None:
+                return "positive" if float(probs[pos_idx]) > float(probs[neg_idx]) else "negative"
+    idx = int(probs.argmax(dim=-1))
+    return labels[idx]
 
 
-def _evaluate(model_id: str) -> tuple[float, list[tuple[str, str, str]]]:
+def _evaluate(model_id: str, neutral_floor: float = 0.0) -> tuple[float, list[tuple[str, str, str]]]:
     tok: Any = AutoTokenizer.from_pretrained(model_id)
     model: Any = AutoModelForSequenceClassification.from_pretrained(model_id)
     model.eval()
     hits = 0
     detail: list[tuple[str, str, str]] = []
     for text, gold in GOLD:
-        pred = _predict(model, tok, text)
+        pred = _predict(model, tok, text, neutral_floor)
         hit = pred == gold
         hits += int(hit)
         detail.append((text[:52], gold, pred))
@@ -86,13 +100,33 @@ def _evaluate(model_id: str) -> tuple[float, list[tuple[str, str, str]]]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--models", nargs="+", default=None, help="override candidate list")
+    ap.add_argument(
+        "--crypto-gold",
+        action="store_true",
+        help="also evaluate against the crypto-domain gold set "
+        "(scripts/domain_gold_crypto.json; OKX announcements + CT/CD headlines)",
+    )
+    ap.add_argument(
+        "--calibrate",
+        type=float,
+        default=0.0,
+        help="re-label outputs with neutral prob < this floor as pos/neg "
+        "argmax (domain calibration; try 0.5-0.95)",
+    )
     args = ap.parse_args()
+
+    global GOLD
+    if args.crypto_gold:
+        import json
+
+        with open(REPO_ROOT / "scripts" / "domain_gold_crypto.json", encoding="utf-8") as f:
+            GOLD = [tuple(pair) for pair in json.load(f)["gold"]]
 
     models = args.models or [m for m, _ in CANDIDATES]
     results: list[tuple[float, str, list[tuple[str, str, str]]]] = []
     for model_id in [BASELINE, *models]:
         print(f"[eval] {model_id} ...")
-        acc, detail = _evaluate(model_id)
+        acc, detail = _evaluate(model_id, args.calibrate)
         results.append((acc, model_id, detail))
         print(f"  accuracy = {acc:.1%} ({int(acc * len(GOLD))}/{len(GOLD)})")
         for text, gold, pred in detail:
