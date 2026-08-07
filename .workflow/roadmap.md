@@ -349,7 +349,7 @@ Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 �
 ## Scope Decisions
 
 - **In scope**：版本抬升到 `v0.1.3`、发布文档、`.workflow` 发布里程碑、maestro 会话、打包治理、哈希与 manifest 刷新；**v0.2 多 symbol 扩展（M4）**；**M5 生产安全接线与回放验证（A2/C1，已完成）**；**M3-P2.1 schema-only 隔离层（下一阶段）**
-- **Deferred**：GitHub tag / release 真实发布、远端资产上传、paper / live 运行证据补齐；**WebSocket 实时推送（ccxt.pro 切换，50+ symbol 终态）**；**Redis 分布式状态共享（阶段二）**；**P2.2 FinGPT / P2.3 情绪传播广度（依赖 P2.1 schema 层）**；**spot-perp 配对策略（ISS-20260804-003 NO-GO，原型 disabled）**
+- **Deferred**：GitHub tag / release 真实发布、远端资产上传、paper / live 运行证据补齐；**WebSocket 实时推送（ccxt.pro 切换，50+ symbol 终态）**——**环境就绪 + 可行性 PASS**（2026-08-07：ccxt.pro watchOHLCV 真实订阅 BTC/USDT 1m 30s 收到实时 kline close 64317.8；完整切换 = 数据层重构 + 回测-实盘一致性 + 测试，待规划新任务）；**Redis 分布式状态共享（阶段二）**——**环境就绪 + 可行性 PASS**（2026-08-07：Docker redis:7-alpine + redis-py set/get 冒烟通；Docker Desktop daemon 需手动启动；实现待规划）；**P2.2 FinGPT / P2.3 情绪传播广度（依赖 P2.1 schema 层）**；**spot-perp 配对策略（ISS-20260804-003 NO-GO，原型 disabled）**
 - **Out of scope**：新增 Gateway、新数据源、前端 UI、部署拓扑重构、多用户/多租户
 
 ## Progress
