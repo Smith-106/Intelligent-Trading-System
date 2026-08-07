@@ -147,7 +147,7 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 #### Phase 3: P2 AI 层升级（milestone-gate: P2-verify）
 
-**Status**：in_progress（P2.1 全链完成 2026-08-06：schema 层 + rd_agent 接线 + 三段分割元数据；P2.3 情绪传播广度完成；P2.2 FinGPT **blocked-on-environment**（本机无 GPU/torch））
+**Status**：completed（2026-08-06：P2.1 schema 隔离层全链（含 splits 元数据）→ P2.2 FinGPT 接口层+微调脚本+CPU 推理验证（environment 解封，训练路径待 GPU）→ P2.3 情绪传播广度加权聚合；全量 2056 passed）
 **Scope**：F6 schema-only 暴露层（P2 内部硬约束）、F11 FinGPT、F12 情绪传播广度
 **Target files**：`common/schema_exposure.py`（已存在，SchemaExposure/DatasetSchema）、`strategy/rd_agent.py`（discover_factors 签名已改）
 
