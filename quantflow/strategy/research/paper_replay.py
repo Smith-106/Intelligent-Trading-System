@@ -24,6 +24,7 @@ book (p1-live-verification-checklist-018).
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 
 import pandas as pd
 
@@ -114,7 +115,7 @@ async def replay(
     symbol: str,
     fills: list[dict[str, object]] | None = None,
     risk_events: list[dict[str, object]] | None = None,
-    direction_gate: bool = False,
+    direction_gate: bool | str = False,
     gate_sma_period: int = 200,
 ) -> list[dict[str, float]]:
     """Feed each bar through on_bar; return the per-bar equity curve.
@@ -133,8 +134,11 @@ async def replay(
     risk_events = risk_events if risk_events is not None else []
 
     if direction_gate:
-        sma = bars_df["close"].rolling(gate_sma_period).mean()
-        session._strategies[0] = _DirectionGateWrapper(session._strategies[0], sma)
+        gate_name = direction_gate if isinstance(direction_gate, str) else "sma"
+        if gate_name not in GATE_BUILDERS:
+            raise ValueError(f"Unknown gate '{gate_name}'. Available: {list(GATE_BUILDERS)}")
+        allow = GATE_BUILDERS[gate_name](bars_df)
+        session._strategies[0] = _DirectionGateWrapper(session._strategies[0], allow)
 
     session._running = True
     for strategy in session._strategies:
@@ -170,17 +174,20 @@ async def replay(
 
 
 class _DirectionGateWrapper(StrategyBase):
-    """Strategy decorator: suppress signal emission while close < SMA.
+    """Strategy decorator: suppress signal emission while the direction gate
+    is closed.
 
     A/B research switch for the direction-gate experiment (bear-regime
-    mean-reversion protection). Keeps the inner strategy's state updates
-    untouched; only emission is suppressed.
+    mean-reversion protection). ``allow`` is a precomputed per-bar boolean
+    Series (True = gate open); the wrapper suppresses emission while False.
+    Keeps the inner strategy's state updates untouched; only emission is
+    suppressed.
     """
 
-    def __init__(self, inner: StrategyBase, sma: pd.Series) -> None:
+    def __init__(self, inner: StrategyBase, allow: pd.Series) -> None:
         super().__init__(name=inner.name)
         self._inner = inner
-        self._sma = sma
+        self._allow = allow
         self._idx = 0
         # Preserve regime gating: the engine skips strategies whose
         # required_regime mismatches the detected regime; a wrapper that
@@ -192,14 +199,80 @@ class _DirectionGateWrapper(StrategyBase):
         self._inner.on_init(ctx)
 
     def on_bar(self, ctx: StrategyContext, bar: Bar) -> None:
-        sma_value = self._sma.iloc[self._idx] if self._idx < len(self._sma) else math.nan
+        allow = self._allow.iloc[self._idx] if self._idx < len(self._allow) else True
         self._idx += 1
-        if not math.isnan(float(sma_value)) and bar.close < float(sma_value):
-            return  # bear regime: suppress mean-reversion entries
+        if not bool(allow):
+            return  # gate closed: suppress mean-reversion entries
         self._inner.on_bar(ctx, bar)
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         return self._inner.generate_signals(df)
+
+
+def _sma_allow(df: pd.DataFrame, period: int) -> pd.Series:
+    """Gate: close >= SMA(period). NaN warm-up rows are open (True)."""
+    sma = df["close"].rolling(period).mean()
+    return df["close"].fillna(0) >= sma.fillna(float("-inf"))
+
+
+def _ema_allow(df: pd.DataFrame, period: int) -> pd.Series:
+    """Gate: close >= EMA(period) — faster response than SMA."""
+    ema = df["close"].ewm(span=period, adjust=False).mean()
+    return df["close"] >= ema
+
+
+def _slope_allow(df: pd.DataFrame, period: int) -> pd.Series:
+    """Gate AA: close >= SMA(period) AND SMA rising (slope >= 0).
+
+    Two same-family confirmations (price above + average trending up) —
+    blocks entries during the early leg of a bear move before price has
+    crossed below the average.
+    """
+    sma = df["close"].rolling(period).mean()
+    rising = sma.diff().fillna(0.0) >= 0.0
+    above = df["close"].fillna(0) >= sma.fillna(float("-inf"))
+    return above & rising
+
+
+def _dual_ema_allow(df: pd.DataFrame, fast: int = 20, slow: int = 50) -> pd.Series:
+    """Gate AB: golden-cross regime — fast EMA above slow EMA.
+
+    Mixed family (two EMAs, crossing state) — trend must be established
+    (fast > slow) before mean-reversion entries are allowed.
+    """
+    fast_ema = df["close"].ewm(span=fast, adjust=False).mean()
+    slow_ema = df["close"].ewm(span=slow, adjust=False).mean()
+    return fast_ema >= slow_ema
+
+
+def _nested_allow(df: pd.DataFrame, htf_agg: str = "4h", period: int = 50) -> pd.Series:
+    """Gate A/a: higher-timeframe direction gate over lower-timeframe entries.
+
+    Aggregates the 1h bars into ``htf_agg`` buckets, computes SMA(period) on
+    the HTF close, and opens the gate only while the *previous completed* HTF
+    bar's close is >= its SMA — the HTF value is visible to the LTF only
+    after the HTF bar closes (no look-ahead; M3-P0 constraint).
+    """
+    close = df["close"]
+    # Bucket each 1h row into its HTF period (e.g. 4h): row i belongs to
+    # bucket i // htf_bars. The gate uses the bucket *before* the current
+    # one, so the HTF bar must be complete.
+    htf_bars = 4 if htf_agg == "4h" else 24
+    htf_close = close.groupby(close.index // htf_bars).transform("last")
+    htf_sma = htf_close.rolling(period * htf_bars).mean()
+    # Previous bucket's value (shift by one bucket = htf_bars rows).
+    prev_htf_close = htf_close.shift(htf_bars)
+    prev_htf_sma = htf_sma.shift(htf_bars)
+    return prev_htf_close.fillna(0) >= prev_htf_sma.fillna(float("-inf"))
+
+
+GATE_BUILDERS: dict[str, Callable[[pd.DataFrame], pd.Series]] = {
+    "sma": lambda df: _sma_allow(df, 200),
+    "ema": lambda df: _ema_allow(df, 55),
+    "slope": lambda df: _slope_allow(df, 200),
+    "dual": lambda df: _dual_ema_allow(df),
+    "nested": lambda df: _nested_allow(df, "4h", 50),
+}
 
 
 def _max_drawdown(curve: list[dict[str, float]]) -> float:

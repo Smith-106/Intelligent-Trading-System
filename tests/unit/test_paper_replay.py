@@ -188,3 +188,27 @@ async def test_direction_gate_off_is_byte_for_byte_baseline() -> None:
     curve_b = await replay(session_b, bars, SYMBOL, fills_b, [], direction_gate=False)
     assert curve_a == curve_b
     assert fills_a == fills_b
+
+
+@pytest.mark.asyncio
+async def test_gate_variants_build_and_validate() -> None:
+    """All gate builders return aligned boolean Series with NaN-safe warm-up."""
+    from quantflow.strategy.research.paper_replay import GATE_BUILDERS
+
+    bars = _synthetic_bars(300)
+    for name, builder in GATE_BUILDERS.items():
+        allow = builder(bars)
+        assert len(allow) == len(bars), f"{name}: length mismatch"
+        assert allow.dtype == bool, f"{name}: expected bool, got {allow.dtype}"
+        # Warm-up rows (early NaN) must be open (True) — no silent lockout.
+        assert bool(allow.iloc[0]) is True, f"{name}: warm-up should be open"
+
+
+@pytest.mark.asyncio
+async def test_gate_unknown_type_rejected() -> None:
+    from quantflow.strategy.research.paper_replay import replay
+
+    sink = RecordingSink()
+    session = build_session("mean_reversion", 100_000.0, sink)
+    with pytest.raises(ValueError, match="Unknown gate"):
+        await replay(session, _synthetic_bars(100), SYMBOL, [], [], direction_gate="bogus")

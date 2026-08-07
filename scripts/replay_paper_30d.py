@@ -101,8 +101,16 @@ def main() -> int:
     ap.add_argument(
         "--direction-gate",
         action="store_true",
-        help="A/B switch: suppress mean-reversion entries while close < SMA(200) "
-        "(bear-regime protection). Default off = byte-for-byte baseline.",
+        help="A/B switch: suppress mean-reversion entries while the direction "
+        "gate is closed (bear-regime protection). Default off = byte-for-byte baseline.",
+    )
+    ap.add_argument(
+        "--gate-type",
+        default="sma",
+        choices=["sma", "ema", "slope", "dual", "nested"],
+        help="gate variant: sma=close>=SMA200 (default); ema=close>=EMA55; "
+        "slope=close>=SMA200 AND SMA rising (AA); dual=EMA20>=EMA50 golden-cross "
+        "(AB); nested=4h SMA50 direction gate over 1h entries (A/a)",
     )
     ap.add_argument("--gate-sma-period", type=int, default=200)
     ap.add_argument("--parquet-dir", default="./data/parquet")
@@ -126,7 +134,7 @@ def main() -> int:
             args.symbol,
             fills,
             risk_events,
-            direction_gate=args.direction_gate,
+            direction_gate=args.gate_type if args.direction_gate else False,
             gate_sma_period=args.gate_sma_period,
         )
     )
