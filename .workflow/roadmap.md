@@ -195,7 +195,7 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 **Status**：completed（commit `fe43aeb`，tag `v0.2.0`，2026-08-02）
 **Upstream**：Grill session（6 decisions locked, 6 risks）、Brainstorm session（PendingLedger 详细设计，4 cross-role conflicts resolved）
 **Version tag**：`v0.2.0`
-**Delivery summary**：17 ISS 清零（安全加固 + 架构清理 + 新功能），pyproject.toml 0.2.0。实际交付以 ISS 清零为主，多 Symbol 扩展基础设施部分落地（per-symbol 工厂化、策略工厂 `strategy/factory.py`、IndicatorComputer Protocol 注入等），完整多 symbol 数据循环和 Pending Exposure 台账作为后续迭代方向。
+**Delivery summary**：17 ISS 清零（安全加固 + 架构清理 + 新功能），pyproject.toml 0.2.0。实际交付以 ISS 清零为主，多 Symbol 扩展基础设施部分落地（per-symbol 工厂化、策略工厂 `strategy/factory.py`、IndicatorComputer Protocol 注入等）。**2026-08-06 补登**：Phase 4 多 symbol 数据循环（单 poller 轮转 + to_thread 卸载 + CLI/Web symbols）、Phase 5 Pending Exposure 台账（reserve/confirm/partial/release + 四象限超时决策 + stale sweeper + partial_fill_ratio）与 Phase 6 集成测试（9 个 test_m4_* 文件 64 测试）均已实现并全量回归绿（2056 passed）。
 
 #### 架构决策（Grill locked）
 
@@ -261,12 +261,12 @@ Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 �
 **Scope**：单 poller 轮转 sweep + 策略计算 to_thread 卸载 + CLI/Web 适配
 
 **Tasks**:
-- [ ] **M4-4.1** `run_data_loop` 签名改为 `symbols: list[str]`
-- [ ] **M4-4.2** 单 poller 轮转实现：一个 task 轮转 sweep 所有 symbol，fetch 到新 bar 后按 symbol 分发
-- [ ] **M4-4.3** `on_bar` 内策略计算卸载：`await asyncio.to_thread(strategy.on_bar, ctx, bar)`
-- [ ] **M4-4.4** CLI `--symbol` → `--symbols`（逗号分隔，向后兼容单 symbol）
-- [ ] **M4-4.5** Web `SessionStartRequest` 增加 `symbols` 字段
-- [ ] **M4-4.6** 共享 fetcher 实例验证（全 session 单 exchange 对象）
+- [x] **M4-4.1** `run_data_loop` 签名改为 `symbols: list[str]`
+- [x] **M4-4.2** 单 poller 轮转实现：一个 task 轮转 sweep 所有 symbol，fetch 到新 bar 后按 symbol 分发
+- [x] **M4-4.3** `on_bar` 内策略计算卸载：`await asyncio.to_thread(strategy.on_bar, ctx, bar)`
+- [x] **M4-4.4** CLI `--symbol` → `--symbols`（逗号分隔，向后兼容单 symbol）
+- [x] **M4-4.5** Web `SessionStartRequest` 增加 `symbols` 字段
+- [x] **M4-4.6** 共享 fetcher 实例验证（全 session 单 exchange 对象）
 
 **Acceptance**:
 - 3 symbol paper 模式并发运行 60s 无异常
@@ -281,21 +281,21 @@ Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 �
 **Upstream**：Brainstorm session（PendingEntry, PendingView, F1-F5）、ANL-pending-partial（部分成交边界 3 修正）、ANL-sync-pending（四象限决策矩阵 + sweeper）
 
 **Tasks**:
-- [ ] **M4-5.1** `PortfolioManager` 增加 `_pending: dict[str, PendingEntry]` + reserve/confirm/partial_confirm/release
-- [ ] **M4-5.2** `PendingView` dataclass（frozen, slots）+ `PortfolioManager.pending_view()`
-- [ ] **M4-5.3** `Portfolio` dataclass 增加 `pending_exposure: float = 0.0`
-- [ ] **M4-5.4** `RiskEngine.check` 签名增加 `pending: PendingView | None = None`
-- [ ] **M4-5.5** `_check_position_limit` / `_check_portfolio_limit` / `_check_strategy_budget` 口径改造
-- [ ] **M4-5.6** `TradingSession._process_signal` 集成：reserve → submit → confirm/release
-- [ ] **M4-5.7** `OrderManager.check_timeouts` → release 联动
-- [ ] **M4-5.8** `ExecutionEngine.cancel` → release 联动
-- [ ] **M4-5.9** Kill Switch activate 后统一 release all pending
-- [ ] **M4-5.10** `sync_positions` 返回值改造（`None` → `bool`，True=成功/False=失败）
-- [ ] **M4-5.11** timeout 处理集成四象限决策矩阵（cancel_ok ∨ sync_ok → release；both fail → 冻结）
-- [ ] **M4-5.12** `PortfolioManager.sweep_stale_pending(max_age_ms=120_000)` 实现 + CRITICAL alert
-- [ ] **M4-5.13** data loop 中 sweeper 调用（每轮 check_timeouts 后执行）
-- [ ] **M4-5.14** `partial_confirm` 参数语义为 **cumulative_filled_notional**（对齐 ccxt 累积契约，非 delta）
-- [ ] **M4-5.15** `PaperGateway` 增加 `partial_fill_ratio` opt-in 配置（默认 None=不启用，保 baseline）
+- [x] **M4-5.1** `PortfolioManager` 增加 `_pending: dict[str, PendingEntry]` + reserve/confirm/partial_confirm/release
+- [x] **M4-5.2** `PendingView` dataclass（frozen, slots）+ `PortfolioManager.pending_view()`
+- [x] **M4-5.3** `Portfolio` dataclass 增加 `pending_exposure: float = 0.0`
+- [x] **M4-5.4** `RiskEngine.check` 签名增加 `pending: PendingView | None = None`
+- [x] **M4-5.5** `_check_position_limit` / `_check_portfolio_limit` / `_check_strategy_budget` 口径改造
+- [x] **M4-5.6** `TradingSession._process_signal` 集成：reserve → submit → confirm/release
+- [x] **M4-5.7** `OrderManager.check_timeouts` → release 联动
+- [x] **M4-5.8** `ExecutionEngine.cancel` → release 联动
+- [x] **M4-5.9** Kill Switch activate 后统一 release all pending
+- [x] **M4-5.10** `sync_positions` 返回值改造（`None` → `bool`，True=成功/False=失败）
+- [x] **M4-5.11** timeout 处理集成四象限决策矩阵（cancel_ok ∨ sync_ok → release；both fail → 冻结）
+- [x] **M4-5.12** `PortfolioManager.sweep_stale_pending(max_age_ms=120_000)` 实现 + CRITICAL alert
+- [x] **M4-5.13** data loop 中 sweeper 调用（每轮 check_timeouts 后执行）
+- [x] **M4-5.14** `partial_confirm` 参数语义为 **cumulative_filled_notional**（对齐 ccxt 累积契约，非 delta）
+- [x] **M4-5.15** `PaperGateway` 增加 `partial_fill_ratio` opt-in 配置（默认 None=不启用，保 baseline）
 
 **Acceptance**:
 - 限价单 SUBMITTED 后，后续信号的 position_limit 检看到 pending notional
@@ -315,15 +315,15 @@ Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 �
 **Scope**：全量回归 + 多 symbol 专项测试 + 性能基准 + partial fill 路径覆盖
 
 **Tasks**:
-- [ ] **M4-6.1** 多 symbol 并发信号竞态测试（T1-T10 边界矩阵）
-- [ ] **M4-6.2** pending 台账生命周期测试（reserve → partial → timeout → release）
-- [ ] **M4-6.3** per-symbol 策略隔离测试（同策略类两实例互不干扰）
-- [ ] **M4-6.4** 共享 fetcher throttler 压力测试（30 symbol 轮转无 429）
-- [ ] **M4-6.5** 存量 102 测试文件全量回归
-- [ ] **M4-6.6** on_bar 延迟基准测试（`pytest-benchmark`，30 symbol × 5 策略 < 2s/bar）
-- [ ] **M4-6.7** PaperGateway `partial_fill_ratio` 路径测试（PARTIAL → partial_confirm → FILLED → confirm）
-- [ ] **M4-6.8** timeout-on-partial 四象限测试（mock gateway 控制 cancel/sync 成功/失败组合）
-- [ ] **M4-6.9** stale-pending sweeper 测试（冻结 → 超龄 → 清理 + alert）
+- [x] **M4-6.1** 多 symbol 并发信号竞态测试（T1-T10 边界矩阵）
+- [x] **M4-6.2** pending 台账生命周期测试（reserve → partial → timeout → release）
+- [x] **M4-6.3** per-symbol 策略隔离测试（同策略类两实例互不干扰）
+- [x] **M4-6.4** 共享 fetcher throttler 压力测试（30 symbol 轮转无 429）
+- [x] **M4-6.5** 存量 102 测试文件全量回归
+- [x] **M4-6.6** on_bar 延迟基准测试（`pytest-benchmark`，30 symbol × 5 策略 < 2s/bar）
+- [x] **M4-6.7** PaperGateway `partial_fill_ratio` 路径测试（PARTIAL → partial_confirm → FILLED → confirm）
+- [x] **M4-6.8** timeout-on-partial 四象限测试（mock gateway 控制 cancel/sync 成功/失败组合）
+- [x] **M4-6.9** stale-pending sweeper 测试（冻结 → 超龄 → 清理 + alert）
 
 **Done when**: 全量测试绿 + benchmark 达标 + 覆盖率 ≥ 70%
 
