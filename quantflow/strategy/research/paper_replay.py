@@ -24,6 +24,7 @@ book (p1-live-verification-checklist-018).
 from __future__ import annotations
 
 import math
+from typing import Any
 from collections.abc import Callable
 
 import pandas as pd
@@ -69,6 +70,7 @@ def build_session(
     capital: float = 100_000.0,
     sink: RecordingSink | None = None,
     config: AppConfig | None = None,
+    params: dict[str, Any] | None = None,
 ) -> TradingSession:
     """Build a paper TradingSession with PaperGateway injected directly,
     bypassing start()'s Prometheus/network init and live data loop.
@@ -88,7 +90,7 @@ def build_session(
     strategy_cls = STRATEGIES.get(strategy_name)
     if strategy_cls is None:
         raise ValueError(f"Unknown strategy '{strategy_name}'. Available: {list(STRATEGIES)}")
-    session = TradingSession(cfg, [strategy_cls()], monitoring_sink=sink)
+    session = TradingSession(cfg, [strategy_cls(params=params)], monitoring_sink=sink)
     session._execution = ExecutionEngine(
         event_bus=session._event_bus,
         gateway=PaperGateway({"initial_capital": capital, "taker_fee": cfg.execution.taker_fee}),
