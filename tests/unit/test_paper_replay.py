@@ -19,6 +19,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from quantflow.common.models import Bar
 from quantflow.strategy.research.paper_replay import (
     RecordingSink,
     aggregate,
@@ -162,8 +163,6 @@ class _CtxStub:
 
 
 def _bar_from_row(row: object) -> Bar:
-    from quantflow.common.models import Bar
-
     return Bar(
         symbol="BTC/USDT",
         timestamp=int(row.timestamp),
