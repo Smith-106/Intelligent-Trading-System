@@ -147,7 +147,7 @@ P0 实盘验证通过 → P1 启动；P1 实盘验证通过 → P2 启动。批�
 
 #### Phase 3: P2 AI 层升级（milestone-gate: P2-verify）
 
-**Status**：completed（2026-08-06：P2.1 schema 隔离层全链（含 splits 元数据）→ P2.2 FinGPT 接口层+微调脚本+CPU 推理验证（environment 解封，训练路径待 GPU）→ P2.3 情绪传播广度加权聚合；全量 2056 passed）。**2026-08-07 追加：7.6 年全周期回放研究**——下载 OKX BTC/USDT 1h 全量 66612 bars（2019-01→2026-08，零缺口零 NaN）；方向门跨完整牛熊周期验证：mr 全周期 -50.2%（模板负期望确认，门降至 -26~-31% 无法转正）；**tf 全周期 +3.6% 正期望，+sma 方向门 → +18.7%（Sharpe 0.13→0.51，订单 -51% 过滤亏损单）**——方向门对 tf 为放大器；nested（4h大A小a）全周期优于单门（mr -26.1% vs -31.3%），大样本下多周期门更优
+**Status**：completed（2026-08-06：P2.1 schema 隔离层全链（含 splits 元数据）→ P2.2 FinGPT 接口层+微调脚本+CPU 推理验证（environment 解封，训练路径待 GPU）→ P2.3 情绪传播广度加权聚合；全量 2056 passed）。**2026-08-07 追加：7.6 年全周期回放研究**——下载 OKX BTC/USDT 1h 全量 66612 bars（2019-01→2026-08，零缺口零 NaN）；方向门跨完整牛熊周期验证：mr 全周期 -50.2%（模板负期望确认，门降至 -26~-31% 无法转正）；**tf 全周期 +3.6% 正期望，+sma 方向门 → +18.7%（Sharpe 0.13→0.51，订单 -51% 过滤亏损单）**——方向门对 tf 为放大器；nested（4h大A小a）全周期优于单门（mr -26.1% vs -31.3%），大样本下多周期门更优。**同日 Optuna 同步优化 + WFO 反证 + 气候自适应库**：`optimize_tf_gate.py` 全周期 60 trials 把 tf+nested 同步 Sharpe 抬到 1.04（+46.5%），但 `wfo_tf_gate.py` 11 段滑动 OOS mean Sharpe ≈ -0.05、累计仅 +1.09%——证实同步优化严重过拟合，**不满足接入生产条件**。方案 2 气候自适应：`wfo_multi_climate.py` 对 tf + volatility_breakout 双策略建 OOS 正收益参数库（11/22 KEEP）；oracle-WTA（OOS 选主，上界）sum +10.7% / 9/11；**fair-WTA（train sharpe 选主，无 look-ahead）sum +1.27% / 6/11**——可部署规则下仍仅微正，不构成生产 alpha。结论：防过拟合管道有效拦截假信号；1h 趋势/突破模板需结构层或更高周期改进，而非参数搜索
 **Scope**：F6 schema-only 暴露层（P2 内部硬约束）、F11 FinGPT、F12 情绪传播广度
 **Target files**：`common/schema_exposure.py`（已存在，SchemaExposure/DatasetSchema）、`strategy/rd_agent.py`（discover_factors 签名已改）
 

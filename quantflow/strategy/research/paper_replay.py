@@ -24,8 +24,8 @@ book (p1-live-verification-checklist-018).
 from __future__ import annotations
 
 import math
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
 
@@ -39,10 +39,12 @@ from quantflow.strategy.base import StrategyBase, StrategyContext
 from quantflow.strategy.engine import TradingSession
 from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
 from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
+from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
 
 STRATEGIES = {
     "trend_following": TrendFollowingStrategy,
     "mean_reversion": MeanReversionStrategy,
+    "volatility_breakout": VolatilityBreakoutStrategy,
 }
 
 BARS_PER_YEAR = 24 * 365  # 1h bars
@@ -90,7 +92,8 @@ def build_session(
     strategy_cls = STRATEGIES.get(strategy_name)
     if strategy_cls is None:
         raise ValueError(f"Unknown strategy '{strategy_name}'. Available: {list(STRATEGIES)}")
-    session = TradingSession(cfg, [strategy_cls(params=params)], monitoring_sink=sink)
+    strategy = strategy_cls(params=params)  # type: ignore[abstract]
+    session = TradingSession(cfg, [strategy], monitoring_sink=sink)
     session._execution = ExecutionEngine(
         event_bus=session._event_bus,
         gateway=PaperGateway({"initial_capital": capital, "taker_fee": cfg.execution.taker_fee}),
