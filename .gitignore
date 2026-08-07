@@ -105,3 +105,7 @@ data/spot_perp_real/
 data/s4_verify/
 .venv_old/
 data/paper_replay/
+.pytest_tmp/
+.pi/
+data/rdagent_work/
+data/s3_verify/

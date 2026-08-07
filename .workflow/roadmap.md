@@ -49,7 +49,7 @@
 ### Milestone 2: v0.1.3 发布候选准备
 
 **Target**：建立干净、可复现、可对齐 tag / release 的 `v0.1.3` 发布候选  
-**Status**：in_progress
+**Status**：completed（2026-08-06 四源 digest 核验 PASS 后关闭：whl `bf89a85c` / tar.gz `3ed19f7c` / manifest `a67a8bf7`，文件本体 hash = 官方 .sha256 = GitHub Release digest = SHA256SUMS.txt 一致；tag `v0.1.3` + GitHub Release 已存在）
 
 #### Phases
 
@@ -78,7 +78,7 @@
 ### Milestone 3: deep-research 改进分批实施（P0/P1/P2）
 
 **Target**：按 ANL-002 分析结论分三批实施 deep-research 验证的 10 条改进，每批独立实盘验证后才进下一批
-**Status**：in_progress
+**Status**：completed（2026-08-06：P0-verify PASS → P1-verify PASS → P2 全链关闭；Wave 1-5 多 book reconcile 一致性收口；全部 Phase 任务勾选，无未完成项）
 **Upstream**：ANL-002（analyze-macro，scope=large，GO_CONDITIONAL 88%）、GRL-001（grill）、deep-research-20260718（15 findings，24/25 verified）
 
 #### 串行硬约束
