@@ -49,7 +49,10 @@ def _hash_trade_returns(returns: list[float]) -> str:
 def _load_bars() -> pd.DataFrame:
     store = DataStore("./data/parquet", ":memory:")
     try:
-        df = store.query(SYMBOL)
+        # Pin to 1h so multi-TF co-resident partitions do not mix intervals.
+        df = store.query(SYMBOL, timeframe="1h")
+        if df.empty:
+            df = store.query(SYMBOL)
     finally:
         store.close()
     return df

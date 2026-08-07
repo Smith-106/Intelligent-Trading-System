@@ -48,10 +48,17 @@ SYMBOL = "BTC/USDT"
 
 
 def load_bars(parquet_dir: str) -> pd.DataFrame:
-    """Load all BTC/USDT bars from local parquet store."""
+    """Load BTC/USDT 1h bars from local parquet store.
+
+    Always filter by timeframe so multi-TF co-resident partitions (post-MTF
+    expansion) do not mix intervals into a single close series.
+    """
     store = DataStore(parquet_dir, ":memory:")
     try:
-        df = store.query(SYMBOL)
+        df = store.query(SYMBOL, timeframe="1h")
+        if df.empty:
+            # Legacy stores without a timeframe column / filter.
+            df = store.query(SYMBOL)
     finally:
         store.close()
     if df.empty:

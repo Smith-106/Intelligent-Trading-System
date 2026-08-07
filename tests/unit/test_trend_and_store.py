@@ -272,6 +272,32 @@ class TestDataStoreHelpers:
             assert merged["close"].tolist() == [100.5, 101.5, 102.5, 103.5, 104.5, 105.5]
             store.close()
 
+
+    def test_save_keeps_multiple_timeframes_at_same_timestamp(self):
+        # Multi-TF co-residence: 1h and 1d can share a wall-clock open time.
+        # Dedup must key on (timestamp, timeframe), not timestamp alone.
+        with tempfile.TemporaryDirectory() as tmp:
+            store = DataStore(str(Path(tmp) / "pq"), str(Path(tmp) / "db.duckdb"))
+            base = _make_ohlcv_frame()  # 1d bars
+            store.save(base, "BTC/USDT")
+
+            # Same timestamps as base, different timeframe label.
+            hourly = base.copy()
+            hourly.loc[:, "timeframe"] = "1h"
+            hourly.loc[:, "close"] = [200.5, 201.5, 202.5, 203.5]
+            store.save(hourly, "BTC/USDT")
+
+            all_rows = store.query("BTC/USDT")
+            assert len(all_rows) == 8
+            assert sorted(all_rows["timeframe"].unique().tolist()) == ["1d", "1h"]
+            d1 = store.query("BTC/USDT", timeframe="1d")
+            h1 = store.query("BTC/USDT", timeframe="1h")
+            assert len(d1) == 4
+            assert len(h1) == 4
+            assert d1["close"].tolist() == [100.5, 101.5, 102.5, 103.5]
+            assert h1["close"].tolist() == [200.5, 201.5, 202.5, 203.5]
+            store.close()
+
     def test_save_falls_back_to_full_merge_on_overlapping_timestamps(self):
         # ISS-034: overlapping append (re-saving an existing bar) must still
         # run drop_duplicates(keep="last") so the newer row wins — the fast

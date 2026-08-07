@@ -21,7 +21,23 @@ from quantflow.common.exceptions import DataError, GatewayConnectionError
 
 logger = logging.getLogger(__name__)
 
-TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"]
+# OKX-native intervals used by download / store / live. 10m is intentionally
+# absent (exchange has no native 10m kline). 3m/1w/1M included for completeness.
+TIMEFRAMES = [
+    "1m",
+    "3m",
+    "5m",
+    "15m",
+    "30m",
+    "1h",
+    "2h",
+    "4h",
+    "6h",
+    "12h",
+    "1d",
+    "1w",
+    "1M",
+]
 
 # OKX kline API caps a single response at 300 bars regardless of the limit
 # param (ccxt truncates silently). Pagination must compare against this page
@@ -129,9 +145,7 @@ class DataFetcher:
         # otherwise a 300-bar page is mistaken for the last page and the
         # loop exits after one fetch (only 300 bars downloaded).
         effective_limit = min(limit, OKX_KLINE_PAGE_MAX)
-        end_ts = (
-            self._exchange.parse8601(f"{end}T23:59:59Z") if end else None
-        )
+        end_ts = self._exchange.parse8601(f"{end}T23:59:59Z") if end else None
 
         all_bars: list[list[Any]] = []
         pages = 0

@@ -142,8 +142,13 @@ class DataStore:
                         ignore_index=True,
                         sort=False,
                     )
+                    # Multi-TF co-residence: same wall-clock timestamp can hold
+                    # both 1h and 1d (etc.). Dedup only within (timestamp, timeframe).
+                    dedup_cols = ["timestamp"]
+                    if "timeframe" in group_data.columns:
+                        dedup_cols.append("timeframe")
                     group_data = (
-                        group_data.drop_duplicates(subset=["timestamp"], keep="last")
+                        group_data.drop_duplicates(subset=dedup_cols, keep="last")
                         .sort_values("timestamp")
                         .reset_index(drop=True)
                     )

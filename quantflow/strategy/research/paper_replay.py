@@ -47,7 +47,49 @@ STRATEGIES = {
     "volatility_breakout": VolatilityBreakoutStrategy,
 }
 
-BARS_PER_YEAR = 24 * 365  # 1h bars
+BARS_PER_YEAR = 24 * 365  # 1h bars (back-compat default)
+
+# Minutes per bar for annualization and HTF nesting.
+_TF_MINUTES: dict[str, int] = {
+    "1m": 1,
+    "3m": 3,
+    "5m": 5,
+    "15m": 15,
+    "30m": 30,
+    "1h": 60,
+    "2h": 120,
+    "4h": 240,
+    "6h": 360,
+    "12h": 720,
+    "1d": 1440,
+    "1w": 10080,
+}
+
+# Entry TF → higher-timeframe gate (A/a nested). Prefer ~4× entry when OKX-native.
+NESTED_HTF_MAP: dict[str, str] = {
+    "5m": "1h",
+    "15m": "1h",
+    "30m": "2h",
+    "1h": "4h",
+    "2h": "12h",
+    "4h": "1d",
+    "6h": "1d",
+    "12h": "1d",
+    "1d": "1w",
+}
+
+
+def bars_per_year(timeframe: str = "1h") -> float:
+    """Bars per year for Sharpe annualization on the given bar interval."""
+    minutes = _TF_MINUTES.get(timeframe)
+    if minutes is None:
+        return float(BARS_PER_YEAR)
+    return float((365 * 24 * 60) / minutes)
+
+
+def nested_htf_for(entry_tf: str = "1h") -> str:
+    """Higher timeframe used by the nested direction gate for ``entry_tf``."""
+    return NESTED_HTF_MAP.get(entry_tf, "4h")
 
 
 class RecordingSink(NullMonitoringSink):
@@ -122,6 +164,7 @@ async def replay(
     risk_events: list[dict[str, object]] | None = None,
     direction_gate: bool | str = False,
     gate_sma_period: int = 200,
+    entry_tf: str = "1h",
 ) -> list[dict[str, float]]:
     """Feed each bar through on_bar; return the per-bar equity curve.
 
@@ -140,9 +183,13 @@ async def replay(
 
     if direction_gate:
         gate_name = direction_gate if isinstance(direction_gate, str) else "sma"
-        if gate_name not in GATE_BUILDERS:
-            raise ValueError(f"Unknown gate '{gate_name}'. Available: {list(GATE_BUILDERS)}")
-        allow = GATE_BUILDERS[gate_name](bars_df)
+        builders = _gate_builders(entry_tf)
+        if gate_name == "sma" and gate_sma_period != 200:
+            allow = _sma_allow(bars_df, gate_sma_period)
+        elif gate_name not in builders:
+            raise ValueError(f"Unknown gate '{gate_name}'. Available: {list(builders)}")
+        else:
+            allow = builders[gate_name](bars_df)
         session._strategies[0] = _DirectionGateWrapper(session._strategies[0], allow)
 
     session._running = True
@@ -250,19 +297,23 @@ def _dual_ema_allow(df: pd.DataFrame, fast: int = 20, slow: int = 50) -> pd.Seri
     return fast_ema >= slow_ema
 
 
-def _nested_allow(df: pd.DataFrame, htf_agg: str = "4h", period: int = 50) -> pd.Series:
+def _nested_allow(
+    df: pd.DataFrame,
+    htf_agg: str = "4h",
+    period: int = 50,
+    entry_tf: str = "1h",
+) -> pd.Series:
     """Gate A/a: higher-timeframe direction gate over lower-timeframe entries.
 
-    Aggregates the 1h bars into ``htf_agg`` buckets, computes SMA(period) on
+    Aggregates entry bars into ``htf_agg`` buckets, computes SMA(period) on
     the HTF close, and opens the gate only while the *previous completed* HTF
     bar's close is >= its SMA — the HTF value is visible to the LTF only
     after the HTF bar closes (no look-ahead; M3-P0 constraint).
     """
     close = df["close"]
-    # Bucket each 1h row into its HTF period (e.g. 4h): row i belongs to
-    # bucket i // htf_bars. The gate uses the bucket *before* the current
-    # one, so the HTF bar must be complete.
-    htf_bars = 4 if htf_agg == "4h" else 24
+    entry_min = _TF_MINUTES.get(entry_tf, 60)
+    htf_min = _TF_MINUTES.get(htf_agg, entry_min * 4)
+    htf_bars = max(1, htf_min // entry_min)
     htf_close = close.groupby(close.index // htf_bars).transform("last")
     htf_sma = htf_close.rolling(period * htf_bars).mean()
     # Previous bucket's value (shift by one bucket = htf_bars rows).
@@ -271,13 +322,36 @@ def _nested_allow(df: pd.DataFrame, htf_agg: str = "4h", period: int = 50) -> pd
     return prev_htf_close.fillna(0) >= prev_htf_sma.fillna(float("-inf"))
 
 
-GATE_BUILDERS: dict[str, Callable[[pd.DataFrame], pd.Series]] = {
-    "sma": lambda df: _sma_allow(df, 200),
-    "ema": lambda df: _ema_allow(df, 55),
-    "slope": lambda df: _slope_allow(df, 200),
-    "dual": lambda df: _dual_ema_allow(df),
-    "nested": lambda df: _nested_allow(df, "4h", 50),
-}
+def _gate_builders(entry_tf: str = "1h") -> dict[str, Callable[[pd.DataFrame], pd.Series]]:
+    """Gate factory parameterized by the entry bar timeframe."""
+    htf = nested_htf_for(entry_tf)
+
+    def _sma(df: pd.DataFrame) -> pd.Series:
+        return _sma_allow(df, 200)
+
+    def _ema(df: pd.DataFrame) -> pd.Series:
+        return _ema_allow(df, 55)
+
+    def _slope(df: pd.DataFrame) -> pd.Series:
+        return _slope_allow(df, 200)
+
+    def _dual(df: pd.DataFrame) -> pd.Series:
+        return _dual_ema_allow(df)
+
+    def _nested(df: pd.DataFrame, _htf: str = htf, _etf: str = entry_tf) -> pd.Series:
+        return _nested_allow(df, htf_agg=_htf, period=50, entry_tf=_etf)
+
+    return {
+        "sma": _sma,
+        "ema": _ema,
+        "slope": _slope,
+        "dual": _dual,
+        "nested": _nested,
+    }
+
+
+# Back-compat default builders (1h entry → 4h nested).
+GATE_BUILDERS: dict[str, Callable[[pd.DataFrame], pd.Series]] = _gate_builders("1h")
 
 
 def _max_drawdown(curve: list[dict[str, float]]) -> float:
@@ -310,6 +384,7 @@ def aggregate(
     risk_events: list[dict[str, object]],
     alerts: list[dict[str, object]],
     capital: float,
+    entry_tf: str = "1h",
 ) -> dict[str, object]:
     """Fold raw replay records into the report payload."""
     final_equity = curve[-1]["equity"] if curve else capital
@@ -318,7 +393,10 @@ def aggregate(
     for ev in risk_events:
         reason = str(ev.get("reason", ev.get("type", "unknown")))
         risk_by_reason[reason] = risk_by_reason.get(reason, 0) + 1
-    sharpe = _sharpe(curve)
+    bpy = bars_per_year(entry_tf)
+    sharpe = _sharpe(curve, bars_per_year=bpy)
+    # Sample roughly once per day for the JSON payload.
+    sample_every = max(1, int(bpy // 365.0) or 1)
     return {
         "bars": len(curve),
         "fills": len(fills),
@@ -328,8 +406,10 @@ def aggregate(
         "return_pct": round((final_equity / capital - 1.0) * 100.0, 4) if capital else 0.0,
         "max_drawdown_pct": round(_max_drawdown(curve) * 100.0, 4),
         "sharpe_annualized": round(sharpe, 4) if not math.isnan(sharpe) else None,
+        "entry_tf": entry_tf,
+        "bars_per_year": bpy,
         "risk_events": risk_by_reason,
         "alerts": alerts,
         "fills_detail": fills[:50],
-        "equity_curve": curve[::24],  # sample daily for the JSON payload
+        "equity_curve": curve[::sample_every],
     }

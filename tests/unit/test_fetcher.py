@@ -150,7 +150,8 @@ async def test_fetch_ohlcv_rejects_invalid_timeframe(data_config: DataConfig) ->
     fetcher._exchange = _FakeExchange()
 
     with pytest.raises(DataError, match="Invalid timeframe"):
-        await fetcher.fetch_ohlcv("BTC/USDT", timeframe="2h")
+        # 10m is not an OKX-native interval and is not in TIMEFRAMES.
+        await fetcher.fetch_ohlcv("BTC/USDT", timeframe="10m")
 
 
 @pytest.mark.asyncio
