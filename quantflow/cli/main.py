@@ -1055,7 +1055,7 @@ def ai(
         "rdagent",
         help=(
             "AI action: 'rdagent' (factor mining), 'research' (discovery→IC), "
-            "'train' (train→validate), 'register' (gated registration)"
+            "'train' (train→validate), 'register' (gated registration → paper only)"
         ),
     ),
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol for factor evaluation"),
@@ -1064,6 +1064,13 @@ def ai(
     registry_dir: str = typer.Option("", help="Model registry dir override"),
     features_csv: str = typer.Option("", help="CSV path with feature columns for 'train'"),
     close_csv: str = typer.Option("", help="CSV path with 'close' column for 'train'"),
+    factors_json: str = typer.Option(
+        "",
+        help=(
+            "Discovered-factors JSON from 'ai research' (train); "
+            "empty → latest or IndicatorEngine fallback"
+        ),
+    ),
 ) -> None:
     """Run AI-layer workflows (RD-Agent factor mining / train / register).
 
@@ -1071,12 +1078,13 @@ def ai(
         quantflow ai rdagent --symbol BTC/USDT
         quantflow ai research --symbol BTC/USDT
         quantflow ai train --symbol BTC/USDT
+        quantflow ai train --symbol BTC/USDT --factors-json data/ai_factors/BTC_USDT/latest.json
         quantflow ai register --model-id model-xxx
     """
     if action == "rdagent" or action == "research":
         _ai_factor_mining(action, symbol, config)
     elif action == "train":
-        _ai_train(symbol, config, features_csv, close_csv)
+        _ai_train(symbol, config, features_csv, close_csv, factors_json)
     elif action == "register":
         _ai_register(model_id, config, registry_dir)
     else:
@@ -1087,17 +1095,21 @@ def ai(
 
 
 def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
-    """Factor discovery (rdagent) or discovery→IC pipeline (research)."""
+    """Factor discovery (rdagent) or discovery→IC pipeline (research).
+
+    Always persists results under data/ai_factors/{symbol}/ (names/IC only).
+    Degrades to pandas baseline when qlib/rdagent/LLM are unavailable.
+    """
     from quantflow.data.store import DataStore
-    from quantflow.strategy.rd_agent import QlibNotAvailableError, RDAgentRunner
+    from quantflow.strategy.rd_agent import RDAgentRunner, save_discovered_factors
 
     runner = RDAgentRunner()
     available, msg = runner.check_available()
     if not available:
-        # Optional dependency missing — print install hint and exit cleanly.
-        console.print("[yellow]Qlib RD-Agent not available.[/]")
-        console.print(msg)
-        return
+        console.print(
+            "[yellow]Qlib not installed — using built-in baseline factor evaluation.[/]"
+        )
+        console.print(f"[dim]{msg.splitlines()[0] if msg else ''}[/]")
 
     cfg = _load(config)
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
@@ -1110,11 +1122,7 @@ def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
             df = df.set_index("datetime")
 
         console.print(f"[bold blue]Running factor mining on {symbol}[/]")
-        try:
-            factors = runner.discover_factors(df)
-        except QlibNotAvailableError as e:
-            console.print(f"[yellow]{e}[/]")
-            return
+        factors = runner.discover_factors(df)
 
         selected = [f for f in factors if f.selected]
         table = Table(title=f"RD-Agent Factors — {symbol}")
@@ -1135,6 +1143,17 @@ def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
             f"IC>{runner.config.ic_threshold} gate "
             f"(target: {runner.config.min_selected})[/]"
         )
+        saved = save_discovered_factors(
+            factors,
+            symbol=symbol,
+            source="cli-" + action,
+            train_rows=len(df),
+        )
+        console.print(f"[green]Saved factors → {saved}[/]")
+        console.print(
+            f"[dim]Train next: quantflow ai train --symbol {symbol} "
+            f"--factors-json {saved.as_posix()}[/]"
+        )
     finally:
         store.close()
 
@@ -1144,11 +1163,25 @@ def _ai_train(
     config: str,
     features_csv: str = "",
     close_csv: str = "",
+    factors_json: str = "",
 ) -> None:
-    """Train an AI model from features + close and run the validation gate."""
+    """Train an AI model from features + close and run the validation gate.
+
+    Feature source preference:
+    1. Explicit features_csv + close_csv
+    2. factors_json / data/ai_factors/{symbol}/latest.json materialized factors
+    3. IndicatorEngine FeatureStore fallback (explicit log)
+    """
+    from pathlib import Path
+
     import pandas as pd
 
     from quantflow.strategy.ai_training import AITrainingPipeline
+    from quantflow.strategy.rd_agent import (
+        FACTORS_DIR,
+        load_discovered_factors,
+        materialize_factor_frame,
+    )
 
     cfg = _load(config)
     if features_csv and close_csv:
@@ -1166,11 +1199,53 @@ def _ai_train(
             if df.empty:
                 console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
                 return
-            engine = IndicatorEngine()
-            fs = FeatureStore(cfg.data.parquet_dir, indicator_computer=engine)
-            features = fs.compute_features(symbol, int(df["timestamp"].max()), [], store)
+            if "datetime" in df.columns:
+                df = df.set_index("datetime")
+
+            fj = factors_json.strip()
+            if not fj:
+                safe = symbol.replace("/", "_").replace("\\", "_")
+                latest = FACTORS_DIR / safe / "latest.json"
+                if latest.exists():
+                    fj = str(latest)
+
+            features = None
             close = df["close"]
-            console.print(f"[bold blue]Training on {symbol} ({len(features)} feature rows)[/]")
+            if fj:
+                if not Path(fj).exists():
+                    console.print(f"[yellow]factors-json not found: {fj} — falling back[/]")
+                else:
+                    factors = load_discovered_factors(fj)
+                    features = materialize_factor_frame(df, factors, selected_only=True)
+                    if features.empty or features.shape[1] == 0:
+                        features = materialize_factor_frame(
+                            df, factors, selected_only=False
+                        )
+                    if features is not None and not features.empty and features.shape[1] > 0:
+                        close = df["close"].reindex(features.index)
+                        console.print(
+                            f"[bold blue]Training from discovered factors ({fj}) "
+                            f"— {features.shape[1]} cols × {len(features)} rows[/]"
+                        )
+                    else:
+                        console.print(
+                            "[yellow]Discovered factors not materializable — "
+                            "falling back to IndicatorEngine FeatureStore[/]"
+                        )
+                        features = None
+
+            if features is None:
+                engine = IndicatorEngine()
+                fs = FeatureStore(cfg.data.parquet_dir, indicator_computer=engine)
+                raw = store.query(symbol)
+                features = fs.compute_features(
+                    symbol, int(raw["timestamp"].max()), [], store
+                )
+                close = raw["close"]
+                console.print(
+                    f"[bold blue]Training on IndicatorEngine features for {symbol} "
+                    f"({len(features)} rows) — explicit fallback path[/]"
+                )
         finally:
             store.close()
 
@@ -1182,8 +1257,6 @@ def _ai_train(
 
     # Persist the training report so 'ai register --model-id <id>' can consume it.
     import json
-    from pathlib import Path
-
 
     model_id = f"model-{report.features_hash}"
     report_dir = Path("data/ai_reports")
@@ -1273,7 +1346,7 @@ def status() -> None:
         pass
 
     table.add_row("Version", __version__)
-    table.add_row("Phase", "3 (OKX Live + AI Factors)")
+    table.add_row("Phase", "v0.5 paper-first (shared RP + AI pipeline)")
     table.add_row("Data Layer", data_status)
     table.add_row("Config", config_status)
     table.add_row("Indicators", "Ready (21 factors)")

@@ -21,7 +21,6 @@ import pytest
 
 from quantflow.strategy.rd_agent import (
     DiscoveredFactor,
-    QlibNotAvailableError,
     RDAgentCliUnavailableError,
     RDAgentConfig,
     RDAgentRunner,
@@ -52,8 +51,8 @@ class TestRDAgentRunnerAvailability:
         assert len(result) == 2
         assert isinstance(result[0], bool)
 
-    def test_unavailable_raises_with_install_hint(self, monkeypatch):
-        """When qlib is not importable, discover_factors fails fast."""
+    def test_unavailable_degrades_to_baseline(self, monkeypatch):
+        """When qlib is not importable, discover_factors still returns baseline factors."""
         import builtins
 
         real_import = builtins.__import__
@@ -65,14 +64,16 @@ class TestRDAgentRunnerAvailability:
 
         monkeypatch.setattr(builtins, "__import__", _block_qlib)
 
-        runner = RDAgentRunner()
+        runner = RDAgentRunner(RDAgentConfig(ic_threshold=0.0))
         available, msg = runner.check_available()
         assert available is False
         assert "pip install" in msg
         assert "qlib" in msg
 
-        with pytest.raises(QlibNotAvailableError, match="qlib is not installed"):
-            runner.discover_factors(_make_ohlcv())
+        # ISS-006: paper pipeline must degrade, not hard-stop on optional qlib.
+        factors = runner.discover_factors(_make_ohlcv())
+        assert isinstance(factors, list)
+        assert len(factors) == 5
 
 
 class TestRDAgentRunnerBaselineEvaluation:
@@ -279,3 +280,43 @@ class TestRDAgentCliWiring:
         assert "shell=True" not in run_block
         assert "shell=" not in run_block
         assert "cmd," in run_block  # list command vector
+
+
+class TestFactorPersistence:
+    def test_save_load_roundtrip(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(RDAgentRunner, "check_available", staticmethod(lambda: (True, "")))
+        runner = RDAgentRunner(RDAgentConfig(ic_threshold=0.0))
+        factors = runner.discover_factors(_make_ohlcv())
+        from quantflow.strategy.rd_agent import (
+            load_discovered_factors,
+            materialize_factor_frame,
+            save_discovered_factors,
+        )
+
+        path = save_discovered_factors(
+            factors, symbol="BTC/USDT", out_dir=tmp_path, source="test"
+        )
+        assert path.exists()
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        # No OHLCV leakage
+        blob = json.dumps(payload)
+        assert "open" not in payload
+        assert "volume" not in blob or "volume" in "momentum"  # names only
+        assert all(k in payload["factors"][0] for k in ("name", "formula", "ic"))
+        loaded = load_discovered_factors(path)
+        assert len(loaded) == len(factors)
+        assert {f.name for f in loaded} == {f.name for f in factors}
+
+        frame = materialize_factor_frame(_make_ohlcv(), loaded, selected_only=False)
+        assert not frame.empty
+        assert frame.shape[1] >= 1
+
+    def test_latest_pointer(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(RDAgentRunner, "check_available", staticmethod(lambda: (True, "")))
+        runner = RDAgentRunner(RDAgentConfig(ic_threshold=0.0))
+        factors = runner.discover_factors(_make_ohlcv())
+        from quantflow.strategy.rd_agent import save_discovered_factors
+
+        save_discovered_factors(factors, symbol="ETH/USDT", out_dir=tmp_path)
+        latest = tmp_path / "ETH_USDT" / "latest.json"
+        assert latest.exists()

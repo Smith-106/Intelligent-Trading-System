@@ -110,6 +110,11 @@ data/paper_replay/
 data/rdagent_work/
 data/s3_verify/
 data/live_evidence/
+# AI pipeline local artifacts (ISS-006 research/train/register smoke; rebuildable)
+data/ai_factors/
+data/ai_reports/
+data/models/
+data/models_smoke/
 # Local smart-search evidence dumps
 tmpsmart-search-evidence*.json
 # Paper-replay research outputs (large/local)

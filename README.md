@@ -107,10 +107,17 @@ quantflow optimize --strategy trend_following --method bayesian
 # 防过拟合验证
 quantflow validate --strategy trend_following --method gate
 
-# 模拟盘运行
+# 模拟盘运行（默认单币）
 quantflow run --mode paper --strategy trend_following
 
-# 实盘运行（实盘模式强制启用 Kill Switch，不可关闭）
+# Baseline-0 日常 paper（三币共享账本 + symbol RP；验收口径 paper-first）
+python scripts/preflight_baseline0_paper.py
+quantflow run --mode paper --strategy trend_following \
+  --symbols BTC/USDT,ETH/USDT,SOL/USDT --timeframe 1h --interval 60 \
+  --capital 100000 --config quantflow/config/paper_baseline0_overlay.yaml
+# 清单: docs/research/baseline0-paper-run-checklist.md
+
+# 实盘运行（实盘模式强制启用 Kill Switch，不可关闭；非 Baseline-0 验收路径）
 quantflow run --mode live --strategy trend_following
 
 # 指定交易对、周期与轮询间隔

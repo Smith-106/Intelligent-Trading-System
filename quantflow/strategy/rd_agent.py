@@ -58,6 +58,27 @@ class DiscoveredFactor:
     rank_ic: float = 0.0
     selected: bool = False  # passes the IC > threshold gate
 
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "name": self.name,
+            "formula": self.formula,
+            "ic": self.ic,
+            "rank_ic": self.rank_ic,
+            "selected": self.selected,
+        }
+
+    @classmethod
+    def from_dict(cls, item: dict[str, object]) -> DiscoveredFactor:
+        ic = float(item.get("ic", 0.0) or 0.0)
+        rank_ic = float(item.get("rank_ic", 0.0) or 0.0)
+        return cls(
+            name=str(item.get("name", "")),
+            formula=str(item.get("formula", "")),
+            ic=ic,
+            rank_ic=rank_ic,
+            selected=bool(item.get("selected", abs(ic) > 0.03)),
+        )
+
 
 @dataclass
 class RDAgentConfig:
@@ -199,19 +220,18 @@ class RDAgentRunner:
         Raises:
             QlibNotAvailableError: if qlib is not installed.
         """
-        available, msg = self.check_available()
-        if not available:
-            logger.error("RD-Agent unavailable: %s", msg)
-            raise QlibNotAvailableError(msg)
-
         if df.empty or "close" not in df.columns:
             logger.warning("discover_factors: empty DataFrame or missing 'close' column")
             return []
 
+        available, msg = self.check_available()
         # Real CLI path first: LLM-driven factor search out-of-process.
+        # Requires qlib *and* rdagent CLI + LLM credentials. When qlib is
+        # missing we still run the pandas baseline (ISS-006 paper pipeline
+        # must degrade, never hard-stop on optional deps).
         cli_ok, _ = self.cli_available()
         llm_cfg = self._llm_config_from_env()
-        if cli_ok and llm_cfg is not None:
+        if available and cli_ok and llm_cfg is not None:
             try:
                 cli_factors = self._run_rdagent_cli(df, schema)
                 if cli_factors:
@@ -226,6 +246,11 @@ class RDAgentRunner:
                 )
             except (OSError, ValueError) as e:
                 logger.warning("RD-Agent CLI failed, degrading to baseline: %s", e)
+        elif not available:
+            logger.warning(
+                "qlib not installed — using built-in pandas baseline evaluation (%s)",
+                msg.splitlines()[0] if msg else "no qlib",
+            )
         elif not cli_ok:
             logger.info("RD-Agent CLI not available — using built-in baseline evaluation")
         else:
@@ -234,7 +259,7 @@ class RDAgentRunner:
                 "using built-in baseline evaluation"
             )
 
-        # Baseline path: evaluate Alpha158-style factors via qlib workflow.
+        # Baseline path: evaluate Alpha158-style / pandas factors (no LLM contact).
         return self._evaluate_alpha158_factors(df)
 
     def _run_rdagent_cli(
@@ -407,3 +432,124 @@ class RDAgentRunner:
             self.config.ic_threshold,
         )
         return results
+
+
+# ---------------------------------------------------------------------------
+# Persistence + feature materialization (ISS-006 research → train hand-off)
+# ---------------------------------------------------------------------------
+
+FACTORS_DIR = Path("data/ai_factors")
+
+
+def factors_to_payload(
+    factors: list[DiscoveredFactor],
+    *,
+    symbol: str,
+    source: str = "baseline",
+    train_rows: int | None = None,
+) -> dict[str, object]:
+    """Serialize discovered factors for disk (no raw OHLCV values)."""
+    from datetime import UTC, datetime
+
+    return {
+        "symbol": symbol,
+        "source": source,
+        "created_at": datetime.now(UTC).isoformat(),
+        "train_rows": train_rows,
+        "factors": [f.to_dict() for f in factors],
+        "selected": [f.name for f in factors if f.selected],
+    }
+
+
+def save_discovered_factors(
+    factors: list[DiscoveredFactor],
+    *,
+    symbol: str,
+    out_dir: str | Path | None = None,
+    source: str = "baseline",
+    train_rows: int | None = None,
+) -> Path:
+    """Write factor discovery JSON under data/ai_factors/{symbol}/.
+
+    Payload contains names/formulas/IC only — never OHLCV bars (schema-safe).
+    """
+    safe_symbol = symbol.replace("/", "_").replace("\\", "_")
+    root = Path(out_dir) if out_dir is not None else FACTORS_DIR
+    dest_dir = root / safe_symbol
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    from datetime import UTC, datetime
+
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    path = dest_dir / f"factors_{stamp}.json"
+    payload = factors_to_payload(
+        factors, symbol=symbol, source=source, train_rows=train_rows
+    )
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    latest = dest_dir / "latest.json"
+    latest.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info("Saved %d discovered factors → %s", len(factors), path)
+    return path
+
+
+def load_discovered_factors(path: str | Path) -> list[DiscoveredFactor]:
+    """Load factors from a save_discovered_factors payload."""
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    items = data.get("factors", data if isinstance(data, list) else [])
+    out: list[DiscoveredFactor] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        fac = DiscoveredFactor.from_dict(item)
+        if fac.name:
+            out.append(fac)
+    return out
+
+
+def materialize_factor_frame(
+    df: pd.DataFrame,
+    factors: list[DiscoveredFactor] | None = None,
+    *,
+    selected_only: bool = True,
+) -> pd.DataFrame:
+    """Build a feature matrix from discovered baseline factor formulas.
+
+    Only the built-in ``pandas:<name>`` baseline set is materializable without
+    an external RD-Agent code emitter. Unknown formulas are skipped with a
+    warning so train can still fall back to IndicatorEngine features.
+    """
+    if df.empty or "close" not in df.columns:
+        return pd.DataFrame()
+
+    catalog: dict[str, pd.Series] = {
+        "momentum_5": df["close"].pct_change(5),
+        "momentum_20": df["close"].pct_change(20),
+        "volatility_20": df["close"].pct_change().rolling(20).std(),
+        "range_20": (df["close"].rolling(20).max() - df["close"].rolling(20).min())
+        / df["close"].rolling(20).mean(),
+        "return_skew_20": df["close"].pct_change().rolling(20).skew(),
+    }
+
+    if factors is None:
+        names = list(catalog.keys())
+    else:
+        names = []
+        for f in factors:
+            if selected_only and not f.selected:
+                continue
+            key = f.name
+            if f.formula.startswith("pandas:"):
+                key = f.formula.split("pandas:", 1)[1]
+            if key not in catalog:
+                logger.warning(
+                    "materialize_factor_frame: skip non-materializable factor %s (%s)",
+                    f.name,
+                    f.formula,
+                )
+                continue
+            names.append(key)
+
+    if not names:
+        return pd.DataFrame(index=df.index)
+
+    frame = pd.DataFrame({n: catalog[n] for n in names}, index=df.index)
+    return frame.dropna(how="all")

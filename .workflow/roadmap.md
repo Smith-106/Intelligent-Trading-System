@@ -2,17 +2,21 @@
 
 ## Overview
 
-当前 roadmap 分为两个阶段：
+当前 roadmap 里程碑状态（与 Progress 表对齐，2026-08-08）：
 
-- `M1` 已完成：4 个新增策略的实现与验证
-- `M2` 进行中：`v0.1.3` 发布候选准备，目标是对齐版本、治理打包内容、重建制品校验信息，并为后续 tag / release 对齐铺平状态
-- `M3` 进行中：按 deep-research 研究文档（ANL-002）分批里程碑实施 P0 数据层防泄漏 → P1 风控层补齐 → P2 AI 层升级，每批独立实盘验证后才进下一批。**P0 已 P0-verify PASS（2026-08-01，4 策略回归守卫基线重立）**，**P1 已 P1-verify PASS（2026-07-21，commit `626b015`）**，**P2 unblocked 未启动**（P2.1 schema-only 隔离层为下一步，详见 Phase 3 细化）。2026-07-25 另完成 Wave 1-5 多 book reconcile 一致性收口（L4 单一权威 + L5 薄路由 + realized_pnl 翻仓归因 + daily_loss total-vs-baseline + partial-fill cumulative 契约）——该 reconcile 契约现为新 load-bearing 架构不变量，后续成功标准须引用（drift-realign DFT-6f8d5a9b, 2026-07-26）
+- `M1` **已完成**：4 个新增策略的实现与验证
+- `M2` **已完成**：`v0.1.3` 发布候选（四源 digest 核验 PASS，2026-08-06）
+- `M3` **已完成**：P0-verify PASS → P1-verify PASS → P2 全链关闭；Wave 1-5 多 book reconcile 一致性收口（L4 单一权威 + L5 薄路由 + partial-fill cumulative 契约为 load-bearing 不变量）
+- `M4` **已完成**：v0.2 多 Symbol 扩展（tag `v0.2.0`）
+- `M5` **已完成**：生产安全接线 + 30 天 paper 回放（A2+C1）
+- **当前焦点（v0.5.0）**：共享账本 + symbol-level RP 上的 **paper 生产候选**；ISS-004/005 账本已 resolved；ISS-006 RD-Agent paper 管道在途
+- **验收口径**：**paper / paper_replay 取代交易 live** 作为默认晋级与回归环境（只读 live 连接证据可选，不阻塞候选）
 
 **2026-08-06 快照（生产安全接线 + 回放验证）**：
 
-- `M5` 已完成：生产安全接线与回放验证（A2 + C1）——ISS-20260803-002（对账接入生产）与 ISS-20260803-003（交易所风险隔离）闭环：ExchangeHealthMonitor 熔断器 + 单所敞口上限注入 RiskEngine / OKXGateway 生产路径（enabled=false 零行为变化），周期对账漂移告警集成验证；30 天 paper 回放工具落地（`quantflow/strategy/research/paper_replay.py` + `scripts/replay_paper_30d.py`），并修复 2 个静默零交易断链（M4 contexts key 回归 + set_portfolio 未重绑定）。
-- 附带闭环：ISS-20260803-001（swap 市场解析修复）、ISS-20260804-003（spot-perp 真实数据验证 → **NO-GO**：90 天窗口 funding 极值零发生，原型保持 disabled）。
-- **下一步：M3-P2.1 schema-only 隔离层**（P2 AI 层升级启动，串行约束闸门已开；P2.1 任务分解见 Phase 3）。
+- `M5` 已完成：ISS-20260803-002/003 闭环；`paper_replay` + `scripts/replay_paper_30d.py`；静默零交易断链修复。
+- 附带：ISS-20260803-001 swap 修复；ISS-20260804-003 spot-perp **NO-GO**（原型 disabled）。
+- **下一步（研究）**：Baseline-0 共享 RP paper 候选卡 + 结构/周期/执行保真对照；RD-Agent `research→train→register(paper)`（非 live promote）。
 
 ## Milestones
 

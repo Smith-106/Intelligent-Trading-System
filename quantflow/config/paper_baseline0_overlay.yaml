@@ -1,0 +1,24 @@
+# Paper Baseline-0 overlay — does NOT replace default.yaml.
+# Use with: quantflow run --mode paper --strategy trend_following \
+#   --symbols BTC/USDT,ETH/USDT,SOL/USDT --config quantflow/config/paper_baseline0_overlay.yaml
+#
+# Contract: docs/research/Candidate-Baseline-0.md
+# Acceptance: paper only (no trading live).
+
+execution:
+  mode: paper
+  taker_fee: 0.001
+  maker_fee: 0.0008
+  slippage: 0.001
+  market_type: spot
+
+risk:
+  # Shared-book symbol-level risk parity (opt-in; default.yaml keeps enabled=false)
+  portfolio_optimization:
+    enabled: true
+    method: risk_parity
+    level: symbol
+    vol_window: 30
+    min_samples: 30
+    rebalance_every_n_bars: 48
+    fallback: equal

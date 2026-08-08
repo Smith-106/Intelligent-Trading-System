@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 # reduceOnly is CCXT's canonical camelCase param (SIG spec S-20260722-z4dr).
 # Setting it on every flatten order prevents a SELL sized to a stale long
 # quantity from opening a new short on the live exchange (odyssey-improve
-# SEC-H2). PaperGateway ignores order.params (parity gap, ISS-021) — reduceOnly
-# is only enforced by the live OKX gateway today.
+# SEC-H2). PaperGateway and OKXGateway both honor order.params["reduceOnly"]
+# (ISS-021 / ISS-20260803-005 closed): paper caps/rejects; live forwards to CCXT.
 _REDUCE_ONLY_PARAMS = {"reduceOnly": True}
 
 
