@@ -38,6 +38,7 @@ from quantflow.execution.paper_gateway import PaperGateway
 from quantflow.strategy.base import StrategyBase, StrategyContext
 from quantflow.strategy.engine import TradingSession
 from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
+from quantflow.strategy.templates.non_ma_signal import NonMaSignalStrategy
 from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
 from quantflow.strategy.templates.volatility_breakout import VolatilityBreakoutStrategy
 
@@ -45,6 +46,7 @@ STRATEGIES = {
     "trend_following": TrendFollowingStrategy,
     "mean_reversion": MeanReversionStrategy,
     "volatility_breakout": VolatilityBreakoutStrategy,
+    "non_ma_signal": NonMaSignalStrategy,
 }
 
 BARS_PER_YEAR = 24 * 365  # 1h bars (back-compat default)
