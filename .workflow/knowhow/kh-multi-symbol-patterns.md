@@ -3,6 +3,9 @@ title: "QuantFlow multi-symbol extension patterns"
 type: knowhow
 tags: [multi-symbol, architecture]
 status: active
+related:
+  - DOC-research-multi-symbol-replay-regime-fix
+  - kh-failclosed-gateway-contract
 ---
 # Knowhow: QuantFlow 多 Symbol 扩展核心模式
 

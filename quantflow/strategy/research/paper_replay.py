@@ -233,6 +233,13 @@ def build_multi_symbol_session(
     session._instances = create_all_per_symbol(session._strategies, session._symbols)
     session._contexts = {}
     session._running = False
+
+    # Shared-book symbol-level RP: seed equal symbol weights so early signals
+    # are not full-sized before the first rebalance tick.
+    po = cfg.risk.portfolio_optimization
+    if po.enabled and po.level == "symbol" and symbols:
+        n = len(symbols)
+        session._portfolio.set_symbol_allocation({sym: 1.0 / n for sym in symbols})
     return session
 
 

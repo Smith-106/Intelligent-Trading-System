@@ -4,9 +4,12 @@ type: knowhow
 category: research
 tags: [wfo, overfit, direction-gate, trend-following, oos]
 status: active
+  - session-nonma-signal-wfo-20260808-20260808-033745
 related:
   - session-mtf-expand-wfo-20260807-20260807-155411
-  - session-nonma-signal-wfo-20260808-20260808-033745
+  - DOC-research-execution-fidelity-fee-slip
+  - DOC-research-multi-symbol-replay-regime-fix
+  - DOC-p0-baseline-float-guard
 ---
 
 # Direction-gate research conclusion (2026-08)

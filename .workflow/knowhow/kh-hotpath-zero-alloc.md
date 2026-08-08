@@ -3,6 +3,8 @@ title: "Hotpath zero-allocation patterns"
 type: knowhow
 tags: [performance, hotpath]
 status: active
+related:
+  - DOC-engine-recovery-chain
 ---
 ---
 id: kh-hotpath-zero-alloc

@@ -3,10 +3,12 @@ title: 对标分析方法论：四级差距分级 + 外部事实源边界
 category: knowhow
 createdBy: harvest
 sourceRef: 20260803-001-analyze
-related:
-  - session-run-maestro-benchmark-evolve-20260803-20260803-045922-20260803-001-analyze
 type: knowhow
 status: active
+related:
+  - session-run-maestro-benchmark-evolve-20260803-20260803-045922-20260803-001-analyze
+  - DOC-harvest-analysis-gap-grading
+  - DOC-knowledge-hub
 ---
 # 对标分析方法论：四级差距分级 + 外部事实源边界
 

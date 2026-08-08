@@ -4,6 +4,7 @@
 Modes:
   - equal: shared book, classic tf + nested on BTC+ETH(+SOL), equal strategy alloc
   - shared_cap: same shared book with tighter position_limit_pct / max_positions
+  - shared_risk_parity: shared book + periodic symbol-level RP rebalance
   - risk_parity: silo capital split by inverse price-vol weights, sum equity
 
 Baseline: BTC-only single-symbol for the same window.
@@ -119,6 +120,57 @@ async def _run_shared(
     curve = await replay_multi(session, frames, fills, risk, direction_gate=gate, entry_tf="1h")
     rep = aggregate(curve, fills, risk, sink.alerts, capital, entry_tf="1h")
     return _float_rep(rep)
+
+
+async def _run_shared_risk_parity(
+    frames: dict[str, pd.DataFrame],
+    *,
+    capital: float,
+    max_position_pct: float,
+    max_positions: int,
+    gate: str,
+    fee: float,
+    slip: float,
+    rebalance_every_n_bars: int = 48,
+    min_samples: int = 30,
+) -> dict[str, float]:
+    """Shared-book multi-symbol with periodic symbol-level risk-parity rebalance."""
+    from quantflow.common.config import PortfolioOptimizationConfig
+
+    cfg = AppConfig(
+        execution=ExecutionConfig(taker_fee=fee, maker_fee=fee * 0.8, slippage=slip),
+        risk=RiskConfig(
+            position_limit_pct=max_position_pct,
+            max_positions=max_positions,
+            portfolio_optimization=PortfolioOptimizationConfig(
+                enabled=True,
+                method="risk_parity",
+                level="symbol",
+                rebalance_every_n_bars=rebalance_every_n_bars,
+                min_samples=min_samples,
+                vol_window=min_samples,
+            ),
+        ),
+    )
+    sink = RecordingSink()
+    session = build_multi_symbol_session(
+        "trend_following",
+        list(frames.keys()),
+        capital,
+        sink,
+        config=cfg,
+        research_risk_bypass=True,
+        max_position_pct=max_position_pct,
+        max_positions=max_positions,
+    )
+    fills: list[dict[str, object]] = []
+    risk: list[dict[str, object]] = []
+    curve = await replay_multi(session, frames, fills, risk, direction_gate=gate, entry_tf="1h")
+    rep = aggregate(curve, fills, risk, sink.alerts, capital, entry_tf="1h")
+    out = _float_rep(rep)
+    # Last rebalanced symbol weights for diagnostics (may be empty if never fired).
+    out["symbol_weights"] = dict(session._portfolio.symbol_allocation)  # type: ignore[assignment]
+    return out
 
 
 async def _run_silo_risk_parity(
@@ -309,6 +361,27 @@ def main() -> int:
     print(
         f"  ret={shared.get('return_pct'):+.2f}% sh={shared.get('sharpe_annualized')} "
         f"dd={shared.get('max_drawdown_pct')} orders={shared.get('orders')}"
+    )
+
+    # shared-book symbol-level risk parity (periodic rebalance)
+    print("\n=== shared_risk_parity (shared book + symbol RP rebalance) ===")
+    srp = asyncio.run(
+        _run_shared_risk_parity(
+            frames,
+            capital=args.capital,
+            max_position_pct=0.20,
+            max_positions=max(5, len(frames)),
+            gate=args.gate,
+            fee=args.fee,
+            slip=args.slip,
+        )
+    )
+    results["shared_risk_parity"] = {k: v for k, v in srp.items() if k != "symbol_weights"}
+    results["shared_risk_parity_weights"] = srp.get("symbol_weights")
+    print(
+        f"  ret={srp.get('return_pct'):+.2f}% sh={srp.get('sharpe_annualized')} "
+        f"dd={srp.get('max_drawdown_pct')} orders={srp.get('orders')} "
+        f"w={srp.get('symbol_weights')}"
     )
 
     # risk_parity silo

@@ -3,11 +3,12 @@ title: DynamicBudget EWMA 动态预算缩放：手动 O(n) 递归 + clamp [min_s
 category: strategy
 createdBy: "harvest:wave3-s4"
 sourceRef: maestro-wave3-s4-20260804-20260804-054608
+type: knowhow
+status: active
 related:
   - session-maestro-wave3-s4-20260804-20260804-054608
   - knowhow-doc-knowledge-hub
-type: knowhow
-status: active
+  - DOC-monitoring-sink-protocol
 ---
 # DynamicBudget EWMA 动态预算缩放
 

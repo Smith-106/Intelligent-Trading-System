@@ -119,6 +119,11 @@ class PortfolioOptimizationConfig(BaseModel):
     rebalance_every_n_bars: int = 48
     #: Fallback allocation when optimization cannot run (equal or static).
     fallback: str = "equal"
+    #: Optimization grain: ``strategy`` (default, s5) or ``symbol`` (shared-book
+    #: multi-asset risk parity with periodic rebalance). ``symbol`` tracks
+    #: per-symbol returns and writes ``PortfolioManager`` symbol weights so
+    #: sizing becomes ``strategy_weight * symbol_weight``.
+    level: str = "strategy"
 
 
 class RiskConfig(BaseModel):

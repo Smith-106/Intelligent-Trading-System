@@ -4,9 +4,12 @@ type: knowhow
 category: research
 tags: [multi-symbol, regime, paper-replay, portfolio, risk-parity]
 status: active
+  - knowhow-kh-multi-symbol-patterns
 related:
   - session-multi-symbol-replay-20260808-20260808-045132
-  - knowhow-kh-multi-symbol-patterns
+  - DOC-research-execution-fidelity-fee-slip
+  - kh-multi-symbol-patterns
+  - DOC-research-direction-gate-wfo-overfit
 ---
 
 # Multi-symbol replay (2026-08)
@@ -40,3 +43,25 @@ related:
 ## Caveats
 - Full-window multi-symbol results are not WFO
 - Silo RP high return ≠ shared-book production claim
+
+
+## Shared-book symbol-level risk parity (2026-08 follow-up)
+
+Engine opt-in: `risk.portfolio_optimization.enabled=true` + `level=symbol`.
+
+- Tracks **close-to-close** returns per symbol (universe, not only held positions).
+- Rebalances every `rebalance_every_n_bars` **unique timestamps** (not raw bar events).
+- Sizing: `strategy_weight × symbol_weight` via `PortfolioManager.get_allocation_for_signal`.
+- Script mode: `shared_risk_parity` in `scripts/multi_symbol_replay.py`.
+
+### Full-window result (2021→2026-08, BTC+ETH+SOL, nested, fee/slip 0.1%)
+
+| mode | ret% | sharpe | maxDD% | orders |
+|------|------|--------|--------|--------|
+| equal | +22.63 | 0.34 | 24.7 | 1539 |
+| shared_cap | +21.00 | 0.35 | 22.2 | 1541 |
+| **shared_risk_parity** | **+5.14** | **0.24** | **8.5** | 1547 |
+| silo risk_parity | +226.87 | 0.35 | 9.0 | 1547 |
+| btc_only | -11.81 | -0.53 | 14.1 | 515 |
+
+Shared RP trades off return for lower drawdown vs equal; silo RP is a different capital method and must not be compared 1:1.

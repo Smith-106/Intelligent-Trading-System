@@ -4,8 +4,11 @@ type: knowhow
 category: research
 tags: [execution, fee, slippage, paper-replay, fidelity]
 status: active
-related:
   - session-reframe-exec-risk-20260808-20260808-040125
+related:
+  - DOC-research-direction-gate-wfo-overfit
+  - DOC-knowhow-live-cost-modeling-funding-fee-alerts
+  - DOC-research-multi-symbol-replay-regime-fix
 ---
 
 # Execution fidelity reframe (2026-08)

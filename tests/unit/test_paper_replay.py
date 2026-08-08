@@ -257,3 +257,28 @@ def test_build_multi_symbol_session_wires_instances() -> None:
     assert ("trend_following", "ETH/USDT") in session._instances
     assert session._config.risk.position_limit_pct == 0.1
     assert session._config.risk.max_positions == 2
+
+
+def test_build_multi_symbol_session_seeds_symbol_rp_weights() -> None:
+    """level=symbol + enabled seeds equal symbol weights on the shared book."""
+    from quantflow.common.config import AppConfig, PortfolioOptimizationConfig, RiskConfig
+    from quantflow.strategy.research.paper_replay import build_multi_symbol_session
+
+    cfg = AppConfig(
+        risk=RiskConfig(
+            portfolio_optimization=PortfolioOptimizationConfig(
+                enabled=True, level="symbol", rebalance_every_n_bars=48
+            )
+        )
+    )
+    session = build_multi_symbol_session(
+        "trend_following",
+        ["BTC/USDT", "ETH/USDT", "SOL/USDT"],
+        capital=100_000.0,
+        config=cfg,
+    )
+    assert session._portfolio_opt_level == "symbol"
+    w = session._portfolio.symbol_allocation
+    assert set(w) == {"BTC/USDT", "ETH/USDT", "SOL/USDT"}
+    assert abs(sum(w.values()) - 1.0) < 1e-9
+    assert all(abs(v - 1.0 / 3) < 1e-9 for v in w.values())

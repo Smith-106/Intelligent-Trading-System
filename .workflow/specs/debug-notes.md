@@ -13,19 +13,19 @@ keywords:
 
 # Debug Notes
 
-<spec-entry category="debug" keywords="调试,日志,事件总线,异常,kill-switch" date="2026-05-29">
+<spec-entry category="debug" keywords="调试,日志,事件总线,异常,kill-switch" date="2026-05-29" sid="S-legacy-a38f0ecb">
 ### 调试策略与日志规范
 使用 structlog 结构化日志，关键事件（下单、撤单、风控触发）写审计日志。EventBus 发布事件时捕获 handler 异常，不阻塞其他 handler。KillSwitch 是最终安全网——所有风控失败且无法恢复时应触发 KillSwitch 而非忽略错误。
 
 日志实现：`quantflow/monitoring/logger.py` 的 `setup_logging()` 通过 `structlog.stdlib.ProcessorFormatter` 桥接 stdlib `logging`——所有 `logging.getLogger` 调用与原生 structlog 调用共享同一 processor pipeline（`foreign_pre_chain` 接入 stdlib 记录，`wrap_for_formatter` 接入原生记录），统一渲染为结构化输出。新模块用 `logging.getLogger(__name__)` 即可自动结构化，无需直接 import structlog。
 </spec-entry>
 
-<spec-entry category="debug" keywords="VectorBTEngine,BacktestEngine,重命名,import-error" date="2026-06-02">
+<spec-entry category="debug" keywords="VectorBTEngine,BacktestEngine,重命名,import-error" date="2026-06-02" sid="S-legacy-99946e76">
 ### VectorBTEngine → BacktestEngine 重命名
 `backtest.py` 中的 `VectorBTEngine` 已重命名为 `BacktestEngine`（纯 pandas/numpy 实现，不依赖 VectorBT）。所有引用（`__init__.py`、`optimizer.py`、`cli/main.py`、`validation/cpcv.py`、`validation/pbo.py`、`validation/wfo.py`、`tests/unit/test_backtest.py`）已同步更新。若新建代码引用 `VectorBTEngine`，将导致 ImportError。
 </spec-entry>
 
-<spec-entry category="debug" keywords="e712,ruff,autofix,pandas,numpy,bool" date="2026-07-05" title="E712 on pandas/numpy bools: use bool(x), never accept the `is True` autofix" description="ruff E712 unsafe autofix rewrites ==True to is True, which is False for np.bool_ — silently weakens assertions">
+<spec-entry category="debug" keywords="e712,ruff,autofix,pandas,numpy,bool" date="2026-07-05" title="E712 on pandas/numpy bools: use bool(x), never accept the `is True` autofix" description="ruff E712 unsafe autofix rewrites ==True to is True, which is False for np.bool_ — silently weakens assertions" sid="S-legacy-c8490c16">
 ### E712 on pandas/numpy bools: use bool(x), never accept the `is True` autofix
 
 ruff E712 flags `x == True`. Its **unsafe** autofix rewrites to `x is True`. For `numpy.bool_` / pandas scalars, `np.bool_(True) is True` evaluates to `False` (identity comparison against the singleton `True`), so the autofix **silently weakens the assertion** — the test starts passing for the wrong reason, or passes when it should fail.
@@ -39,7 +39,7 @@ Detection: review every E712 hit in `tests/unit/test_*.py` that touches pandas D
 Source: odyssey-debug ci-ruff-breakage session (P2, manual fix in test_runtime_extra.py).
 </spec-entry>
 
-<spec-entry category="debug" keywords="yaml,pydantic,schema-drift,config-dropped,silently-ignored" date="2026-07-05" title="YAML key without a matching pydantic field is silently dropped at load time" description="A default.yaml key with no model field is decorative; consumer hardcodes the same default so tests pass — config changes have zero effect">
+<spec-entry category="debug" keywords="yaml,pydantic,schema-drift,config-dropped,silently-ignored" date="2026-07-05" title="YAML key without a matching pydantic field is silently dropped at load time" description="A default.yaml key with no model field is decorative; consumer hardcodes the same default so tests pass — config changes have zero effect" sid="S-legacy-81cd71dd">
 ### YAML key without a matching pydantic field is silently dropped at load time
 
 A `default.yaml` key with no matching `RiskConfig`/`ExecutionConfig`/`AppConfig` pydantic field is silently dropped at load time. The consumer hardcodes the same default, so tests pass — but the YAML is decorative. An operator tuning that value sees **zero** change.

@@ -197,10 +197,25 @@ class TradingSession:
         else:
             self._portfolio_optimizer = None
         self._rebalance_every_n_bars: int = _po_cfg.rebalance_every_n_bars if _po_cfg.enabled else 0
+        # Grain of portfolio_optimization: strategy (s5 default) or symbol
+        # (shared-book multi-asset risk parity). Invalid values fall back to
+        # strategy so misconfig never silently disables sizing.
+        self._portfolio_opt_level: str = (
+            _po_cfg.level if _po_cfg.level in ("strategy", "symbol") else "strategy"
+        )
         self._bar_count: int = 0
         # Previous bar's per-strategy notional exposure, for per-strategy
         # return attribution (s5). Empty dict on the default path.
         self._strategy_value_prev: dict[str, float] = {}
+        # Previous bar's per-symbol notional (legacy position-based; unused for
+        # symbol-level RP which tracks close-to-close returns instead).
+        self._symbol_value_prev: dict[str, float] = {}
+        # Symbol-level RP: last close per symbol (universe vol, not just held).
+        self._symbol_close_prev: dict[str, float] = {}
+        # Rebalance cadence counts unique bar timestamps so multi-symbol
+        # interleaving does not accelerate rebalance 3× on a 3-symbol book.
+        self._rebalance_ts_count: int = 0
+        self._rebalance_last_ts: int | None = None
         # ISS-20260720-004 Wave 2: ExecutionEngine was constructed before
         # PortfolioManager existed; rebind its PositionManager to the shared L4
         # so submit()'s fill updates land on the same book the signal path reads.
@@ -456,41 +471,77 @@ class TradingSession:
             self._position_sizer.add_return(bar_ret)
         self._prev_equity = curr_equity
 
-        # s5 (T-s5-02): per-strategy return attribution + risk-parity
-        # rebalance. Only active when portfolio_optimization.enabled — the
-        # default path skips both entirely (zero behavior change).
+        # s5 (T-s5-02) + symbol-level RP: return attribution + periodic rebalance.
+        # Only active when portfolio_optimization.enabled — default path skips
+        # both entirely (zero behavior change).
         self._bar_count += 1
-        if self._portfolio_optimizer is not None and not math.isnan(prev_equity):
-            # Attribute this bar's return per strategy from notional exposure
-            # changes (positions valued at the updated bar close).
-            per_strategy_value: dict[str, float] = {}
-            for pos in self._portfolio.positions.values():
-                if pos.current_price <= 0:
-                    continue
-                constituents = strategy_id_constituents(pos.strategy_id) or [pos.strategy_id]
-                pos_value = abs(pos.quantity) * pos.current_price
-                for c in constituents:
-                    per_strategy_value[c] = per_strategy_value.get(c, 0.0) + pos_value
-            for sid, value in per_strategy_value.items():
-                prev_value = self._strategy_value_prev.get(sid, 0.0)
-                if prev_value > 0:
-                    ret = (value - prev_value) / prev_value
-                    self._portfolio.add_strategy_return(sid, ret)
-            self._strategy_value_prev = per_strategy_value
+        if self._portfolio_optimizer is not None:
+            if self._portfolio_opt_level == "symbol":
+                # Universe close-to-close returns (not position notional): a
+                # never-held symbol still accumulates vol history so RP can
+                # assign it weight. Position-only attribution collapses to the
+                # first traded name and locks others at weight 0.
+                # Close tracking runs even on the first bar (prev_equity NaN)
+                # so the second bar can form a return.
+                prev_close = self._symbol_close_prev.get(bar.symbol)
+                if prev_close is not None and prev_close > 0 and bar.close > 0:
+                    ret = (bar.close - prev_close) / prev_close
+                    self._portfolio.add_symbol_return(bar.symbol, ret)
+                if bar.close > 0:
+                    self._symbol_close_prev[bar.symbol] = float(bar.close)
 
-            # Rebalance cadence: recompute risk-parity weights and push them
-            # into the portfolio allocation consumed by PositionSizer.size().
-            if self._bar_count % self._rebalance_every_n_bars == 0:
-                returns = self._portfolio.get_strategy_returns()
-                weights = self._portfolio_optimizer.compute(returns)
-                self._portfolio.set_allocation(weights)
-                logger.info("s5 rebalance: %s", weights)
-                # s5 follow-up: expose the rebalanced weights to monitoring
-                # (best-effort — sink must never raise into the bar loop).
-                try:
-                    self._sink.record_portfolio_allocation(weights)
-                except Exception:  # sink contract: best-effort only
-                    logger.exception("record_portfolio_allocation failed")
+                # Count unique timestamps for cadence (shared multi-symbol book).
+                if self._rebalance_last_ts != bar.timestamp:
+                    self._rebalance_last_ts = bar.timestamp
+                    self._rebalance_ts_count += 1
+                    should_rebalance = (
+                        self._rebalance_every_n_bars > 0
+                        and self._rebalance_ts_count % self._rebalance_every_n_bars == 0
+                        and not math.isnan(prev_equity)
+                    )
+                else:
+                    should_rebalance = False
+
+                if should_rebalance:
+                    returns = self._portfolio.get_symbol_returns()
+                    weights = self._portfolio_optimizer.compute(returns)
+                    self._portfolio.set_symbol_allocation(weights)
+                    logger.info("s5 symbol rebalance: %s", weights)
+                    try:
+                        self._sink.record_portfolio_allocation(weights)
+                    except Exception:  # sink contract: best-effort only
+                        logger.exception("record_portfolio_allocation failed")
+            elif not math.isnan(prev_equity):
+                # Attribute this bar's return per strategy from notional exposure
+                # changes (positions valued at the updated bar close).
+                per_strategy_value: dict[str, float] = {}
+                for pos in self._portfolio.positions.values():
+                    if pos.current_price <= 0:
+                        continue
+                    constituents = strategy_id_constituents(pos.strategy_id) or [pos.strategy_id]
+                    pos_value = abs(pos.quantity) * pos.current_price
+                    for c in constituents:
+                        per_strategy_value[c] = per_strategy_value.get(c, 0.0) + pos_value
+                for sid, value in per_strategy_value.items():
+                    prev_value = self._strategy_value_prev.get(sid, 0.0)
+                    if prev_value > 0:
+                        ret = (value - prev_value) / prev_value
+                        self._portfolio.add_strategy_return(sid, ret)
+                self._strategy_value_prev = per_strategy_value
+
+                # Rebalance cadence: recompute risk-parity weights and push them
+                # into the portfolio allocation consumed by PositionSizer.size().
+                if self._bar_count % self._rebalance_every_n_bars == 0:
+                    returns = self._portfolio.get_strategy_returns()
+                    weights = self._portfolio_optimizer.compute(returns)
+                    self._portfolio.set_allocation(weights)
+                    logger.info("s5 rebalance: %s", weights)
+                    # s5 follow-up: expose the rebalanced weights to monitoring
+                    # (best-effort — sink must never raise into the bar loop).
+                    try:
+                        self._sink.record_portfolio_allocation(weights)
+                    except Exception:  # sink contract: best-effort only
+                        logger.exception("record_portfolio_allocation failed")
 
         # Weekly-loss gate (ARCH-H1): feed the realized 7-day PnL to the risk
         # engine so _check_weekly_loss is no longer a permanent no-op. Window
@@ -690,7 +741,9 @@ class TradingSession:
         # cap clamps the final notional even when a compound strategy_id sums
         # to > 1 — the prior * allocation here re-inflated an already-capped
         # target past the cap.
-        allocation = self._portfolio.get_strategy_allocation(signal.strategy_id)
+        # Strategy × symbol weight when symbol-level RP is active; otherwise
+        # identical to get_strategy_allocation (symbol weights empty).
+        allocation = self._portfolio.get_allocation_for_signal(signal.strategy_id, signal.symbol)
         size = self._position_sizer.size(
             signal,
             portfolio,

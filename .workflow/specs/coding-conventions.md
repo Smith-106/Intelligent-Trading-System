@@ -38,7 +38,7 @@ Auto-generated from project analysis. Update manually as patterns evolve.
 
 ## Entries
 
-<spec-entry category="coding" keywords="策略双模式,generate_signals,on_bar,向量化,事件驱动" date="2026-06-13" title="策略双模式: generate_signals 向量化 + on_bar 事件驱动" description="策略模板标准双 API 模式">
+<spec-entry category="coding" keywords="策略双模式,generate_signals,on_bar,向量化,事件驱动" date="2026-06-13" title="策略双模式: generate_signals 向量化 + on_bar 事件驱动" description="策略模板标准双 API 模式" sid="S-legacy-ba5131ad">
 ### 策略双模式: generate_signals 向量化 + on_bar 事件驱动
 
 所有策略模板遵循双模式：
@@ -51,7 +51,7 @@ Auto-generated from project analysis. Update manually as patterns evolve.
 **模式参考**: trend_following.py 双模式实现
 </spec-entry>
 
-<spec-entry category="coding" keywords="search,codegraph,代码搜索" date="2026-06-01">
+<spec-entry category="coding" keywords="search,codegraph,代码搜索" date="2026-06-01" sid="S-legacy-b23e2d8a">
 
 ### mcp-semantic-search
 
@@ -59,7 +59,7 @@ Auto-generated from project analysis. Update manually as patterns evolve.
 
 </spec-entry>
 
-<spec-entry category="coding" keywords="validate-symbol,write-path,path-traversal,choke-point,symmetric-validation" date="2026-07-05" title="Validate symbol at EVERY symbol→path/glob site — read, write, AND in-place transform" description="Write/transform paths must call validate_symbol symmetric with reads; a direct Path construction bypasses the DataStore choke point">
+<spec-entry category="coding" keywords="validate-symbol,write-path,path-traversal,choke-point,symmetric-validation" date="2026-07-05" title="Validate symbol at EVERY symbol→path/glob site — read, write, AND in-place transform" description="Write/transform paths must call validate_symbol symmetric with reads; a direct Path construction bypasses the DataStore choke point" sid="S-legacy-37e8dce4">
 ### Validate symbol at EVERY symbol→path/glob site — read, write, AND in-place transform
 
 Every code path that turns a user/operator-supplied symbol into a filesystem path OR a DuckDB glob literal must pass through `quantflow.common.validators.validate_symbol()`. This includes:
@@ -77,7 +77,7 @@ Durable guard: `tests/unit/test_trend_and_store.py::test_validate_symbol_rejects
 Source: odyssey-review security-fixes session (REV-008 + sibling G4 in service.py).
 </spec-entry>
 
-<spec-entry category="coding" keywords="auto-commit,ruff,lint-gate,pre-commit,workflow-discipline" date="2026-07-05" title="Run ruff check --fix && ruff format before every auto-commit (lint-before-commit gate)" description="Workflow phase auto-commits must lint/format first or CI's ruff gate goes red; defense-in-depth via .pre-commit-config.yaml">
+<spec-entry category="coding" keywords="auto-commit,ruff,lint-gate,pre-commit,workflow-discipline" date="2026-07-05" title="Run ruff check --fix && ruff format before every auto-commit (lint-before-commit gate)" description="Workflow phase auto-commits must lint/format first or CI's ruff gate goes red; defense-in-depth via .pre-commit-config.yaml" sid="S-legacy-df8312a6">
 ### Run ruff check --fix && ruff format before every auto-commit (lint-before-commit gate)
 
 Any workflow action that does `git add` + `git commit` on generated/edited Python MUST run the project-mandated lint/format pipeline immediately before `git add`, and abort the commit on lint failure:
@@ -97,7 +97,7 @@ Detection: CI `ruff format --check` + `ruff check` go red on `main` shortly afte
 Source: odyssey-debug ci-ruff-breakage session (P1). Implemented as a maestro overlay on the odyssey-*.md wrappers + `.pre-commit-config.yaml`.
 </spec-entry>
 
-<spec-entry category="coding" keywords="look-ahead,vectorized,signal-generator,entries-mask,forward-fill" date="2026-07-05" title="No look-ahead in vectorized signal generators — never aggregate over entries[bool_mask]" description="series[entries].mean() uses future bar data at the entry bar; capture value at entry + forward-fill for position lifetime">
+<spec-entry category="coding" keywords="look-ahead,vectorized,signal-generator,entries-mask,forward-fill" date="2026-07-05" title="No look-ahead in vectorized signal generators — never aggregate over entries[bool_mask]" description="series[entries].mean() uses future bar data at the entry bar; capture value at entry + forward-fill for position lifetime" sid="S-legacy-d41a7358">
 ### No look-ahead in vectorized signal generators — never aggregate over entries[bool_mask]
 
 In a vectorized `generate_signals(df)`, any `series[entries].mean()` / aggregation over a boolean entry mask uses **future** bar data at the entry bar — a look-ahead bug. The masked values are computed from the full series, so the entry-bar value already reflects information only known later.

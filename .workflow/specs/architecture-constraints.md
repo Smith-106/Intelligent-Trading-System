@@ -51,7 +51,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
 
 ## Entries
 
-<spec-entry category="arch" keywords="generate_signals,on_bar,增量,向量化,双模式API" date="2026-06-13" title="保持 generate_signals(df) 为研究 API，增量 live/paper 用 on_bar" description="策略双模式 API 设计决策">
+<spec-entry category="arch" keywords="generate_signals,on_bar,增量,向量化,双模式API" date="2026-06-13" title="保持 generate_signals(df) 为研究 API，增量 live/paper 用 on_bar" description="策略双模式 API 设计决策" sid="S-legacy-94ab063e">
 ### 保持 generate_signals(df) 为研究 API，增量 live/paper 用 on_bar
 
 保持 `generate_signals(df)` 作为向量化研究/回测 API 不变，为 live/paper 添加增量 `on_bar()` 路径。增量路径使用 bounded deque + rolling state，避免每根 bar 重建 DataFrame。必须证明增量信号与向量化信号 parity。
@@ -60,7 +60,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
 **验收**: 增量 vs 向量化信号 parity 测试存在，3 个真实策略达 2000 bars/s
 </spec-entry>
 
-<spec-entry category="arch" keywords="策略顺序,波动率突破,资金费率,动量轮动,ML集成,实施优先级" date="2026-06-13" title="新增策略实施顺序" description="从 brainstorm 收敛的四策略优先级">
+<spec-entry category="arch" keywords="策略顺序,波动率突破,资金费率,动量轮动,ML集成,实施优先级" date="2026-06-13" title="新增策略实施顺序" description="从 brainstorm 收敛的四策略优先级" sid="S-legacy-7e5a7b8e">
 ### 新增策略实施顺序
 
 新增策略按优先级排序：P1 波动率突破（复杂度低、互补性强）→ P2 资金费率（Crypto 特有、简单有效）→ P3 动量因子轮动（需多品种支持）→ P4 ML 集成（高工作量）。跨交易所套利因架构改动大优先级最低。
@@ -69,7 +69,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
 **理由**: P1/P2 复杂度低且互补性强，可并行实现
 </spec-entry>
 
-<spec-entry category="arch" keywords="W3铁律,双模式,回顾模式,渐进模式,波浪理论" date="2026-06-13" title="W3 铁律双模式" description="浪3不能最短铁律的实时处理方案">
+<spec-entry category="arch" keywords="W3铁律,双模式,回顾模式,渐进模式,波浪理论" date="2026-06-13" title="W3 铁律双模式" description="浪3不能最短铁律的实时处理方案" sid="S-legacy-55b14d75">
 ### W3 铁律双模式：回顾强制、渐进仅检查不拒绝
 
 回顾模式（RETROSPECTIVE）：W3 不能最短铁律强制执行，违反即拒绝浪型分类。
@@ -79,7 +79,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
 **理由**: Q2 滞后判定 + Q3 实时困难，需平衡严谨与可用性
 </spec-entry>
 
-<spec-entry category="arch" keywords="背离检测,浪级比较,WaveCount,DivergenceDetector" date="2026-06-13" title="DivergenceDetector 强制浪级比较" description="背离检测接口必须基于 WaveCount">
+<spec-entry category="arch" keywords="背离检测,浪级比较,WaveCount,DivergenceDetector" date="2026-06-13" title="DivergenceDetector 强制浪级比较" description="背离检测接口必须基于 WaveCount" sid="S-legacy-e689eae2">
 ### DivergenceDetector 强制浪级比较
 
 `DivergenceDetector.detect(wave_count: WaveCount)` — 接口接收 WaveCount 而非裸 pivots，强制 W5 vs W3 浪级比较。顶背离：W5 价格新高但 MACD 未新高。底背离：W2/W4 价格新低但 MACD 未新低。
@@ -88,7 +88,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
 **理由**: 波浪理论背离验证必须基于浪级，通用 pivots 接口会导致误用
 </spec-entry>
 
-<spec-entry category="arch" keywords="仓位管理,RiskEngine,PositionRequest,风控权限" date="2026-06-13" title="ScalingPosition → RiskEngine: PositionRequest 权限控制" description="分批建仓与风控引擎的交互协议">
+<spec-entry category="arch" keywords="仓位管理,RiskEngine,PositionRequest,风控权限" date="2026-06-13" title="ScalingPosition → RiskEngine: PositionRequest 权限控制" description="分批建仓与风控引擎的交互协议" sid="S-legacy-cae8ed3d">
 ### ScalingPosition → RiskEngine 交互协议（⚠️ ISS-20260723-004 已删 ScalingPositionSizer 死代码，本 spec-entry 的交互协议 moot）
 
 ScalingPositionSizer 输出 `PositionRequest`，由 RiskEngine 做最终权限控制。单笔风险 ≤2%，日最大亏损 ≤5%，月最大亏损 ≤15%。RiskEngine 可拒绝或缩减 PositionRequest。
@@ -99,7 +99,7 @@ ScalingPositionSizer 输出 `PositionRequest`，由 RiskEngine 做最终权限�
 **drift-realign 2026-07-28 标注**: ScalingPositionSizer/PositionRequest/ScalingConfig/PositionPhase 4 类已随 ISS-004 (commit a5b7f37) 删除（生产零引用死代码）。当前仓位 sizing 由 `signal/position_sizer.py` PositionSizer 直接产出 notional（half-Kelly + vol-target + 单名上限 min 下界）。单笔 ≤2%/日 ≤5%/月 ≤15% 约束现由 PositionSizer.size 内执行。若未来重启分批建仓，应作新 spec 而非恢复本 stale 引用。
 </spec-entry>
 
-<spec-entry category="arch" keywords="波浪理论,六层架构,规则引擎,集成方式" date="2026-06-13" title="波浪理论集成到 QuantFlow 六层架构" description="波浪理论系统设计决策">
+<spec-entry category="arch" keywords="波浪理论,六层架构,规则引擎,集成方式" date="2026-06-13" title="波浪理论集成到 QuantFlow 六层架构" description="波浪理论系统设计决策" sid="S-legacy-3f2bf039">
 ### 波浪理论集成到 QuantFlow 六层架构，纯规则引擎
 
 - 集成方式：集成到 QuantFlow 六层架构（非独立系统），复用现有基础设施
@@ -111,7 +111,7 @@ ScalingPositionSizer 输出 `PositionRequest`，由 RiskEngine 做最终权限�
 **理由**: 复用六层架构降低实现成本；规则引擎确保可验证性；状态机与铁律逻辑一致
 </spec-entry>
 
-<spec-entry category="arch" keywords="security-primitive,private-helper,common-module,public-api,choke-point" date="2026-07-05" title="Cross-cutting security primitives are public API in quantflow/common/, never private borrow-ins" description="Validation/auth choke points imported across layers must be public, not underscored module-private helpers">
+<spec-entry category="arch" keywords="security-primitive,private-helper,common-module,public-api,choke-point" date="2026-07-05" title="Cross-cutting security primitives are public API in quantflow/common/, never private borrow-ins" description="Validation/auth choke points imported across layers must be public, not underscored module-private helpers" sid="S-legacy-7b834936">
 ### Cross-cutting security primitives are public API in quantflow/common/, never private borrow-ins
 
 A security choke point (symbol validation, auth/CSRF policy) imported by 2+ modules MUST be a public (no underscore) function in a dedicated `quantflow/common/` (or `quantflow/web/security.py`) module. The underscore signals "module-private implementation detail" — the wrong contract for a security primitive imported across layers.
@@ -127,7 +127,7 @@ Closing pattern: `quantflow/common/validators.py` exposes public `validate_symbo
 Source: odyssey-review security-fixes session (REV-005, REV-013).
 </spec-entry>
 
-<spec-entry category="arch" keywords="launch-guard,bind-boundary,create-app,run-station,fail-closed" date="2026-07-05" title="Launch-time safety guards live at the bind boundary, documented in the constructor docstring" description="When a fail-closed guard depends on a bind-time param, keep it at the launcher; document the contract in the app-constructor docstring">
+<spec-entry category="arch" keywords="launch-guard,bind-boundary,create-app,run-station,fail-closed" date="2026-07-05" title="Launch-time safety guards live at the bind boundary, documented in the constructor docstring" description="When a fail-closed guard depends on a bind-time param, keep it at the launcher; document the contract in the app-constructor docstring" sid="S-legacy-62fb9b81">
 ### Launch-time safety guards live at the bind boundary, documented in the constructor docstring
 
 When a fail-closed launch guard (e.g. "non-loopback bind requires an auth token") depends on a parameter the app constructor does NOT receive (the bind `host`), keep the guard at the bind boundary (`run_station`) — the only entry point that knows the host. Do NOT force the parameter into the constructor to "share" the guard: that breaks the test harness, which calls `create_app()` directly and assumes a loopback-equivalent threat model.
@@ -757,5 +757,125 @@ doc-index 修复：删除 TC-013 reconciliation 重复条目（保留 dashboards
 ### 未执行 git commit
 
 未执行 git commit
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-0de19815a2b79672" title="0 信号视为有效验证结论（fail-closed）：前提不成立 → NO-GO，原型保持 disabled" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-0de19815a2b79672">
+
+### 0 信号视为有效验证结论（fail-closed）：前提不成立 → NO-GO，原型保持 disabled
+
+0 信号视为有效验证结论（fail-closed）：前提不成立 → NO-GO，原型保持 disabled
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-5185acbdaeb7ad75" title="Pair P&amp;L 模型：perp 腿 d + spot 镜面腿 + funding -d×f（仅结算 bar）+ 双边费用；整 bar 语义对齐 BacktestEngine" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-5185acbdaeb7ad75">
+
+### Pair P&L 模型：perp 腿 d + spot 镜面腿 + funding -d×f（仅结算 bar）+ 双边费用；整 bar 语义对齐 BacktestEngine
+
+Pair P&L 模型：perp 腿 d + spot 镜面腿 + funding -d×f（仅结算 bar）+ 双边费用；整 bar 语义对齐 BacktestEngine
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-58ffc83fb14f7bce" title="P0 回归基线随数据窗口漂移，需 establish_p0_baseline.py 重建（已执行）" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-58ffc83fb14f7bce">
+
+### P0 回归基线随数据窗口漂移，需 establish_p0_baseline.py 重建（已执行）
+
+P0 回归基线随数据窗口漂移，需 establish_p0_baseline.py 重建（已执行）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-5941f3edd1586f3d" title="D3: 0 信号视为有效结论，NO-GO，原型保持 disabled" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-5941f3edd1586f3d">
+
+### D3: 0 信号视为有效结论，NO-GO，原型保持 disabled
+
+D3: 0 信号视为有效结论，NO-GO，原型保持 disabled
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-79d7c42b79056096" title="D1: 验证窗口以 OKX 可获取的 90 天为准" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-79d7c42b79056096">
+
+### D1: 验证窗口以 OKX 可获取的 90 天为准
+
+D1: 验证窗口以 OKX 可获取的 90 天为准
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-89697d25a85ca5df" title="OKX funding-rate-history 仅服务 ~90 天，单页上限 100（实测 51000 拒绝 &gt;100）" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-89697d25a85ca5df">
+
+### OKX funding-rate-history 仅服务 ~90 天，单页上限 100（实测 51000 拒绝 >100）
+
+OKX funding-rate-history 仅服务 ~90 天，单页上限 100（实测 51000 拒绝 >100）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-928a025676af4b36" title="OKX rubik OI-volume 端点必须 begin+end 成对（单传 → 50030）；1H 仅最近 ~30 天，1D ~180 天，after 分页被忽略" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-928a025676af4b36">
+
+### OKX rubik OI-volume 端点必须 begin+end 成对（单传 → 50030）；1H 仅最近 ~30 天，1D ~180 天，after 分页被忽略
+
+OKX rubik OI-volume 端点必须 begin+end 成对（单传 → 50030）；1H 仅最近 ~30 天，1D ~180 天，after 分页被忽略
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-d5dcd8b9b1944fc6" title="验证窗口以 OKX 可获取的 90 天为准；OI 30 天 cap 以 coverage 记录而非拼接虚构数据" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-d5dcd8b9b1944fc6">
+
+### 验证窗口以 OKX 可获取的 90 天为准；OI 30 天 cap 以 coverage 记录而非拼接虚构数据
+
+验证窗口以 OKX 可获取的 90 天为准；OI 30 天 cap 以 coverage 记录而非拼接虚构数据
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-e21d61e685b118f2" title="meta fetcher 真实 bug 修复（funding dict-as-limit / OI begin+end + info-list 映射 / connect 泄漏）" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-e21d61e685b118f2">
+
+### meta fetcher 真实 bug 修复（funding dict-as-limit / OI begin+end + info-list 映射 / connect 泄漏）
+
+meta fetcher 真实 bug 修复（funding dict-as-limit / OI begin+end + info-list 映射 / connect 泄漏）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-e373ac2823800028" title="BTC-USDT-SWAP funding 8h 结算 → 90 天仅 270 个结算点" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-e373ac2823800028">
+
+### BTC-USDT-SWAP funding 8h 结算 → 90 天仅 270 个结算点
+
+BTC-USDT-SWAP funding 8h 结算 → 90 天仅 270 个结算点
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-08" sid="S-20260808-d363ba7c2f0aa2d3" title="per-symbol regime detector" description="Promoted from run:20260808-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004" source="session:multi-symbol-replay-20260808-20260808-045132:KDC-d363ba7c2f0aa2d3">
+
+### per-symbol regime detector
+
+per-symbol regime detector
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260808-4272fb0f39de12f3" title="SOL from 2021" description="Promoted from run:20260808-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, run:20260808-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004" source="session:multi-symbol-replay-20260808-20260808-045132:KDC-4272fb0f39de12f3">
+
+### SOL from 2021
+
+SOL from 2021
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260807-ffe5d169f57e64ce" title="OOS/WFO 裁决" description="Promoted from run:20260807-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, run:20260807-003-execute" source="session:mtf-expand-wfo-20260807-20260807-155411:KDC-ffe5d169f57e64ce">
+
+### OOS/WFO 裁决
+
+OOS/WFO 裁决
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260807-bbca142cd8242836" title="排除 1m 与 10m" description="Promoted from run:20260807-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, run:20260807-003-execute" source="session:mtf-expand-wfo-20260807-20260807-155411:KDC-bbca142cd8242836">
+
+### 排除 1m 与 10m
+
+排除 1m 与 10m
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260808-65e48f96fb68cce8" title="禁止 Optuna" description="Promoted from run:20260808-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, run:20260808-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004" source="session:nonma-signal-wfo-20260808-20260808-033745:KDC-65e48f96fb68cce8">
+
+### 禁止 Optuna
+
+禁止 Optuna
 
 </spec-entry>

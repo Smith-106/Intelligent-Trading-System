@@ -8,8 +8,9 @@ status: active
 sessionId: "019fd662-ea0f-7f7b-801f-4ad3fae9205f"
 checkpointId: "fe4c1f6a-2c98-4af1-a40d-5e9211e96229"
 previousCheckpointId: "4ce3d42c-1912-43be-82fb-428731ea0e4d"
+related:
+  - DOC-knowledge-hub
 ---
-
 # Session Compact Checkpoint
 
 ## Checkpoint Metadata

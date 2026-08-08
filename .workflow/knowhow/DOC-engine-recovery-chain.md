@@ -5,6 +5,9 @@ createdBy: "harvest:wave1-precheck"
 sourceRef: maestro-wave1-precheck-20260803-20260803-075540
 type: knowhow
 status: active
+related:
+  - DOC-exchange-health-breaker
+  - DOC-state-store-atomic-write
 ---
 # 交易引擎恢复链架构
 

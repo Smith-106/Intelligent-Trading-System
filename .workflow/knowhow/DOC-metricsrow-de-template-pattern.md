@@ -3,10 +3,11 @@ title: MetricsRow 去模板模式 — featured + inline 指标行
 category: ui
 createdBy: "harvest:team-ui-polish-r2"
 sourceRef: 20260802-team-ui-polish-continuous
-related:
-  - session-20260802-team-ui-polish-full
 type: knowhow
 status: active
+related:
+  - session-20260802-team-ui-polish-full
+  - DOC-ui-polish-loop-methodology
 ---
 # MetricsRow 去模板模式 — featured + inline 指标行
 

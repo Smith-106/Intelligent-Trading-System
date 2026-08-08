@@ -5,6 +5,9 @@ createdBy: "harvest:wave1-precheck"
 sourceRef: maestro-wave1-precheck-20260803-20260803-075540
 type: knowhow
 status: active
+related:
+  - DOC-engine-recovery-chain
+  - DOC-monitoring-sink-protocol
 ---
 # ExchangeHealthMonitor 滞后断路器设计模式
 

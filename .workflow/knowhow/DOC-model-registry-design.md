@@ -5,6 +5,9 @@ createdBy: "harvest:wave2-s3"
 sourceRef: maestro-wave2-s3-20260803-20260804-040400
 type: knowhow
 status: active
+related:
+  - DOC-knowhow-qlib-model-zoo-benchmark
+  - DOC-p0-baseline-float-guard
 ---
 # ModelRegistry 模型注册设计
 

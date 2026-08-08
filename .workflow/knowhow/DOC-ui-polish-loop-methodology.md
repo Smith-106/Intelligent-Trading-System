@@ -3,10 +3,11 @@ title: Impeccable 10 维 UI 审计 + 持续打磨循环方法论
 category: ui
 createdBy: "harvest:team-ui-polish-r2"
 sourceRef: 20260802-team-ui-polish-continuous
-related:
-  - session-20260802-team-ui-polish-full
 type: knowhow
 status: active
+related:
+  - session-20260802-team-ui-polish-full
+  - DOC-anti-ai-slop-design-signals
 ---
 # Impeccable 10 维 UI 审计 + 持续打磨循环方法论
 

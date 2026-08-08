@@ -15,7 +15,7 @@ keywords:
 
 ## Entries
 
-<spec-entry category="review" keywords="csrf,layered-controls,early-return,origin,x-requested-with" date="2026-07-05" title="Layered security controls must all execute — no early-return past a passing control" description="Auth+CSRF middleware must run both controls per request; same-origin signal is Origin only, never X-Requested-With">
+<spec-entry category="review" keywords="csrf,layered-controls,early-return,origin,x-requested-with" date="2026-07-05" title="Layered security controls must all execute — no early-return past a passing control" description="Auth+CSRF middleware must run both controls per request; same-origin signal is Origin only, never X-Requested-With" sid="S-legacy-abe97254">
 ### Layered security controls must all execute — no early-return past a passing control
 
 Security middleware that claims "layered defense-in-depth" (e.g. auth + CSRF) must run ALL controls to completion per request — a `return` after one passing control makes the others dead code. Two concrete rules:

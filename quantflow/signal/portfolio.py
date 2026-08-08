@@ -64,6 +64,11 @@ class PortfolioManager:
         # estimation. Populated only when the engine feeds add_strategy_return
         # (portfolio optimization enabled); empty on the default path.
         self._strategy_returns: dict[str, deque[float]] = {}
+        # Symbol-level risk parity (shared book): per-symbol return histories
+        # and target weights. Empty on the default / strategy-level path so
+        # get_allocation_for_signal falls back to strategy-only weights.
+        self._symbol_returns: dict[str, deque[float]] = {}
+        self._symbol_allocation: dict[str, float] = {}
 
     # --- Core properties ---
 
@@ -281,9 +286,37 @@ class PortfolioManager:
             return self._allocation.get(strategy_id, 0.0)
         return sum(self._allocation.get(c, 0.0) for c in constituents)
 
+    def set_symbol_allocation(self, allocation: dict[str, float]) -> None:
+        """Set target allocation weights per symbol (shared-book symbol RP)."""
+        self._symbol_allocation = dict(allocation)
+
+    def get_symbol_allocation(self, symbol: str) -> float:
+        """Return symbol weight, or 1.0 when symbol-level allocation is unset."""
+        if not self._symbol_allocation:
+            return 1.0
+        return float(self._symbol_allocation.get(symbol, 0.0))
+
+    def get_allocation_for_signal(self, strategy_id: str, symbol: str) -> float:
+        """Combined strategy × symbol weight for sizing a signal.
+
+        - Strategy-only path (no symbol weights): identical to
+          ``get_strategy_allocation``.
+        - Symbol RP path: product of independent strategy and symbol weights
+          (each dimension sums to ~1). Missing symbol keys yield 0 so unknown
+          names cannot inflate size past the rebalanced set.
+        """
+        strat_w = self.get_strategy_allocation(strategy_id)
+        if not self._symbol_allocation:
+            return strat_w
+        return strat_w * self.get_symbol_allocation(symbol)
+
     @property
     def allocation(self) -> dict[str, float]:
         return self._allocation
+
+    @property
+    def symbol_allocation(self) -> dict[str, float]:
+        return self._symbol_allocation
 
     # --- s5 (T-s5-02): per-strategy return tracking + budget utilization ---
 
@@ -306,6 +339,20 @@ class PortfolioManager:
     def get_strategy_returns(self) -> dict[str, list[float]]:
         """Snapshot of per-strategy return histories (optimizer input)."""
         return {k: list(v) for k, v in self._strategy_returns.items()}
+
+    def add_symbol_return(self, symbol: str, ret: float, window: int = 30) -> None:
+        """Record a realized per-symbol return for symbol-level risk parity."""
+        if not symbol:
+            return
+        bucket = self._symbol_returns.get(symbol)
+        if bucket is None:
+            bucket = deque(maxlen=max(window, 2))
+            self._symbol_returns[symbol] = bucket
+        bucket.append(float(ret))
+
+    def get_symbol_returns(self) -> dict[str, list[float]]:
+        """Snapshot of per-symbol return histories (optimizer input)."""
+        return {k: list(v) for k, v in self._symbol_returns.items()}
 
     def budget_utilization(self) -> dict[str, dict[str, float]]:
         """Per-strategy exposure vs allocation budget (s5 report).

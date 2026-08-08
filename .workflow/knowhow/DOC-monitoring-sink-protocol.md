@@ -5,6 +5,9 @@ createdBy: "harvest:wave3-s4"
 sourceRef: maestro-wave3-s4-20260804-20260804-054608
 type: knowhow
 status: active
+related:
+  - DOC-exchange-health-breaker
+  - DOC-engine-recovery-chain
 ---
 # MonitoringSink Protocol 扩展模式
 

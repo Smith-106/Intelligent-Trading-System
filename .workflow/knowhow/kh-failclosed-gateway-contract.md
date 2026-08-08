@@ -3,6 +3,9 @@ title: "Fail-closed gateway contract"
 type: knowhow
 tags: [gateway, safety]
 status: active
+related:
+  - kh-order-statemachine-completeness
+  - kh-multi-symbol-patterns
 ---
 ---
 id: kh-failclosed-gateway-contract

@@ -5,6 +5,8 @@ createdBy: manage-harvest
 sourceRef: "session:20260724-debug-odyssey-l6-sibling-sinks, commit:b2a4cf8"
 type: knowhow
 status: active
+related:
+  - DOC-knowledge-hub
 ---
 # 并发 Agent 会话并行提交同仓 — ancestry 检查 + 工作区审计防冲突
 
