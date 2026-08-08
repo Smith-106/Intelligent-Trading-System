@@ -242,7 +242,7 @@ def main() -> int:
     print(f"[wfo-srp] windows={len(wins)} train={args.train_months}m fwd={args.fwd_months}m")
 
     segments: list[dict[str, Any]] = []
-    for i, (tr_s, tr_e, fw_e) in enumerate(wins):
+    for i, (_tr_s, tr_e, fw_e) in enumerate(wins):
         # OOS-only: replay each mode on the forward window (no train fit for RP —
         # symbol RP rebalances online inside the OOS window from its own history).
         oos_start = int(tr_e.timestamp() * 1000)
