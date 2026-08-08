@@ -9,8 +9,10 @@ keywords:
   - workaround
   - root-cause
   - gotcha
+related:
+  - DOC-knowledge-hub
+type: spec
 ---
-
 # Debug Notes
 
 <spec-entry category="debug" keywords="调试,日志,事件总线,异常,kill-switch" date="2026-05-29" sid="S-legacy-a38f0ecb">

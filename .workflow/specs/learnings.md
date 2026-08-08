@@ -8,8 +8,10 @@ keywords:
   - lesson
   - gotcha
   - learning
+related:
+  - DOC-knowledge-hub
+type: spec
 ---
-
 # Learnings
 
 Add entries with: `/spec-add learning <description>`

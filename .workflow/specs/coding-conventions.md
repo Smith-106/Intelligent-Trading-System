@@ -1,6 +1,9 @@
 ---
 title: "Coding Conventions"
 category: coding
+related:
+  - DOC-knowledge-hub
+type: spec
 ---
 # Coding Conventions
 

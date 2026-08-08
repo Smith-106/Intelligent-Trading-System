@@ -10,8 +10,10 @@ keywords:
   - fixture
   - assertion
   - framework
+related:
+  - DOC-knowledge-hub
+type: spec
 ---
-
 # Test Conventions
 
 Auto-generated from project analysis. Update manually as patterns evolve.

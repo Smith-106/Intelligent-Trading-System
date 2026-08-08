@@ -879,3 +879,27 @@ OOS/WFO 裁决
 禁止 Optuna
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260802-0e01c25f603fc736" title="Badge alpha 合成在 gamma sRGB 空间进行" description="Promoted from run:20260802-002-plan, artifact:ART-002-001, run:20260802-003-execute, artifact:ART-003-001" source="session:20260802-maestro-statuswarn-wcag-ci-20260802-075737:KDC-0e01c25f603fc736">
+
+### Badge alpha 合成在 gamma sRGB 空间进行
+
+Badge alpha 合成在 gamma sRGB 空间进行
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260802-61a42ab0c97db631" title="暗色主题 .dark 块不做任何修改" description="Promoted from run:20260802-002-plan, artifact:ART-002-001, run:20260802-003-execute, artifact:ART-003-001" source="session:20260802-maestro-statuswarn-wcag-ci-20260802-075737:KDC-61a42ab0c97db631">
+
+### 暗色主题 .dark 块不做任何修改
+
+暗色主题 .dark 块不做任何修改
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-08" sid="S-20260802-9963e49477a03dc8" title="--warning 与 --status-warn 同步修改（语义耦合）" description="Promoted from run:20260802-002-plan, artifact:ART-002-001, run:20260802-003-execute, artifact:ART-003-001" source="session:20260802-maestro-statuswarn-wcag-ci-20260802-075737:KDC-9963e49477a03dc8">
+
+### --warning 与 --status-warn 同步修改（语义耦合）
+
+--warning 与 --status-warn 同步修改（语义耦合）
+
+</spec-entry>

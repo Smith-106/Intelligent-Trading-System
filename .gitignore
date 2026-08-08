@@ -110,3 +110,15 @@ data/paper_replay/
 data/rdagent_work/
 data/s3_verify/
 data/live_evidence/
+# Local smart-search evidence dumps
+tmpsmart-search-evidence*.json
+# Paper-replay research outputs (large/local)
+# Station local history
+data/station_history/
+# Pytest temp root used on Windows
+# Maestro embedding / wiki runtime indexes (regenerable)
+.workflow/embedding.zvec*
+.workflow/wiki-index.json
+.workflow/spec-analytics.jsonl
+.workflow/state.json
+.workflow/artifacts/p0-baseline/

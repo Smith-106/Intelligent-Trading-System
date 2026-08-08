@@ -8,8 +8,10 @@ keywords:
   - lint
   - rule
   - enforcement
+related:
+  - DOC-knowledge-hub
+type: spec
 ---
-
 # Quality Rules
 
 ## Linter

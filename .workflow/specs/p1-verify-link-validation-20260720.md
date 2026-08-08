@@ -1,3 +1,10 @@
+---
+title: "p1-verify-link-validation-20260720"
+type: spec
+related:
+  - DOC-knowledge-hub
+---
+
 # P1-verify 链路验证报告
 
 **日期**：2026-07-20
