@@ -37,7 +37,8 @@ from quantflow.strategy.research.paper_replay import (  # noqa: E402
 DEFAULT_TFS = ["5m", "15m", "30m", "1h", "2h", "4h", "6h", "12h", "1d"]
 FINE_TFS = {"5m", "15m", "30m"}
 
-TF_PARAM_SPACE: dict[str, dict[str, tuple[int, int] | tuple[float, float]]] = {
+# 1h-native bar counts (legacy default used when --space-mode=fixed).
+TF_PARAM_SPACE_1H: dict[str, dict[str, tuple[int, int] | tuple[float, float]]] = {
     "trend_following": {
         "fast_ma_period": (5, 40),
         "slow_ma_period": (20, 120),
@@ -45,8 +46,78 @@ TF_PARAM_SPACE: dict[str, dict[str, tuple[int, int] | tuple[float, float]]] = {
         "atr_multiplier": (1.0, 4.0),
         "trailing_stop_atr_mult": (1.0, 6.0),
         "stop_loss_pct": (0.0, 0.05),
+        "max_holding_bars": (10, 60),
     },
 }
+
+# Wall-clock lookback ranges (hours) — scaled to bar counts per entry TF.
+# Intent: 4h/6h should search similar *calendar* horizons as 1h, not the same
+# bar counts (which would be 4–6× longer in time and over-smooth).
+_WALL_HOURS: dict[str, tuple[float, float]] = {
+    "fast_ma_period": (6.0, 48.0),       # ~0.25–2 days
+    "slow_ma_period": (24.0, 240.0),     # ~1–10 days
+    "atr_period": (12.0, 72.0),          # ~0.5–3 days
+    "volume_period": (12.0, 72.0),
+    "max_holding_bars": (24.0, 240.0),   # hold 1–10 days
+}
+
+_TF_HOURS: dict[str, float] = {
+    "5m": 5 / 60,
+    "15m": 0.25,
+    "30m": 0.5,
+    "1h": 1.0,
+    "2h": 2.0,
+    "4h": 4.0,
+    "6h": 6.0,
+    "12h": 12.0,
+    "1d": 24.0,
+}
+
+
+def _clamp_int_range(low: float, high: float, min_low: int = 2, max_high: int = 200) -> tuple[int, int]:
+    lo = max(min_low, round(low))
+    hi = max(lo + 1, min(max_high, round(high)))
+    return int(lo), int(hi)
+
+
+def param_space_for_tf(
+    strategy: str,
+    entry_tf: str,
+    mode: str = "scaled",
+) -> dict[str, tuple[int, int] | tuple[float, float]]:
+    """Return Optuna search space for strategy on entry_tf.
+
+    mode:
+      - fixed: always the 1h bar-count ranges (legacy; under-fits high TF)
+      - scaled: convert wall-clock hour ranges into bar counts for entry_tf
+    """
+    base = TF_PARAM_SPACE_1H.get(strategy)
+    if base is None:
+        raise KeyError(f"No param space for strategy {strategy!r}")
+    if mode == "fixed" or entry_tf == "1h":
+        return dict(base)
+
+    hours = _TF_HOURS.get(entry_tf, 1.0)
+    space: dict[str, tuple[int, int] | tuple[float, float]] = {
+        "atr_multiplier": (1.0, 4.0),
+        "trailing_stop_atr_mult": (1.0, 6.0),
+        "stop_loss_pct": (0.0, 0.05),
+    }
+    for key, (h_lo, h_hi) in _WALL_HOURS.items():
+        space[key] = _clamp_int_range(h_lo / hours, h_hi / hours)
+    # Enforce slow > fast headroom: slow_min at least fast_min+2
+    f_lo, _f_hi = space["fast_ma_period"]
+    s_lo, s_hi = space["slow_ma_period"]
+    assert isinstance(f_lo, int) and isinstance(s_lo, int) and isinstance(s_hi, int)
+    s_lo = max(s_lo, f_lo + 2)
+    if s_lo >= s_hi:
+        s_hi = s_lo + 5
+    space["slow_ma_period"] = (s_lo, s_hi)
+    return space
+
+
+# Back-compat alias
+TF_PARAM_SPACE = TF_PARAM_SPACE_1H
 
 
 def _suggest(trial: Any, space: dict[str, tuple[int, int] | tuple[float, float]]) -> dict[str, Any]:
@@ -55,8 +126,13 @@ def _suggest(trial: Any, space: dict[str, tuple[int, int] | tuple[float, float]]
         if isinstance(low, int) and isinstance(high, int):
             params[name] = trial.suggest_int(name, low, high)
         else:
-            step = 0.25 if name == "stop_loss_pct" else 0.1
+            # stop_loss uses 0.5% steps (was 0.25 which collapsed [0,0.05] badly)
+            step = 0.005 if name == "stop_loss_pct" else 0.1
             params[name] = trial.suggest_float(name, float(low), float(high), step=step)
+    # Soft constraint: slow > fast when both present
+    if "fast_ma_period" in params and "slow_ma_period" in params:
+        if params["slow_ma_period"] <= params["fast_ma_period"]:
+            params["slow_ma_period"] = int(params["fast_ma_period"]) + 2
     return params
 
 
@@ -105,6 +181,12 @@ def main() -> int:
     ap.add_argument("--trials-coarse", type=int, default=8)
     ap.add_argument("--trials-fine", type=int, default=5)
     ap.add_argument("--skip-wfo", action="store_true")
+    ap.add_argument(
+        "--space-mode",
+        choices=["scaled", "fixed"],
+        default="scaled",
+        help="scaled=wall-clock lookbacks per TF; fixed=1h bar-count ranges",
+    )
     ap.add_argument("--out", default="data/paper_replay/mtf_matrix.json")
     args = ap.parse_args()
 
@@ -145,6 +227,7 @@ def main() -> int:
             "status": "ok",
             "bars": len(df),
             "nested_htf": nested_htf_for(tf),
+            "space_mode": args.space_mode,
             "bars_per_year": bars_per_year(tf),
             "full_return_pct": full.get("return_pct"),
             "full_max_dd_pct": full.get("max_drawdown_pct"),
@@ -185,7 +268,8 @@ def main() -> int:
 
         oos_rets: list[float] = []
         oos_sharpes: list[float] = []
-        space = TF_PARAM_SPACE[args.strategy]
+        space = param_space_for_tf(args.strategy, tf, mode=args.space_mode)
+        print(f"  space[{args.space_mode}]: {space}")
         for i, (s, tr_end, fwd_end) in enumerate(segments):
             train = df[
                 (df["dt"] >= pd.to_datetime(s, unit="ms"))
@@ -253,6 +337,7 @@ def main() -> int:
         "strategy": args.strategy,
         "gate": args.gate,
         "end": args.end,
+        "space_mode": args.space_mode,
         "rows": rows,
     }
     out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
