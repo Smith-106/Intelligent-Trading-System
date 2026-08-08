@@ -206,7 +206,9 @@ class TradingSession:
         # so submit()'s fill updates land on the same book the signal path reads.
         self._execution.set_portfolio(self._portfolio)
         self._signal_gen = SignalGenerator()
-        self._regime_detector = MarketRegimeDetector()
+        # Per-symbol regime detectors. A single shared detector mixes OHLC from
+        # different symbols and corrupts ADX (multi-symbol paper/live bug).
+        self._regime_detectors: dict[str, MarketRegimeDetector] = {}
         self._strategy_win_rates = strategy_win_rates or {}
         self._strategy_hit_rates = strategy_hit_rates or {}
         # M4-2.2: contexts keyed by (strategy_name, symbol) for multi-symbol
@@ -535,7 +537,7 @@ class TradingSession:
             self._record_bar_latency(bar.symbol, started_at)
             return
 
-        # Detect market regime for strategy gating.
+        # Detect market regime for strategy gating (per symbol).
         # Two-layer design (ISS-20260720-001, resolved as design-property): regime
         # is a macro market-state gate (ADX strength via MarketRegimeDetector),
         # while strategy entries are micro signals (MA direction). They use
@@ -543,7 +545,12 @@ class TradingSession:
         # the regime gate excludes, so backtest (generate_signals, no regime gate)
         # trades a superset of live/paper (on_bar, regime-gated). Live-faithful
         # validation uses paper-on_bar replay, not the vectorized backtest path.
-        regime = self._regime_detector.update(bar.high, bar.low, bar.close)
+        # Multi-symbol: a shared detector mixes OHLC across symbols and corrupts ADX.
+        detector = self._regime_detectors.get(bar.symbol)
+        if detector is None:
+            detector = MarketRegimeDetector()
+            self._regime_detectors[bar.symbol] = detector
+        regime = detector.update(bar.high, bar.low, bar.close)
 
         # Collect signals from regime-eligible strategies, then consolidate per symbol.
         # M4-2.3: iterate per-(strategy, symbol) instances when available;

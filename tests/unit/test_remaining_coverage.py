@@ -17,6 +17,7 @@ import pytest
 
 from quantflow.common.config import AppConfig
 from quantflow.common.models import Bar
+from quantflow.indicators.regime import MarketRegimeDetector
 from quantflow.web.history import StationHistoryStore
 
 # ===================================================================
@@ -1267,7 +1268,7 @@ class TestEngineRegimeGatingTrending:
         with (
             patch.object(session._execution, "start", new_callable=AsyncMock),
             patch("quantflow.strategy.engine._ensure_metrics_server_started"),
-            patch.object(session._regime_detector, "update") as mock_regime,
+            patch.object(MarketRegimeDetector, "update") as mock_regime,
             patch.object(session._execution, "update_market_price"),
             patch.object(session._signal_gen, "consolidate_signals", return_value=None),
             patch.object(session._execution, "submit_order", new_callable=AsyncMock),
@@ -1800,7 +1801,7 @@ class TestEngineRegimeGatingNotTrending:
         with (
             patch.object(session._execution, "start", new_callable=AsyncMock),
             patch("quantflow.strategy.engine._ensure_metrics_server_started"),
-            patch.object(session._regime_detector, "update") as mock_regime,
+            patch.object(MarketRegimeDetector, "update") as mock_regime,
             patch.object(session._execution, "update_market_price"),
             patch.object(session._signal_gen, "consolidate_signals", return_value=None),
             patch.object(session._execution, "submit_order", new_callable=AsyncMock),

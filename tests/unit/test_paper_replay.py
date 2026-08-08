@@ -240,3 +240,20 @@ def test_build_session_research_risk_bypass_default_and_off() -> None:
     s_prod = build_session("mean_reversion", config=cfg, research_risk_bypass=False)
     assert s_prod._config.risk.kill_switch_enabled is True
     assert s_prod._config.risk.max_drawdown == -0.12
+
+
+def test_build_multi_symbol_session_wires_instances() -> None:
+    from quantflow.strategy.research.paper_replay import build_multi_symbol_session
+
+    session = build_multi_symbol_session(
+        "trend_following",
+        ["BTC/USDT", "ETH/USDT"],
+        capital=100_000.0,
+        max_position_pct=0.1,
+        max_positions=2,
+    )
+    assert sorted(session._symbols) == ["BTC/USDT", "ETH/USDT"]
+    assert ("trend_following", "BTC/USDT") in session._instances
+    assert ("trend_following", "ETH/USDT") in session._instances
+    assert session._config.risk.position_limit_pct == 0.1
+    assert session._config.risk.max_positions == 2

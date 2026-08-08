@@ -172,6 +172,147 @@ def build_session(
     return session
 
 
+def build_multi_symbol_session(
+    strategy_name: str,
+    symbols: list[str],
+    capital: float = 100_000.0,
+    sink: RecordingSink | None = None,
+    config: AppConfig | None = None,
+    params: dict[str, Any] | None = None,
+    research_risk_bypass: bool = True,
+    max_position_pct: float | None = None,
+    max_positions: int | None = None,
+) -> TradingSession:
+    """Paper session with per-symbol strategy clones (shared book).
+
+    Mirrors ``TradingSession.start(symbols=...)`` instance wiring without the
+    live data loop / Prometheus init. ``max_position_pct`` / ``max_positions``
+    override RiskConfig when provided (shared-cap experiments).
+    """
+    if not symbols:
+        raise ValueError("symbols must be non-empty")
+
+    cfg = config or AppConfig()
+    cfg.execution.mode = "paper"
+    if research_risk_bypass:
+        cfg.risk.kill_switch_enabled = False
+        cfg.risk.max_drawdown = -0.90
+    if max_position_pct is not None:
+        cfg.risk.position_limit_pct = float(max_position_pct)
+    if max_positions is not None:
+        cfg.risk.max_positions = int(max_positions)
+
+    strategy_cls = STRATEGIES.get(strategy_name)
+    if strategy_cls is None:
+        raise ValueError(f"Unknown strategy '{strategy_name}'. Available: {list(STRATEGIES)}")
+    strategy = strategy_cls(params=params)  # type: ignore[abstract]
+    session = TradingSession(cfg, [strategy], monitoring_sink=sink)
+    session._execution = ExecutionEngine(
+        event_bus=session._event_bus,
+        gateway=PaperGateway(
+            {
+                "initial_capital": capital,
+                "taker_fee": cfg.execution.taker_fee,
+                "maker_fee": cfg.execution.maker_fee,
+                "slippage": cfg.execution.slippage,
+            }
+        ),
+        timeout=cfg.execution.order_timeout,
+        monitoring_sink=sink,
+        health_monitor=session._exchange_health,
+    )
+    session._execution.set_portfolio(session._portfolio)
+    session._portfolio.set_allocation(
+        {s.name: 1.0 / len(session._strategies) for s in session._strategies}
+    )
+
+    # Wire multi-symbol instances the same way start(symbols=...) does.
+    from quantflow.strategy.factory import create_all_per_symbol
+
+    session._symbols = list(symbols)
+    session._instances = create_all_per_symbol(session._strategies, session._symbols)
+    session._contexts = {}
+    session._running = False
+    return session
+
+
+async def replay_multi(
+    session: TradingSession,
+    bars_by_symbol: dict[str, pd.DataFrame],
+    fills: list[dict[str, object]] | None = None,
+    risk_events: list[dict[str, object]] | None = None,
+    direction_gate: bool | str = False,
+    entry_tf: str = "1h",
+) -> list[dict[str, float]]:
+    """Replay multiple symbols on a shared session (timestamp-aligned).
+
+    At each unique timestamp, symbols present on that bar are fed to
+    ``on_bar`` in deterministic symbol order. Equity is sampled once per
+    timestamp after all symbols for that tick have been processed.
+    """
+    fills = fills if fills is not None else []
+    risk_events = risk_events if risk_events is not None else []
+
+    if not bars_by_symbol:
+        raise ValueError("bars_by_symbol is empty")
+
+    # Optional direction gate: wrap each per-symbol instance with its own allow.
+    if direction_gate:
+        gate_name = direction_gate if isinstance(direction_gate, str) else "sma"
+        builders = _gate_builders(entry_tf)
+        if gate_name not in builders:
+            raise ValueError(f"Unknown gate '{gate_name}'. Available: {list(builders)}")
+        for symbol, df in bars_by_symbol.items():
+            allow = builders[gate_name](df)
+            for key, inst in list(session._instances.items()):
+                if key[1] == symbol:
+                    session._instances[key] = _DirectionGateWrapper(inst, allow)
+
+    session._running = True
+    # Init contexts for multi-symbol instances (and prototypes for allocation keys).
+    for (name, symbol), instance in session._instances.items():
+        ctx = StrategyContext()
+        instance.on_init(ctx)
+        session._contexts[(name, symbol)] = ctx
+    for strategy in session._strategies:
+        if (strategy.name, "") not in session._contexts:
+            ctx = StrategyContext()
+            strategy.on_init(ctx)
+            session._contexts[(strategy.name, "")] = ctx
+
+    session.event_bus.subscribe(EVENT_FILL, lambda e: fills.append(dict(e.data)))
+    session.event_bus.subscribe(EVENT_RISK, lambda e: risk_events.append(dict(e.data)))
+
+    # Build per-timestamp bar map: ts -> list[(symbol, row)]
+    by_ts: dict[int, list[tuple[str, Any]]] = {}
+    for symbol, df in bars_by_symbol.items():
+        for row in df.itertuples(index=False):
+            ts = int(row.timestamp)
+            by_ts.setdefault(ts, []).append((symbol, row))
+
+    curve: list[dict[str, float]] = []
+    for ts in sorted(by_ts):
+        rows = sorted(by_ts[ts], key=lambda x: x[0])  # stable symbol order
+        for symbol, row in rows:
+            bar = Bar(
+                symbol=symbol,
+                timestamp=ts,
+                open=float(row.open),
+                high=float(row.high),
+                low=float(row.low),
+                close=float(row.close),
+                volume=float(row.volume),
+            )
+            await session.on_bar(bar)
+        curve.append(
+            {
+                "timestamp": ts,
+                "equity": round(session._portfolio.total_value, 4),
+            }
+        )
+    return curve
+
+
 async def replay(
     session: TradingSession,
     bars_df: pd.DataFrame,
