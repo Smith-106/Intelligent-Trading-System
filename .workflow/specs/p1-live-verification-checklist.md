@@ -1,3 +1,10 @@
+---
+title: "p1-live-verification-checklist"
+type: spec
+related:
+  - DOC-knowledge-hub
+---
+
 # P1 风控层实盘验证 Checklist
 
 > **作用**：P1（F3 vol-target / F4 bootstrap CVaR / F5 MC 压力）上线后，在实盘验证周期结束时逐项对照判定 GO/NO-GO。每项给「观察什么 → 怎么看 → 判定标准」三段式，阈值全部对齐代码实际值。

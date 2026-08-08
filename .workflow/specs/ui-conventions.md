@@ -11,8 +11,10 @@ keywords:
   - layout
   - animation
   - component
+related:
+  - DOC-knowledge-hub
+type: spec
 ---
-
 # UI Conventions
 
 ## Color & Theme

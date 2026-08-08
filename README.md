@@ -1,5 +1,7 @@
 # QuantFlow
 
+> 当前版本 **v0.5.0** — 详见 [docs/release/v0.5.0.md](docs/release/v0.5.0.md)
+
 个人 Crypto 量化交易系统 — 从策略研究到实盘交易的完整闭环。
 
 ## 特性
@@ -17,6 +19,8 @@
 - **多源数据**：Funding Rate / Open Interest 元数据采集（自限频 + 指数退避）
 - **智能告警**：ALERT_ROUTING 矩阵（15 类别 x 4 优先级）+ 滑动窗口去重
 - **配置驱动**：策略参数、风控规则、交易对全部 YAML 管理，零硬编码
+- **多 Symbol 组合**：共享账本 multi-symbol 回放 + **symbol-level 周期再平衡 Risk Parity**（WFO OOS 验证）
+- **研究保真**：paper 路径注入 fee/slippage；`research_risk_bypass` 双报研究/生产风控
 
 ## 架构
 
@@ -333,3 +337,29 @@ pytest tests/ --cov=quantflow --cov-report=html
 ## 许可
 
 私有项目，仅供个人/小团队使用。
+
+
+## 多 Symbol 研究（v0.5）
+
+```bash
+# 共享账本 equal / shared_cap / shared_risk_parity / silo RP 全窗对比
+python scripts/multi_symbol_replay.py
+
+# Walk-forward OOS：equal vs shared symbol RP
+python scripts/wfo_shared_rp.py
+```
+
+启用引擎内 symbol RP（YAML / `RiskConfig`）：
+
+```yaml
+risk:
+  portfolio_optimization:
+    enabled: true
+    method: risk_parity
+    level: symbol          # strategy | symbol
+    rebalance_every_n_bars: 48
+    min_samples: 30
+```
+
+发布说明：[docs/release/v0.5.0.md](docs/release/v0.5.0.md) · 运维手册：[docs/operations-guide.md](docs/operations-guide.md)
+

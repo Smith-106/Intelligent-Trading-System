@@ -65,3 +65,18 @@ Engine opt-in: `risk.portfolio_optimization.enabled=true` + `level=symbol`.
 | btc_only | -11.81 | -0.53 | 14.1 | 515 |
 
 Shared RP trades off return for lower drawdown vs equal; silo RP is a different capital method and must not be compared 1:1.
+
+
+## WFO OOS (2026-08 follow-up) — equal vs shared_risk_parity
+
+Script: `scripts/wfo_shared_rp.py` (2y implied cadence via 6m steps on OOS-only windows; fixed classic+nested params).
+
+7 OOS segments 2023-01 → 2026-07, fee/slip 0.1%, BTC+ETH+SOL:
+
+| mode | meanRet% | meanSh | meanDD% | cumRet% | pos |
+|------|----------|--------|---------|---------|-----|
+| equal | +5.76 | 0.623 | 8.25 | +41.32 | 5/7 |
+| **shared_risk_parity** | **+1.82** | **0.727** | **2.55** | +12.93 | 5/7 |
+
+**Winner by mean OOS Sharpe: shared_risk_parity** — lower return, higher risk-adjusted + much lower drawdown. Full-window equal still higher cumulative; WFO confirms RP is the more stable shared-book allocator.
+

@@ -338,3 +338,29 @@ dq_monitor:
 *文档版本: v0.3-draft*  
 *最后更新: 2026-08-02*  
 *维护者: QuantFlow Team*
+
+---
+
+## 10. 组合优化 / Symbol-level Risk Parity (v0.5)
+
+### 10.1 说明
+
+`risk.portfolio_optimization` 默认关闭。开启后：
+
+- `level: strategy`（默认）：按策略收益再平衡（s5 原行为）
+- `level: symbol`：共享账本下按标的 close-to-close 波动做周期 risk parity
+
+再平衡周期按**唯一 bar 时间戳**计数；sizing 为 `strategy_weight × symbol_weight`。
+
+### 10.2 研究脚本
+
+```bash
+python scripts/multi_symbol_replay.py
+python scripts/wfo_shared_rp.py
+```
+
+### 10.3 运维注意
+
+- 默认关闭 → 不影响既有单策略回测基线
+- silo risk_parity（分仓独立资金）与共享账本 RP **不可直接比较收益**
+- 生产启用前须完成 WFO/OOS 与 fee/slip 敏感度报告

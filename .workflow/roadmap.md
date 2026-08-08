@@ -368,3 +368,4 @@ Phase 1-2 可并行 → Phase 3 依赖 Phase 2（contexts 键控）→ Phase 4 �
 | 5. 生产安全接线与回放验证（A2+C1） | 1. A2 生产安全接线 | **Completed** | 2026-08-06 `6257b7c` |
 | 5. 生产安全接线与回放验证（A2+C1） | 2. C1 30 天 paper 回放 | **Completed** | 2026-08-06 `7aded16` |
 | 5. 生产安全接线与回放验证（A2+C1） | 3. 附带闭环（001 修复/004 NO-GO） | **Completed** | 2026-08-06 `3035421`/`3ba219b` |
+- [x] shared-book symbol-level RP + WFO OOS (v0.5): equal meanSh 0.62/DD8.3 vs RP meanSh 0.73/DD2.6 — scripts/wfo_shared_rp.py

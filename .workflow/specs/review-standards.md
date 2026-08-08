@@ -9,8 +9,10 @@ keywords:
   - gate
   - approval
   - standard
+related:
+  - DOC-knowledge-hub
+type: spec
 ---
-
 # Review Standards
 
 ## Entries
