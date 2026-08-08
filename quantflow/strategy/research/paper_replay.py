@@ -117,6 +117,7 @@ def build_session(
     sink: RecordingSink | None = None,
     config: AppConfig | None = None,
     params: dict[str, Any] | None = None,
+    research_risk_bypass: bool = True,
 ) -> TradingSession:
     """Build a paper TradingSession with PaperGateway injected directly,
     bypassing start()'s Prometheus/network init and live data loop.
@@ -125,13 +126,19 @@ def build_session(
     construction (OrderRouter binds in __init__; bypassing start() skips
     set_gateway) and the A2 (ISS-20260803-003) seams threaded through: the
     exchange health monitor + shared sink stay attached.
+
+    ``research_risk_bypass`` (default True) preserves the historical research
+    path: kill switch off and a very loose max_drawdown so long multi-year
+    replays are not truncated. Set False to honour ``config.risk`` for
+    production-fidelity ablation studies. Fee/slippage always come from
+    ``config.execution`` (defaults match AppConfig).
     """
     cfg = config or AppConfig()
     cfg.execution.mode = "paper"
-    # Replay is a controlled simulation, not live — no kill switch, no
-    # drawdown trip mid-replay.
-    cfg.risk.kill_switch_enabled = False
-    cfg.risk.max_drawdown = -0.90
+    if research_risk_bypass:
+        # Controlled research simulation — no kill switch / loose DD trip.
+        cfg.risk.kill_switch_enabled = False
+        cfg.risk.max_drawdown = -0.90
 
     strategy_cls = STRATEGIES.get(strategy_name)
     if strategy_cls is None:
@@ -140,7 +147,14 @@ def build_session(
     session = TradingSession(cfg, [strategy], monitoring_sink=sink)
     session._execution = ExecutionEngine(
         event_bus=session._event_bus,
-        gateway=PaperGateway({"initial_capital": capital, "taker_fee": cfg.execution.taker_fee}),
+        gateway=PaperGateway(
+            {
+                "initial_capital": capital,
+                "taker_fee": cfg.execution.taker_fee,
+                "maker_fee": cfg.execution.maker_fee,
+                "slippage": cfg.execution.slippage,
+            }
+        ),
         timeout=cfg.execution.order_timeout,
         monitoring_sink=sink,
         health_monitor=session._exchange_health,

@@ -212,3 +212,31 @@ async def test_gate_unknown_type_rejected() -> None:
     session = build_session("mean_reversion", 100_000.0, sink)
     with pytest.raises(ValueError, match="Unknown gate"):
         await replay(session, _synthetic_bars(100), SYMBOL, [], [], direction_gate="bogus")
+
+
+def test_build_session_passes_fee_and_slippage_to_gateway() -> None:
+    """ExecutionConfig fee/slippage must reach PaperGateway (reframe fidelity)."""
+    from quantflow.common.config import AppConfig, ExecutionConfig
+    from quantflow.execution.paper_gateway import PaperGateway
+
+    cfg = AppConfig(execution=ExecutionConfig(taker_fee=0.002, maker_fee=0.0015, slippage=0.003))
+    session = build_session("mean_reversion", capital=50_000.0, config=cfg)
+    gw = session._execution._gateway
+    assert isinstance(gw, PaperGateway)
+    assert gw._taker_fee == 0.002
+    assert gw._maker_fee == 0.0015
+    assert gw._slippage == 0.003
+
+
+def test_build_session_research_risk_bypass_default_and_off() -> None:
+    """Default research path disables kill switch; bypass=False keeps config risk."""
+    from quantflow.common.config import AppConfig, RiskConfig
+
+    s_default = build_session("mean_reversion")
+    assert s_default._config.risk.kill_switch_enabled is False
+    assert s_default._config.risk.max_drawdown == -0.90
+
+    cfg = AppConfig(risk=RiskConfig(kill_switch_enabled=True, max_drawdown=-0.12))
+    s_prod = build_session("mean_reversion", config=cfg, research_risk_bypass=False)
+    assert s_prod._config.risk.kill_switch_enabled is True
+    assert s_prod._config.risk.max_drawdown == -0.12
