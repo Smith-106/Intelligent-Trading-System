@@ -60,6 +60,18 @@ class TrendFollowingStrategy(StrategyBase):
         )
         self._stop_loss_pct: float = p.get("stop_loss_pct", 0.0)
         self._rsi_adaptive_profit: bool = p.get("rsi_adaptive_profit", True)
+        # Structure-layer entry mode (option B). Default "classic" preserves
+        # the multi-filter vote used historically (byte-for-byte with prior runs).
+        # "pullback" / "breakout" are FIXED structures — not Optuna knobs.
+        self._entry_structure: str = str(p.get("entry_structure", "classic")).lower()
+        if self._entry_structure not in {"classic", "pullback", "breakout"}:
+            raise ValueError(
+                f"Unknown entry_structure {self._entry_structure!r}; "
+                "expected classic|pullback|breakout"
+            )
+        self._pullback_lookback: int = int(p.get("pullback_lookback", 5))
+        self._pullback_tol: float = float(p.get("pullback_tol", 0.005))
+        self._breakout_lookback: int = int(p.get("breakout_lookback", 20))
 
         self._bars: list[Bar] = []
         self._close_values: list[float] = []
@@ -85,6 +97,8 @@ class TrendFollowingStrategy(StrategyBase):
                 self._rsi_period,
                 self._atr_period,
                 self._volume_period,
+                self._pullback_lookback + 2,
+                self._breakout_lookback + 2,
             )
             + 50
         )
@@ -153,6 +167,41 @@ class TrendFollowingStrategy(StrategyBase):
         if self._in_position and self._bars_since_entry > 0:
             self._check_position_exits(ctx, bar)
 
+    def _structure_ok_latest(
+        self,
+        close_values: list[float],
+        high_values: list[float],
+        low_values: list[float],
+        last_idx: int,
+        fast_ma: float,
+        trend_up: bool,
+    ) -> bool:
+        """Structure filter for the incremental (on_bar) path.
+
+        classic: always True (no extra filter).
+        pullback: uptrend + close near fast MA after a short dip (no look-ahead).
+        breakout: uptrend + close breaks prior N-bar high (exclude current bar).
+        """
+        if self._entry_structure == "classic":
+            return True
+        if not trend_up:
+            return False
+        if self._entry_structure == "pullback":
+            if last_idx < self._pullback_lookback:
+                return False
+            window = close_values[last_idx - self._pullback_lookback : last_idx]
+            if not window:
+                return False
+            dipped = min(window) < fast_ma
+            near = abs(close_values[last_idx] - fast_ma) / max(fast_ma, 1e-12) <= self._pullback_tol
+            reclaim = close_values[last_idx] >= fast_ma
+            return dipped and near and reclaim
+        n = self._breakout_lookback
+        if last_idx < n:
+            return False
+        prior_high = max(high_values[last_idx - n : last_idx])
+        return close_values[last_idx] > prior_high
+
     def _latest_signal(self) -> tuple[bool, bool]:
         """Compute the last signal without rebuilding a DataFrame."""
         close_values, high_values, low_values, volume_values = self._runtime_values()
@@ -196,8 +245,11 @@ class TrendFollowingStrategy(StrategyBase):
         atr_ok = atr < atr_cap
         trend_up = fast_ma > slow_ma and macd_hist > 0
         trend_down = fast_ma < slow_ma and macd_hist < 0
+        structure_ok = self._structure_ok_latest(
+            close_values, high_values, low_values, last_idx, float(fast_ma), trend_up
+        )
         entry_count = int(trend_up) + int(rsi < self._rsi_overbought) + int(vol_ok) + int(atr_ok)
-        entry = entry_count >= self._min_conditions
+        entry = entry_count >= self._min_conditions and structure_ok
         exit_count = int(trend_down) + int(rsi > self._rsi_oversold) + int(atr_ok)
         exit_ = exit_count >= max(self._min_conditions - 1, 2)  # exit without vol_ok
         self._last_entry_conditions = entry_count if entry else 0
@@ -231,6 +283,30 @@ class TrendFollowingStrategy(StrategyBase):
         if len(self._close_values) == len(self._bars):
             return self._close_values, self._high_values, self._low_values, self._volume_values
         return closes(self._bars), highs(self._bars), lows(self._bars), volumes(self._bars)
+
+    def _structure_mask_vectorized(
+        self,
+        close: pd.Series,
+        high: pd.Series,
+        low: pd.Series,
+        fast_ma: pd.Series,
+        trend_up: pd.Series,
+    ) -> pd.Series:
+        """Vectorized structure filter (research path; no look-ahead)."""
+        if self._entry_structure == "classic":
+            return pd.Series(True, index=close.index)
+        if self._entry_structure == "pullback":
+            n = self._pullback_lookback
+            # Prior window excludes current bar: shift(1) then rolling min.
+            prior_min = close.shift(1).rolling(n).min()
+            dipped = prior_min < fast_ma
+            near = (close - fast_ma).abs() / fast_ma.replace(0, 1e-12) <= self._pullback_tol
+            reclaim = close >= fast_ma
+            return trend_up & dipped & near & reclaim
+        # breakout: close > max(high of prior N bars), exclude current
+        n = self._breakout_lookback
+        prior_high = high.shift(1).rolling(n).max()
+        return trend_up & (close > prior_high)
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         """Vectorized signal generation (research/backtest API).
@@ -303,6 +379,10 @@ class TrendFollowingStrategy(StrategyBase):
         # from _latest_signal (no vol_ok, threshold min_conditions-1).
         exit_count = trend_down.astype(int) + rsi_ok_short.astype(int) + atr_ok.astype(int)
         entries = long_count >= self._min_conditions
+        if self._entry_structure != "classic":
+            entries = entries & self._structure_mask_vectorized(
+                close, high, low, fast_ma, trend_up
+            )
         exits = exit_count >= max(self._min_conditions - 1, 2)
 
         # Profit target exit (LONG direction only — trend_following entries are LONG)
