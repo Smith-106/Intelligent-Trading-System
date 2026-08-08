@@ -348,8 +348,11 @@ class TestAICommand:
         )
         result = runner.invoke(app, ["ai", "rdagent", "--symbol", "BTC/USDT"])
         assert result.exit_code == 0
-        assert "not available" in result.output.lower()
-        assert "pip install" in result.output.lower()
+        # ISS-006: degrade to baseline (no hard stop). Message may say
+        # "not installed" / baseline evaluation rather than "not available".
+        out = result.output.lower()
+        assert "pip install" in out
+        assert ("not installed" in out) or ("not available" in out) or ("baseline" in out)
 
     def test_ai_rdagent_evalates_factors_when_qlib_available(self, monkeypatch):
         from quantflow.strategy.rd_agent import RDAgentRunner

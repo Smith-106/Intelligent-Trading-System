@@ -62,7 +62,28 @@ app = typer.Typer(
     no_args_is_help=True,
     rich_markup_mode="rich",
 )
-console = Console()
+def _make_console() -> Console:
+    """Build a Console that does not crash on Windows GBK terminals.
+
+    Legacy Windows consoles often use GBK/cp936, which cannot encode Unicode
+    success/failure glyphs (U+2713/U+2717). Prefer UTF-8 stdio when the runtime
+    allows reconfigure; always set ``legacy_windows=False`` so Rich avoids the
+    Win32 legacy path that raised UnicodeEncodeError during download. Status
+    markers themselves are ASCII ``OK`` / ``ERR`` as a second defense.
+    """
+    import contextlib
+    import sys
+
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            # Stream may be closed, detached, or not reconfigurable (pytest capture).
+            with contextlib.suppress(Exception):
+                reconfigure(encoding="utf-8", errors="replace")
+    return Console(legacy_windows=False, soft_wrap=True)
+
+
+console = _make_console()
 DEFAULT_CONFIG_PATH = "quantflow/config/default.yaml"
 
 
@@ -120,7 +141,7 @@ def download(
         try:
             with console.status("[bold blue]Connecting to OKX..."):
                 await fetcher.connect()
-            console.print("[green]✓[/] Connected to OKX")
+            console.print("[green]OK[/] Connected to OKX")
 
             with console.status(
                 f"[bold blue]Downloading {symbol} {timeframe} ({start} → {end})..."
@@ -128,7 +149,7 @@ def download(
                 df = await fetcher.fetch_ohlcv(symbol, timeframe, start, end)
 
             if df.empty:
-                console.print("[red]✗ No data fetched. Check symbol and date range.[/]")
+                console.print("[red]ERR No data fetched. Check symbol and date range.[/]")
                 console.print("  Hint: valid symbols include BTC/USDT, ETH/USDT, SOL/USDT")
                 return
 
@@ -142,7 +163,7 @@ def download(
 
             date_range = store.get_date_range(symbol)
             console.print(
-                f"[green]✓[/] Saved [bold]{len(df)}[/] bars for [bold]{symbol}[/] ({timeframe})"
+                f"[green]OK[/] Saved [bold]{len(df)}[/] bars for [bold]{symbol}[/] ({timeframe})"
             )
             if date_range:
                 from datetime import datetime
@@ -153,7 +174,7 @@ def download(
         except Exception as e:
             # odyssey-review RP2 (ISS-037): fetcher/gateway exceptions may embed
             # OKX apiKey/URL — scrub before printing to the operator's terminal.
-            console.print(f"[red]✗ Error: {redact_secrets(str(e))}[/]")
+            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
             console.print("  Check your internet connection and symbol name.")
         finally:
             await fetcher.disconnect()
@@ -205,18 +226,18 @@ def download_funding(
             ):
                 df = await fetcher.fetch_funding_rate_history(symbol, since_ms)
             if df.empty:
-                console.print("[red]✗ No funding data fetched. Check the symbol.[/]")
+                console.print("[red]ERR No funding data fetched. Check the symbol.[/]")
                 return
             store.save_funding_rates(df, symbol)
             last_ts = store.get_last_meta_timestamp(symbol, "funding_rate")
             console.print(
-                f"[green]✓[/] Saved [bold]{len(df)}[/] funding rows for [bold]{symbol}[/]"
+                f"[green]OK[/] Saved [bold]{len(df)}[/] funding rows for [bold]{symbol}[/]"
             )
             if last_ts is not None:
                 last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
                 console.print(f"  Last funding time: {last_date}")
         except Exception as e:
-            console.print(f"[red]✗ Error: {redact_secrets(str(e))}[/]")
+            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
             raise typer.Exit(code=1) from e
         finally:
             await fetcher.disconnect()
@@ -259,18 +280,18 @@ def download_oi(
                     symbol, period=period, since_ms=since_ms
                 )
             if df.empty:
-                console.print("[red]✗ No OI data fetched. Check the symbol.[/]")
+                console.print("[red]ERR No OI data fetched. Check the symbol.[/]")
                 return
             store.save_open_interest(df, symbol)
             last_ts = store.get_last_meta_timestamp(symbol, "open_interest")
             console.print(
-                f"[green]✓[/] Saved [bold]{len(df)}[/] OI rows for [bold]{symbol}[/] ({period})"
+                f"[green]OK[/] Saved [bold]{len(df)}[/] OI rows for [bold]{symbol}[/] ({period})"
             )
             if last_ts is not None:
                 last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
                 console.print(f"  Last OI timestamp: {last_date}")
         except Exception as e:
-            console.print(f"[red]✗ Error: {redact_secrets(str(e))}[/]")
+            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
             raise typer.Exit(code=1) from e
         finally:
             await fetcher.disconnect()
@@ -410,7 +431,7 @@ def optimize(
                 initial_capital=capital,
             )
     except Exception as e:
-        console.print(f"[red]✗ 优化失败：{redact_secrets(str(e))}[/]")
+        console.print(f"[red]ERR 优化失败：{redact_secrets(str(e))}[/]")
         console.print("  请检查参数空间、数据范围与策略 generate_signals 实现。")
         return
     finally:
@@ -671,7 +692,7 @@ def validate(
                 )
             _display_gate(result)
     except Exception as e:
-        console.print(f"[red]✗ 验证失败：{redact_secrets(str(e))}[/]")
+        console.print(f"[red]ERR 验证失败：{redact_secrets(str(e))}[/]")
         console.print("  请检查 CPCV 分组数、WFO 窗口、数据长度与策略 generate_signals 实现。")
         return
     finally:
@@ -765,7 +786,7 @@ def run(
             # OKXGateway/order exceptions may embed apiKey/passphrase/URL in error
             # body. redact_secrets (module-level import, main.py:19) is the
             # two-layer scrubber — never print raw str(e).
-            console.print(f"[red]✗ 运行失败：{redact_secrets(str(e))}[/]")
+            console.print(f"[red]ERR 运行失败：{redact_secrets(str(e))}[/]")
             console.print("  请检查 gateway 配置、API key 与 symbol。")
         finally:
             await session.stop()
@@ -851,7 +872,7 @@ def _display_gate(result: ResultDict) -> None:
         console.print(f"Reason: {result['reason']}")
     for check_name, check_result in result.get("checks", {}).items():
         passed = check_result.get("passed", False)
-        status = "[green]✓[/]" if passed else "[red]✗[/]"
+        status = "[green]OK[/]" if passed else "[red]ERR[/]"
         console.print(f"  {status} {check_name}")
         if check_result.get("signal_quality"):
             console.print(f"    Signal quality: {_signal_quality_summary(check_result)}")
@@ -1135,7 +1156,7 @@ def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
                 f.name,
                 f"{f.ic:+.4f}",
                 f"{f.rank_ic:+.4f}",
-                "[green]✓[/]" if f.selected else "[red]✗[/]",
+                "[green]OK[/]" if f.selected else "[red]ERR[/]",
             )
         console.print(table)
         console.print(
