@@ -5,8 +5,9 @@ createdBy: "harvest:team-ui-polish-r2"
 sourceRef: 20260802-team-ui-polish-continuous
 related:
   - session-20260802-team-ui-polish-full
+type: knowhow
+status: active
 ---
-
 # Anti-AI-slop 设计信号清单（QuantFlow Station）
 
 ## 适用场景

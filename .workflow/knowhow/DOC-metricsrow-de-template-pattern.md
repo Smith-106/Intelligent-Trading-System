@@ -5,8 +5,9 @@ createdBy: "harvest:team-ui-polish-r2"
 sourceRef: 20260802-team-ui-polish-continuous
 related:
   - session-20260802-team-ui-polish-full
+type: knowhow
+status: active
 ---
-
 # MetricsRow 去模板模式 — featured + inline 指标行
 
 ## 适用场景

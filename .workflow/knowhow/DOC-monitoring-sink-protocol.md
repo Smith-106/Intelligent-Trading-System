@@ -3,6 +3,8 @@ title: MonitoringSink Protocol 扩展：Protocol/Null/Default 三层解耦
 category: architecture
 createdBy: "harvest:wave3-s4"
 sourceRef: maestro-wave3-s4-20260804-20260804-054608
+type: knowhow
+status: active
 ---
 # MonitoringSink Protocol 扩展模式
 

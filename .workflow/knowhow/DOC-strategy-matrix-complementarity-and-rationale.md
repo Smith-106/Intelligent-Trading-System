@@ -3,6 +3,8 @@ title: QuantFlow 策略矩阵与互补性 + 候选学术依据
 category: strategy
 createdBy: manage-harvest
 sourceRef: brainstorm-20260602-new-strategies
+type: knowhow
+status: active
 ---
 ## 来源
 brainstorm 20260602-brainstorm-new-strategies（5 候选策略收敛）。收割时 4/5 已实现（momentum_rotation / volatility_breakout / funding_rate / ml_ensemble 模板已存在），仅跨交易所套利未实现。此条目记录代码注释未覆盖的增量：策略间互补性矩阵 + 学术依据。

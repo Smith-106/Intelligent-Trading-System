@@ -1,4 +1,10 @@
 ---
+title: "Knowledge Hub index"
+type: knowhow
+tags: [hub, index]
+status: active
+---
+---
 title: Knowledge Hub
 related:
   - knowhow-doc-dynamic-budget-ewma

@@ -5,8 +5,9 @@ createdBy: harvest
 sourceRef: 20260803-001-analyze
 related:
   - session-run-maestro-benchmark-evolve-20260803-20260803-045922-20260803-001-analyze
+type: knowhow
+status: active
 ---
-
 # QuantFlow vs 前沿量化平台六维度差距分级总览（2026-08 对标）
 
 **Source**: 20260803-001-analyze（findings.json dimensions[]/gap_grading[]）

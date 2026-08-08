@@ -3,6 +3,8 @@ title: ModelRegistry 模型注册设计：GO 状态持久化 + path 遍历防护
 category: ai
 createdBy: "harvest:wave2-s3"
 sourceRef: maestro-wave2-s3-20260803-20260804-040400
+type: knowhow
+status: active
 ---
 # ModelRegistry 模型注册设计
 

@@ -3,6 +3,8 @@ title: 状态存储 StateStore 原子写入模式：tmp + os.replace 安全写�
 category: reliability
 createdBy: "harvest:wave1-precheck"
 sourceRef: maestro-wave1-precheck-20260803-20260803-075540
+type: knowhow
+status: active
 ---
 # 状态存储原子写入模式
 

@@ -1,4 +1,10 @@
 ---
+title: "Order state machine completeness"
+type: knowhow
+tags: [execution, orders]
+status: active
+---
+---
 id: kh-order-statemachine-completeness
 title: 订单生命周期状态机完整性 — terminal guard + partial modeling
 tags:

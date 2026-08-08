@@ -5,8 +5,9 @@ createdBy: "harvest:n1-pagination"
 sourceRef: maestro-n1-pagination-20260804-20260804-102422
 related:
   - session-maestro-n1-pagination-20260804-20260804-102422
+type: knowhow
+status: active
 ---
-
 # OKX KLine 分页拉取模式
 
 ## 适用场景

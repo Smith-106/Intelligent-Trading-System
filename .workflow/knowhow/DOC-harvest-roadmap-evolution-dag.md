@@ -5,8 +5,9 @@ createdBy: harvest
 sourceRef: 20260803-002-roadmap
 related:
   - session-run-maestro-benchmark-evolve-20260803-20260803-045922-20260803-002-roadmap
+type: knowhow
+status: active
 ---
-
 # QuantFlow 演进路线图：三阶段四 session DAG（benchmark-evolve）
 
 **Source**: 20260803-002-roadmap（roadmap.json，alias current-roadmap）

@@ -3,6 +3,8 @@ title: ExchangeHealthMonitor 滞后断路器设计模式
 category: architecture
 createdBy: "harvest:wave1-precheck"
 sourceRef: maestro-wave1-precheck-20260803-20260803-075540
+type: knowhow
+status: active
 ---
 # ExchangeHealthMonitor 滞后断路器设计模式
 

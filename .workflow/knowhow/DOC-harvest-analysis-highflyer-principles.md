@@ -5,8 +5,9 @@ createdBy: harvest
 sourceRef: 20260803-001-analyze
 related:
   - session-run-maestro-benchmark-evolve-20260803-20260803-045922-20260803-001-analyze
+type: knowhow
+status: active
 ---
-
 # 幻方式 AI 量化范式：借鉴生产方式原则而非硬件规模
 
 **Source**: 20260803-001-analyze（finding F7，置信度 0.9）

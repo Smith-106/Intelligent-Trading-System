@@ -1,4 +1,10 @@
 ---
+title: "Fail-closed gateway contract"
+type: knowhow
+tags: [gateway, safety]
+status: active
+---
+---
 id: kh-failclosed-gateway-contract
 title: Fail-Closed 网关安全契约 — 防紧急制动假报成功
 tags:

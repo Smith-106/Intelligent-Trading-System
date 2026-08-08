@@ -3,6 +3,8 @@ title: 交易引擎恢复链架构：reset → restore → _verify_recovery
 category: architecture
 createdBy: "harvest:wave1-precheck"
 sourceRef: maestro-wave1-precheck-20260803-20260803-075540
+type: knowhow
+status: active
 ---
 # 交易引擎恢复链架构
 

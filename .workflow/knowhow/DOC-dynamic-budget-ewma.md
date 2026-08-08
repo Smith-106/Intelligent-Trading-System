@@ -6,9 +6,9 @@ sourceRef: maestro-wave3-s4-20260804-20260804-054608
 related:
   - session-maestro-wave3-s4-20260804-20260804-054608
   - knowhow-doc-knowledge-hub
+type: knowhow
+status: active
 ---
-
-
 # DynamicBudget EWMA 动态预算缩放
 
 ## 适用场景

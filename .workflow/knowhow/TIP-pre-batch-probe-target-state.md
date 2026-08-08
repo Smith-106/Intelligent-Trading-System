@@ -1,4 +1,10 @@
 ---
+title: "Pre-batch probe target state"
+type: tip
+tags: [workflow, verification]
+status: active
+---
+---
 related:
   - "spec:project:learnings-012"
 ---

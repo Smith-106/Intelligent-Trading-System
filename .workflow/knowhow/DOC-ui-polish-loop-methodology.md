@@ -5,8 +5,9 @@ createdBy: "harvest:team-ui-polish-r2"
 sourceRef: 20260802-team-ui-polish-continuous
 related:
   - session-20260802-team-ui-polish-full
+type: knowhow
+status: active
 ---
-
 # Impeccable 10 维 UI 审计 + 持续打磨循环方法论
 
 ## 适用场景

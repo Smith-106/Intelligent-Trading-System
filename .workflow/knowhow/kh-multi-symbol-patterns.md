@@ -1,3 +1,9 @@
+---
+title: "QuantFlow multi-symbol extension patterns"
+type: knowhow
+tags: [multi-symbol, architecture]
+status: active
+---
 # Knowhow: QuantFlow 多 Symbol 扩展核心模式
 
 > source: harvest | date: 2026-07-30 | confidence: high

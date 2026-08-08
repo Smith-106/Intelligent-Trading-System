@@ -3,6 +3,8 @@ title: P0 Baseline Guard 浮动基线机制：数据窗口变化时自动重建
 category: testing
 createdBy: "harvest:n1-pagination"
 sourceRef: maestro-n1-pagination-20260804-20260804-102422
+type: knowhow
+status: active
 ---
 # P0 Baseline Guard 浮动基线机制
 

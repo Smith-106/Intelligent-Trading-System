@@ -1,4 +1,10 @@
 ---
+title: "Hotpath zero-allocation patterns"
+type: knowhow
+tags: [performance, hotpath]
+status: active
+---
+---
 id: kh-hotpath-zero-alloc
 title: 热路径零分配模式 — per-bar/per-signal 管线优化
 tags:
