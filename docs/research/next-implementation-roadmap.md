@@ -166,3 +166,12 @@ T021（可并行）
 ---
 
 *生成自 maestro plan run `20260809-001-plan`。*
+
+---
+
+## 10. 后续计划（post T021）
+
+编号任务 T001–T021 已全部完成。下一波见：
+
+→ **[post-t021-implementation-roadmap.md](./post-t021-implementation-roadmap.md)**（T022–T030：paper 日课 + Baseline-3）
+
