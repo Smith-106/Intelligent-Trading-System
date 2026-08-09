@@ -420,10 +420,9 @@ class ReconciliationEngine:
             },
         )
 
-        # TODO: Trigger alerts, pause trading, notify operators
-        # This would integrate with the alert classification system (G5)
-        # Sink alerting for drift is emitted once per run by
-        # _emit_drift_alert (see run_daily_reconciliation).
+        # T021: alert path is intentionally owned by run_daily_reconciliation →
+        # _emit_drift_alert (once per run, MonitoringSink). Do not double-send
+        # here. Operator pause/kill remains session-level policy, not engine-local.
 
     async def _emit_drift_alert(
         self,
