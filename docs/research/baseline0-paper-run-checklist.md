@@ -222,6 +222,16 @@ python scripts/paper_evidence_export.py dry-run --synthetic-full
 | checkpoint `state.enabled` | false | 先 `python scripts/resilience_drill.py` |
 | 周期 reconciliation | false | 同上；确认 MonitoringSink/告警通道 |
 
+**T029 书面包**：
+
+- 说明：`docs/research/paper-ops-resilience-overlay.md`
+- Overlay（**仅本地按需**，默认不进 default）：`quantflow/config/paper_ops_resilience_overlay.yaml`
+
+```bash
+python scripts/resilience_drill.py   # overall=pass 才允许开 overlay
+# 再合并/加载 paper_ops_resilience_overlay（见该 md §3）
+```
+
 **不要**在未演练时把 default.yaml 默认改成 true。
 
 ---

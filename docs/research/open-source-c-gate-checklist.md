@@ -4,7 +4,7 @@
 > **Visibility**: Never flipped by automation. Human-only.  
 > **Current published path**: Scheme **B** (docs-demo public). Scheme **C** = optional future.
 
-Related: [open-source-decision-brief.md](./open-source-decision-brief.md) · `python scripts/oss_c_gate.py` · `CONTRIBUTING.md`
+Related: [open-source-decision-brief.md](./open-source-decision-brief.md) · [oss-c-human-review-pack.md](./oss-c-human-review-pack.md)（**T030** 决策表 + gitleaks） · `python scripts/oss_c_gate.py` · `CONTRIBUTING.md`
 
 ## 0. Decision posture
 
@@ -35,6 +35,8 @@ Must report `ready_for_human_c_review=true` (exit 0).
 | ci | Root CI exists; optional `oss-c-gate.yml` present |
 
 ## 2. Manual / history (automation cannot skip)
+
+命令样例与决策表见 **[oss-c-human-review-pack.md](./oss-c-human-review-pack.md)**（T030）。
 
 - [ ] **gitleaks** (or trufflehog) on **full git history**; rotate any live keys.
 - [ ] Confirm no private paper sessions / full-window cost JSON force-added.

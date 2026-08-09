@@ -59,7 +59,7 @@ T020 已完成 ──► T030（人审，不阻塞研究）
 | ID | 标题 | 估时 | 依赖 | done_when |
 |----|------|------|------|-----------|
 | **T022** | B0 日课 Runbook 固化 | 0.5–1d | T017,T019 | ✅ **done** — checklist 一条命令序列 + admitted/deviation/T016 |
-| **T023** | 连续 Path A 日课执行（≥7 日历日或等价会话窗） | 7d 墙钟 / 低工程 | T022 | 🔧 **in progress** — `paper_day_streak` + 当日 Path A；**7 日连续墙钟未满** |
+| **T023** | 连续 Path A 日课执行（≥7 日历日或等价会话窗） | 7d 墙钟 / 低工程 | T022 | 🔧 **ops-open** — 工程齐；**连续 UTC <7**（见 t023-streak-status.md） |
 | **T024** | 导出/attach `paper_evidence` + promote dry-run | 1d | T016,T023 | ✅ **done**（export+dry-run；真实 streak 短→reject；synthetic 演示 pass） |
 
 ### P1 — Baseline-3（研究主线）
@@ -92,8 +92,8 @@ T020 已完成 ──► T030（人审，不阻塞研究）
 | ID | 标题 | 估时 | 依赖 | done_when |
 |----|------|------|------|-----------|
 | **T028** | 宇宙 +1～2 候选（download→SLA→admitted） | 1–2d | T019 | ✅ **done** — +XRP admitted; DOGE SLA-fail excluded; baseline_default 仍三币 |
-| **T029** | Paper 路径 checkpoint/recon **可选 overlay** 文档 | 0.5–1d | T021 | overlay 或 checklist：**默认仍关**；开启步骤 + `resilience_drill` 前置 |
-| **T030** | OSS C 人审包刷新（gitleaks 指引 + 决策表） | 0.5d | T020 | checklist 勾选手动项说明；**agent 不改 visibility** |
+| **T029** | Paper 路径 checkpoint/recon **可选 overlay** 文档 | 0.5–1d | T021 | ✅ **done** — overlay yaml + md；default 仍 false |
+| **T030** | OSS C 人审包刷新（gitleaks 指引 + 决策表） | 0.5d | T020 | ✅ **done** — human-review-pack；visibility 仍人审 |
 
 ---
 
