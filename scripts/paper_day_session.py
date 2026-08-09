@@ -64,13 +64,23 @@ def _write_summary(payload: dict[str, Any]) -> Path:
 def _maybe_alert(summary: dict[str, Any], *, enable: bool) -> None:
     if not enable:
         return
-    if summary.get("status") == "ok":
+    # Alert on non-ok day status OR explicit deviation.should_alert (T017).
+    deviation = summary.get("deviation") if isinstance(summary.get("deviation"), dict) else {}
+    should = summary.get("status") != "ok" or bool(deviation.get("should_alert"))
+    if not should:
         return
     msg = (
         f"[QuantFlow day-session] status={summary.get('status')} "
         f"preflight_rc={summary.get('preflight_rc')} "
         f"note={summary.get('note', '')}"
     )
+    if deviation:
+        try:
+            from quantflow.strategy.research.day_deviation import format_alert_message
+
+            msg = msg + "\n" + format_alert_message(deviation)
+        except Exception:  # noqa: BLE001
+            msg = msg + f"\n  deviation_status={deviation.get('status')}"
     print(f"[day-session] ALERT: {msg}", flush=True)
     # Best-effort: reuse monitoring alert channel if configured; never raise.
     try:
@@ -79,6 +89,66 @@ def _maybe_alert(summary: dict[str, Any], *, enable: bool) -> None:
         send_alert(msg)  # type: ignore[misc]
     except Exception as exc:  # noqa: BLE001 — alert path must not break day session
         print(f"[day-session] alert hook skipped: {exc}", flush=True)
+
+
+def _attach_baseline_deviation(
+    summary: dict[str, Any],
+    *,
+    day_metrics: dict[str, Any] | None = None,
+    day_metrics_path: str | None = None,
+) -> dict[str, Any]:
+    """T017: embed Baseline snapshot + deviation block into day-session summary."""
+    from quantflow.strategy.research.day_deviation import (
+        evaluate_day_deviation,
+        load_baseline_snapshot,
+    )
+
+    metrics = dict(day_metrics) if day_metrics else None
+    if metrics is None and day_metrics_path:
+        p = Path(day_metrics_path)
+        if not p.is_absolute():
+            p = REPO_ROOT / p
+        if p.is_file():
+            try:
+                raw = json.loads(p.read_text(encoding="utf-8"))
+                if isinstance(raw, dict):
+                    # Accept either flat metrics or nested report.
+                    if any(k in raw for k in ("return_pct", "max_drawdown_pct")):
+                        metrics = raw
+                    elif isinstance(raw.get("metrics"), dict):
+                        metrics = raw["metrics"]
+            except (OSError, json.JSONDecodeError) as exc:
+                print(f"[day-session] day metrics load failed: {exc}", flush=True)
+
+    snap = load_baseline_snapshot(repo_root=REPO_ROOT)
+    report = evaluate_day_deviation(
+        baseline=snap, day_metrics=metrics, repo_root=REPO_ROOT
+    )
+    summary["baseline_snapshot"] = {
+        "id": snap.get("baseline_id"),
+        "decision": snap.get("decision"),
+        "gate_present": snap.get("gate_present"),
+        "window": snap.get("window"),
+        "metrics": snap.get("metrics"),
+        "path_note": snap.get("path_note"),
+    }
+    summary["deviation"] = report
+    # Elevate status only on hard baseline health failures (not diagnostic PnL).
+    if report.get("status") == "alert" and summary.get("status") == "ok":
+        summary["status"] = "baseline_deviation_alert"
+        summary["note"] = "; ".join(report.get("issues") or ["baseline health alert"])
+    elif report.get("status") == "degraded" and summary.get("status") == "ok":
+        summary["status"] = "baseline_deviation_degraded"
+        # Keep note soft — Path A≠B diagnostic warnings.
+        summary["note"] = (
+            summary.get("note") or "preflight passed"
+        ) + "; deviation degraded (diagnostic)"
+    print(
+        f"[day-session] deviation status={report.get('status')} "
+        f"health_ok={report.get('health_ok')} alerts={len(report.get('alerts') or [])}",
+        flush=True,
+    )
+    return summary
 
 
 def main() -> int:
@@ -107,6 +177,16 @@ def main() -> int:
         "--batch-strategies",
         default="trend_following",
         help="Comma list for --batch-gate (default: trend_following)",
+    )
+    ap.add_argument(
+        "--skip-deviation",
+        action="store_true",
+        help="T017: skip Baseline deviation block in summary",
+    )
+    ap.add_argument(
+        "--day-metrics",
+        default="",
+        help="Optional Path A metrics JSON for diagnostic PnL band vs Baseline full RP",
     )
     args = ap.parse_args()
 
@@ -151,6 +231,16 @@ def main() -> int:
             ),
         },
     }
+
+    if not args.skip_deviation:
+        summary = _attach_baseline_deviation(
+            summary,
+            day_metrics_path=args.day_metrics or None,
+        )
+        summary["commands"]["deviation"] = (
+            "python -c \"from quantflow.strategy.research.day_deviation import "
+            "evaluate_day_deviation; print(evaluate_day_deviation())\""
+        )
 
     summary_path = _write_summary(summary)
     print(f"[day-session] summary → {summary_path}", flush=True)
