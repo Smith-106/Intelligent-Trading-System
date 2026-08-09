@@ -604,3 +604,113 @@ class TestCumulativeFillContract:
         assert portfolio.get_position("ETH/USDT").quantity == pytest.approx(1.0)
         assert portfolio.cash == pytest.approx(cash_after_first)
         await engine.stop()
+
+
+class TestP1OkxParityHarden:
+    """P1 T007: paper↔live semantic regressions (partial / reduceOnly / recovery)."""
+
+    @pytest.mark.asyncio
+    async def test_paper_partial_fill_ratio_limit_orders(self) -> None:
+        """PaperGateway partial_fill_ratio must mark PARTIAL and scale qty."""
+        pg = PaperGateway({"partial_fill_ratio": 0.4})
+        await pg.connect()
+        order = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="limit",
+            quantity=2.5,
+            price=50000.0,
+        )
+        await pg.send_order(order)
+        assert order.status == OrderStatus.PARTIAL
+        assert order.filled_quantity == pytest.approx(1.0)
+        await pg.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_reduce_only_then_partial_close_semantics(self) -> None:
+        """reduceOnly close of half a long leaves residual long (parity)."""
+        pg = PaperGateway()
+        await pg.connect()
+        buy = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=2.0,
+            price=50000.0,
+        )
+        await pg.send_order(buy)
+        sell = Order(
+            order_id="",
+            symbol="BTC/USDT",
+            side=OrderSide.SELL,
+            order_type="market",
+            quantity=1.0,
+            price=50000.0,
+            params={"reduceOnly": True},
+        )
+        await pg.send_order(sell)
+        assert sell.status == OrderStatus.FILLED
+        assert sell.filled_quantity == pytest.approx(1.0)
+        positions = await pg.query_positions()
+        assert len(positions) == 1
+        assert positions[0].quantity == pytest.approx(1.0)
+        await pg.disconnect()
+
+    def test_order_manager_partial_status_cumulative(self) -> None:
+        """OrderManager.update records PARTIAL then FILLED from cumulative fills."""
+        from quantflow.common.models import OrderRequest
+        from quantflow.execution.order_manager import OrderManager
+
+        om = OrderManager()
+        req = OrderRequest(
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=3.0,
+            price=100.0,
+            strategy_id="t007",
+        )
+        order = om.track(req)
+        oid = order.order_id
+        om.update(oid, OrderStatus.PARTIAL, filled_quantity=1.0, filled_price=100.0)
+        tracked = om.get_order(oid)
+        assert tracked is not None
+        assert tracked.status == OrderStatus.PARTIAL
+        assert tracked.filled_quantity == pytest.approx(1.0)
+        om.update(oid, OrderStatus.PARTIAL, filled_quantity=2.5, filled_price=100.0)
+        assert tracked.filled_quantity == pytest.approx(2.5)
+        om.update(oid, OrderStatus.FILLED, filled_quantity=3.0, filled_price=100.0)
+        assert tracked.status == OrderStatus.FILLED
+        assert tracked.filled_quantity == pytest.approx(3.0)
+
+    def test_state_store_roundtrip_open_orders(self, tmp_path) -> None:
+        """Recovery: StateStore persists partial open orders for session restore."""
+        from quantflow.execution.state_store import SessionSnapshot, StateStore
+
+        store = StateStore(str(tmp_path))
+        snap = SessionSnapshot(
+            saved_at_ms=1,
+            mode="paper",
+            cash=1000.0,
+            positions=[{"symbol": "BTC/USDT", "quantity": 1.0}],
+            open_orders=[
+                {
+                    "order_id": "r1",
+                    "symbol": "BTC/USDT",
+                    "side": "buy",
+                    "status": "partial",
+                    "quantity": 2.0,
+                    "filled_quantity": 1.0,
+                    "applied_filled_qty": 1.0,
+                }
+            ],
+            equity=1000.0,
+        )
+        store.save_checkpoint(snap)
+        loaded = store.load_checkpoint()
+        assert loaded is not None
+        assert loaded.open_orders[0]["status"] == "partial"
+        assert loaded.open_orders[0]["applied_filled_qty"] == 1.0
+        assert store.last_error is None

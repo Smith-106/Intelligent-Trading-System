@@ -44,6 +44,19 @@ class _ModelStub:
         return np.tile([1 - self._proba, self._proba], (len(features), 1))
 
 
+def _go_with_cost(**extra: object) -> dict:
+    report: dict = {
+        "decision": "GO",
+        "reason": "gate passed",
+        "fee_slip_grid": [
+            {"taker_fee": 0.0, "slippage": 0.0, "sharpe": 1.0, "return_pct": 20.0},
+            {"taker_fee": 0.001, "slippage": 0.001, "sharpe": 0.55, "return_pct": 10.0},
+        ],
+    }
+    report.update(extra)
+    return report
+
+
 def _seed_registry(tmp_path: Path, model_cls: str = "RandomForestClassifier", status: str = "paper") -> str:
     reg = ModelRegistry(str(tmp_path))
     model_id = "m-test-1"
@@ -51,7 +64,7 @@ def _seed_registry(tmp_path: Path, model_cls: str = "RandomForestClassifier", st
         model_id=model_id,
         model_cls=model_cls,
         features_hash="abc",
-        validation_report={"decision": "GO", "reason": "gate passed"},
+        validation_report=_go_with_cost(),
     )
     if status == "live":
         reg.promote_to_live(model_id)
@@ -92,8 +105,8 @@ class TestAIFactorStrategyRegistry:
 
     def test_registry_load_picks_live_model_preferred(self, tmp_path: Path) -> None:
         reg = ModelRegistry(str(tmp_path))
-        reg.register("m-paper", "RandomForestClassifier", "h1", {"decision": "GO"})
-        reg.register("m-live", "RandomForestClassifier", "h2", {"decision": "GO"})
+        reg.register("m-paper", "RandomForestClassifier", "h1", _go_with_cost())
+        reg.register("m-live", "RandomForestClassifier", "h2", _go_with_cost())
         reg.promote_to_live("m-live")
         strat = AIFactorStrategy(params={"registry_dir": str(tmp_path)})
         strat._load_model()

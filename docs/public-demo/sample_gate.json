@@ -1,0 +1,44 @@
+{
+  "_meta": {
+    "kind": "sample_gate",
+    "note": "SYNTHETIC example for documentation — not a live research claim"
+  },
+  "decision": "NO-GO",
+  "reason": "Sample: DSR below threshold (illustrative)",
+  "checks": {
+    "cpcv": {
+      "passed": true,
+      "pbo": 0.32
+    },
+    "dsr": {
+      "passed": false,
+      "dsr": 0.81
+    },
+    "wfo_rolling": {
+      "passed": true,
+      "oos_efficiency": 0.62
+    },
+    "wfo_anchored": {
+      "passed": true,
+      "oos_efficiency": 0.58
+    },
+    "cost_fidelity": {
+      "passed": false,
+      "note": "GO narratives require fee_slip_grid with zero + 0.1%/0.1% cells"
+    }
+  },
+  "fee_slip_grid": [
+    {
+      "taker_fee": 0.0,
+      "slippage": 0.0,
+      "sharpe": 1.05,
+      "return_pct": 38.0
+    },
+    {
+      "taker_fee": 0.001,
+      "slippage": 0.001,
+      "sharpe": 0.52,
+      "return_pct": 17.0
+    }
+  ]
+}

@@ -755,6 +755,16 @@ def run(
     symbol_list = [s.strip() for s in symbols.split(",") if s.strip()] if symbols else [symbol]
     console.print(f"[bold blue]Symbols: {', '.join(symbol_list)}[/]")
 
+    # P1 T005: hard path A/B banner — prevent comparing daily paper PnL to gate.json.
+    if mode == "paper":
+        console.print(
+            "[bold yellow]PATH NOTICE — paper daily session is Path A[/]\n"
+            "  Path A: quantflow run --mode paper (NO nested direction gate)\n"
+            "  Path B: python scripts/run_baseline0.py (nested gate; matches gate.json)\n"
+            "  Do NOT compare Path A PnL to Baseline-0 gate.json / WFO OOS numbers.\n"
+            "  See docs/research/baseline0-paper-run-checklist.md §0."
+        )
+
     session = TradingSession(cfg, strategies, monitoring_sink=create_default_sink())
 
     async def _run_session() -> None:
@@ -1296,6 +1306,20 @@ def _ai_train(
     if report.feature_importance:
         top = list(report.feature_importance.items())[:5]
         console.print("  top features: " + ", ".join(f"{k}={v:.3f}" for k, v in top))
+    # P1 T006: promotion requires fee×slip grid (P0 cost_fidelity) — surface early.
+    console.print(
+        "[yellow]Register requires fee_slip_grid on the validation report "
+        "(zero-cost + 0.1%/0.1% cells). Attach via cost_fidelity.attach_cost_fidelity "
+        "or scripts/reframe_sensitivity_1h.py before GO→paper.[/]"
+    )
+    if report.decision == "GO" and not report_payload.get("fee_slip_grid") and not (
+        isinstance(report_payload.get("validation"), dict)
+        and report_payload["validation"].get("fee_slip_grid")
+    ):
+        console.print(
+            "[red]This GO report has no fee_slip_grid — "
+            "ai register will REJECT (cost fidelity fail-closed).[/]"
+        )
 
 
 def _ai_register(model_id: str, config: str, registry_dir: str = "") -> None:
@@ -1323,17 +1347,78 @@ def _ai_register(model_id: str, config: str, registry_dir: str = "") -> None:
         return
 
     report = json.loads(report_path.read_text(encoding="utf-8"))
+    # Merge top-level cost / IC fields into the validation payload for registry.
+    validation_report = dict(report.get("validation") or {})
+    if "decision" not in validation_report:
+        validation_report["decision"] = report.get("decision", "NO-GO")
+    for key in ("fee_slip_grid", "cost_fidelity", "risk_ablation", "ic_metrics", "ic"):
+        if key in report and key not in validation_report:
+            validation_report[key] = report[key]
+
+    # P1 T006: optional IC floor when research published ic_metrics.
+    ic_block = validation_report.get("ic_metrics") or report.get("ic_metrics")
+    if isinstance(ic_block, dict):
+        try:
+            abs_ic = abs(float(ic_block.get("mean_ic", ic_block.get("ic", 0.0))))
+            threshold = float(ic_block.get("threshold", 0.03))
+            if abs_ic < threshold:
+                validation_report["decision"] = "NO-GO"
+                validation_report["reason"] = (
+                    f"IC gate failed: |IC|={abs_ic:.4f} < {threshold}"
+                )
+        except (TypeError, ValueError):
+            validation_report["decision"] = "NO-GO"
+            validation_report["reason"] = "IC metrics unparseable — fail-closed"
+
     reg = ModelRegistry(reg_dir)
     entry = reg.register(
         model_id=model_id,
         model_cls=str(report.get("model_cls", "unknown")),
         features_hash=str(report.get("features_hash", "")),
-        validation_report=report.get("validation", report),
+        validation_report=validation_report,
     )
     color = "green" if entry["status"] == "paper" else "red"
     console.print(f"[{color}]model {model_id} status={entry['status']}[/]")
     console.print(f"  reason: {entry.get('reason', '')}")
+    if entry["status"] != "paper":
+        console.print(
+            "[yellow]NO-GO / rejected models never enter paper trading "
+            "(decision + cost fidelity + optional IC).[/]"
+        )
 
+
+
+@app.command(name="new-strategy")
+def new_strategy(
+    strategy_id: str = typer.Argument(..., help="snake_case strategy id, e.g. my_alpha"),
+    description: str = typer.Option("", help="Short description for module docstring"),
+    force: bool = typer.Option(False, help="Overwrite existing scaffold files"),
+    repo_root: str = typer.Option(".", help="Repository root (default: cwd)"),
+) -> None:
+    """Scaffold a new StrategyBase module + YAML + acceptance checklist (P1 T005).
+
+    Does not auto-register into the catalog — follow the generated checklist.
+    """
+    from quantflow.strategy.scaffold import ScaffoldError, scaffold_strategy
+
+    try:
+        result = scaffold_strategy(
+            strategy_id,
+            repo_root=repo_root,
+            force=force,
+            description=description,
+        )
+    except ScaffoldError as exc:
+        console.print(f"[red]scaffold failed: {exc}[/]")
+        raise typer.Exit(code=1) from exc
+
+    console.print(f"[green]Scaffolded strategy '{result.strategy_id}' ({result.class_name})[/]")
+    for path in result.files_written:
+        console.print(f"  wrote {path}")
+    console.print(
+        "[yellow]Next: implement signals, register in catalog, run research/validate. "
+        "See checklist for Path A vs Path B (paper run ≠ baseline0 nested gate).[/]"
+    )
 
 
 @app.command()

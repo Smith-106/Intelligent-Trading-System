@@ -21,6 +21,20 @@ from quantflow.strategy.model_registry import (
 )
 
 
+def _go_report_with_cost(**extra: object) -> dict:
+    """Minimal GO report that satisfies P0 cost-fidelity promotion gate."""
+    report: dict = {
+        "decision": "GO",
+        "fee_slip_grid": [
+            {"taker_fee": 0.0, "slippage": 0.0, "sharpe": 1.0, "return_pct": 20.0},
+            {"taker_fee": 0.001, "slippage": 0.001, "sharpe": 0.55, "return_pct": 10.0},
+        ],
+        "checks": {},
+    }
+    report.update(extra)
+    return report
+
+
 def _make_features(n: int = 200, seed: int = 7) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     idx = pd.date_range("2024-01-01", periods=n, freq="D")
@@ -72,7 +86,7 @@ class TestAITrainingPipeline:
 class TestModelRegistry:
     def test_register_go_becomes_paper(self, tmp_path):
         reg = ModelRegistry(tmp_path)
-        entry = reg.register("m1", "RandomForestClassifier", "h1", {"decision": "GO", "checks": {}})
+        entry = reg.register("m1", "RandomForestClassifier", "h1", _go_report_with_cost())
         assert entry["status"] == STATUS_PAPER
         assert reg.get("m1")["status"] == STATUS_PAPER
 
@@ -93,15 +107,34 @@ class TestModelRegistry:
         entry = reg.register("m3", "X", "h3", {})
         assert entry["status"] == STATUS_REJECTED
 
+    def test_register_go_without_cost_grid_rejected(self, tmp_path):
+        reg = ModelRegistry(tmp_path)
+        entry = reg.register("m_costless", "X", "h", {"decision": "GO", "checks": {}})
+        assert entry["status"] == STATUS_REJECTED
+        assert "cost fidelity" in entry["reason"]
+
+    def test_register_zero_cost_only_go_rejected(self, tmp_path):
+        reg = ModelRegistry(tmp_path)
+        report = {
+            "decision": "GO",
+            "fee_slip_grid": [
+                {"taker_fee": 0.0, "slippage": 0.0, "sharpe": 1.2, "return_pct": 40.0},
+                {"taker_fee": 0.001, "slippage": 0.001, "sharpe": -0.1, "return_pct": -2.0},
+            ],
+        }
+        entry = reg.register("m_zconly", "X", "h", report)
+        assert entry["status"] == STATUS_REJECTED
+        assert "zero-cost-only" in entry["reason"] or "cost fidelity" in entry["reason"]
+
     def test_duplicate_go_raises(self, tmp_path):
         reg = ModelRegistry(tmp_path)
-        reg.register("m4", "X", "h", {"decision": "GO"})
+        reg.register("m4", "X", "h", _go_report_with_cost())
         with pytest.raises(ModelRegistryError, match="already registered"):
-            reg.register("m4", "X", "h", {"decision": "GO"})
+            reg.register("m4", "X", "h", _go_report_with_cost())
 
     def test_promote_paper_to_live(self, tmp_path):
         reg = ModelRegistry(tmp_path)
-        reg.register("m5", "X", "h", {"decision": "GO"})
+        reg.register("m5", "X", "h", _go_report_with_cost())
         entry = reg.promote_to_live("m5")
         assert entry["status"] == STATUS_LIVE
         assert reg.get("m5")["status"] == STATUS_LIVE
@@ -119,7 +152,7 @@ class TestModelRegistry:
 
     def test_persistence_round_trip(self, tmp_path):
         reg = ModelRegistry(tmp_path)
-        reg.register("m7", "X", "h", {"decision": "GO", "reason": "ok"})
+        reg.register("m7", "X", "h", _go_report_with_cost(reason="ok"))
         reg2 = ModelRegistry(tmp_path)  # new instance reads same dir
         assert reg2.get("m7")["status"] == STATUS_PAPER
         assert reg2.list_models()[0]["model_id"] == "m7"
@@ -127,14 +160,16 @@ class TestModelRegistry:
     def test_invalid_model_id_rejected(self, tmp_path):
         reg = ModelRegistry(tmp_path)
         with pytest.raises(ModelRegistryError, match="Invalid model_id"):
-            reg.register("../evil", "X", "h", {"decision": "GO"})
+            reg.register("../evil", "X", "h", _go_report_with_cost())
 
     def test_validation_summary_is_json_safe(self, tmp_path):
         """checks with numpy values serialize via to_dict-free path."""
         import json
 
         reg = ModelRegistry(tmp_path)
-        report = {"decision": "GO", "checks": {"dsr": {"passed": True, "dsr": float(np.float64(0.97))}}}
+        report = _go_report_with_cost(
+            checks={"dsr": {"passed": True, "dsr": float(np.float64(0.97))}}
+        )
         entry = reg.register("m8", "X", "h", report)
         # Re-serializing the entry must not crash on numpy types.
         json.dumps(entry)

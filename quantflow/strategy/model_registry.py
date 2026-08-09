@@ -2,9 +2,10 @@
 
 s3-ai-research-pipeline (wave2, T-s3-03): registry + paper → live promotion
 gate. ``register`` refuses any model whose validation report did not pass
-``validation_gate`` (decision != "GO") — fail-closed. Models live as JSON
-entries under ``registry_dir``; ``promote`` moves a paper model to live only
-if the paper registration exists and is intact.
+``validation_gate`` (decision != "GO") — fail-closed. P0 strongest-gaps also
+requires a fee×slip cost grid (and rejects zero-cost-only GO narratives).
+Models live as JSON entries under ``registry_dir``; ``promote`` moves a paper
+model to live only if the paper registration exists and is intact.
 """
 
 from __future__ import annotations
@@ -15,6 +16,11 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from quantflow.strategy.validation.cost_fidelity import (
+    CostFidelityError,
+    assert_promotion_cost_ready,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +101,24 @@ class ModelRegistry:
             self._write(entry)
             return entry
 
+        # P0 T001: GO is necessary but not sufficient — cost grid required.
+        try:
+            assert_promotion_cost_ready(validation_report)
+        except CostFidelityError as exc:
+            reason = f"cost fidelity gate: {exc}"
+            logger.warning("Registry refuses %s: %s (fail-closed)", model_id, reason)
+            entry = {
+                "model_id": model_id,
+                "model_cls": model_cls,
+                "features_hash": features_hash,
+                "status": STATUS_REJECTED,
+                "decision": "NO-GO",
+                "reason": reason,
+                "registered_at": self._now(),
+            }
+            self._write(entry)
+            return entry
+
         path = self._path(model_id)
         if path.exists():
             raise ModelRegistryError(f"Model {model_id!r} already registered")
@@ -105,7 +129,7 @@ class ModelRegistry:
             "features_hash": features_hash,
             "status": STATUS_PAPER,
             "decision": "GO",
-            "reason": "validation gate passed",
+            "reason": "validation gate + cost fidelity passed",
             "registered_at": self._now(),
             "validation": _summarize_validation(validation_report),  # type: ignore[dict-item]
         }

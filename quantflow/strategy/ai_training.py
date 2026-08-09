@@ -183,13 +183,24 @@ class AITrainingPipeline:
                 )[:10]
             )
 
+        # P1 T006: surface cost-fidelity requirement inside validation payload.
+        # Registry still fail-closed without fee_slip_grid even if decision=GO.
+        validation = dict(gate_result)
+        validation.setdefault(
+            "promotion_requirements",
+            {
+                "fee_slip_grid": "required for paper register (zero + 0.1%/0.1%)",
+                "zero_cost_only_go": "rejected",
+            },
+        )
+
         return TrainedModelReport(
             model_id="",
             model_cls=model_cls.__name__,
             features_hash=_features_hash(features),
             n_samples=len(aligned),
-            validation=gate_result,
+            validation=validation,
             feature_importance=importance,
-            decision=str(gate_result.get("decision", "NO-GO")),
-            reason=str(gate_result.get("reason", "gate ran")),
+            decision=str(validation.get("decision", "NO-GO")),
+            reason=str(validation.get("reason", "gate ran")),
         )

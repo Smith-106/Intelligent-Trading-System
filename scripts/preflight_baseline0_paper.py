@@ -22,6 +22,8 @@ OVERLAY = REPO_ROOT / "quantflow" / "config" / "paper_baseline0_overlay.yaml"
 SYMBOLS = ("BTC/USDT", "ETH/USDT", "SOL/USDT")
 MAX_BAR_AGE_HOURS = 48.0
 MIN_BARS = 500
+# P0 T003: composite data-quality score floor for paper day-session.
+MIN_DATA_QUALITY_SCORE = 0.7
 
 
 def _ok(msg: str) -> None:
@@ -104,18 +106,20 @@ def main() -> int:
     except Exception as e:
         _warn(f"could not read default.yaml: {e}")
 
-    # --- market data ---
+    # --- market data + quality score (P0 T003) ---
     try:
         from quantflow.data.store import DataStore
 
         store = DataStore(str(REPO_ROOT / "data" / "parquet"), ":memory:")
         now_ms = int(time.time() * 1000)
+        quality_scores: list[float] = []
         for sym in SYMBOLS:
             df = store.query(sym, timeframe="1h")
             n = len(df)
             if n < MIN_BARS:
                 _fail(f"{sym} 1h bars={n} (< {MIN_BARS})")
                 failures += 1
+                quality_scores.append(0.0)
                 continue
             ts = int(df["timestamp"].astype("int64").max())
             age_h = (now_ms - ts) / 3_600_000.0
@@ -124,7 +128,24 @@ def main() -> int:
                     f"{sym} 1h last bar age={age_h:.1f}h (> {MAX_BAR_AGE_HOURS}h) — "
                     "consider quantflow download"
                 )
-            _ok(f"{sym} 1h bars={n} age={age_h:.1f}h")
+            score = _history_quality_score(df, now_ms=now_ms)
+            quality_scores.append(score)
+            label = f"{sym} 1h bars={n} age={age_h:.1f}h quality={score:.2f}"
+            if score < MIN_DATA_QUALITY_SCORE:
+                _fail(f"{label} (< {MIN_DATA_QUALITY_SCORE})")
+                failures += 1
+            else:
+                _ok(label)
+        if quality_scores:
+            avg_q = sum(quality_scores) / len(quality_scores)
+            if avg_q < MIN_DATA_QUALITY_SCORE:
+                _fail(
+                    f"portfolio data quality avg={avg_q:.2f} "
+                    f"(< {MIN_DATA_QUALITY_SCORE})"
+                )
+                failures += 1
+            else:
+                _ok(f"portfolio data quality avg={avg_q:.2f}")
         store.close()
     except Exception as e:
         _fail(f"data store: {e}")
@@ -146,6 +167,54 @@ def main() -> int:
         return 1
     print("PREFLIGHT OK — safe to start paper session")
     return 0
+
+
+def _history_quality_score(df, *, now_ms: int) -> float:
+    """Composite 0–1 score: freshness / continuity / anomaly (static history).
+
+    Mirrors DataQualityScore weights without requiring live Redis state.
+    """
+    import pandas as pd
+
+    if df is None or len(df) == 0:
+        return 0.0
+
+    ts = pd.to_numeric(df["timestamp"], errors="coerce").dropna().astype("int64")
+    if ts.empty:
+        return 0.0
+
+    # Freshness: full score if last bar within 24h; linear decay to 0 at 96h.
+    age_h = max(0.0, (now_ms - int(ts.max())) / 3_600_000.0)
+    if age_h <= 24.0:
+        freshness = 1.0
+    elif age_h >= 96.0:
+        freshness = 0.0
+    else:
+        freshness = max(0.0, 1.0 - (age_h - 24.0) / 72.0)
+
+    # Continuity: fraction of consecutive 1h gaps that are ~1 bar (allow 1–2h).
+    ordered = ts.sort_values().to_numpy()
+    if len(ordered) < 2:
+        continuity = 0.5
+    else:
+        gaps = (ordered[1:] - ordered[:-1]) / 3_600_000.0
+        ok = ((gaps >= 0.5) & (gaps <= 2.5)).sum()
+        continuity = float(ok) / float(len(gaps))
+
+    # Anomaly: penalize extreme close-to-close jumps (>20%).
+    if "close" in df.columns and len(df) >= 3:
+        close = pd.to_numeric(df["close"], errors="coerce").dropna()
+        rets = close.pct_change().dropna().abs()
+        if rets.empty:
+            anomaly = 1.0
+        else:
+            spike_rate = float((rets > 0.20).mean())
+            anomaly = max(0.0, 1.0 - spike_rate * 5.0)
+    else:
+        anomaly = 0.8
+
+    # Weights match DataQualityScore: 40% / 30% / 30%.
+    return freshness * 0.4 + continuity * 0.3 + anomaly * 0.3
 
 
 if __name__ == "__main__":

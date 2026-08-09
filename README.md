@@ -4,6 +4,29 @@
 
 个人 Crypto 量化交易系统 — 从策略研究到实盘交易的完整闭环。
 
+## 产品定位（先读）
+
+**个人 / 小团队 Crypto 中低频 · paper-first · 验证门驱动的研究 OS（OKX）。**
+
+| 是 | 不是 |
+|----|------|
+| 防过拟合研究 → GO/NO-GO → paper 日课 | 机构 OEMS / 多所 HFT 平台 |
+| 成本保真（fee×slip 网格强制） | SaaS 跟单 / 手机托管 bot |
+| 共享账本 multi-symbol + 可选 symbol-level RP | 以 GitHub stars 定义成功 |
+| paper↔live 路径语义一致 | 回测与 paper 字节级等价承诺 |
+
+**明确非目标**：Rust 执行内核重写、做市、机构级 OMS、默认开启组合优化（`default.yaml` 中 `portfolio_optimization.enabled=false`）。
+
+**路径 A / B（勿混比）**
+
+| 路径 | 命令 | nested 方向门 | 用途 |
+|------|------|---------------|------|
+| A 日常 paper | `quantflow run --mode paper …` | 否 | 日课观察 |
+| B 研究 GO | `python scripts/run_baseline0.py` | 是 | 与 `gate.json` 对齐 |
+
+无密钥可复现入口：[docs/demo/](docs/demo/) · `python scripts/demo_public_pack.py --check`  
+独立公开文档仓（Apache-2.0）：[Smith-106/quantflow-docs-demo](https://github.com/Smith-106/quantflow-docs-demo)
+
 ## 特性
 
 - **全链路覆盖**：数据获取 → 指标计算 → 策略回测 → 防过拟合验证 → 模拟盘 → 实盘

@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "kind": "sample_fee_slip_grid",
+    "note": "Illustrative cost drag; run scripts/reframe_sensitivity_1h.py for real numbers"
+  },
+  "baseline_fee_slip": {
+    "taker_fee": 0.001,
+    "slippage": 0.001
+  },
+  "cells": [
+    {
+      "taker_fee": 0.0,
+      "slippage": 0.0,
+      "sharpe": 1.05,
+      "return_pct": 38.0
+    },
+    {
+      "taker_fee": 0.001,
+      "slippage": 0.001,
+      "sharpe": 0.52,
+      "return_pct": 17.0
+    }
+  ],
+  "summary": {
+    "cost_drag_pp_approx": 21.0,
+    "rule": "Zero-cost Sharpe alone must not drive paper promotion"
+  }
+}

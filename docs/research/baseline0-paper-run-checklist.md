@@ -45,6 +45,21 @@
 python scripts/preflight_baseline0_paper.py
 ```
 
+### 1.0 单命令 day-session（P0 T004，推荐）
+
+路径 A 全编排：preflight → 摘要工件 →（可选）启动 paper run。
+
+```bash
+# 只做预检 + 写 data/paper_sessions/latest.json
+python scripts/paper_day_session.py
+
+# 预检通过后前台启动 paper（Ctrl-C 停止）
+python scripts/paper_day_session.py --start-run
+
+# 失败时尝试告警钩子
+python scripts/paper_day_session.py --alert-on-fail
+```
+
 退出码 `0` = 可启动；非 0 = 按输出修。
 
 ### 1.2 数据（1h 三币）

@@ -75,6 +75,10 @@ def test_ai_register_go_becomes_paper(tmp_path):
     """A GO report must register as paper (usable for promotion)."""
     report_dir = Path("data/ai_reports")
     report_dir.mkdir(parents=True, exist_ok=True)
+    cost_grid = [
+        {"taker_fee": 0.0, "slippage": 0.0, "sharpe": 1.0, "return_pct": 20.0},
+        {"taker_fee": 0.001, "slippage": 0.001, "sharpe": 0.55, "return_pct": 10.0},
+    ]
     report = {
         "model_id": "model-gogo",
         "model_cls": "RandomForestClassifier",
@@ -82,7 +86,13 @@ def test_ai_register_go_becomes_paper(tmp_path):
         "n_samples": 100,
         "decision": "GO",
         "reason": "All validation checks passed",
-        "validation": {"decision": "GO", "reason": "All validation checks passed", "checks": {}},
+        "validation": {
+            "decision": "GO",
+            "reason": "All validation checks passed",
+            "checks": {},
+            "fee_slip_grid": cost_grid,
+        },
+        "fee_slip_grid": cost_grid,
     }
     (report_dir / "model-gogo.json").write_text(json.dumps(report), encoding="utf-8")
     try:

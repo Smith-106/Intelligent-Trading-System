@@ -127,3 +127,6 @@ data/station_history/
 .workflow/spec-analytics.jsonl
 .workflow/state.json
 .workflow/artifacts/p0-baseline/
+
+# Paper day-session summaries (local runtime)
+data/paper_sessions/
