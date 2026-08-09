@@ -15,11 +15,17 @@ import logging
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from quantflow.strategy.validation.cost_fidelity import (
     CostFidelityError,
     assert_promotion_cost_ready,
+)
+from quantflow.strategy.validation.paper_readiness import (
+    PaperReadinessConfig,
+    PaperReadinessError,
+    assert_paper_readiness,
+    extract_paper_evidence,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,9 +55,20 @@ class ModelRegistry:
         reg.promote_to_live("m1")   # paper → live
     """
 
-    def __init__(self, registry_dir: str | Path) -> None:
+    def __init__(
+        self,
+        registry_dir: str | Path,
+        *,
+        paper_readiness: PaperReadinessConfig | Mapping[str, Any] | None = None,
+    ) -> None:
         self._dir = Path(registry_dir)
         self._dir.mkdir(parents=True, exist_ok=True)
+        if isinstance(paper_readiness, PaperReadinessConfig):
+            self._paper_readiness = paper_readiness
+        elif isinstance(paper_readiness, Mapping):
+            self._paper_readiness = PaperReadinessConfig.from_mapping(paper_readiness)
+        else:
+            self._paper_readiness = PaperReadinessConfig()
 
     def _path(self, model_id: str) -> Path:
         if not model_id or "/" in model_id or "\\" in model_id or ".." in model_id:
@@ -137,8 +154,17 @@ class ModelRegistry:
         logger.info("Registered model %s (paper)", model_id)
         return entry
 
-    def promote_to_live(self, model_id: str) -> dict[str, Any]:
-        """Promote a paper model to live (requires intact paper registration)."""
+    def promote_to_live(
+        self,
+        model_id: str,
+        *,
+        paper_evidence: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Promote a paper model to live (requires intact paper registration).
+
+        T016: fail-closed on paper sample floors (min days / fills) unless
+        ``paper_readiness.enabled`` is false.
+        """
         entry = self.get(model_id)
         if entry is None:
             raise ModelRegistryError(f"Model {model_id!r} not found")
@@ -147,10 +173,46 @@ class ModelRegistry:
                 f"Model {model_id!r} status={entry['status']} is not promotable "
                 f"(require one of {PROMOTABLE})"
             )
+
+        evidence = dict(paper_evidence) if paper_evidence else None
+        if evidence is None:
+            evidence = extract_paper_evidence(entry)
+        if evidence is None and isinstance(entry.get("validation"), dict):
+            evidence = extract_paper_evidence(entry["validation"])
+
+        try:
+            readiness = assert_paper_readiness(
+                evidence, config=self._paper_readiness
+            )
+        except PaperReadinessError as exc:
+            reason = f"paper readiness gate: {exc}"
+            logger.warning("Promote refused %s: %s (fail-closed)", model_id, reason)
+            entry["status"] = STATUS_REJECTED
+            entry["decision"] = "NO-GO"
+            entry["reason"] = reason
+            entry["rejected_at"] = self._now()
+            self._write(entry)
+            raise ModelRegistryError(reason) from exc
+
         entry["status"] = STATUS_LIVE
         entry["promoted_at"] = self._now()
+        entry["paper_readiness"] = readiness
+        if evidence is not None:
+            entry["paper_evidence"] = dict(evidence)
         self._write(entry)
         logger.info("Promoted model %s to live", model_id)
+        return entry
+
+    def attach_paper_evidence(
+        self, model_id: str, evidence: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        """Attach/update paper session evidence on a paper model (T016)."""
+        entry = self.get(model_id)
+        if entry is None:
+            raise ModelRegistryError(f"Model {model_id!r} not found")
+        entry["paper_evidence"] = dict(evidence)
+        entry["paper_evidence_updated_at"] = self._now()
+        self._write(entry)
         return entry
 
     def get(self, model_id: str) -> dict[str, Any] | None:

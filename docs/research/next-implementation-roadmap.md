@@ -22,6 +22,7 @@
 | **T013** | 第三互补 Baseline 合同 | ✅ **done** — **KEEP B0**（MR/vol 未过升级；三合同索引） |
 | **T014** | Funding / TCA 进成本合同 | ✅ **done**（`funding_tca` fail-closed on register） |
 | **T015** | 批处理门控产线 | ✅ **done**（`batch_gate_pipeline` + day-session hook） |
+| **T016** | Paper 最短样本/天数硬门槛 | ✅ **done**（promote fail-closed + YAML） |
 
 ---
 

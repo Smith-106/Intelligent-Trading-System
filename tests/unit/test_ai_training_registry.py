@@ -138,7 +138,9 @@ class TestModelRegistry:
     def test_promote_paper_to_live(self, tmp_path):
         reg = ModelRegistry(tmp_path)
         reg.register("m5", "X", "h", _go_report_with_cost())
-        entry = reg.promote_to_live("m5")
+        entry = reg.promote_to_live(
+            "m5", paper_evidence={"paper_days": 14, "fills": 40}
+        )
         assert entry["status"] == STATUS_LIVE
         assert reg.get("m5")["status"] == STATUS_LIVE
 

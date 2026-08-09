@@ -24,6 +24,9 @@ MAX_BAR_AGE_HOURS = 48.0
 MIN_BARS = 500
 # P0 T003: composite data-quality score floor for paper day-session.
 MIN_DATA_QUALITY_SCORE = 0.7
+# T016 defaults (also in risk.paper_readiness YAML).
+MIN_PAPER_DAYS = 7.0
+MIN_PAPER_FILLS = 20
 
 
 def _ok(msg: str) -> None:
@@ -36,6 +39,26 @@ def _fail(msg: str) -> None:
 
 def _warn(msg: str) -> None:
     print(f"  [WARN] {msg}")
+
+
+def _check_paper_readiness_config() -> list[str]:
+    """Surface T016 thresholds (informational + config presence)."""
+    notes: list[str] = []
+    try:
+        from quantflow.common.config import load_config
+
+        cfg = load_config()
+        pr = cfg.risk.paper_readiness
+        notes.append(
+            f"paper_readiness enabled={pr.enabled} "
+            f"min_days={pr.min_paper_days} min_fills={pr.min_fills} "
+            f"(promote_to_live fail-closed when short)"
+        )
+        if not pr.enabled:
+            notes.append("WARN: paper_readiness.enabled=false — live promote sample gate OFF")
+    except Exception as exc:  # noqa: BLE001
+        notes.append(f"paper_readiness config unreadable: {exc}")
+    return notes
 
 
 def main() -> int:
@@ -150,6 +173,21 @@ def main() -> int:
     except Exception as e:
         _fail(f"data store: {e}")
         failures += 1
+
+    # --- T016 paper readiness floors (informational; promote path is fail-closed) ---
+    print()
+    print("Paper readiness (T016 — paper→live sample floors):")
+    for note in _check_paper_readiness_config():
+        if note.startswith("WARN"):
+            _warn(note)
+        elif "unreadable" in note:
+            _warn(note)
+        else:
+            _ok(note)
+    _ok(
+        f"promote_to_live requires paper_evidence with "
+        f"≥{MIN_PAPER_DAYS}d and ≥{MIN_PAPER_FILLS} fills (defaults)"
+    )
 
     # --- run command reminder ---
     print()

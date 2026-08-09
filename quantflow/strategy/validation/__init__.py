@@ -7,6 +7,12 @@ from quantflow.strategy.validation.cost_fidelity import (
     require_cost_grid,
     require_dual_risk_report,
 )
+from quantflow.strategy.validation.paper_readiness import (
+    PaperReadinessConfig,
+    PaperReadinessError,
+    assert_paper_readiness,
+    check_paper_readiness,
+)
 from quantflow.strategy.validation.cpcv import cpcv_backtest, split_cpcv
 from quantflow.strategy.validation.dsr import deflated_sharpe_ratio
 from quantflow.strategy.validation.gate import validation_gate
@@ -30,8 +36,12 @@ __all__ = [
     "LookaheadFinding",
     "LookaheadReport",
     "MonteCarloResult",
+    "PaperReadinessConfig",
+    "PaperReadinessError",
+    "assert_paper_readiness",
     "assert_promotion_cost_ready",
     "attach_cost_fidelity",
+    "check_paper_readiness",
     "cpcv_backtest",
     "deflated_sharpe_ratio",
     "monte_carlo_stress",

@@ -70,7 +70,9 @@ def _seed_registry(tmp_path: Path, model_cls: str = "RandomForestClassifier", st
         validation_report=_go_with_cost(),
     )
     if status == "live":
-        reg.promote_to_live(model_id)
+        reg.promote_to_live(
+            model_id, paper_evidence={"paper_days": 14, "fills": 40}
+        )
     return model_id
 
 
@@ -110,7 +112,9 @@ class TestAIFactorStrategyRegistry:
         reg = ModelRegistry(str(tmp_path))
         reg.register("m-paper", "RandomForestClassifier", "h1", _go_with_cost())
         reg.register("m-live", "RandomForestClassifier", "h2", _go_with_cost())
-        reg.promote_to_live("m-live")
+        reg.promote_to_live(
+            "m-live", paper_evidence={"paper_days": 14, "fills": 40}
+        )
         strat = AIFactorStrategy(params={"registry_dir": str(tmp_path)})
         strat._load_model()
         assert strat._model_id == "m-live"

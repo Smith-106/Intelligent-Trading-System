@@ -78,6 +78,13 @@ risk:
     min_samples: 30                     # 每策略最少样本数（不足则降级等权）
     rebalance_every_n_bars: 48          # 再平衡周期（1h bar 约每 2 天）
     fallback: equal                     # 降级策略（equal/static）
+  # T016: paper→live 最短样本/天数（默认开启；不满足 → rejected，原因可读）
+  paper_readiness:
+    enabled: true                       # 是否启用 paper 最短门槛
+    min_paper_days: 7.0                 # 最短 paper 日历天数
+    min_fills: 20                       # 最短成交笔数
+    min_orders: 0                       # 0 = 不单独约束订单数
+    require_evidence: true              # promote 时必须提供 paper_evidence
 
 # ==================== 执行层 ====================
 execution:

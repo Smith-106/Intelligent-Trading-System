@@ -126,6 +126,16 @@ class PortfolioOptimizationConfig(BaseModel):
     level: str = "strategy"
 
 
+class PaperReadinessConfig(BaseModel):
+    """T016: minimum paper session sample before paper→live promotion."""
+
+    enabled: bool = True
+    min_paper_days: float = 7.0
+    min_fills: int = 20
+    min_orders: int = 0
+    require_evidence: bool = True
+
+
 class RiskConfig(BaseModel):
     position_limit_pct: float = 0.20
     max_positions: int = 5
@@ -175,6 +185,8 @@ class RiskConfig(BaseModel):
     portfolio_optimization: PortfolioOptimizationConfig = Field(
         default_factory=PortfolioOptimizationConfig
     )
+    # T016: paper→live minimum sample / duration (default ON).
+    paper_readiness: PaperReadinessConfig = Field(default_factory=PaperReadinessConfig)
 
 
 class ExecutionConfig(BaseModel):
