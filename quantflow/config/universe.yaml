@@ -1,0 +1,45 @@
+# Universe expansion list (T019) — paper research book candidates.
+#
+# Workflow:
+#   1) Edit `candidates` (and optional `watchlist`)
+#   2) Run: python scripts/universe_expand_pipeline.py --from-config
+#   3) Only symbols with sla_pass enter `admitted` (written to
+#      data/paper_replay/universe/admitted.json + mirrored here on --write-admitted)
+#   4) Baseline-0 / preflight / day-session load admitted (fallback: baseline_default)
+#
+# Rules:
+#   - SLA fail → never auto-enter baseline_default
+#   - default.yaml portfolio_optimization.enabled stays false
+#   - funding_tca / fee×slip still required for GO (T014)
+
+version: 1
+task: T019
+
+# Hard floor for Baseline-0 paper contract (must remain SLA-pass in normal ops).
+baseline_default:
+  - BTC/USDT
+  - ETH/USDT
+  - SOL/USDT
+
+# Expansion candidates evaluated by universe_expand_pipeline.
+# Keep baseline_default symbols here so nightly SLA still covers them.
+candidates:
+  - BTC/USDT
+  - ETH/USDT
+  - SOL/USDT
+  # Example expansion targets (fail SLA until data is downloaded):
+  # - XRP/USDT
+  # - DOGE/USDT
+
+# Optional longer tail — evaluated only with --include-watchlist
+watchlist: []
+
+sla:
+  min_bars: 500
+  max_bar_age_hours: 48.0
+  min_quality: 0.7
+  timeframe: 1h
+
+notes:
+  - "Unadmitted symbols must not be used as default multi-symbol Baseline-0 book"
+  - "Path B nested gate numbers stay on admitted ∩ baseline_default until re-pinned"

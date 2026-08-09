@@ -35,6 +35,22 @@ MIN_QUALITY = 0.7
 OUT_DIR = REPO_ROOT / "data" / "paper_replay" / "universe"
 
 
+def _load_sla_thresholds() -> tuple[int, float, float]:
+    """T019: thresholds from universe.yaml when present."""
+    try:
+        from quantflow.strategy.research.universe_config import load_universe_config
+
+        cfg = load_universe_config(repo_root=REPO_ROOT)
+        sla = cfg.get("sla") if isinstance(cfg.get("sla"), dict) else {}
+        return (
+            int(sla.get("min_bars", MIN_BARS)),
+            float(sla.get("max_bar_age_hours", MAX_BAR_AGE_HOURS)),
+            float(sla.get("min_quality", MIN_QUALITY)),
+        )
+    except Exception:  # noqa: BLE001
+        return MIN_BARS, MAX_BAR_AGE_HOURS, MIN_QUALITY
+
+
 def history_quality_score(df: Any, *, now_ms: int) -> float:
     """Composite 0–1 score: freshness / continuity / anomaly (static history)."""
     import pandas as pd
@@ -73,9 +89,21 @@ def history_quality_score(df: Any, *, now_ms: int) -> float:
     return freshness * 0.4 + continuity * 0.3 + anomaly * 0.3
 
 
-def evaluate_symbol_sla(symbol: str, *, now_ms: int | None = None) -> dict[str, Any]:
+def evaluate_symbol_sla(
+    symbol: str,
+    *,
+    now_ms: int | None = None,
+    min_bars: int | None = None,
+    max_bar_age_hours: float | None = None,
+    min_quality: float | None = None,
+) -> dict[str, Any]:
     """Point-in-time data SLA for one symbol (1h bars)."""
     from quantflow.data.store import DataStore
+
+    thr_bars, thr_age, thr_q = _load_sla_thresholds()
+    min_bars = thr_bars if min_bars is None else int(min_bars)
+    max_bar_age_hours = thr_age if max_bar_age_hours is None else float(max_bar_age_hours)
+    min_quality = thr_q if min_quality is None else float(min_quality)
 
     now = now_ms if now_ms is not None else int(time.time() * 1000)
     store = DataStore(str(REPO_ROOT / "data" / "parquet"), ":memory:")
@@ -93,18 +121,21 @@ def evaluate_symbol_sla(symbol: str, *, now_ms: int | None = None) -> dict[str, 
             "quality": 0.0,
             "sla_pass": False,
             "reasons": ["no_1h_bars"],
+            "min_bars": min_bars,
+            "max_bar_age_hours": max_bar_age_hours,
+            "min_quality": min_quality,
         }
 
     ts_max = int(df["timestamp"].astype("int64").max())
     age_h = (now - ts_max) / 3_600_000.0
     quality = history_quality_score(df, now_ms=now)
     reasons: list[str] = []
-    if n < MIN_BARS:
-        reasons.append(f"bars<{MIN_BARS}")
-    if age_h > MAX_BAR_AGE_HOURS:
-        reasons.append(f"age_h>{MAX_BAR_AGE_HOURS}")
-    if quality < MIN_QUALITY:
-        reasons.append(f"quality<{MIN_QUALITY}")
+    if n < min_bars:
+        reasons.append(f"bars<{min_bars}")
+    if age_h > max_bar_age_hours:
+        reasons.append(f"age_h>{max_bar_age_hours}")
+    if quality < min_quality:
+        reasons.append(f"quality<{min_quality}")
     return {
         "symbol": symbol,
         "bars": n,
@@ -113,9 +144,9 @@ def evaluate_symbol_sla(symbol: str, *, now_ms: int | None = None) -> dict[str, 
         "last_ts": ts_max,
         "sla_pass": not reasons,
         "reasons": reasons,
-        "min_bars": MIN_BARS,
-        "max_bar_age_hours": MAX_BAR_AGE_HOURS,
-        "min_quality": MIN_QUALITY,
+        "min_bars": min_bars,
+        "max_bar_age_hours": max_bar_age_hours,
+        "min_quality": min_quality,
     }
 
 
@@ -277,8 +308,23 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument(
         "--symbols",
-        default=",".join(DEFAULT_SYMBOLS),
-        help="Comma-separated candidates (default Baseline-0 trio)",
+        default="",
+        help="Comma-separated candidates (default: universe.yaml candidates or Baseline-0 trio)",
+    )
+    ap.add_argument(
+        "--from-config",
+        action="store_true",
+        help="T019: load candidates from quantflow/config/universe.yaml",
+    )
+    ap.add_argument(
+        "--include-watchlist",
+        action="store_true",
+        help="With --from-config, also evaluate watchlist",
+    )
+    ap.add_argument(
+        "--write-admitted",
+        action="store_true",
+        help="T019: write data/paper_replay/universe/admitted.json (SLA-pass only)",
     )
     ap.add_argument(
         "--cost-days",
@@ -298,7 +344,32 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    symbols = [s.strip() for s in args.symbols.split(",") if s.strip()]
+    symbols: list[str] = []
+    config_path = None
+    if args.from_config or not args.symbols:
+        try:
+            from quantflow.strategy.research.universe_config import (
+                candidate_symbols,
+                default_universe_path,
+                load_universe_config,
+            )
+
+            cfg = load_universe_config(repo_root=REPO_ROOT)
+            config_path = cfg.get("_path")
+            if args.from_config or not args.symbols:
+                symbols = candidate_symbols(
+                    cfg,
+                    include_watchlist=args.include_watchlist,
+                    repo_root=REPO_ROOT,
+                )
+                print(f"[universe] from-config {default_universe_path(REPO_ROOT)} → {symbols}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[universe] config load failed: {exc}; using defaults", flush=True)
+            symbols = list(DEFAULT_SYMBOLS)
+
+    if args.symbols:
+        symbols = [s.strip() for s in args.symbols.split(",") if s.strip()]
+
     if not symbols:
         print("no symbols", file=sys.stderr)
         return 2
@@ -307,6 +378,7 @@ def main() -> int:
     sla_rows = [evaluate_symbol_sla(s, now_ms=now_ms) for s in symbols]
     passed = [r for r in sla_rows if r["sla_pass"]]
     failed = [r for r in sla_rows if not r["sla_pass"]]
+    admitted = [r["symbol"] for r in passed]
 
     print("Universe data SLA")
     for r in sla_rows:
@@ -316,24 +388,39 @@ def main() -> int:
             f"age={r.get('age_hours')}h quality={r['quality']} "
             f"{','.join(r['reasons']) if r['reasons'] else ''}"
         )
+    print(f"admitted (SLA pass): {admitted or '—'}")
+    if failed:
+        print(
+            "NOT admitted (SLA fail → excluded from default baseline book): "
+            + ", ".join(r["symbol"] for r in failed)
+        )
 
     cost_block: dict[str, Any] | None = None
     if args.cost_days > 0 and not args.dry_run_only:
-        cost_syms = [r["symbol"] for r in passed] or symbols
-        print(f"Running cost sensitivity days={args.cost_days} symbols={cost_syms}")
-        cost_block = rebalance_cost_sensitivity(cost_syms, days=args.cost_days)
-        if cost_block.get("ok"):
-            print(
-                f"  intersection_bars={cost_block.get('intersection_bars')} "
-                f"drag_pp={cost_block.get('summary', {}).get('cost_drag_pp')}"
-            )
+        # T019: cost grid only on SLA-pass symbols (never promote fail into RP book)
+        cost_syms = admitted if admitted else []
+        if not cost_syms:
+            print("cost sensitivity skipped: no SLA-pass symbols")
+            cost_block = {"ok": False, "error": "no_sla_pass_symbols"}
         else:
-            print(f"  cost sensitivity skipped/failed: {cost_block.get('error')}")
+            print(f"Running cost sensitivity days={args.cost_days} symbols={cost_syms}")
+            cost_block = rebalance_cost_sensitivity(cost_syms, days=args.cost_days)
+            if cost_block.get("ok"):
+                print(
+                    f"  intersection_bars={cost_block.get('intersection_bars')} "
+                    f"drag_pp={cost_block.get('summary', {}).get('cost_drag_pp')}"
+                )
+            else:
+                print(f"  cost sensitivity skipped/failed: {cost_block.get('error')}")
 
     payload = {
         "kind": "universe_expand_report",
+        "task": "T019",
         "generated_at": datetime.now(UTC).isoformat(),
+        "config_path": config_path,
         "symbols": symbols,
+        "admitted": admitted,
+        "rejected": [r["symbol"] for r in failed],
         "sla": sla_rows,
         "sla_pass_count": len(passed),
         "sla_fail_count": len(failed),
@@ -343,6 +430,8 @@ def main() -> int:
             "enable shared RP only via paper overlay / research scripts",
             "silo RP ≠ shared-book production claim",
             "attach fee_slip_grid before any GO narrative (P0 cost_fidelity)",
+            "T019: SLA fail never enters admitted / default baseline book",
+            "funding_tca required alongside fee×slip for GO (T014)",
         ],
     }
 
@@ -360,6 +449,32 @@ def main() -> int:
     latest.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {out_path}")
     print(f"wrote {latest}")
+
+    if args.write_admitted:
+        from quantflow.strategy.research.universe_config import (
+            baseline_default_symbols,
+            write_admitted,
+        )
+
+        admitted_payload = {
+            "kind": "universe_admitted",
+            "task": "T019",
+            "generated_at": payload["generated_at"],
+            "symbols": admitted,
+            "admitted": admitted,
+            "rejected": payload["rejected"],
+            "sla": sla_rows,
+            "baseline_default": baseline_default_symbols(repo_root=REPO_ROOT),
+            "baseline_book": [
+                s
+                for s in admitted
+                if s in set(baseline_default_symbols(repo_root=REPO_ROOT))
+            ],
+            "rule": "Only sla_pass symbols; baseline runners use admitted ∩ baseline_default",
+            "source_report": str(out_path.relative_to(REPO_ROOT)).replace("\\", "/"),
+        }
+        adm_path = write_admitted(admitted_payload, repo_root=REPO_ROOT)
+        print(f"wrote admitted {adm_path} → {admitted}")
 
     # Exit 1 if any SLA fail (usable in CI preflight for expanded universes)
     return 0 if not failed else 1

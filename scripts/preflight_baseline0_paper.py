@@ -19,7 +19,17 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 OVERLAY = REPO_ROOT / "quantflow" / "config" / "paper_baseline0_overlay.yaml"
-SYMBOLS = ("BTC/USDT", "ETH/USDT", "SOL/USDT")
+def _baseline_symbols() -> tuple[str, ...]:
+    try:
+        from quantflow.strategy.research.universe_config import admitted_symbols
+
+        syms = admitted_symbols(repo_root=REPO_ROOT, intersect_baseline_default=True)
+        return tuple(syms) if syms else ("BTC/USDT", "ETH/USDT", "SOL/USDT")
+    except Exception:  # noqa: BLE001
+        return ("BTC/USDT", "ETH/USDT", "SOL/USDT")
+
+
+SYMBOLS = _baseline_symbols()
 MAX_BAR_AGE_HOURS = 48.0
 MIN_BARS = 500
 # P0 T003: composite data-quality score floor for paper day-session.

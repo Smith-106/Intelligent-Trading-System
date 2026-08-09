@@ -25,6 +25,7 @@
 | **T016** | Paper 最短样本/天数硬门槛 | ✅ **done**（promote fail-closed + YAML） |
 | **T017** | 日课偏差告警 vs Baseline | ✅ **done**（day-session deviation + alert hook） |
 | **T018** | catalog 注册补齐 / disabled 显式化 | ✅ **done**（ai_factor/spot_perp + hygiene） |
+| **T019** | 宇宙扩展常态产线（清单 YAML） | ✅ **done**（universe.yaml + SLA admitted） |
 
 ---
 

@@ -31,7 +31,18 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 OVERLAY = "quantflow/config/paper_baseline0_overlay.yaml"
-SYMBOLS = "BTC/USDT,ETH/USDT,SOL/USDT"
+
+
+def _baseline_symbols_csv() -> str:
+    try:
+        from quantflow.strategy.research.universe_config import baseline_symbols_csv
+
+        return baseline_symbols_csv(repo_root=REPO_ROOT)
+    except Exception:  # noqa: BLE001
+        return "BTC/USDT,ETH/USDT,SOL/USDT"
+
+
+SYMBOLS = _baseline_symbols_csv()
 OUT_DIR = REPO_ROOT / "data" / "paper_sessions"
 
 
