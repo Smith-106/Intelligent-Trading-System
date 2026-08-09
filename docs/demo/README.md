@@ -25,7 +25,3 @@ python scripts/universe_expand_pipeline.py --symbols BTC/USDT,ETH/USDT,SOL/USDT 
 2. Zero-cost-only alpha is rejected at register.
 3. Path A paper PnL ≠ Path B nested `gate.json`.
 4. Default `portfolio_optimization.enabled=false` in `default.yaml`.
-
-## Public publish subset
-
-Mirror for a separate public repo (Apache-2.0): [`docs/public-demo/`](../public-demo/) — see `PUBLISH.md`.
