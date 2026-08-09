@@ -16,6 +16,7 @@
 | T001–T004 | 成本门 / Baseline 双报 / PIT+质量 / day-session | ✅ P0 |
 | T005–T007 | 脚手架+Path A/B / AI NO-GO / OKX 状态机 | ✅ P1 |
 | T008–T009 | 宇宙 SLA 流水线 / docs-demo 公开包 | ✅ P2 |
+| **T010** | 全量 pytest 收口：金标 pin + validate mock | ✅ **done**（2108 passed；`9ba1145`） |
 
 ---
 
