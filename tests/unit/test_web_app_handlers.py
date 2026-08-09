@@ -145,17 +145,39 @@ class TestAppHandlers(AioHTTPTestCase):
         assert "result" in data
 
     async def test_validate_handler(self):
-        resp = await self.client.post(
-            "/api/validate",
-            json={
+        # T010: do not run full-history CPCV/WFO/gate on live parquet — that path
+        # can exceed 15+ minutes and times out the unit suite. Mock StationService
+        # .validate to assert the HTTP handler wiring only.
+        from unittest.mock import patch
+
+        fake = {
+            "method": "gate",
+            "decision": "NO-GO",
+            "reason": "unit-test-stub",
+            "request": {
                 "strategy": "trend_following",
                 "symbol": "BTC/USDT",
                 "method": "gate",
             },
-        )
-        assert resp.status == 200
-        data = await resp.json()
-        assert "method" in data
+        }
+        with patch.object(
+            self.app[STATION_SERVICE_KEY],
+            "validate",
+            return_value=fake,
+        ) as mocked:
+            resp = await self.client.post(
+                "/api/validate",
+                json={
+                    "strategy": "trend_following",
+                    "symbol": "BTC/USDT",
+                    "method": "gate",
+                },
+            )
+            assert resp.status == 200
+            data = await resp.json()
+            assert data["method"] == "gate"
+            assert data["decision"] == "NO-GO"
+            mocked.assert_called_once()
 
     async def test_overview_response_does_not_leak_internal_paths(self):
         # ISS-036 (CWE-200): overview must not expose parquet_dir /

@@ -5,6 +5,9 @@ Loads the baseline produced by ``scripts/establish_p0_baseline.py`` from
 strategies with identical parameters, and compares every metric at
 ``rel=1e-9`` precision.  Signal hashes are compared byte-for-byte.
 
+T010: when baseline carries ``start_ms`` / ``end_ms`` / ``bar_count``, the
+test pins the parquet window so growing history cannot drift goldens.
+
 The test is marked ``@pytest.mark.slow`` and skips gracefully when the
 baseline file is absent (CI safety — the baseline artifact is committed
 separately).
@@ -30,12 +33,6 @@ FEE = 0.001
 SYMBOL = "BTC/USDT"
 
 
-# ---------------------------------------------------------------------------
-# Helpers (duplicated from establish_p0_baseline.py to keep the test
-# self-contained — no import of scripts/ modules).
-# ---------------------------------------------------------------------------
-
-
 def _hash_series(s: pd.Series) -> str:
     raw = json.dumps(s.tolist(), default=str)
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
@@ -46,7 +43,7 @@ def _hash_trade_returns(returns: list[float]) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
-def _load_bars() -> pd.DataFrame:
+def _load_bars_raw() -> pd.DataFrame:
     store = DataStore("./data/parquet", ":memory:")
     try:
         # Pin to 1h so multi-TF co-resident partitions do not mix intervals.
@@ -58,9 +55,30 @@ def _load_bars() -> pd.DataFrame:
     return df
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+def _pin_bars(df: pd.DataFrame, baseline: dict) -> pd.DataFrame:
+    """Apply baseline window pins (T010).
+
+    Prefer explicit start_ms/end_ms; fall back to first bar_count rows after sort
+    when only bar_count is present (legacy baselines).
+    """
+    out = df.sort_values("timestamp").reset_index(drop=True)
+    start_ms = baseline.get("start_ms")
+    end_ms = baseline.get("end_ms")
+    bar_count = baseline.get("bar_count")
+
+    if start_ms is not None:
+        out = out[out["timestamp"].astype("int64") >= int(start_ms)]
+    if end_ms is not None:
+        out = out[out["timestamp"].astype("int64") <= int(end_ms)]
+    out = out.reset_index(drop=True)
+
+    if bar_count is not None and len(out) != int(bar_count):
+        # Stable prefix after time filter — matches establish_p0_baseline.pin_bars
+        if start_ms is None and end_ms is None:
+            out = out.iloc[: int(bar_count)].reset_index(drop=True)
+        elif len(out) > int(bar_count):
+            out = out.iloc[: int(bar_count)].reset_index(drop=True)
+    return out
 
 
 @pytest.fixture(scope="module")
@@ -73,17 +91,23 @@ def baseline() -> dict:
 
 
 @pytest.fixture(scope="module")
-def bars() -> pd.DataFrame:
-    """Load BTC/USDT parquet data once per module."""
-    df = _load_bars()
+def bars(baseline: dict) -> pd.DataFrame:
+    """Load BTC/USDT parquet data once per module, pinned to baseline window."""
+    df = _load_bars_raw()
     if df.empty:
         pytest.skip("No BTC/USDT parquet data available")
-    return df
+    pinned = _pin_bars(df, baseline)
+    if pinned.empty:
+        pytest.skip("Pinned baseline window is empty against local parquet")
+    expected_n = baseline.get("bar_count")
+    if expected_n is not None and len(pinned) != int(expected_n):
+        pytest.fail(
+            f"Pinned bar_count={len(pinned)} != baseline bar_count={expected_n}; "
+            "re-run scripts/establish_p0_baseline.py with --end-ms/--bar-count "
+            "or refresh local data covering the pin window"
+        )
+    return pinned
 
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
 
 STRATEGIES = [
     "trend_following",
@@ -99,7 +123,6 @@ def test_strategy_regression_guard(baseline: dict, bars: pd.DataFrame, strategy_
     """Verify strategy backtest outputs match baseline byte-for-byte."""
     expected = baseline["strategies"][strategy_name]
 
-    # Re-run backtest with identical parameters
     definitions = get_strategy_definitions()
     strategy = definitions[strategy_name].factory()
     entries, exits = strategy.generate_signals(bars)
@@ -115,7 +138,6 @@ def test_strategy_regression_guard(baseline: dict, bars: pd.DataFrame, strategy_
         symbol=SYMBOL,
     )
 
-    # Float metrics — high precision (rel=1e-9 safe across platforms)
     assert result.total_return == pytest.approx(expected["total_return"], rel=1e-9), (
         f"total_return drifted: {result.total_return} vs {expected['total_return']}"
     )
@@ -141,7 +163,6 @@ def test_strategy_regression_guard(baseline: dict, bars: pd.DataFrame, strategy_
         f"final_capital drifted: {result.final_capital} vs {expected['final_capital']}"
     )
 
-    # Integer metrics — exact comparison
     assert result.num_trades == expected["num_trades"], (
         f"num_trades drifted: {result.num_trades} vs {expected['num_trades']}"
     )
@@ -154,7 +175,6 @@ def test_strategy_regression_guard(baseline: dict, bars: pd.DataFrame, strategy_
         f"exit_count drifted: {exit_count} vs {expected['exit_count']}"
     )
 
-    # Signal hashes — strict byte-for-byte
     entry_hash = _hash_series(entries.astype(bool))
     exit_hash = _hash_series(exits.astype(bool))
     assert entry_hash == expected["entry_signal_hash"], (
@@ -164,8 +184,13 @@ def test_strategy_regression_guard(baseline: dict, bars: pd.DataFrame, strategy_
         f"Exit signal sequence changed for {strategy_name}"
     )
 
-    # Trade returns hash — strict byte-for-byte
     trade_hash = _hash_trade_returns(result.trade_returns)
     assert trade_hash == expected["trade_returns_hash"], (
         f"Trade returns sequence changed for {strategy_name}"
     )
+
+
+def test_baseline_declares_pin_window(baseline: dict) -> None:
+    """T010: committed baseline must declare a pin so CI cannot silently use open-ended history."""
+    assert baseline.get("end_ms") is not None or baseline.get("bar_count") is not None
+    assert int(baseline.get("bar_count") or 0) > 0

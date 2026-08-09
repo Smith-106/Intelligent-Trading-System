@@ -66,6 +66,29 @@ def load_bars(parquet_dir: str) -> pd.DataFrame:
     return df
 
 
+def pin_bars(
+    df: pd.DataFrame,
+    *,
+    end_ms: int | None = None,
+    bar_count: int | None = None,
+) -> pd.DataFrame:
+    """Pin a deterministic research window so growing parquet cannot drift goldens.
+
+    Preference: ``end_ms`` (inclusive) then optional ``bar_count`` tail/head.
+    Without pins, returns timestamp-sorted full frame (legacy establish mode).
+    """
+    out = df.sort_values("timestamp").reset_index(drop=True)
+    if end_ms is not None:
+        out = out[out["timestamp"].astype("int64") <= int(end_ms)].reset_index(drop=True)
+    if bar_count is not None:
+        n = int(bar_count)
+        if n <= 0:
+            raise SystemExit("--bar-count must be positive")
+        # Keep the earliest n bars after end filter (stable prefix of history).
+        out = out.iloc[:n].reset_index(drop=True)
+    return out
+
+
 def hash_series(s: pd.Series) -> str:
     """SHA-256 hash of a Series' values (first 16 hex chars)."""
     raw = json.dumps(s.tolist(), default=str)
@@ -135,16 +158,37 @@ def main() -> int:
         default="./data/parquet",
         help="Parquet data directory",
     )
+    parser.add_argument(
+        "--end-ms",
+        type=int,
+        default=None,
+        help="Inclusive end timestamp (ms UTC). Pin so goldens do not drift as parquet grows.",
+    )
+    parser.add_argument(
+        "--bar-count",
+        type=int,
+        default=None,
+        help="After end filter, keep the first N bars (stable prefix).",
+    )
     args = parser.parse_args()
 
     print(f"Loading BTC/USDT data from {args.parquet_dir}...")
-    df = load_bars(args.parquet_dir)
-    print(f"  bars loaded: {len(df)}")
+    raw = load_bars(args.parquet_dir)
+    print(f"  bars loaded (raw): {len(raw)}")
+    df = pin_bars(raw, end_ms=args.end_ms, bar_count=args.bar_count)
+    if df.empty:
+        raise SystemExit("Pinned window is empty; relax --end-ms / --bar-count")
+    start_ms = int(df["timestamp"].astype("int64").iloc[0])
+    end_ms = int(df["timestamp"].astype("int64").iloc[-1])
+    print(f"  bars after pin: {len(df)}  start_ms={start_ms}  end_ms={end_ms}")
 
     baseline: dict[str, Any] = {
-        "version": "1.0.0",
+        "version": "1.1.0",
         "symbol": SYMBOL,
         "bar_count": len(df),
+        "start_ms": start_ms,
+        "end_ms": end_ms,
+        "timeframe": "1h",
         "initial_capital": INITIAL_CAPITAL,
         "fee": FEE,
         "strategies": {},
