@@ -1,0 +1,40 @@
+{
+  "kind": "baseline_adjudication_freeze",
+  "task": "T027",
+  "baseline": "B3",
+  "frozen_at": "2026-08-09T13:56:00+00:00",
+  "source_run": "T026",
+  "verdict": "KEEP_BASELINE_0",
+  "upgrade": false,
+  "keep_baseline0": true,
+  "data_status": "NARROWED",
+  "effective_window": {
+    "start": "2024-01-01",
+    "end": "2025-05-11",
+    "note": "meta funding span; not full contract pin 2021-01-01→2026-08-04"
+  },
+  "wfo_note": "24m/6m produced 0 segments; single 50/50 OOS fold",
+  "challenger": {
+    "label": "funding_rate",
+    "full_orders": 0,
+    "reason_zero_trades": "measured max |funding_rate|=0.0005 < entry_threshold=0.001 on available series (n=63)"
+  },
+  "classic_control": {
+    "full_return_pct": 1.6175,
+    "full_sharpe": 0.3328,
+    "wfo_oos_mean_sharpe": 2.559,
+    "wfo_oos_sum_pct": 6.7335,
+    "full_orders": 143
+  },
+  "runtime_copy": "data/paper_replay/baseline3/adjudication_frozen.json",
+  "human_docs": [
+    "docs/research/Candidate-Baseline-3.md",
+    "docs/research/baseline-contract-index.md"
+  ],
+  "immutable_rules": [
+    "Do not rebrand this KEEP as UPGRADE without a new run_meta + denser funding history",
+    "Do not silent-overwrite T026 artifacts; append new runs under dated dirs if re-run",
+    "B0 remains sole PAPER-GO until a future contract explicitly upgrades",
+    "Zero-cost-only narratives forbidden; funding_tca must sit beside fee×slip"
+  ]
+}
