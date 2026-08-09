@@ -50,6 +50,28 @@ python scripts/run_baseline0.py --skip-full
 python scripts/run_baseline0.py --skip-wfo
 ```
 
+### Time-window pin + data fingerprint (T011)
+
+Every `run_baseline0` / `multi_symbol_replay` run records in `run_meta.json` (and
+replay JSON `window` / `data_fingerprint`):
+
+| Field | Meaning |
+|-------|---------|
+| `start` / `end` | Contract ISO calendar (default `2021-01-01` → `2026-08-04`) |
+| `start_ms` / `end_ms` | Inclusive UTC ms bounds |
+| `data_fingerprint.aggregate` | Hash of per-symbol OHLCV in the pin window |
+| `data_fingerprint.symbols.*.bar_count` | Bars actually used |
+
+**Rules**
+
+1. Defaults **require** an explicit pin (`--require-pin` true). Empty start/end → fail.
+2. GO re-runs must match **same start/end** and the same `data_fingerprint.aggregate`
+   (or document a deliberate data revision + re-issue gate).
+3. Growing parquet **after** `end` must not change sealed narratives when the pin is kept.
+4. Override window only with intent: `python scripts/run_baseline0.py --start ... --end ...`
+
+Fingerprint helper: `quantflow.strategy.research.contract_pin`.
+
 Underlying scripts (same locked defaults):
 
 ```bash

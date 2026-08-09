@@ -23,6 +23,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 # Locked contract values (must match Candidate-Baseline-0.md)
 SYMBOLS = "BTC/USDT,ETH/USDT,SOL/USDT"
@@ -59,11 +61,49 @@ def main() -> int:
         default=0,
         help="Days of 1h history for cost grid (0 = full span to contract end)",
     )
+    ap.add_argument(
+        "--start",
+        default=START,
+        help=f"Contract start (default locked {START})",
+    )
+    ap.add_argument(
+        "--end",
+        default=END,
+        help=f"Contract end inclusive (default locked {END})",
+    )
+    ap.add_argument(
+        "--require-pin",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Fail if start/end missing (default: true; T011)",
+    )
     args = ap.parse_args()
+
+    from quantflow.data.store import DataStore
+    from quantflow.strategy.research.contract_pin import (
+        ContractPinError,
+        build_window_pin,
+        load_and_fingerprint_symbols,
+        parse_window_ms,
+        warn_if_unpinned,
+    )
+
+    try:
+        warn_if_unpinned(
+            args.start,
+            args.end,
+            require_pin=args.require_pin,
+            context="run_baseline0",
+        )
+        start_ms, end_ms = parse_window_ms(args.start, args.end)
+    except ContractPinError as exc:
+        print(f"[baseline0] pin error: {exc}", file=sys.stderr)
+        return 2
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     py = sys.executable
     rc = 0
+    start_s, end_s = str(args.start), str(args.end)
 
     if not args.skip_full:
         full_out = OUT_DIR / "multi_symbol_replay.json"
@@ -74,9 +114,9 @@ def main() -> int:
                 "--symbols",
                 SYMBOLS,
                 "--start",
-                START,
+                start_s,
                 "--end",
-                END,
+                end_s,
                 "--gate",
                 GATE,
                 "--fee",
@@ -99,9 +139,9 @@ def main() -> int:
                 "--symbols",
                 SYMBOLS,
                 "--start",
-                START,
+                start_s,
                 "--end",
-                END,
+                end_s,
                 "--train-months",
                 TRAIN_MONTHS,
                 "--fwd-months",
@@ -130,7 +170,7 @@ def main() -> int:
             "--symbol",
             "BTC/USDT",
             "--end",
-            END,
+            end_s,
             "--gate",
             GATE,
             "--out",
@@ -160,12 +200,38 @@ def main() -> int:
             flush=True,
         )
 
+    # T011: fingerprint the locked contract window against local parquet.
+    symbols_list = [s.strip() for s in SYMBOLS.split(",") if s.strip()]
+    store = DataStore(str(REPO_ROOT / "data" / "parquet"), ":memory:")
+    try:
+        frames, _ = load_and_fingerprint_symbols(
+            store,
+            symbols_list,
+            start_ms=start_ms,
+            end_ms=end_ms,
+            timeframe="1h",
+        )
+        pin = build_window_pin(
+            start=start_s,
+            end=end_s,
+            frames=frames,
+            timeframe="1h",
+            require_pin=args.require_pin,
+        )
+    finally:
+        store.close()
+
     meta = {
         "contract": "docs/research/Candidate-Baseline-0.md",
         "ran_at": datetime.now(UTC).isoformat(),
         "symbols": SYMBOLS,
-        "start": START,
-        "end": END,
+        "start": start_s,
+        "end": end_s,
+        "start_ms": pin.start_ms,
+        "end_ms": pin.end_ms,
+        "timeframe": pin.timeframe,
+        "data_fingerprint": pin.data_fingerprint,
+        "require_pin": args.require_pin,
         "gate": GATE,
         "fee": float(FEE),
         "slip": float(SLIP),
@@ -185,10 +251,19 @@ def main() -> int:
             "required_for_go_narrative": [
                 "fee_slip_grid (zero + production cells)",
                 "risk_ablation (research_bypass vs production risk)",
+                "data_fingerprint (T011 pin)",
             ],
-            "note": "Zero-cost Sharpe alone must not drive GO (knowhow fee/slip).",
+            "note": (
+                "Zero-cost Sharpe alone must not drive GO (knowhow fee/slip). "
+                "Re-runs must match start/end + data_fingerprint.aggregate."
+            ),
         },
     }
+    print(
+        f"[baseline0] pin window={start_s}→{end_s} ms=[{pin.start_ms},{pin.end_ms}] "
+        f"fp={pin.data_fingerprint.get('aggregate')} "
+        f"symbols={list((pin.data_fingerprint.get('symbols') or {}).keys())}"
+    )
     meta_path = OUT_DIR / "run_meta.json"
     meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"[baseline0] meta written {meta_path}")

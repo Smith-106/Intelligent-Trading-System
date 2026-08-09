@@ -279,13 +279,35 @@ def main() -> int:
     ap.add_argument("--fee", type=float, default=0.001)
     ap.add_argument("--slip", type=float, default=0.001)
     ap.add_argument("--out", default="data/paper_replay/multi_symbol_replay.json")
+    ap.add_argument(
+        "--require-pin",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Fail if start/end missing (default true; T011)",
+    )
     args = ap.parse_args()
 
     from quantflow.data.store import DataStore
 
+    from quantflow.strategy.research.contract_pin import (
+        ContractPinError,
+        build_window_pin,
+        fingerprint_universe,
+        parse_window_ms,
+        warn_if_unpinned,
+    )
+
     symbols = [s.strip() for s in args.symbols.split(",") if s.strip()]
-    end_ms = int(pd.Timestamp(args.end).timestamp() * 1000)
-    start_ms = int(pd.Timestamp(args.start).timestamp() * 1000)
+    try:
+        warn_if_unpinned(
+            args.start,
+            args.end,
+            require_pin=getattr(args, "require_pin", True),
+            context="multi_symbol_replay",
+        )
+        start_ms, end_ms = parse_window_ms(args.start, args.end)
+    except ContractPinError as exc:
+        raise SystemExit(f"pin error: {exc}") from exc
 
     store = DataStore(str(REPO_ROOT / "data" / "parquet"), ":memory:")
     raw: dict[str, pd.DataFrame] = {}
@@ -304,7 +326,29 @@ def main() -> int:
     n = len(next(iter(frames.values())))
     print(f"[msym] intersect symbols={list(frames)} bars={n}")
 
-    results: dict[str, Any] = {"window": {"start": args.start, "end": args.end, "bars": n}}
+    pin = build_window_pin(
+        start=args.start,
+        end=args.end,
+        frames=frames,
+        timeframe="1h",
+        require_pin=getattr(args, "require_pin", True),
+    )
+    # Re-fingerprint post-intersect frames (actual research calendar).
+    data_fp = fingerprint_universe(frames)
+
+    results: dict[str, Any] = {
+        "window": {
+            "start": args.start,
+            "end": args.end,
+            "start_ms": pin.start_ms,
+            "end_ms": pin.end_ms,
+            "bars": n,
+            "timeframe": "1h",
+        },
+        "data_fingerprint": data_fp,
+        "require_pin": getattr(args, "require_pin", True),
+    }
+    print(f"[msym] data_fingerprint.aggregate={data_fp.get('aggregate')}")
 
     # BTC baseline on same window if present
     if "BTC/USDT" in frames:
