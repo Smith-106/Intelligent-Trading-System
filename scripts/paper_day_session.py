@@ -98,6 +98,16 @@ def main() -> int:
         action="store_true",
         help="Dangerous: skip preflight (not recommended)",
     )
+    ap.add_argument(
+        "--batch-gate",
+        action="store_true",
+        help="T015: after preflight OK, run batch_gate_pipeline (fast cost/funding)",
+    )
+    ap.add_argument(
+        "--batch-strategies",
+        default="trend_following",
+        help="Comma list for --batch-gate (default: trend_following)",
+    )
     args = ap.parse_args()
 
     started = datetime.now(UTC).isoformat()
@@ -135,6 +145,10 @@ def main() -> int:
                 f"--capital {args.capital:g} --config {args.config}"
             ),
             "research_path_b": "python scripts/run_baseline0.py",
+            "batch_gate": (
+                "python scripts/batch_gate_pipeline.py "
+                f"--strategies {args.batch_strategies}"
+            ),
         },
     }
 
@@ -145,6 +159,30 @@ def main() -> int:
     if preflight_rc != 0:
         print("[day-session] STOP: preflight failed", flush=True)
         return preflight_rc
+
+    if args.batch_gate:
+        batch_out = REPO_ROOT / "data" / "paper_sessions" / "batch_gate_latest.json"
+        batch_cmd = [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "batch_gate_pipeline.py"),
+            "--strategies",
+            args.batch_strategies,
+            "--after-day-session",
+            "--out",
+            str(batch_out.relative_to(REPO_ROOT)).replace("\\", "/"),
+            "--allow-partial",
+        ]
+        batch_rc = _run(batch_cmd).returncode
+        summary["batch_gate_rc"] = batch_rc
+        summary["batch_gate_out"] = str(batch_out.relative_to(REPO_ROOT)).replace(
+            "\\", "/"
+        )
+        if batch_rc != 0:
+            summary["status"] = "batch_gate_failed"
+            summary["note"] = "batch_gate_pipeline returned non-zero"
+        summary_path = _write_summary(summary)
+        print(f"[day-session] batch-gate rc={batch_rc} → {summary_path}", flush=True)
+        _maybe_alert(summary, enable=args.alert_on_fail)
 
     if args.start_run:
         cmd = [
