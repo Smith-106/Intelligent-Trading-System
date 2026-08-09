@@ -8,7 +8,7 @@
 | **B0** | [Candidate-Baseline-0.md](./Candidate-Baseline-0.md) | classic `trend_following` + nested | **Multi-symbol shared RP** (BTC/ETH/SOL) | **PAPER-GO** (promoted) | `scripts/run_baseline0.py` → `data/paper_replay/baseline0/` |
 | **B1** | [Candidate-Baseline-1.md](./Candidate-Baseline-1.md) | non-MA: donchian / volume_roc / rsi_thrust | BTC-only A/B | **KEEP B0** (no upgrade) | `scripts/run_baseline1_challenger.py` → `baseline1/` |
 | **B2** | [Candidate-Baseline-2.md](./Candidate-Baseline-2.md) | mean_reversion + volatility_breakout | BTC-only A/B | **KEEP B0** (no upgrade) | `scripts/run_baseline2_challenger.py` → `baseline2/` |
-| **B3** | [Candidate-Baseline-3.md](./Candidate-Baseline-3.md) | **`funding_rate`** (+ OI) vs classic | BTC-only A/B | **CONTRACT** (T025; run=T026; verdict=T027) | `scripts/run_baseline3_challenger.py` → `baseline3/` (planned) |
+| **B3** | [Candidate-Baseline-3.md](./Candidate-Baseline-3.md) | **`funding_rate`** (+ OI) vs classic | BTC-only A/B | **RUN** T026 → provisional **KEEP B0** (freeze T027) | `scripts/run_baseline3_challenger.py` → `baseline3/` |
 
 ## Complementarity matrix
 

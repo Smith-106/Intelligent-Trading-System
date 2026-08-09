@@ -37,6 +37,7 @@ from quantflow.execution.engine import ExecutionEngine
 from quantflow.execution.paper_gateway import PaperGateway
 from quantflow.strategy.base import StrategyBase, StrategyContext
 from quantflow.strategy.engine import TradingSession
+from quantflow.strategy.templates.funding_rate import FundingRateStrategy
 from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
 from quantflow.strategy.templates.non_ma_signal import NonMaSignalStrategy
 from quantflow.strategy.templates.trend_following import TrendFollowingStrategy
@@ -47,6 +48,7 @@ STRATEGIES = {
     "mean_reversion": MeanReversionStrategy,
     "volatility_breakout": VolatilityBreakoutStrategy,
     "non_ma_signal": NonMaSignalStrategy,
+    "funding_rate": FundingRateStrategy,
 }
 
 BARS_PER_YEAR = 24 * 365  # 1h bars (back-compat default)
@@ -329,6 +331,7 @@ async def replay(
     direction_gate: bool | str = False,
     gate_sma_period: int = 200,
     entry_tf: str = "1h",
+    bar_hook: Callable[[TradingSession, Any], None] | None = None,
 ) -> list[dict[str, float]]:
     """Feed each bar through on_bar; return the per-bar equity curve.
 
@@ -379,6 +382,8 @@ async def replay(
             close=float(row.close),
             volume=float(row.volume),
         )
+        if bar_hook is not None:
+            bar_hook(session, row)
         await session.on_bar(bar)
         curve.append(
             {

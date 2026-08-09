@@ -1,11 +1,11 @@
 # Candidate Baseline-3 — Funding-rate family (signal A/B)
 
-**Status**: **CONTRACT LOCKED — not yet run**（T025；执行跑数 = T026；裁决 = T027）  
-**Task**: T025（post-T021 W11）  
+**Status**: **RUN COMPLETE (T026)** — provisional Wave-C **KEEP_BASELINE_0** on narrowed meta window; formal freeze = T027  
+**Task**: T025 contract · T026 runner  
 **Date**: 2026-08-09  
 **Against**: [Baseline-0](./Candidate-Baseline-0.md)（唯一 **PAPER-GO**）  
-**Planned runner**: `python scripts/run_baseline3_challenger.py`（T026 交付）  
-**Planned artifacts**: `data/paper_replay/baseline3/`  
+**Runner**: `python scripts/run_baseline3_challenger.py`  
+**Artifacts**: `data/paper_replay/baseline3/`  
   (`funding_wfo.json`, `fee_slip_grid.json`, `funding_tca.json`, `adjudication.json`, `run_meta.json`)
 
 ---
@@ -104,51 +104,54 @@
 
 ---
 
-## 5. Results（T026 填写）
+## 5. Results（T026 — 2026-08-09）
 
-| Label | Full ret% | Full Sh | Full maxDD% | OOS sum% | OOS meanSh | pos | Orders |
-|-------|-----------|---------|-------------|----------|------------|-----|--------|
-| classic (control) | _TBD_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ |
-| funding_rate | _TBD_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ |
+**Data status**: `NARROWED` — local `meta_funding_rate` only covers **2024-01-01 → 2025-05-11** (63 events), not full pin 2021→2026-08-04.  
+Effective bars ≈ 11905 @1h. WFO 24m/6m → **0 segments** → single **50/50 OOS fold** (documented degradation).  
+**Signal density**: measured max \|funding\|=0.0005 **&lt; entry_threshold 0.001** → funding_rate produced **0 orders** under contract params (not a GO path).
 
-### Fee×slip (full pin)
+| Label | Full ret% | Full Sh | Full maxDD% | OOS sum% | OOS meanSh | Orders |
+|-------|-----------|---------|-------------|----------|------------|--------|
+| classic (control) | +1.62 | 0.33 | 5.51 | +6.73 | **2.56** | 143 |
+| funding_rate | 0.00 | n/a | 0.0 | 0.00 | n/a (−10 placeholder) | **0** |
+
+### Fee×slip (effective window)
 
 | Label | 0/0 | 0.1%/0.1% | 0.2%/0.2% |
 |-------|-----|-----------|-----------|
-| classic | _TBD_ | _TBD_ | _TBD_ |
-| funding_rate | _TBD_ | _TBD_ | _TBD_ |
+| classic | +4.95 / 0.96 | **+1.62 / 0.33** | −1.60 / −0.30 |
+| funding_rate | 0 / n/a | **0 / n/a** | 0 / n/a |
 
 ### funding_tca (quote)
 
 | Field | Value |
 |-------|--------|
-| mode | _TBD_ |
-| estimated_annual_drag_pct | _TBD_ |
-| notes | _TBD_ |
+| mode | hybrid (measured short series + assumption fallback fields) |
+| measured | 63 events from `data/s3_verify/raw` BTC/USDT |
+| notes | Full-pin re-run requires denser funding history; do not promote on this window alone |
 
 ---
 
-## 6. Adjudication（T027 填写）
+## 6. Adjudication（provisional T026 → freeze in T027）
 
 | Field | Value |
 |-------|--------|
-| **Verdict** | _TBD_ — one of `KEEP_BASELINE_0` / `REJECT` / `UPGRADE` |
-| upgrade | true / false |
-| Best OOS meanSh (challenger) | _TBD_ |
-| Challenger OOS meanSh > 0 | _TBD_ |
-| ≥ classic control | _TBD_ |
-| Reason | _TBD_ |
+| **Verdict** | **KEEP_BASELINE_0** |
+| upgrade | **false** |
+| Best OOS meanSh (challenger) | n/a (0 trades) |
+| Challenger OOS meanSh > 0 | **No** |
+| ≥ classic control | **No** |
+| Reason | Zero fills under contract thresholds on available meta; classic still positive OOS on narrowed window; data not full-pin |
+
+T027 should **freeze** this as first-class negative/sparse-meta evidence (or re-run if denser funding is ingested later — new run_meta, not silent overwrite).
 
 ---
 
-## 7. Reproduction（目标接口）
+## 7. Reproduction
 
 ```bash
-# T026 落地后：
-python scripts/run_baseline3_challenger.py
-python scripts/run_baseline3_challenger.py --skip-full   # 若支持
-
-# 数据旁路检查：
+python scripts/run_baseline3_challenger.py --meta-root data/s3_verify/raw
+python scripts/run_baseline3_challenger.py --skip-fee-grid
 python scripts/funding_tca_report.py --symbol BTC-USDT-SWAP
 ```
 

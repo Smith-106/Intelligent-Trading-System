@@ -67,7 +67,7 @@ T020 已完成 ──► T030（人审，不阻塞研究）
 | ID | 标题 | 估时 | 依赖 | done_when |
 |----|------|------|------|-----------|
 | **T025** | Baseline-3 合同起草（信号族锁定） | 1d | T011,T013 | ✅ **done** — `funding_rate` 锁定；索引已占位 |
-| **T026** | B3 challenger 流水线 + 跑数 | 2–4d | T025 | `scripts/run_baseline3_challenger.py` + `data/paper_replay/baseline3/`（WFO + fee×slip；funding 字段按 T014 合同） |
+| **T026** | B3 challenger 流水线 + 跑数 | 2–4d | T025 | ✅ **done** — runner+artifacts；NARROWED window；provisional KEEP B0（0 funding trades） |
 | **T027** | B3 裁决 + 索引更新 | 0.5–1d | T026 | 显式 **KEEP_B0 / REJECT / UPGRADE**；更新 `baseline-contract-index.md` |
 
 **B3 信号族候选（T025 锁定其一，默认推荐顺序）**
