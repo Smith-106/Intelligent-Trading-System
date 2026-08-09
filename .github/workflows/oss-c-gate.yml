@@ -1,0 +1,56 @@
+# T020: Open-source scheme C readiness (optional).
+# Does NOT publish the repository or change visibility.
+# Enable as required check only after a human path-C decision.
+name: OSS C gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/oss_c_gate.py"
+      - "scripts/demo_public_pack.py"
+      - "CONTRIBUTING.md"
+      - "docs/research/open-source-*.md"
+      - "docs/demo/**"
+      - "docs/public-demo/**"
+      - ".gitignore"
+  push:
+    branches: [main, master]
+    paths:
+      - "scripts/oss_c_gate.py"
+      - "scripts/demo_public_pack.py"
+      - "CONTRIBUTING.md"
+      - "docs/research/open-source-*.md"
+      - "docs/demo/**"
+      - "docs/public-demo/**"
+      - ".gitignore"
+
+jobs:
+  oss-c-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Setup Python
+        uses: actions/setup-python@0b93645e2fea747208f53575f101c1b292418e6f # v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install package (minimal)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Demo pack check
+        run: python scripts/demo_public_pack.py --check
+
+      - name: OSS C gate (quick)
+        run: python scripts/oss_c_gate.py --quick
+
+      # Full-history secret scan is intentionally NOT enabled here by default.
+      # Before path C, run gitleaks locally / as a separate approved workflow.

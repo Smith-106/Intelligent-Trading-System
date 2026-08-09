@@ -95,8 +95,9 @@ class ReconciliationEngine:
         # L5→L6 seam: depend on the Protocol only, never import monitoring/.
         self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
         self._audit = audit_logger or AuditLogger(
-            secret_key="default-reconciliation-key",  # Should be from config
-            enable_file_logging=False,  # Disable for tests
+            # Dev/test default only — production must inject AuditLogger with env secret.
+            secret_key="test-only-reconciliation",
+            enable_file_logging=False,
         )
         self._drift_threshold_bps = drift_threshold_bps
         self._order_staleness_threshold = order_staleness_threshold_seconds

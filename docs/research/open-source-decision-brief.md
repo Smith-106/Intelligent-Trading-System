@@ -100,6 +100,18 @@ LICENSE（私有主仓）: 保持现有根目录 MIT（未在本决策中改为 
 复审日期: 2026-11-01 或 paper 日课稳定 + ≥3 Baseline 后再评估 C/D
 ```
 
+## 7. 方案 C 工程门禁（T020 — 不强制公开）
+
+| 工件 | 路径 |
+|------|------|
+| CONTRIBUTING | `CONTRIBUTING.md` |
+| C checklist | `docs/research/open-source-c-gate-checklist.md` |
+| 本地门禁 | `python scripts/oss_c_gate.py` |
+| 可选 CI | `.github/workflows/oss-c-gate.yml`（workflow_dispatch / 路径过滤） |
+
+**规则**：`oss_c_gate.py` 只证明「可给人审 C」；**不**改 visibility、不发布、不替代 gitleaks 全历史扫描。  
+方案 B 公开 docs-demo 仍然是当前已裁决路径；C 需另一次人类决策。
+
 ### 与根目录 MIT 的关系
 
 - **方案 B** 只授权「文档/demo 子集」用 **Apache-2.0**（`docs/public-demo/LICENSE`）。

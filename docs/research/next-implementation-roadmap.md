@@ -26,6 +26,7 @@
 | **T017** | 日课偏差告警 vs Baseline | ✅ **done**（day-session deviation + alert hook） |
 | **T018** | catalog 注册补齐 / disabled 显式化 | ✅ **done**（ai_factor/spot_perp + hygiene） |
 | **T019** | 宇宙扩展常态产线（清单 YAML） | ✅ **done**（universe.yaml + SLA admitted） |
+| **T020** | 开源 C 门禁清单（不强制公开） | ✅ **done**（CONTRIBUTING + oss_c_gate + CI 建议） |
 
 ---
 
