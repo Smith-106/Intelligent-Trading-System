@@ -57,7 +57,7 @@ def _check_paper_readiness_config() -> list[str]:
     try:
         from quantflow.common.config import load_config
 
-        cfg = load_config()
+        cfg = load_config(REPO_ROOT / "quantflow" / "config" / "default.yaml")
         pr = cfg.risk.paper_readiness
         notes.append(
             f"paper_readiness enabled={pr.enabled} "

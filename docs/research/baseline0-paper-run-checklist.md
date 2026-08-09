@@ -170,6 +170,20 @@ python scripts/funding_tca_report.py         # funding 旁证（T014）
 
 ## 6. 与 T016 paper_evidence / promote（衔接 T023–T024）
 
+### 6.0 连续日课账本（T023）
+
+```bash
+# 跑本日 Path A 并记入 streak
+python scripts/paper_day_streak.py ingest --run-day-session
+# 仅扫描已有 day_session_*.json
+python scripts/paper_day_streak.py status --min-days 7
+python scripts/paper_day_streak.py report --min-days 7
+```
+
+- 账本：`data/paper_sessions/streak_ledger.json`（**每 UTC 日最多 1 次** credit）
+- 严格目标：`consecutive ≥ 7`（`target_met`）— **不伪造日历天**
+- 同日多次 run 不重复计数
+
 日课目标之一是攒 **可 attach** 的样本（默认 ≥7 天、≥20 fills）：
 
 1. 从 paper 会话日志/成交导出 `paper_days`、`fills`、起止时间  
