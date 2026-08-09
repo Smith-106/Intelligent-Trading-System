@@ -9,7 +9,10 @@ from typer.testing import CliRunner
 
 from quantflow.cli.main import app
 from quantflow.strategy.model_registry import STATUS_PAPER, STATUS_REJECTED, ModelRegistry
-from quantflow.strategy.validation.cost_fidelity import attach_cost_fidelity
+from quantflow.strategy.validation.cost_fidelity import (
+    attach_cost_fidelity,
+    build_funding_tca,
+)
 
 
 def _grid() -> list[dict]:
@@ -17,6 +20,10 @@ def _grid() -> list[dict]:
         {"taker_fee": 0.0, "slippage": 0.0, "sharpe": 1.0, "return_pct": 20.0},
         {"taker_fee": 0.001, "slippage": 0.001, "sharpe": 0.55, "return_pct": 10.0},
     ]
+
+
+def _funding() -> dict:
+    return build_funding_tca(mode="assumption")
 
 
 def test_register_rejects_low_ic(tmp_path: Path):
@@ -28,8 +35,11 @@ def test_register_rejects_low_ic(tmp_path: Path):
         "model_cls": "RF",
         "features_hash": "h",
         "decision": "GO",
-        "validation": attach_cost_fidelity({"decision": "GO"}, fee_slip_grid=_grid()),
+        "validation": attach_cost_fidelity(
+            {"decision": "GO"}, fee_slip_grid=_grid(), funding_tca=_funding()
+        ),
         "fee_slip_grid": _grid(),
+        "funding_tca": _funding(),
         "ic_metrics": {"mean_ic": 0.01, "threshold": 0.03},
     }
     path = report_dir / f"{mid}.json"
@@ -59,8 +69,11 @@ def test_register_accepts_go_with_cost_and_ic(tmp_path: Path):
         "model_cls": "RF",
         "features_hash": "h",
         "decision": "GO",
-        "validation": attach_cost_fidelity({"decision": "GO"}, fee_slip_grid=_grid()),
+        "validation": attach_cost_fidelity(
+            {"decision": "GO"}, fee_slip_grid=_grid(), funding_tca=_funding()
+        ),
         "fee_slip_grid": _grid(),
+        "funding_tca": _funding(),
         "ic_metrics": {"mean_ic": 0.05, "threshold": 0.03},
     }
     path = report_dir / f"{mid}.json"

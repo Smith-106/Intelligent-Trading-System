@@ -45,6 +45,8 @@ class _ModelStub:
 
 
 def _go_with_cost(**extra: object) -> dict:
+    from quantflow.strategy.validation.cost_fidelity import build_funding_tca
+
     report: dict = {
         "decision": "GO",
         "reason": "gate passed",
@@ -52,6 +54,7 @@ def _go_with_cost(**extra: object) -> dict:
             {"taker_fee": 0.0, "slippage": 0.0, "sharpe": 1.0, "return_pct": 20.0},
             {"taker_fee": 0.001, "slippage": 0.001, "sharpe": 0.55, "return_pct": 10.0},
         ],
+        "funding_tca": build_funding_tca(mode="assumption"),
     }
     report.update(extra)
     return report

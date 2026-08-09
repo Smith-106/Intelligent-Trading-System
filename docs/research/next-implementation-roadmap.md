@@ -20,6 +20,7 @@
 | **T011** | 研究合同时间窗钉扎（data pin / fingerprint） | ✅ **done**（`contract_pin` + run_meta） |
 | **T012** | Baseline-1 第二信号族 | ✅ **done** — **KEEP B0**（non-MA 未过 Wave-C 升级） |
 | **T013** | 第三互补 Baseline 合同 | ✅ **done** — **KEEP B0**（MR/vol 未过升级；三合同索引） |
+| **T014** | Funding / TCA 进成本合同 | ✅ **done**（`funding_tca` fail-closed on register） |
 
 ---
 

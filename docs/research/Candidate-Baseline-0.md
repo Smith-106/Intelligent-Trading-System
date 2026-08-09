@@ -50,6 +50,29 @@ python scripts/run_baseline0.py --skip-full
 python scripts/run_baseline0.py --skip-wfo
 ```
 
+### Funding / TCA (T014)
+
+`run_baseline0` always writes `funding_tca.json` and merges `funding_tca` into
+`cost_fidelity_report.json` when the fee×slip grid runs.
+
+| Field | Meaning |
+|-------|---------|
+| `mode` | `assumption` / `measured` / `hybrid` |
+| `estimated_annual_drag_pct` | Rough annual funding drag (perp, taker_share scaled) |
+| `measured` | Optional short-window stats from `meta_funding_rate` |
+
+**Rules**
+
+1. GO / `ModelRegistry.register` requires `funding_tca` (fail-closed, T014).
+2. Quote funding **beside** 0.1%/0.1% fee×slip — not instead of it.
+3. Local measured series may be short; hybrid falls back to assumption
+   (`abs 1bp / 8h event` default).
+
+```bash
+python scripts/funding_tca_report.py
+python scripts/run_baseline0.py --skip-full --skip-wfo
+```
+
 ### Time-window pin + data fingerprint (T011)
 
 Every `run_baseline0` / `multi_symbol_replay` run records in `run_meta.json` (and

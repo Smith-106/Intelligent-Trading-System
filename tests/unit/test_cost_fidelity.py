@@ -8,9 +8,11 @@ from quantflow.strategy.validation.cost_fidelity import (
     CostFidelityError,
     assert_promotion_cost_ready,
     attach_cost_fidelity,
+    build_funding_tca,
     reject_zero_cost_only_go,
     require_cost_grid,
     require_dual_risk_report,
+    require_funding_tca,
 )
 
 
@@ -19,6 +21,10 @@ def _grid_ok() -> list[dict]:
         {"taker_fee": 0.0, "slippage": 0.0, "sharpe": 1.0, "return_pct": 20.0},
         {"taker_fee": 0.001, "slippage": 0.001, "sharpe": 0.55, "return_pct": 10.0},
     ]
+
+
+def _funding_ok() -> dict:
+    return build_funding_tca(mode="assumption")
 
 
 def test_require_cost_grid_missing():
@@ -49,12 +55,46 @@ def test_reject_zero_cost_only():
 
 
 def test_assert_promotion_cost_ready_ok():
-    assert_promotion_cost_ready({"decision": "GO", "fee_slip_grid": _grid_ok()})
+    assert_promotion_cost_ready(
+        {
+            "decision": "GO",
+            "fee_slip_grid": _grid_ok(),
+            "funding_tca": _funding_ok(),
+        }
+    )
+
+
+def test_assert_promotion_cost_ready_requires_funding_tca():
+    with pytest.raises(CostFidelityError, match="funding_tca"):
+        assert_promotion_cost_ready({"decision": "GO", "fee_slip_grid": _grid_ok()})
+
+
+def test_assert_promotion_legacy_skip_funding():
+    assert_promotion_cost_ready(
+        {"decision": "GO", "fee_slip_grid": _grid_ok()},
+        require_funding=False,
+    )
+
+
+def test_require_funding_tca_missing():
+    with pytest.raises(CostFidelityError, match="funding_tca missing"):
+        require_funding_tca({"fee_slip_grid": _grid_ok()})
+
+
+def test_build_funding_tca_assumption_drag():
+    block = build_funding_tca(mode="assumption")
+    assert block["mode"] == "assumption"
+    assert block["estimated_annual_drag_pct"] > 0
 
 
 def test_attach_cost_fidelity():
-    out = attach_cost_fidelity({"decision": "GO"}, fee_slip_grid=_grid_ok())
+    out = attach_cost_fidelity(
+        {"decision": "GO"},
+        fee_slip_grid=_grid_ok(),
+        funding_tca=_funding_ok(),
+    )
     assert "fee_slip_grid" in out
+    assert out["funding_tca"]["mode"] == "assumption"
     assert out["checks"]["cost_fidelity"]["passed"] is True
 
 

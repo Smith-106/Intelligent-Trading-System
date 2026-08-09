@@ -2,6 +2,10 @@
 
 P0 (strongest-gaps T001/T002): fee×slip grids and dual risk reporting are
 mandatory inputs for GO narratives. Zero-cost Sharpe alone must not promote.
+
+T014: funding / TCA assumptions must appear alongside fee×slip for GO
+narratives (fail-closed when ``require_funding_tca`` is on — default for
+``assert_promotion_cost_ready``).
 """
 
 from __future__ import annotations
@@ -15,6 +19,13 @@ DEFAULT_SLIPPAGE = 0.001
 # Minimal grid that must appear in a cost-fidelity attachment.
 REQUIRED_FEE_POINTS = (0.0, 0.001)
 REQUIRED_SLIP_POINTS = (0.0, 0.001)
+
+# Crypto perpetual funding: 3 settlements / day is industry default (OKX/Binance).
+DEFAULT_FUNDING_EVENTS_PER_DAY = 3.0
+# Conservative long-bias assumption when measured series is short / missing.
+# ~1 bp per 8h event ≈ 0.001 * 3 * 365 ≈ 1.1% / year if always paying.
+DEFAULT_ASSUMED_ABS_FUNDING_PER_EVENT = 0.0001
+VALID_FUNDING_MODES = frozenset({"assumption", "measured", "hybrid"})
 
 
 class CostFidelityError(ValueError):
@@ -193,11 +204,165 @@ def require_dual_risk_report(report: dict[str, Any] | None) -> list[dict[str, An
     return rows
 
 
+def extract_funding_tca(report: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Pull funding_tca / tca block from a validation or cost report."""
+    if not isinstance(report, dict):
+        return None
+    for key in ("funding_tca", "tca", "funding_cost"):
+        block = report.get(key)
+        if isinstance(block, dict) and block:
+            return block
+    cost = report.get("cost_fidelity")
+    if isinstance(cost, dict):
+        block = cost.get("funding_tca") or cost.get("tca")
+        if isinstance(block, dict) and block:
+            return block
+    checks = report.get("checks")
+    if isinstance(checks, dict):
+        cf = checks.get("cost_fidelity")
+        if isinstance(cf, dict):
+            block = cf.get("funding_tca") or cf.get("tca")
+            if isinstance(block, dict) and block:
+                return block
+    return None
+
+
+def build_funding_tca(
+    *,
+    mode: str = "assumption",
+    assumed_abs_funding_per_event: float = DEFAULT_ASSUMED_ABS_FUNDING_PER_EVENT,
+    events_per_day: float = DEFAULT_FUNDING_EVENTS_PER_DAY,
+    measured: dict[str, Any] | None = None,
+    taker_share: float = 1.0,
+    notes: str | None = None,
+) -> dict[str, Any]:
+    """Build a funding / TCA block for cost reports (T014).
+
+    ``mode``:
+      - assumption: use assumed abs rate per funding event (no series required)
+      - measured: require ``measured`` stats from a real series
+      - hybrid: measured when present, else fall back to assumption
+
+    Annualized drag estimate (rough, long-biased pay):
+      abs_per_event * events_per_day * 365
+    quoted as fraction (0.01 = 1%/year), not percentage points.
+    """
+    m = str(mode).lower().strip()
+    if m not in VALID_FUNDING_MODES:
+        raise CostFidelityError(
+            f"funding_tca mode must be one of {sorted(VALID_FUNDING_MODES)}, got {mode!r}"
+        )
+    if not 0.0 <= float(taker_share) <= 1.0:
+        raise CostFidelityError("taker_share must be in [0, 1]")
+
+    measured_block = dict(measured) if isinstance(measured, dict) else None
+    effective_abs = float(assumed_abs_funding_per_event)
+    source = "assumption"
+
+    if m in ("measured", "hybrid") and measured_block:
+        for key in ("mean_abs_funding_per_event", "mean_abs_rate", "abs_mean"):
+            if measured_block.get(key) is not None:
+                try:
+                    effective_abs = abs(float(measured_block[key]))
+                    source = "measured"
+                    break
+                except (TypeError, ValueError):
+                    continue
+        if m == "measured" and source != "measured":
+            raise CostFidelityError(
+                "funding_tca mode=measured requires measured.mean_abs_funding_per_event"
+            )
+    elif m == "measured":
+        raise CostFidelityError("funding_tca mode=measured requires measured stats dict")
+
+    annual_drag = effective_abs * float(events_per_day) * 365.0
+    # Scale by assumed taker share of notional that pays funding (spot≈0, perp long≈1).
+    annual_drag_adj = annual_drag * float(taker_share)
+
+    block: dict[str, Any] = {
+        "mode": m,
+        "source": source,
+        "events_per_day": float(events_per_day),
+        "assumed_abs_funding_per_event": float(assumed_abs_funding_per_event),
+        "effective_abs_funding_per_event": effective_abs,
+        "taker_share": float(taker_share),
+        "estimated_annual_drag_fraction": annual_drag_adj,
+        "estimated_annual_drag_pct": annual_drag_adj * 100.0,
+        "display_alongside": ["fee_slip_grid"],
+        "rule": (
+            "GO narratives must cite funding_tca alongside fee×slip; "
+            "missing funding_tca → NO-GO (T014 fail-closed)"
+        ),
+    }
+    if measured_block is not None:
+        block["measured"] = measured_block
+    if notes:
+        block["notes"] = notes
+    return block
+
+
+def require_funding_tca(report: dict[str, Any] | None) -> dict[str, Any]:
+    """Fail-closed: GO path must include a funding_tca block (T014)."""
+    block = extract_funding_tca(report)
+    if not block:
+        raise CostFidelityError(
+            "funding_tca missing: GO narratives must include funding/TCA assumptions "
+            "or measured series (attach funding_tca; T014)"
+        )
+    mode = str(block.get("mode", "")).lower()
+    if mode and mode not in VALID_FUNDING_MODES:
+        raise CostFidelityError(
+            f"funding_tca.mode invalid: {block.get('mode')!r}; "
+            f"expected one of {sorted(VALID_FUNDING_MODES)}"
+        )
+    # Require at least one quantitative drag or rate field.
+    has_qty = any(
+        block.get(k) is not None
+        for k in (
+            "estimated_annual_drag_fraction",
+            "estimated_annual_drag_pct",
+            "effective_abs_funding_per_event",
+            "assumed_abs_funding_per_event",
+        )
+    )
+    if not has_qty and not isinstance(block.get("measured"), dict):
+        raise CostFidelityError(
+            "funding_tca incomplete: need estimated drag or measured rates"
+        )
+    return block
+
+
+def summarize_measured_funding(
+    rates: list[float] | tuple[float, ...],
+    *,
+    symbol: str | None = None,
+    n_events: int | None = None,
+    start_ms: int | None = None,
+    end_ms: int | None = None,
+) -> dict[str, Any]:
+    """Summarize a funding_rate series for ``build_funding_tca(measured=...)``."""
+    if not rates:
+        raise CostFidelityError("measured funding series is empty")
+    vals = [float(x) for x in rates]
+    abs_vals = [abs(v) for v in vals]
+    n = len(vals)
+    return {
+        "symbol": symbol,
+        "n_events": int(n_events if n_events is not None else n),
+        "mean_rate": sum(vals) / n,
+        "mean_abs_funding_per_event": sum(abs_vals) / n,
+        "max_abs_rate": max(abs_vals),
+        "start_ms": start_ms,
+        "end_ms": end_ms,
+    }
+
+
 def attach_cost_fidelity(
     validation_report: dict[str, Any],
     *,
     fee_slip_grid: list[dict[str, Any]],
     risk_ablation: list[dict[str, Any]] | None = None,
+    funding_tca: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return a shallow-copied report with cost_fidelity attached under checks."""
     out = dict(validation_report)
@@ -208,15 +373,29 @@ def attach_cost_fidelity(
     }
     if risk_ablation is not None:
         block["risk_ablation"] = risk_ablation
+    if funding_tca is not None:
+        block["funding_tca"] = funding_tca
     checks["cost_fidelity"] = block
     out["checks"] = checks
     out["fee_slip_grid"] = fee_slip_grid
     if risk_ablation is not None:
         out["risk_ablation"] = risk_ablation
+    if funding_tca is not None:
+        out["funding_tca"] = funding_tca
     return out
 
 
-def assert_promotion_cost_ready(validation_report: dict[str, Any] | None) -> None:
-    """Full cost-fidelity gate for paper registration (fail-closed)."""
+def assert_promotion_cost_ready(
+    validation_report: dict[str, Any] | None,
+    *,
+    require_funding: bool = True,
+) -> None:
+    """Full cost-fidelity gate for paper registration (fail-closed).
+
+    T014: ``require_funding`` defaults True — GO without funding_tca is refused.
+    Pass ``require_funding=False`` only for legacy research diagnostics.
+    """
     require_cost_grid(validation_report)
     reject_zero_cost_only_go(validation_report)
+    if require_funding:
+        require_funding_tca(validation_report)

@@ -161,6 +161,36 @@ def main() -> int:
         if rc != 0:
             return rc
 
+    # T014: funding/TCA block (assumption or hybrid measured) — required for GO narrative.
+    funding_path = OUT_DIR / "funding_tca.json"
+    funding_ok = False
+    funding_block: dict | None = None
+    rc_f = _run(
+        [
+            py,
+            str(REPO_ROOT / "scripts" / "funding_tca_report.py"),
+            "--symbol",
+            "BTC-USDT-SWAP",
+            "--out",
+            str(funding_path.relative_to(REPO_ROOT)).replace("\\", "/"),
+        ]
+    )
+    if rc_f == 0 and funding_path.is_file():
+        funding_payload = json.loads(funding_path.read_text(encoding="utf-8"))
+        funding_block = funding_payload.get("funding_tca")
+        funding_ok = isinstance(funding_block, dict)
+        if funding_ok:
+            print(
+                f"[baseline0] funding_tca mode={funding_block.get('mode')} "
+                f"annual_drag≈{funding_block.get('estimated_annual_drag_pct')}% "
+                f"→ {funding_path}"
+            )
+    else:
+        print(
+            "[baseline0] WARN: funding_tca_report failed; GO narrative incomplete (T014)",
+            flush=True,
+        )
+
     cost_ok = False
     if not args.skip_cost_grid:
         # P0 T002: default dual report — production fee/slip grid + risk ablation.
@@ -186,9 +216,15 @@ def main() -> int:
             payload = json.loads(COST_REPORT.read_text(encoding="utf-8"))
             grid = payload.get("fee_slip_grid") or []
             risk = payload.get("risk_ablation") or []
+            # Merge funding_tca into cost report for assert_promotion_cost_ready.
+            if funding_block is not None:
+                payload["funding_tca"] = funding_block
+                COST_REPORT.write_text(
+                    json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
             print(
                 f"[baseline0] cost fidelity: fee_slip_cells={len(grid)} "
-                f"risk_cases={len(risk)} → {COST_REPORT}"
+                f"risk_cases={len(risk)} funding_tca={funding_ok} → {COST_REPORT}"
             )
             if not grid:
                 print("[baseline0] ERROR: cost report missing fee_slip_grid", file=sys.stderr)
@@ -242,20 +278,25 @@ def main() -> int:
         "skip_wfo": args.skip_wfo,
         "skip_cost_grid": args.skip_cost_grid,
         "cost_fidelity_included": cost_ok,
+        "funding_tca_included": funding_ok,
+        "funding_tca": funding_block,
         "outputs": {
             "full": "data/paper_replay/baseline0/multi_symbol_replay.json",
             "wfo": "data/paper_replay/baseline0/wfo_shared_rp.json",
             "cost_fidelity": "data/paper_replay/baseline0/cost_fidelity_report.json",
+            "funding_tca": "data/paper_replay/baseline0/funding_tca.json",
         },
         "reporting": {
             "required_for_go_narrative": [
                 "fee_slip_grid (zero + production cells)",
                 "risk_ablation (research_bypass vs production risk)",
                 "data_fingerprint (T011 pin)",
+                "funding_tca (assumption|measured|hybrid; T014)",
             ],
             "note": (
                 "Zero-cost Sharpe alone must not drive GO (knowhow fee/slip). "
-                "Re-runs must match start/end + data_fingerprint.aggregate."
+                "Re-runs must match start/end + data_fingerprint.aggregate. "
+                "Funding/TCA must be cited next to fee×slip (T014 fail-closed on register)."
             ),
         },
     }

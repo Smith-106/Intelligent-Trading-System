@@ -22,13 +22,16 @@ from quantflow.strategy.model_registry import (
 
 
 def _go_report_with_cost(**extra: object) -> dict:
-    """Minimal GO report that satisfies P0 cost-fidelity promotion gate."""
+    """Minimal GO report that satisfies P0+T014 cost-fidelity promotion gate."""
+    from quantflow.strategy.validation.cost_fidelity import build_funding_tca
+
     report: dict = {
         "decision": "GO",
         "fee_slip_grid": [
             {"taker_fee": 0.0, "slippage": 0.0, "sharpe": 1.0, "return_pct": 20.0},
             {"taker_fee": 0.001, "slippage": 0.001, "sharpe": 0.55, "return_pct": 10.0},
         ],
+        "funding_tca": build_funding_tca(mode="assumption"),
         "checks": {},
     }
     report.update(extra)

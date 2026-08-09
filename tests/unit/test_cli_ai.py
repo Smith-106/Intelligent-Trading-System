@@ -91,8 +91,18 @@ def test_ai_register_go_becomes_paper(tmp_path):
             "reason": "All validation checks passed",
             "checks": {},
             "fee_slip_grid": cost_grid,
+            "funding_tca": {
+                "mode": "assumption",
+                "assumed_abs_funding_per_event": 0.0001,
+                "estimated_annual_drag_pct": 10.95,
+            },
         },
         "fee_slip_grid": cost_grid,
+        "funding_tca": {
+            "mode": "assumption",
+            "assumed_abs_funding_per_event": 0.0001,
+            "estimated_annual_drag_pct": 10.95,
+        },
     }
     (report_dir / "model-gogo.json").write_text(json.dumps(report), encoding="utf-8")
     try:
