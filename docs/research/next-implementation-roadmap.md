@@ -24,6 +24,7 @@
 | **T015** | 批处理门控产线 | ✅ **done**（`batch_gate_pipeline` + day-session hook） |
 | **T016** | Paper 最短样本/天数硬门槛 | ✅ **done**（promote fail-closed + YAML） |
 | **T017** | 日课偏差告警 vs Baseline | ✅ **done**（day-session deviation + alert hook） |
+| **T018** | catalog 注册补齐 / disabled 显式化 | ✅ **done**（ai_factor/spot_perp + hygiene） |
 
 ---
 

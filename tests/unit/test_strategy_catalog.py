@@ -6,10 +6,13 @@ from quantflow.strategy.base import StrategyBase
 from quantflow.strategy.catalog import (
     _DEFAULT_DESCRIPTIONS,
     _STRATEGY_CONFIG_DIR,
+    catalog_hygiene,
     get_strategy_definition,
     get_strategy_definitions,
     get_strategy_factories,
     get_strategy_specs,
+    list_disabled_strategies,
+    list_enabled_strategies,
     list_strategy_summaries,
 )
 
@@ -18,7 +21,35 @@ def test_strategy_catalog_contains_expected_surface() -> None:
     definitions = get_strategy_definitions()
     assert "trend_following" in definitions
     assert "ml_ensemble" in definitions
-    assert len(definitions) >= 7
+    # T018: YAML+factory for research prototypes
+    assert "ai_factor" in definitions
+    assert "spot_perp_arb" in definitions
+    assert len(definitions) >= 9
+
+
+def test_t018_no_orphan_yaml_and_disabled_explicit() -> None:
+    hygiene = catalog_hygiene()
+    assert hygiene["ok"] is True
+    assert hygiene["orphan_yaml"] == []
+    disabled = list_disabled_strategies()
+    assert "ai_factor" in disabled
+    assert "spot_perp_arb" in disabled
+    enabled = list_enabled_strategies()
+    assert "trend_following" in enabled
+    assert "ai_factor" not in enabled
+    # Disabled still listed in full catalog
+    defs = get_strategy_definitions(include_disabled=True)
+    assert defs["ai_factor"].enabled is False
+    assert defs["spot_perp_arb"].enabled is False
+    # Active-only filter drops them
+    active = get_strategy_definitions(include_disabled=False)
+    assert "ai_factor" not in active
+
+
+def test_summarize_exposes_enabled_flag() -> None:
+    summaries = {s["strategy_id"]: s for s in list_strategy_summaries()}
+    assert summaries["trend_following"]["enabled"] is True
+    assert summaries["ai_factor"]["enabled"] is False
 
 
 def test_strategy_summary_exposes_business_metadata() -> None:
