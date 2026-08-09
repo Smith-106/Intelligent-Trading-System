@@ -18,6 +18,7 @@
 | T008–T009 | 宇宙 SLA 流水线 / docs-demo 公开包 | ✅ P2 |
 | **T010** | 全量 pytest 收口：金标 pin + validate mock | ✅ **done**（2108 passed；`9ba1145`） |
 | **T011** | 研究合同时间窗钉扎（data pin / fingerprint） | ✅ **done**（`contract_pin` + run_meta） |
+| **T012** | Baseline-1 第二信号族 | ✅ **done** — **KEEP B0**（non-MA 未过 Wave-C 升级） |
 
 ---
 
