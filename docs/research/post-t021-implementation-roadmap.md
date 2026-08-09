@@ -58,7 +58,7 @@ T020 已完成 ──► T030（人审，不阻塞研究）
 
 | ID | 标题 | 估时 | 依赖 | done_when |
 |----|------|------|------|-----------|
-| **T022** | B0 日课 Runbook 固化 | 0.5–1d | T017,T019 | `docs/research/baseline0-paper-run-checklist.md` 更新为 **一条命令序列**；含 Path A≠B、admitted 书、偏差字段说明 |
+| **T022** | B0 日课 Runbook 固化 | 0.5–1d | T017,T019 | ✅ **done** — checklist 一条命令序列 + admitted/deviation/T016 |
 | **T023** | 连续 Path A 日课执行（≥7 日历日或等价会话窗） | 7d 墙钟 / 低工程 | T022 | `data/paper_sessions/` 连续摘要；`latest.json` 含 `deviation`；preflight 绿 |
 | **T024** | 导出/attach `paper_evidence` + promote dry-run | 1d | T016,T023 | 生成 evidence JSON；`ModelRegistry.promote_to_live` 在测试/dry 环境可过门槛或清晰 rejected 原因；**不要求真实 live** |
 
@@ -66,7 +66,7 @@ T020 已完成 ──► T030（人审，不阻塞研究）
 
 | ID | 标题 | 估时 | 依赖 | done_when |
 |----|------|------|------|-----------|
-| **T025** | Baseline-3 合同起草（信号族锁定） | 1d | T011,T013 | `docs/research/Candidate-Baseline-3.md`：信号族、窗、成本、升级条、**明确不与 B1/B2 重复** |
+| **T025** | Baseline-3 合同起草（信号族锁定） | 1d | T011,T013 | ✅ **done** — `funding_rate` 锁定；索引已占位 |
 | **T026** | B3 challenger 流水线 + 跑数 | 2–4d | T025 | `scripts/run_baseline3_challenger.py` + `data/paper_replay/baseline3/`（WFO + fee×slip；funding 字段按 T014 合同） |
 | **T027** | B3 裁决 + 索引更新 | 0.5–1d | T026 | 显式 **KEEP_B0 / REJECT / UPGRADE**；更新 `baseline-contract-index.md` |
 
