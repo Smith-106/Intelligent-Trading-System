@@ -60,7 +60,7 @@ T020 已完成 ──► T030（人审，不阻塞研究）
 |----|------|------|------|-----------|
 | **T022** | B0 日课 Runbook 固化 | 0.5–1d | T017,T019 | ✅ **done** — checklist 一条命令序列 + admitted/deviation/T016 |
 | **T023** | 连续 Path A 日课执行（≥7 日历日或等价会话窗） | 7d 墙钟 / 低工程 | T022 | 🔧 **in progress** — `paper_day_streak` + 当日 Path A；**7 日连续墙钟未满** |
-| **T024** | 导出/attach `paper_evidence` + promote dry-run | 1d | T016,T023 | 生成 evidence JSON；`ModelRegistry.promote_to_live` 在测试/dry 环境可过门槛或清晰 rejected 原因；**不要求真实 live** |
+| **T024** | 导出/attach `paper_evidence` + promote dry-run | 1d | T016,T023 | ✅ **done**（export+dry-run；真实 streak 短→reject；synthetic 演示 pass） |
 
 ### P1 — Baseline-3（研究主线）
 

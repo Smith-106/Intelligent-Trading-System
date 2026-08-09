@@ -186,10 +186,21 @@ python scripts/paper_day_streak.py report --min-days 7
 
 日课目标之一是攒 **可 attach** 的样本（默认 ≥7 天、≥20 fills）：
 
-1. 从 paper 会话日志/成交导出 `paper_days`、`fills`、起止时间  
+```bash
+# 从 streak 导出 evidence（真实天数；fills 需手工/成交统计）
+python scripts/paper_evidence_export.py export --fills 25
+
+# dry-run：temp registry 上 register→attach→promote（不碰 live）
+python scripts/paper_evidence_export.py dry-run --fills 25
+# 短样本应 rejected（T016 fail-closed）
+# 仅演示通过路径（非真实 ops）：
+python scripts/paper_evidence_export.py dry-run --synthetic-full
+```
+
+1. 导出 `paper_days` / `fills` / 起止时间（`data/paper_sessions/paper_evidence_latest.json`）  
 2. `ModelRegistry.attach_paper_evidence(model_id, {...})`  
-3. `promote_to_live` 仅在 evidence 过门槛后；缺 evidence → **rejected**（fail-closed）  
-4. **Live 仍非本清单验收范围**
+3. `promote_to_live` 仅在 evidence 过门槛后；缺/短 evidence → **rejected**  
+4. **Live 仍非本清单验收范围**；`--synthetic-full` 只用于演示，不得当真实样本
 
 证据字段最小集：
 
