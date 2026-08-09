@@ -91,7 +91,7 @@ T020 已完成 ──► T030（人审，不阻塞研究）
 
 | ID | 标题 | 估时 | 依赖 | done_when |
 |----|------|------|------|-----------|
-| **T028** | 宇宙 +1～2 候选（download→SLA→admitted） | 1–2d | T019 | `universe.yaml` 候选更新；SLA 失败不进 baseline_default；成本网格仅 admitted |
+| **T028** | 宇宙 +1～2 候选（download→SLA→admitted） | 1–2d | T019 | ✅ **done** — +XRP admitted; DOGE SLA-fail excluded; baseline_default 仍三币 |
 | **T029** | Paper 路径 checkpoint/recon **可选 overlay** 文档 | 0.5–1d | T021 | overlay 或 checklist：**默认仍关**；开启步骤 + `resilience_drill` 前置 |
 | **T030** | OSS C 人审包刷新（gitleaks 指引 + 决策表） | 0.5d | T020 | checklist 勾选手动项说明；**agent 不改 visibility** |
 

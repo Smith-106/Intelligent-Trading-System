@@ -13,7 +13,7 @@
 #   - funding_tca / fee×slip still required for GO (T014)
 
 version: 1
-task: T019
+task: T028
 
 # Hard floor for Baseline-0 paper contract (must remain SLA-pass in normal ops).
 baseline_default:
@@ -23,16 +23,18 @@ baseline_default:
 
 # Expansion candidates evaluated by universe_expand_pipeline.
 # Keep baseline_default symbols here so nightly SLA still covers them.
+# T028: +XRP/USDT + DOGE/USDT as expansion targets (admit only if SLA pass).
 candidates:
   - BTC/USDT
   - ETH/USDT
   - SOL/USDT
-  # Example expansion targets (fail SLA until data is downloaded):
-  # - XRP/USDT
-  # - DOGE/USDT
+  - XRP/USDT
+  - DOGE/USDT
 
 # Optional longer tail — evaluated only with --include-watchlist
-watchlist: []
+# Not auto-admitted; for research probes only.
+watchlist:
+  - ADA/USDT
 
 sla:
   min_bars: 500
@@ -43,3 +45,5 @@ sla:
 notes:
   - "Unadmitted symbols must not be used as default multi-symbol Baseline-0 book"
   - "Path B nested gate numbers stay on admitted ∩ baseline_default until re-pinned"
+  - "T028: XRP/USDT SLA-pass → admitted; DOGE/USDT no bars → rejected (not baseline_default)"
+  - "baseline_default remains BTC/ETH/SOL until deliberate B0 book re-pin"
