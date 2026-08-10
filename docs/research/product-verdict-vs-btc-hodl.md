@@ -97,4 +97,10 @@
 > **若成功 = 跨过 BTC 牛熊后总回报不低于（或明显优于）定持现货，则当前主交易路径相对失败。**  
 > **系统仍可能是合格的研究 OS；但不是合格的「替代持币」交易产品。**
 
+### 后续收敛（2026-08-10）
+
+工程已落地 **BTC 超额门 + 三层账本预算 + beta/overlay 评估器**。  
+在 **maker-like（2bp+2bp）** 假设下，beta+overlay 全窗可 **+6.5 pp vs BTC**（PASS）；**taker 10bp** 下仍可能 FAIL。  
+详见 [highflyer-convergence-20260810.md](./highflyer-convergence-20260810.md)。
+
 *用户标准已写入项目研究结论，不得再用 PAPER-GO 偷换为战胜 HODL。*

@@ -17,6 +17,7 @@ from quantflow.common.models import (
     strategy_id_constituents,
 )
 from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
+from quantflow.signal.book_risk_budget import BookRiskBudget
 from quantflow.signal.portfolio import PendingView
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ class RiskEngine:
         exchange_health: object | None = None,
         exchange_exposure_limit_pct: float | None = None,
         dynamic_budget: DynamicBudgetConfig | None = None,
+        book_risk_budget: BookRiskBudget | None = None,
     ) -> None:
         self._config = config
         self._strategy_risk_budgets = strategy_risk_budgets or {}
@@ -51,6 +53,9 @@ class RiskEngine:
         # pending) as a fraction of total value. None = no cap (default keeps
         # existing tests/backtests byte-for-byte; default.yaml sets 0.8).
         self._exchange_exposure_limit_pct = exchange_exposure_limit_pct
+        # Optional highflyer-style hierarchical book budget (default None =
+        # legacy behavior byte-for-byte). When set, runs after exchange checks.
+        self._book_risk_budget = book_risk_budget
         # L4→L6 seam (ISS-20260724-044): RiskEngine depends on the MonitoringSink
         # Protocol only. The concrete sink (DefaultMonitoringSink from L6) is
         # injected by TradingSession; defaulting to Null keeps tests/backtest
@@ -80,6 +85,7 @@ class RiskEngine:
             # rejects new entries when the single-exchange book is over cap.
             self._check_exchange_circuit,
             self._check_exchange_exposure,
+            self._check_book_risk_budget,
             self._check_position_limit,
             self._check_portfolio_limit,
             self._check_strategy_budget,
@@ -201,6 +207,69 @@ class RiskEngine:
                 details={"exposure_pct": exposure_pct, "limit": limit},
             )
         return RiskDecision(passed=True)
+
+    def _check_book_risk_budget(
+        self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
+    ) -> RiskDecision:
+        """Optional hierarchical book budget (beta/overlay sleeves + DD kill).
+
+        Default ``book_risk_budget is None`` → no-op (legacy tests unchanged).
+        Only risk-increasing LONG entries are gated; FLAT/exits always pass.
+        """
+        budget = self._book_risk_budget
+        if budget is None:
+            return RiskDecision(passed=True)
+        if signal.direction != Direction.LONG:
+            return RiskDecision(passed=True)
+
+        equity = float(portfolio.total_value)
+        if equity <= 0:
+            return RiskDecision(passed=True)
+
+        gross = 0.0
+        net = 0.0
+        for pos in portfolio.positions.values():
+            if pos.current_price <= 0:
+                continue
+            notion = float(pos.quantity) * float(pos.current_price)
+            gross += abs(notion)
+            net += notion
+        if pending:
+            pend_sum = float(sum(v for v in pending.by_symbol.values() if v > 0))
+            gross += pend_sum
+            net += pend_sum
+
+        # Proposed add: use strength as fraction of equity when size unknown.
+        strength = float(getattr(signal, "strength", 1.0) or 1.0)
+        strength = min(max(strength, 0.0), 1.0)
+        proposed = equity * strength
+
+        sleeve = None
+        sid = str(getattr(signal, "strategy_id", "") or "")
+        if "overlay" in sid.lower():
+            sleeve = "overlay"
+        elif "beta" in sid.lower() or "hodl" in sid.lower():
+            sleeve = "beta"
+
+        result = budget.check(
+            equity=equity,
+            current_gross=gross,
+            current_net=net,
+            proposed_notional_delta=proposed,
+            strategy_id=sid or None,
+            strategy_current_notional=0.0,
+            sleeve=sleeve,
+            sleeve_current_notional=0.0,
+            current_drawdown=float(getattr(portfolio, "current_drawdown", 0.0) or 0.0),
+            risk_increasing=True,
+        )
+        if result.get("allowed", True):
+            return RiskDecision(passed=True)
+        return RiskDecision(
+            passed=False,
+            reason=f"book_risk_budget:{result.get('reason', 'rejected')}",
+            details={"layers": result.get("layers", []), "reason": result.get("reason")},
+        )
 
     def _check_position_limit(
         self, signal: Signal, portfolio: Portfolio, pending: PendingView | None = None
