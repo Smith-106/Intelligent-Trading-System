@@ -68,6 +68,15 @@ risk:
     max_scale: 1.5                      # 缩放上限（预算最多放大 1.5 倍）
     min_samples: 30                     # 波动率估计最少样本数
     var_scaling: false                  # s5：组合 CVaR 恶化时额外缩放预算（默认关闭）
+  # Highflyer-style hierarchical book budget (default OFF). Enable for product
+  # paths that use beta/overlay sleeves + DD kill on risk-increasing entries.
+  book_risk_budget:
+    enabled: false
+    book_gross_limit: 1.2
+    book_net_limit: 1.2
+    kill_drawdown: 0.15
+    beta_sleeve: 1.0
+    overlay_sleeve: 0.20
   # s5 (T-s5-02): 组合级风险平价分配。enabled 默认 false，静态 allocation 零行为变化；
   # 开启后引擎跟踪每策略收益，每 rebalance_every_n_bars 根 bar 用 RiskParityOptimizer
   # 重算风险平价权重并推入 PortfolioManager.set_allocation（优化失败降级等权）。

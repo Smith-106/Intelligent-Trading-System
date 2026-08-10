@@ -136,6 +136,22 @@ class PaperReadinessConfig(BaseModel):
     require_evidence: bool = True
 
 
+class BookRiskBudgetConfig(BaseModel):
+    """Highflyer-style hierarchical book budget (default OFF).
+
+    When enabled, RiskEngine runs BookRiskBudget after exchange checks:
+    book gross/net caps, optional strategy caps, factor sleeves (beta/overlay),
+    and drawdown kill for risk-increasing entries.
+    """
+
+    enabled: bool = False
+    book_gross_limit: float = 1.2
+    book_net_limit: float = 1.2
+    kill_drawdown: float = 0.15
+    beta_sleeve: float = 1.0
+    overlay_sleeve: float = 0.20
+
+
 class RiskConfig(BaseModel):
     position_limit_pct: float = 0.20
     max_positions: int = 5
@@ -196,6 +212,8 @@ class RiskConfig(BaseModel):
     )
     # T016: paper→live minimum sample / duration (default ON).
     paper_readiness: PaperReadinessConfig = Field(default_factory=PaperReadinessConfig)
+    # Highflyer-style book budget (default OFF — zero behavior change).
+    book_risk_budget: BookRiskBudgetConfig = Field(default_factory=BookRiskBudgetConfig)
 
 
 class ExecutionConfig(BaseModel):

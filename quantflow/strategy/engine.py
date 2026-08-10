@@ -149,12 +149,27 @@ class TradingSession:
             monitoring_sink=self._sink,
             health_monitor=self._exchange_health,
         )
+        book_budget = None
+        brb = getattr(config.risk, "book_risk_budget", None)
+        if brb is not None and getattr(brb, "enabled", False):
+            from quantflow.signal.book_risk_budget import BookRiskBudget
+
+            book_budget = BookRiskBudget(
+                book_gross_limit=float(brb.book_gross_limit),
+                book_net_limit=float(brb.book_net_limit),
+                kill_drawdown=float(brb.kill_drawdown),
+                factor_sleeve_limits={
+                    "beta": float(brb.beta_sleeve),
+                    "overlay": float(brb.overlay_sleeve),
+                },
+            )
         self._risk_engine = RiskEngine(
             config.risk,
             strategy_risk_budgets=strategy_risk_budgets,
             monitoring_sink=self._sink,
             exchange_health=self._exchange_health,
             exchange_exposure_limit_pct=config.risk.exchange_exposure_limit_pct,
+            book_risk_budget=book_budget,
         )
         self._position_sizer = PositionSizer(
             method="kelly",
