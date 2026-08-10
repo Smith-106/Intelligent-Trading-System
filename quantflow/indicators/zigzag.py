@@ -38,11 +38,37 @@ class PivotPoint:
 
 @dataclass
 class PivotSequence:
-    """Sequence of consensus pivot points from multi-parameter ZigZag."""
+    """Sequence of consensus pivot points from multi-parameter ZigZag.
+
+    W18a:
+    - ``degraded`` is True when the low-consensus single-threshold fallback ran
+      (ISS-20260613-007) — callers must treat this as lower confidence.
+    - ``confirmed_pivots()`` drops the trailing in-progress extreme so PROGRESSIVE
+      wave labels do not trade on a pivot that can still flip.
+    """
 
     pivots: list[PivotPoint] = field(default_factory=list)
     overlap_ratio: float = 0.0  # average overlap across all pivots
     thresholds_used: list[float] = field(default_factory=list)
+    degraded: bool = False  # True when low-consensus fallback was used
+    consensus_n: int = 0  # number of threshold runs that produced pivots
+
+    def confirmed_pivots(self) -> list[PivotPoint]:
+        """Return pivots excluding the last (in-progress) extreme when present."""
+        if len(self.pivots) <= 1:
+            return list(self.pivots)
+        return list(self.pivots[:-1])
+
+    def with_confirmed_only(self) -> PivotSequence:
+        """Copy of this sequence using only confirmed (non-final) pivots."""
+        confirmed = self.confirmed_pivots()
+        return PivotSequence(
+            pivots=confirmed,
+            overlap_ratio=self.overlap_ratio,
+            thresholds_used=list(self.thresholds_used),
+            degraded=self.degraded,
+            consensus_n=self.consensus_n,
+        )
 
 
 class ZigZagIndicator(FactorBase):
@@ -110,7 +136,13 @@ class ZigZagIndicator(FactorBase):
                 all_pivots.append((t, p))
 
         if not all_pivots:
-            return PivotSequence(pivots=[], overlap_ratio=0.0, thresholds_used=thresholds)
+            return PivotSequence(
+                pivots=[],
+                overlap_ratio=0.0,
+                thresholds_used=thresholds,
+                degraded=False,
+                consensus_n=0,
+            )
 
         merged = _merge_pivot_runs(
             [p for _, p in all_pivots], min_overlap=min_overlap, bar_tolerance=bar_tolerance
@@ -119,16 +151,19 @@ class ZigZagIndicator(FactorBase):
         # ISS-20260613-007: low-volatility fallback — when min_overlap > 80%
         # produces no consensus pivots, fall back to the single ZigZag run whose
         # threshold is closest to the median of thresholds that produced results.
+        # W18a: mark degraded=True so strategies can skip or flag (no silent trust).
+        degraded = False
         if merged.empty:
             median_threshold = sorted(t for t, _ in all_pivots)[len(all_pivots) // 2]
             median_run = next(p for t, p in all_pivots if t == median_threshold)
             logger.warning(
                 "Low consensus pivots, falling back to single-ZigZag result "
-                "(threshold=%.4f, ISS-20260613-007)",
+                "(threshold=%.4f, ISS-20260613-007, degraded=True)",
                 median_threshold,
             )
             merged = median_run
             merged = merged.assign(overlap_count=1)
+            degraded = True
 
         pivots_list: list[PivotPoint] = []
         for _, row in merged.iterrows():
@@ -150,6 +185,8 @@ class ZigZagIndicator(FactorBase):
             pivots=pivots_list,
             overlap_ratio=avg_overlap,
             thresholds_used=thresholds,
+            degraded=degraded,
+            consensus_n=len(all_pivots),
         )
 
 

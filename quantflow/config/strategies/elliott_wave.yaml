@@ -22,6 +22,10 @@ params:
   # Wave analysis mode (C-001: dual mode)
   analysis_mode: progressive  # progressive (live) or retrospective (backtest)
 
+  # W18a: pivot fidelity / anti-repaint / consensus visibility
+  require_confirmed_pivots: true   # drop trailing in-progress pivot before identify
+  allow_degraded_consensus: false  # skip windows when ZigZag low-consensus fallback fires
+
   # Divergence settings
   use_divergence: true
   divergence_oscillators: [rsi_14, macd_histogram, volume]

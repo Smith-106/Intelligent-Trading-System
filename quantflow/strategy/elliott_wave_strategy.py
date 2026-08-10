@@ -89,6 +89,14 @@ class LiuYudongWaveStrategy(StrategyBase):
         # Incremental mode: window size for look-ahead-free computation
         self.incremental_window = config.get("incremental_window", 200)
 
+        # W18a: pivot fidelity / anti-repaint / consensus visibility
+        # require_confirmed_pivots=True (default): drop trailing in-progress pivot
+        # so PROGRESSIVE labels do not trade on a flip-able extreme.
+        self.require_confirmed_pivots = bool(config.get("require_confirmed_pivots", True))
+        # allow_degraded_consensus=False (default): skip windows where ZigZag
+        # fell back to single-threshold (degraded=True) — fail-closed.
+        self.allow_degraded_consensus = bool(config.get("allow_degraded_consensus", False))
+
     def on_init(self, ctx: Any) -> None:
         """Initialize strategy with context."""
         pass
@@ -125,13 +133,11 @@ class LiuYudongWaveStrategy(StrategyBase):
             # Use only data up to current position — no future leakage
             window_df = df.iloc[:end_idx].copy()
 
-            # Detect pivots on windowed data
-            pivot_series = self.zigzag.compute(
-                window_df,
-                thresholds=self.zigzag_thresholds,
-                min_overlap_ratio=self.min_overlap_ratio,
-            )
-            pivots = self._extract_pivots(pivot_series, window_df)
+            # W18a: use compute_pivot_sequence for real high/low pivot prices
+            # (marker Series + close substitution dropped as the primary path).
+            pivots = self._detect_pivots(window_df)
+            if pivots is None:
+                continue
 
             # Identify wave pattern on windowed data
             wave_count = self.wave_identifier.identify(pivots, mode=self.analysis_mode)
@@ -201,15 +207,51 @@ class LiuYudongWaveStrategy(StrategyBase):
 
         return entries, exits
 
+    def _detect_pivots(self, df: pd.DataFrame) -> PivotSequence | None:
+        """Run consensus ZigZag with real high/low prices (W18a).
+
+        Returns None when the window should be skipped (degraded consensus and
+        allow_degraded_consensus is False).
+        """
+        high = df["high"] if "high" in df.columns else df["close"]
+        low = df["low"] if "low" in df.columns else df["close"]
+        if "timestamp" in df.columns:
+            timestamps = df["timestamp"]
+        else:
+            timestamps = pd.Series(range(len(df)), index=df.index, dtype=int)
+
+        seq = self.zigzag.compute_pivot_sequence(
+            high,
+            low,
+            timestamps,
+            thresholds=self.zigzag_thresholds,
+            min_overlap_ratio=self.min_overlap_ratio,
+        )
+        if seq.degraded and not self.allow_degraded_consensus:
+            return None
+        if self.require_confirmed_pivots:
+            return seq.with_confirmed_only()
+        return seq
+
     def _extract_pivots(self, pivot_series: pd.Series, df: pd.DataFrame) -> PivotSequence:
-        """Convert pivot marker Series back to PivotSequence."""
+        """Convert pivot marker Series back to PivotSequence (legacy helper).
+
+        W18a: prefer high for HIGH pivots and low for LOW pivots when columns
+        exist; close is only a last-resort fallback.
+        """
         from quantflow.indicators.zigzag import PivotDirection, PivotPoint, PivotSequence
+
+        high = df["high"] if "high" in df.columns else df["close"]
+        low = df["low"] if "low" in df.columns else df["close"]
 
         pivots_list: list[PivotPoint] = []
         for idx_pos in range(len(pivot_series)):
             val = int(pivot_series.iloc[idx_pos])
             if val != 0:
-                price = float(df["close"].iloc[idx_pos])
+                if val == 1:
+                    price = float(high.iloc[idx_pos])
+                else:
+                    price = float(low.iloc[idx_pos])
                 pivots_list.append(
                     PivotPoint(
                         index=idx_pos,
@@ -220,7 +262,11 @@ class LiuYudongWaveStrategy(StrategyBase):
                 )
 
         return PivotSequence(
-            pivots=pivots_list, overlap_ratio=1.0, thresholds_used=self.zigzag_thresholds
+            pivots=pivots_list,
+            overlap_ratio=1.0,
+            thresholds_used=self.zigzag_thresholds,
+            degraded=False,
+            consensus_n=0,
         )
 
     def _check_w2_entry(

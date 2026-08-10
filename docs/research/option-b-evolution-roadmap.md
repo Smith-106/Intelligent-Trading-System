@@ -82,6 +82,47 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 ---
 
+## W17 — 小团队接近行业领先（研究，无代码）
+
+| 交付 | 状态 |
+|------|------|
+| wave / book / factor 三审计（teammate） | ✅ |
+| smart-search 外部证据（gap_check closed） | ✅ |
+| 总纲 [w17-small-team-edge.md](./w17-small-team-edge.md) | ✅ |
+| 波浪边界 [w17-wave-repaint-boundary.md](./w17-wave-repaint-boundary.md) | ✅ |
+| 防未来+因子 [w17-antifuture-and-factors.md](./w17-antifuture-and-factors.md) | ✅ |
+| 盘口小步 [w17-orderbook-microstructure.md](./w17-orderbook-microstructure.md) | ✅ |
+
+### 收敛结论（执行优先级）
+
+1. **保真 > 新 alpha**：pivot 真价 / 确认 pivot / consensus 显式 / BBO feed。  
+2. **死代码解锁**：`update_orderbook` 缺生产 caller（W16 fill 已写）。  
+3. **因子先接线休眠五件套**，再谈 Ichimoku/CVD。  
+4. **波浪 = 规则状态机 + 风控几何**，PROGRESSIVE 交易须确认 pivot。  
+
+### W18 — Wave + BBO + Factors（组合交付）
+
+| 切片 | 内容 | 状态 |
+|------|------|------|
+| **W18a** | 真价 pivot + confirmed-only + degraded 显式 | ✅ |
+| **W18b** | bar low/high → `ExecutionEngine.update_orderbook` | ✅ |
+| **W18c** | 休眠因子暴露 + 口径拆分（core/extended/wave） | ✅ |
+| 测试 | `test_w18_wave_bbo_factors` + 相关 66 passed | ✅ |
+
+详情：[w18-wave-bbo-factors.md](./w18-wave-bbo-factors.md)
+
+### W19+ 候选（未开工）
+
+| 切片 | 内容 |
+|------|------|
+| 可选 | `WaveInvalidationChecker` 接线 / RSI 背离参考点 / save_features 写保护 |
+| 可选 | 真实 ticker BBO 替换 bar low/high 代理 |
+| 可选 | session VWAP / OBV slope |
+
+并行：**T023** 墙钟至 consecutive≥7（自 UTC 2026-08-11）。
+
+---
+
 ## 明确不做（B 边界）
 
 - 替换执行核为 Nautilus/Lean  

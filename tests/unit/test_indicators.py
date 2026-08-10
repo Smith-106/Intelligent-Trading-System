@@ -77,28 +77,20 @@ class TestIndicatorEngine:
         assert "rsi_14" in result.columns
 
     def test_21_core_factors(self, ohlcv_df):
+        from quantflow.indicators.engine import CLASSICAL_CORE_NAMES, CLASSICAL_EXTENDED_NAMES
+
         engine = IndicatorEngine()
         result = engine.batch_calculate(ohlcv_df)
         available = engine.list_available()
-        # 21 core factors always computed by batch_calculate
-        # 6 additional Elliott Wave factors registered but require explicit params
-        core_factor_names = [
-            f
-            for f in FACTOR_NAMES
-            if f
-            not in {
-                "zigzag_pivots",
-                "wave_count",
-                "fibonacci_levels",
-                "critical_levels",
-                "wave_channel",
-                "divergence",
-            }
-        ]
-        core_factors = [f for f in available if f in core_factor_names]
-        assert len(core_factors) == 21
-        for name in core_factors:
+        # W18c: 21 core + extended classical are batch-computed;
+        # 6 wave names remain discovery-only (not batch columns).
+        assert len(CLASSICAL_CORE_NAMES) == 21
+        for name in CLASSICAL_CORE_NAMES:
+            assert name in available
             assert name in result.columns, f"Factor {name} not in result"
+        for name in CLASSICAL_EXTENDED_NAMES:
+            assert name in available
+            assert name in result.columns, f"Extended factor {name} not in result"
 
     def test_rsi_range(self, ohlcv_df):
         engine = IndicatorEngine()

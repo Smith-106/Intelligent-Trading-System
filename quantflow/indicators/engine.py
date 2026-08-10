@@ -1,4 +1,11 @@
-"""Indicator engine — batch compute 21+ indicators from pure pandas implementations."""
+"""Indicator engine — batch compute classical indicators from pure pandas.
+
+W18c surface (names in FACTOR_NAMES):
+- Classical batch (batch_calculate / compute_all default): 21 core + 5 dormant
+  extended factors that are now wired (supertrend/dema/stochRSI/keltner/donchian).
+- Wave names (6) remain listed for discovery but are NOT computed by batch_calculate;
+  they require FactorRegistry + wave_count injection (see docs/research/w17-antifuture-and-factors.md).
+"""
 
 from __future__ import annotations
 
@@ -30,8 +37,10 @@ def _register_wave_factors() -> None:
 
 _register_wave_factors()
 
-# 27 factors: trend(7) + momentum(4) + volatility(5) + volume(5) + elliott_wave(6)
-FACTOR_NAMES = [
+# Exposed names (W18c): classical batch columns + wave discovery names.
+# batch_calculate computes CLASSICAL only (21 core + 5 extended).
+# Wave 6 are registry-only (not batch-computed).
+CLASSICAL_CORE_NAMES = [
     # Trend (7)
     "sma_20",
     "sma_50",
@@ -57,7 +66,24 @@ FACTOR_NAMES = [
     "mfi_14",
     "volume_sma_20",
     "volume_ratio",
-    # Elliott Wave (6)
+]
+
+# Previously implemented but unwired (W18c expose pack)
+CLASSICAL_EXTENDED_NAMES = [
+    "dema_20",
+    "supertrend",
+    "supertrend_direction",
+    "stochrsi_k",
+    "stochrsi_d",
+    "kc_upper",
+    "kc_middle",
+    "kc_lower",
+    "dc_upper",
+    "dc_middle",
+    "dc_lower",
+]
+
+WAVE_FACTOR_NAMES = [
     "zigzag_pivots",
     "wave_count",
     "fibonacci_levels",
@@ -66,15 +92,19 @@ FACTOR_NAMES = [
     "divergence",
 ]
 
+FACTOR_NAMES = CLASSICAL_CORE_NAMES + CLASSICAL_EXTENDED_NAMES + WAVE_FACTOR_NAMES
+
 
 class IndicatorEngine:
-    """Compute all 21 core indicators on a DataFrame.
+    """Compute classical indicators on a DataFrame.
 
     Uses pure pandas/numpy implementations — no external TA library required.
+    Default batch = 21 core + W18c extended (supertrend/dema/stochRSI/KC/DC).
+    Wave factors are not computed here.
     """
 
     def batch_calculate(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Compute all standard indicators and append as columns.
+        """Compute classical (core + extended) indicators and append as columns.
 
         Expected input columns: open, high, low, close, volume
         """
@@ -122,6 +152,21 @@ class IndicatorEngine:
         result["mfi_14"] = volume.mfi(high, low, close, vol, 14)
         result["volume_sma_20"] = volume.volume_sma(vol, 20)
         result["volume_ratio"] = volume.volume_ratio(vol, 20)
+
+        # --- W18c extended classical (previously dormant) ---
+        result["dema_20"] = trend.dema(close, 20)
+        st_df = trend.supertrend(high, low, close)
+        for col in st_df.columns:
+            result[col] = st_df[col]
+        srsi_df = momentum.stochastic_rsi(close)
+        for col in srsi_df.columns:
+            result[col] = srsi_df[col]
+        kc_df = volatility.keltner_channel(high, low, close)
+        for col in kc_df.columns:
+            result[col] = kc_df[col]
+        dc_df = volatility.donchian_channel(high, low)
+        for col in dc_df.columns:
+            result[col] = dc_df[col]
 
         return result
 
@@ -199,6 +244,34 @@ class IndicatorEngine:
             result["volume_sma_20"] = volume.volume_sma(vol, 20)
         if "volume_ratio" in requested:
             result["volume_ratio"] = volume.volume_ratio(vol, 20)
+
+        # W18c extended classical
+        if "dema_20" in requested:
+            result["dema_20"] = trend.dema(close, 20)
+
+        st_columns = {"supertrend", "supertrend_direction"}
+        if requested & st_columns:
+            st_df = trend.supertrend(high, low, close)
+            for col in st_columns & requested:
+                result[col] = st_df[col]
+
+        srsi_columns = {"stochrsi_k", "stochrsi_d"}
+        if requested & srsi_columns:
+            srsi_df = momentum.stochastic_rsi(close)
+            for col in srsi_columns & requested:
+                result[col] = srsi_df[col]
+
+        kc_columns = {"kc_upper", "kc_middle", "kc_lower"}
+        if requested & kc_columns:
+            kc_df = volatility.keltner_channel(high, low, close)
+            for col in kc_columns & requested:
+                result[col] = kc_df[col]
+
+        dc_columns = {"dc_upper", "dc_middle", "dc_lower"}
+        if requested & dc_columns:
+            dc_df = volatility.donchian_channel(high, low)
+            for col in dc_columns & requested:
+                result[col] = dc_df[col]
 
         return result
 

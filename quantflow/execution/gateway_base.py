@@ -159,5 +159,19 @@ class GatewayBase(ABC):
         interface, which broke live/paper parity for gateway-side marks.
         """
 
+    def update_orderbook(
+        self,
+        symbol: str,
+        bid: float,
+        ask: float,
+        *,
+        mid_to_last: bool = True,
+    ) -> None:
+        """Push best bid/ask (optional override; W18b).
+
+        PaperGateway stores BBO for opt-in orderbook fills. OKX/live leave
+        this as a no-op (exchange feed owns the book).
+        """
+
     async def subscribe(self, channel: str, callback: Any = None) -> None:
         """Subscribe to a market data channel. Override for WebSocket support."""

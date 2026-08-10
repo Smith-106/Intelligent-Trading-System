@@ -445,6 +445,13 @@ class TradingSession:
 
         # Update position prices
         self._execution.update_market_price(bar.symbol, bar.close)
+        # W18b: push bar-level BBO proxy (low/high) so PaperGateway.update_orderbook
+        # has a production caller. Fills still use last+slip unless orderbook_fill
+        # is opt-in enabled; invalid/crossed books are ignored by the gateway.
+        if bar.low > 0 and bar.high > 0 and bar.low <= bar.high:
+            self._execution.update_orderbook(
+                bar.symbol, bid=float(bar.low), ask=float(bar.high), mid_to_last=False
+            )
         self._portfolio.update_position(bar.symbol, 0, bar.close)
 
         # Feed the realized per-bar return to the risk engine and position
