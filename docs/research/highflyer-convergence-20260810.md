@@ -38,12 +38,13 @@ python scripts/run_btc_beta_overlay_eval.py --sweep --fee 0.001 --slip 0.001 \
 |------|---------:|------------:|--------|
 | BTC HODL | **+118.54%** | 0 | — |
 | **B0 shared RP**（旧主路径） | **+5.14%** | **−113.4 pp** | **FAIL** |
-| **Beta+overlay**（默认/扫参：reduce_off w=0.25, MA **96/400**, **taker 10bp+10bp**） | **+165.63%** | **+47.1 pp** | **PASS** |
-| 同结构 maker-like 2bp | — | **+65.3 pp** | PASS |
-| 同结构 zero cost | — | **+70.0 pp** | PASS |
+| **Beta+overlay**（固定默认：reduce_off w=0.25, MA **96/400**, **taker 10bp+10bp**） | **+158.97%** | **+40.43 pp** | **PASS** |
+| 同结构 maker-like 2bp | — | **+55.13 pp** | PASS |
+| 同结构 zero cost | — | **+58.93 pp** | PASS |
 
 **收敛幅度（产品语义）**:  
-相对 BTC 超额从 B0 **−113 pp** → overlay 路径 **+47 pp（taker）**。  
+相对 BTC 超额从 B0 **−113 pp** → overlay 固定默认路径 **+40.4 pp（taker）**。  
+（`--sweep` 可在同窗得到更高 excess；旗舰数字以**固定默认无扫参**为准，见 [goal-highflyer-evidence-20260810.md](./goal-highflyer-evidence-20260810.md)。）  
 
 ### 诚实边界（必读）
 
