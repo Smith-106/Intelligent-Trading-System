@@ -7,6 +7,7 @@ from typing import Any
 
 from quantflow.common.models import Order, OrderSide
 from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
+from quantflow.common.pause_reasons import PauseReasonSet
 from quantflow.common.redaction import redact_secrets
 from quantflow.execution.gateway_base import GatewayBase
 
@@ -43,6 +44,8 @@ class KillSwitch:
         self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
         self._active = False
         self._reason: str | None = None
+        # OSS uplift: multi-reason pause set (kill_switch is one source).
+        self.pause_reasons = PauseReasonSet()
 
     @property
     def is_active(self) -> bool:
@@ -56,10 +59,14 @@ class KillSwitch:
         """Activate kill switch — cancel orders, close positions."""
         if self._active:
             logger.warning("Kill switch already active: %s", self._reason)
+            self.pause_reasons.add(reason or "kill_switch")
             return {"status": "already_active", "reason": self._reason}
 
         self._active = True
         self._reason = reason
+        self.pause_reasons.add("kill_switch")
+        if reason:
+            self.pause_reasons.add(reason)
         self._sink.record_kill_switch_activation(reason)
         logger.critical("KILL SWITCH ACTIVATED: %s", reason)
 

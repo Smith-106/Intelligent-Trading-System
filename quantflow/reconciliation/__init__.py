@@ -22,6 +22,10 @@ from quantflow.reconciliation.models import (
     DiscrepancySet,
     DailyReconReport,
 )
+from quantflow.reconciliation.ghost_positions import (
+    GhostPositionReport,
+    find_ghost_positions,
+)
 
 __all__ = [
     "ReconciliationEngine",
@@ -30,4 +34,6 @@ __all__ = [
     "Discrepancy",
     "DiscrepancySet",
     "DailyReconReport",
+    "GhostPositionReport",
+    "find_ghost_positions",
 ]

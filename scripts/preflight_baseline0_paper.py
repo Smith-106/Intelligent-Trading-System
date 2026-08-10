@@ -199,6 +199,21 @@ def main() -> int:
         f"≥{MIN_PAPER_DAYS}d and ≥{MIN_PAPER_FILLS} fills (defaults)"
     )
 
+    # --- OSS uplift: free disk (warn only) ---
+    print()
+    print("Host capacity (OSS preflight pattern — warn only):")
+    try:
+        import shutil
+
+        usage = shutil.disk_usage(REPO_ROOT)
+        free_gb = usage.free / (1024**3)
+        if free_gb < 1.0:
+            _warn(f"free disk {free_gb:.2f} GiB (< 1 GiB) — paper JSONL/parquet may fail")
+        else:
+            _ok(f"free disk {free_gb:.2f} GiB")
+    except Exception as exc:  # noqa: BLE001
+        _warn(f"disk check skipped: {exc}")
+
     # --- run command reminder ---
     print()
     print("Start command (path A — daily paper, no nested gate):")

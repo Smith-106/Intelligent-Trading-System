@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import inspect
 import logging
+import time
 from typing import Any
 
 from quantflow.common.models import Order, OrderStatus, Position
@@ -54,6 +55,13 @@ class PaperGateway(GatewayBase):
             0.0,
             min(float(ob.get("extra_slippage", cfg.get("orderbook_extra_slippage", 0.0))), 0.5),
         )
+        # OSS uplift: BBO max age (seconds). 0 = no age gate (default).
+        # When orderbook_fill is on and max_age > 0, stale BBO rejects the fill
+        # (binance-deribit market_ready pattern) instead of using rotten touch.
+        self._bbo_max_age_sec = max(
+            0.0,
+            float(ob.get("bbo_max_age_sec", cfg.get("bbo_max_age_sec", 0.0)) or 0.0),
+        )
         # ISS-20260720-004 Wave 2: PaperGateway no longer keeps a cash ledger.
         # _positions remains as the gateway's local exchange view (query_positions
         # / reduceOnly caps); cash is owned solely by L4 PortfolioManager.
@@ -62,6 +70,7 @@ class PaperGateway(GatewayBase):
         self._prices: dict[str, float] = {}  # symbol → last known price
         # symbol → (bid, ask) when orderbook fill is used
         self._bbo: dict[str, tuple[float, float]] = {}
+        self._bbo_ts: dict[str, float] = {}  # monotonic seconds at last update
         # ISS-003: mock WebSocket subscription task (paper mode simulates a
         # push feed by periodically emitting local position state).
         self._ws_task: asyncio.Task[Any] | None = None
@@ -108,6 +117,17 @@ class PaperGateway(GatewayBase):
             # making a stream of failed fills look like inactivity).
             logger.warning(
                 "Paper order REJECTED: no fill price for %s (order_id=%s)", symbol, order_id
+            )
+            order.status = OrderStatus.REJECTED
+            order.order_id = order_id
+            return order_id
+
+        if self._orderbook_fill_enabled and self._bbo_stale(symbol):
+            logger.warning(
+                "Paper order REJECTED: stale BBO for %s max_age=%.1fs (order_id=%s)",
+                symbol,
+                self._bbo_max_age_sec,
+                order_id,
             )
             order.status = OrderStatus.REJECTED
             order.order_id = order_id
@@ -300,9 +320,19 @@ class PaperGateway(GatewayBase):
             )
             return
         self._bbo[symbol] = (b, a)
+        self._bbo_ts[symbol] = time.monotonic()
         if mid_to_last:
             mid = (b + a) / 2.0
             self.update_market_price(symbol, mid)
+
+    def _bbo_stale(self, symbol: str) -> bool:
+        """True when orderbook fill is on, max_age>0, and BBO too old or missing."""
+        if not self._orderbook_fill_enabled or self._bbo_max_age_sec <= 0:
+            return False
+        if symbol not in self._bbo:
+            return True
+        age = time.monotonic() - float(self._bbo_ts.get(symbol, 0.0))
+        return age > self._bbo_max_age_sec
 
     def _resolve_fill_price(
         self,

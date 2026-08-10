@@ -67,6 +67,17 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 详情：[t036-rdagent-validation-bypass.md](./t036-rdagent-validation-bypass.md)
 
+## OSS uplift (post-W16)
+
+| 任务 | done_when | 状态 |
+|------|-----------|------|
+| PauseReasonSet + KillSwitch 挂载 | 多源暂停原因 | ✅ |
+| Paper BBO `bbo_max_age_sec` | 默认 0；overlay 示例 5s | ✅ |
+| Ghost position report | 纯函数对账，不自动平仓 | ✅ |
+| Preflight 磁盘余量 | warn-only | ✅ |
+
+详情：[oss-uplift-pause-bbo-ghost.md](./oss-uplift-pause-bbo-ghost.md) · [oss-binance-deribit-btc-learnings.md](./oss-binance-deribit-btc-learnings.md)
+
 详情：[w16-paper-fill-and-strategy-dx.md](./w16-paper-fill-and-strategy-dx.md)
 
 ---

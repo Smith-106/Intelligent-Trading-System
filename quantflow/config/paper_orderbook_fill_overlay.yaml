@@ -16,3 +16,5 @@ execution:
     enabled: true
     # Extra slip on top of touch (default 0 = fill at bid/ask only)
     extra_slippage: 0.0
+    # OSS uplift: reject fills when BBO older than N seconds (0 = off)
+    bbo_max_age_sec: 5.0
