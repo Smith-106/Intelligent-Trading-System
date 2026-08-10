@@ -6,6 +6,7 @@
 **Honesty**: 不伪造 7 日；不改 visibility；不把 synthetic promote 当真实 ops  
 **完整待办分层清单**: [pending-checklist.md](./pending-checklist.md)（P0–P3 + 禁做 + 日序）  
 **P1/P2 hygiene**: [p1-p2-hygiene-status.md](./p1-p2-hygiene-status.md)（2026-08-10 已做 seal/ignore/v0.6；P0 T023 仍 3/7）  
+**Doable-close**: [doable-close-20260810.md](./doable-close-20260810.md)（同日可做项已做；3 seal DEFER；knowledge DEFER；T023 仍 3/7）  
 
 ---
 

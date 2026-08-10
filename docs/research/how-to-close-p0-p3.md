@@ -2,7 +2,8 @@
 
 **As of**: 2026-08-10  
 **前提**: 工程 wave 已关；本手册只解决 **运营 / 人审 / 可选研究**，不开 W28。  
-**诚实规则**: 不伪造 UTC 日；不用 `--synthetic-full` 冒充真实 promote；agent 不改 GitHub visibility。
+**诚实规则**: 不伪造 UTC 日；不用 `--synthetic-full` 冒充真实 promote；agent 不改 GitHub visibility。  
+**Doable-close 快照**: [doable-close-20260810.md](./doable-close-20260810.md)（同日可做项已执行；T023 仍 3/7；3 session lifecycle-drift DEFER）。
 
 ---
 

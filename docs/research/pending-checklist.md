@@ -86,11 +86,12 @@
 - [x] 确认无密钥入仓  
 - [x] 不提交 gitleaks JSON / recovery / live_evidence  
 
-### 2.2 Maestro 陈旧 session — ✅ partial
+### 2.2 Maestro 陈旧 session — ✅ partial + **DEFER×3**
 
 - [x] 列出 active sessions  
 - [x] seal 7 个无阻塞 session（含 w18…）  
-- [ ] 余 3 个 `SESSION_SEAL_BLOCKED`（unsealed Runs）— 可选后续  
+- [x] 余 3 个 seal 失败已 **DEFER**（lifecycle command sha256 drift；见 [doable-close-20260810.md](./doable-close-20260810.md)）  
+  - `a-b-mr-88-sma200-20260807-101222` / `…101321` / `maestro-arch-iss003-…`  
 
 ### 2.3 仓库噪音 — ✅
 
@@ -200,5 +201,6 @@ git status -sb
 | 2026-08-10 | 初版：T023=3/7；B4/B5 KEEP；wave 关；P0–P3 分层 |
 | 2026-08-10 | P1/P2 hygiene：ignore experts-mode；seal 7 sessions；v0.6 文案；download 尝试；见 p1-p2-hygiene-status.md |
 | 2026-08-10 | 全量 completeness audit + kg sync：无强制工程缺口；见 project-completeness-audit-20260810.md |
+| 2026-08-10 | **doable-close**：同日 Path A 刷新仍 3/7；3 session DEFER；knowledge observed DEFER；oss_c 再确认；见 doable-close-20260810.md |
 
 *本清单描述「还剩什么」，不创造新的 W-number 流水线。*
