@@ -26,7 +26,7 @@ class BookRiskBudget:
     factor_sleeve_limits
         Optional sleeve caps (e.g. {"beta": 1.0, "overlay": 0.2}).
     kill_drawdown
-        If book drawdown (0–1) reaches this, reject all risk-increasing orders.
+        If book drawdown (0-1) reaches this, reject all risk-increasing orders.
     """
 
     book_gross_limit: float = 1.0

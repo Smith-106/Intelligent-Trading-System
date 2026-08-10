@@ -1,6 +1,6 @@
 """Benchmark excess vs a buy-and-hold reference (default: BTC).
 
-Product bar (2026-08-10): absolute return without ``strategy − HODL`` is incomplete.
+Product bar (2026-08-10): absolute return without ``strategy - HODL`` is incomplete.
 High-flyer-style production needs explicit beta/excess reporting, not only GO gates.
 """
 
