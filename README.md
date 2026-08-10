@@ -1,6 +1,6 @@
 # QuantFlow
 
-> 当前版本 **v0.5.0** — 详见 [docs/release/v0.5.0.md](docs/release/v0.5.0.md)
+> 当前版本 **v0.6.0** — 详见 [docs/release/v0.6.0.md](docs/release/v0.6.0.md)
 
 个人 Crypto 量化交易系统 — 从策略研究到实盘交易的完整闭环。
 
@@ -33,7 +33,7 @@
 - **防过拟合**：CPCV 组合交叉验证 + DSR 稳定性 + PBO 过拟合概率 + WFO 滚动前进 + GO/NO-GO 门
 - **风控完备**：半 Kelly 仓位 + VaR/CVaR + 回撤熔断 + Kill Switch（实盘模式强制启用）
 - **事件驱动**：自建 TradingSession 引擎，回测/模拟/实盘统一架构
-- **27 个因子**：21 基础指标（趋势/动量/波动/成交量）+ 6 个 Elliott Wave 因子，纯 pandas/numpy 实现
+- **指标表面（W18c 口径）**：21 经典核心 + 扩展（supertrend/DEMA/stochRSI/Keltner/Donchian/session VWAP/OBV slope/CVD proxy）+ 6 个 Elliott Wave 注册名（wave 需专用管道），纯 pandas/numpy
 - **AI 增强**：Meta-Labeling + FinBERT 情绪分析（已实现）；Qlib RD-Agent 因子挖掘骨架（CLI 已接线，qlib 为可选依赖）
 - **QuantFlow Station**：React + Vite 现代前端 + aiohttp 业务后端，23 个 REST 端点 + CSRF/Token 安全防护
 - **对账引擎**：持仓漂移检测 + 孤儿订单发现 + 审计日志 + 会话崩溃恢复（Checkpoint 状态存储）
@@ -57,7 +57,7 @@
 ├─────────────────────────────────────────────────┤
 │  L3 策略研发  回测 / 优化 / 验证 / AI因子         │
 ├─────────────────────────────────────────────────┤
-│  L2 指标因子  27因子 / 趋势 / 动量 / 波动 / 成交量 / 波浪 │
+│  L2 指标因子  经典+扩展 / 波浪(registry) / 量能代理      │
 ├─────────────────────────────────────────────────┤
 │  L1 数据层    CCXT / DuckDB+Parquet / Redis       │
 └─────────────────────────────────────────────────┘
@@ -175,15 +175,15 @@ quantflow/
 │   ├── mtf_aligner.py  #   多时间框架对齐
 │   ├── dq_monitor.py   #   数据质量实时监控
 │   └── market_meta_fetcher.py # 市场元数据（资金费率/持仓量）
-├── indicators/         # L2 指标因子层（27 个因子）
+├── indicators/         # L2 指标因子层（经典+扩展；wave 走 registry）
 │   ├── base.py         #   FactorBase + FactorRegistry 注册表
 │   ├── engine.py       #   因子计算引擎（batch_calculate/compute_all）
-│   ├── trend.py        #   趋势（SMA/EMA/MACD/Supertrend/ADX）
+│   ├── trend.py        #   趋势（SMA/EMA/MACD/Supertrend/ADX/DEMA）
 │   ├── momentum.py     #   动量（RSI/StochRSI/Stochastic/Williams%R）
 │   ├── volatility.py   #   波动（ATR/BB/Keltner/Donchian）
-│   ├── volume.py       #   成交量（OBV/VWAP/MFI）
+│   ├── volume.py       #   成交量（OBV/VWAP/session_vwap/OBV slope/CVD proxy）
 │   ├── regime.py       #   市场状态检测（策略门控）
-│   └── elliott_wave.py #   Elliott Wave 子系统（zigzag/fib/wave_channel/divergence）
+│   └── zigzag/wave_*   #   Elliott Wave 子系统（共识 pivot / 铁律 / Fib）
 ├── strategy/           # L3 策略研发层
 │   ├── base.py         #   StrategyBase 双模式接口
 │   ├── engine.py       #   TradingSession 事件驱动引擎

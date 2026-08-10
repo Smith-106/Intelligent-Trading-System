@@ -19,6 +19,11 @@ env/
 data/parquet/
 data/duckdb/*.duckdb
 data/duckdb/*.wal
+# Local DuckDB runtime / probe DBs (paths may be referenced by config defaults)
+data/*.duckdb
+data/*.duckdb.wal
+data/station_history_probe*/
+data/meta_merged/
 
 # Config with secrets
 .env
@@ -78,6 +83,7 @@ docker/grafana_data/
 .workflow/.backups/
 .workflow/.trash/
 .workflow/issues/.backups/
+.workflow/recovery/
 *.pid
 
 # MaestroGraph / maestro knowledge-tool local indices and caches.

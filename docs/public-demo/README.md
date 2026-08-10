@@ -1,6 +1,7 @@
 # QuantFlow — public docs & demo pack
 
 **License:** Apache-2.0（见 `LICENSE`）  
+**Engine version (private repo):** v0.6.0 (2026-08-10)  
 **Scope:** documentation + synthetic gate examples only.  
 **Not included:** trading engine source, market data, live credentials, private research PnL.
 
@@ -11,10 +12,21 @@ A **personal / small-team Crypto mid-frequency research OS** (OKX-oriented):
 - paper-first  
 - validation-gate driven (CPCV / DSR / PBO / WFO → GO/NO-GO)  
 - cost fidelity: fee×slip grids required for promotion narratives  
+- event-path promotion discipline (`paper_replay` / TradingSession; vectorized-only GO refused)
 
 It is **not** an institutional OEMS, not a SaaS copy-trading bot, and not a Freqtrade clone.
 
 See [POSITIONING.md](./POSITIONING.md).
+
+## Recent engine themes (docs-only summary)
+
+| Theme | Public takeaway |
+|-------|-----------------|
+| Cost fidelity | fee×slip grid required for GO narrative |
+| Paper fills | Optional BBO fill model — **default off** |
+| Factors | Classical + extended indicators; wave factors need dedicated pipeline |
+| Risk | Funding can be a **risk gate** (not alpha); Kill Switch multi-reason pauses |
+| AI | Validation bypass only — never silent live promote |
 
 ## Path A vs Path B
 

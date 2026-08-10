@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.6.0] — 2026-08-10
+
+### Features
+- W18: ZigZag real high/low pivots, confirmed-only default, degraded consensus flag; bar BBO feed path; dormant factors wired (supertrend/DEMA/stochRSI/Keltner/Donchian)
+- W19: WaveInvalidationChecker exits, RSI divergence vs W1 peak, FeatureStore save keep-first; ticker BBO API; session_vwap + obv_slope
+- W20: opt-in ticker BBO poll; bar-level cvd_proxy; Elliott WFO smoke (vectorized_smoke, not GO)
+- W21: funding risk gate (pause / optional KillSwitch, default off); Elliott paper_replay smoke; fetch_trades + cvd_from_trades scaffold
+- W14–W16 / OSS uplift already on main: promotion_path discipline, paper BBO fill opt-in, AI validation bypass, PauseReasonSet/ghost/preflight
+
+### Research docs
+- W17 research pack (small-team edge, wave repaint, antifuture/factors, orderbook micro)
+- W18–W21 implementation notes under docs/research/
+- Release notes: docs/release/v0.6.0.md
+
+### Cleanup
+- Untrack local DuckDB probes and station_history_probe JSONL
+- .gitignore: data/*.duckdb, meta_merged, .workflow/recovery
+- Local cache purge (__pycache__, pytest/ruff, gitleaks reports)
+
+### Tests
+- Focused suites for W18–W21 (wave/BBO/factors/funding/paper_replay/CVD)
+
+## [0.5.0] — 2026-08-08
+
+### Features
+- Shared-book symbol-level Risk Parity (opt-in, default strategy-level)
+- multi_symbol_replay / wfo_shared_rp research toolchain
+- Honest WFO OOS comparison equal vs shared_risk_parity
+
+### Docs
+- docs/release/v0.5.0.md; public demo pack positioning
+
 ## [0.4.0] 鈥?2026-08-03
 
 ### Features (Wave 1: s1-integrity-foundation + s2-multisource-data)
