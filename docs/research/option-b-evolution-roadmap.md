@@ -155,13 +155,24 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 详情：[w22-trades-contract-funding-tracks.md](./w22-trades-contract-funding-tracks.md)
 
-### W23+ 候选（未开工）
+### W23 — Trades ingest + Elliott cost-grid + B4 draft
+
+| 切片 | 内容 | 状态 |
+|------|------|------|
+| **W23a** | `TradesIngestLoop` poll/push → TradesStore（默认关） | ✅ |
+| **W23b** | Elliott cost-grid package（fee×slip + funding_tca 结构；禁 GO） | ✅ |
+| **W23c** | B4 funding 合同草稿 thr=0.0004 + overlay（不改 B3） | ✅ |
+| 测试 | `test_w23_*` 等 15 passed | ✅ |
+
+详情：[w23-trades-cost-b4.md](./w23-trades-cost-b4.md)
+
+### W24+ 候选（未开工）
 
 | 切片 | 内容 |
 |------|------|
-| 可选 | trades WS 实时灌入 TradesStore |
-| 可选 | Elliott 正式 cost-grid 合同（非 package-only） |
-| 可选 | B4 funding 信号新合同（若改阈值；禁改 B3） |
+| 可选 | B4 challenger runner + 独立 `baseline4/` 产物 |
+| 可选 | Elliott multi-run reseat cost grid（替换 proxy） |
+| 可选 | trades WS 真流（ccxt watch_trades） |
 
 并行：**T023** 墙钟至 consecutive≥7（自 UTC 2026-08-11）。
 

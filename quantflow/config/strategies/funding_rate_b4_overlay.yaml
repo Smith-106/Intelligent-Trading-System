@@ -1,0 +1,25 @@
+# B4 research overlay — DOES NOT replace funding_rate.yaml defaults.
+# W23c: new signal contract for lower funding entry threshold.
+# Forbidden: silently editing B3 frozen params / baseline3 artifacts.
+#
+# Usage (research scripts only):
+#   load base funding_rate.yaml then merge this overlay into strategy.params
+
+metadata:
+  title: "Funding Rate B4 overlay"
+  description: "Lower entry threshold contract (draft); KEEP B3 frozen"
+  baseline: "B4"
+  supersedes: null
+  related_frozen: "B3"
+
+strategy:
+  name: "funding_rate"
+  params:
+    # B3 frozen entry_threshold was 0.001 (0 fills @ measured max |rate|~0.0005).
+    # B4 probes 0.0004 as a NEW contract — write artifacts under baseline4/ only.
+    entry_threshold: 0.0004
+    exit_threshold: 0.00015
+    oi_lookback: 3
+    oi_change_threshold: 0.05
+    rate_ema_period: 8
+    cooldown_bars: 6

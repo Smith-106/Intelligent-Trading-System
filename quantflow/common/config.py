@@ -218,6 +218,12 @@ class ExecutionConfig(BaseModel):
     # Does not enable orderbook_fill; only refreshes BBO cache when poll is on.
     bbo_poll_enabled: bool = False
     bbo_poll_interval_s: float = 5.0
+    # W23a: optional public-trades poll → TradesStore (default false).
+    # Not a full WS tape; REST fetch_trades on an interval for CVD research.
+    trades_poll_enabled: bool = False
+    trades_poll_interval_s: float = 30.0
+    trades_store_dir: str = "data/trades"
+    trades_poll_limit: int = 100
     # M4-2.4: multi-symbol support. When non-empty, TradingSession creates
     # per-(strategy, symbol) instances and the data loop rotates over all
     # symbols. Empty list = legacy single-symbol mode (symbol supplied by

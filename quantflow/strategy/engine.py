@@ -293,6 +293,10 @@ class TradingSession:
         self._bbo_source: str = "bar_proxy"
         self._bbo_poll_task: asyncio.Task[None] | None = None
         self._bbo_fetcher: Any | None = None  # injectable DataFetcher for tests
+        # W23a: optional trades ingest → TradesStore
+        self._trades_ingest: Any | None = None
+        self._trades_store: Any | None = None
+        self._trades_fetcher: Any | None = None
         # W21a: session-level pause set for soft risk gates (funding, etc.)
         from quantflow.common.pause_reasons import PauseReasonSet
 
@@ -432,6 +436,9 @@ class TradingSession:
         if getattr(self._config.execution, "bbo_poll_enabled", False):
             self.set_bbo_source("ticker")
             self._bbo_poll_task = asyncio.create_task(self._bbo_poll_loop())
+        # W23a: opt-in trades poll into TradesStore (default false)
+        if getattr(self._config.execution, "trades_poll_enabled", False):
+            self._start_trades_ingest()
         logger.info(
             "Trading session started: %d strategies, %d symbols, mode=%s",
             len(self._strategies),
@@ -1102,6 +1109,51 @@ class TradingSession:
     # RateLimiter keeps adjacent requests >=200 ms apart). Collector
     # failures are log-only — they MUST NOT interrupt the main data loop.
     # ------------------------------------------------------------------ #
+    def _start_trades_ingest(self) -> None:
+        """W23a: wire TradesIngestLoop when trades_poll_enabled."""
+        from quantflow.data.trades_ingest import TradesIngestLoop, make_fetcher_adapter
+        from quantflow.data.trades_store import TradesStore
+
+        symbols = list(self._symbols or self._config.execution.symbols or [])
+        if not symbols:
+            logger.warning("trades poll enabled but no symbols resolved — ingest idle")
+            return
+        store_dir = str(
+            getattr(self._config.execution, "trades_store_dir", "data/trades") or "data/trades"
+        )
+        interval = float(getattr(self._config.execution, "trades_poll_interval_s", 30.0) or 30.0)
+        limit = int(getattr(self._config.execution, "trades_poll_limit", 100) or 100)
+        self._trades_store = TradesStore(store_dir)
+        # Prefer injectable fetcher (tests); else DataFetcher from config.
+        fetcher = getattr(self, "_trades_fetcher", None)
+        if fetcher is None:
+            from quantflow.data.fetcher import DataFetcher
+
+            fetcher = DataFetcher(self._config.data)
+            self._trades_fetcher = fetcher
+
+            async def _ensure_connect() -> None:
+                with contextlib.suppress(Exception):
+                    await fetcher.connect()
+
+            asyncio.create_task(_ensure_connect())
+
+        fetch_fn = make_fetcher_adapter(fetcher) if hasattr(fetcher, "fetch_trades") else fetcher
+        self._trades_ingest = TradesIngestLoop(
+            self._trades_store,
+            fetch_trades=fetch_fn,
+            symbols=symbols,
+            interval_s=interval,
+            limit=limit,
+        )
+        self._trades_ingest.start()
+        logger.info(
+            "Trades ingest started: symbols=%s interval=%.1fs dir=%s",
+            symbols,
+            interval,
+            store_dir,
+        )
+
     async def _bbo_poll_loop(self) -> None:
         """W20a: background ticker BBO poller (opt-in via bbo_poll_enabled).
 
@@ -1657,6 +1709,11 @@ class TradingSession:
             with contextlib.suppress(asyncio.CancelledError):
                 await self._bbo_poll_task
             self._bbo_poll_task = None
+        # W23a: drain trades ingest
+        if self._trades_ingest is not None:
+            with contextlib.suppress(Exception):
+                await self._trades_ingest.stop()
+            self._trades_ingest = None
         await self._execution.stop()
         logger.info("Trading session stopped")
 
