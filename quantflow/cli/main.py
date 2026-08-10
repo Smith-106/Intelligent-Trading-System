@@ -1086,7 +1086,8 @@ def ai(
         "rdagent",
         help=(
             "AI action: 'rdagent' (factor mining), 'research' (discovery→IC), "
-            "'train' (train→validate), 'register' (gated registration → paper only)"
+            "'train' (train→validate), 'register' (gated registration → paper only), "
+            "'bypass' (T036 validation-only lane — never live)"
         ),
     ),
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol for factor evaluation"),
@@ -1118,10 +1119,12 @@ def ai(
         _ai_train(symbol, config, features_csv, close_csv, factors_json)
     elif action == "register":
         _ai_register(model_id, config, registry_dir)
+    elif action == "bypass":
+        _ai_validation_bypass(symbol, config, registry_dir, factors_json)
     else:
         console.print(
             f"[red]Unknown AI action: {action}. "
-            "Available: rdagent, research, train, register[/]"
+            "Available: rdagent, research, train, register, bypass[/]"
         )
 
 
@@ -1383,9 +1386,62 @@ def _ai_register(model_id: str, config: str, registry_dir: str = "") -> None:
     if entry["status"] != "paper":
         console.print(
             "[yellow]NO-GO / rejected models never enter paper trading "
-            "(decision + cost fidelity + optional IC).[/]"
+            "(decision + cost fidelity + optional IC + W14 path).[/]"
         )
+    console.print(
+        "[dim]T036: AI register never promotes to live. "
+        "promote_to_live only for non-bypass paper models + evidence.[/]"
+    )
 
+
+def _ai_validation_bypass(
+    symbol: str,
+    config: str,
+    registry_dir: str = "",
+    factors_json: str = "",
+) -> None:
+    """T036: RD-Agent → validation only (never live)."""
+    from quantflow.data.store import DataStore
+    from quantflow.strategy.ai_validation_bypass import run_ai_validation_bypass
+
+    cfg = _load(config)
+    reg_dir = registry_dir or cfg.ai.registry_dir
+    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+    try:
+        df = store.query(symbol)
+        if df.empty:
+            console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+            return
+        if "datetime" in df.columns:
+            df = df.set_index("datetime")
+
+        console.print(
+            f"[bold blue]AI validation bypass (T036) — {symbol}[/] "
+            "[dim]live wire forbidden[/]"
+        )
+        result = run_ai_validation_bypass(
+            symbol=symbol,
+            ohlcv=df,
+            register=True,
+            registry_dir=reg_dir,
+            factors_json=factors_json or None,
+        )
+        verdict = "[green]GO[/]" if result.decision == "GO" else "[red]NO-GO[/]"
+        console.print(f"Validation gate: {verdict}")
+        console.print(f"  model_id: {result.model_id}")
+        console.print(f"  reason: {result.reason}")
+        console.print(f"  factors: {result.n_selected}/{result.n_factors} selected")
+        console.print(f"  report: {result.report_path}")
+        console.print(f"  register: {result.registered_status}")
+        console.print(f"  ai_lane: {result.ai_lane} · live_blocked={result.ai_live_blocked}")
+        for note in result.notes:
+            console.print(f"  [dim]{note}[/]")
+        console.print(
+            "[yellow]No promote_to_live from this path. "
+            "Paper GO still needs fee×slip + funding_tca + paper_replay (W14).[/]"
+        )
+    finally:
+        store.close()
 
 
 @app.command(name="new-strategy")

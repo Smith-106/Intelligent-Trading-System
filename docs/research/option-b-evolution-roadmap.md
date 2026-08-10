@@ -63,7 +63,9 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 |------|-----------|------|
 | T034 Paper 可选 BBO 盘口填充（非 HFT） | `orderbook_fill` 默认关 + overlay + 测试 | ✅ |
 | T035 策略模板 DX（Jesse 式薄 API） | `SimpleStrategy` + catalog `simple` + 测试 | ✅ |
-| T036 RD-Agent/Qlib **旁路** 进 validation only | 无直连 live | ⏳ optional residual |
+| T036 RD-Agent/Qlib **旁路** 进 validation only | `ai bypass` + live stamp block + tests | ✅ |
+
+详情：[t036-rdagent-validation-bypass.md](./t036-rdagent-validation-bypass.md)
 
 详情：[w16-paper-fill-and-strategy-dx.md](./w16-paper-fill-and-strategy-dx.md)
 

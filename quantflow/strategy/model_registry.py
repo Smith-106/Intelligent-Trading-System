@@ -176,6 +176,17 @@ class ModelRegistry:
                 f"(require one of {PROMOTABLE})"
             )
 
+        # T036: AI validation_bypass lane must never reach live via this API.
+        from quantflow.strategy.ai_validation_bypass import (
+            AILiveWireError,
+            assert_ai_live_not_wired,
+        )
+
+        try:
+            assert_ai_live_not_wired(entry)
+        except AILiveWireError as exc:
+            raise ModelRegistryError(str(exc)) from exc
+
         evidence = dict(paper_evidence) if paper_evidence else None
         if evidence is None:
             evidence = extract_paper_evidence(entry)
