@@ -13,8 +13,8 @@
 |----|------|
 | **工程任务 T022–T030**（可代码/文档交付者） | **收口** |
 | **研究合同 B0–B3** | B0 **PAPER-GO**；B1–B3 **FROZEN KEEP B0** |
-| **唯一残留自动/运营任务** | **每日 Path A streak（T023 墙钟）** |
-| **人审可选** | gitleaks 全历史 + 方案 C visibility（材料已备，非 agent） |
+| **唯一残留自动/运营任务** | **每日 Path A streak（T023 墙钟）** — 见 [residual-ops-status.md](./residual-ops-status.md) |
+| **人审可选** | git 历史 gitleaks **0**；工作区本地 2 命中待人复核；方案 C visibility（材料已备，非 agent） |
 
 **不再开** 同波次重复工程 session（T022/T024–T030），除非回归缺陷或新计划波次。
 

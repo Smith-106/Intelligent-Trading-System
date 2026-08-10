@@ -130,3 +130,7 @@ data/station_history/
 
 # Paper day-session summaries (local runtime)
 data/paper_sessions/
+
+# Local secret scan reports (do not commit)
+gitleaks*.json
+gitleaks-report.json
