@@ -177,13 +177,24 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 详情：[w24-b4-reseat-watch.md](./w24-b4-reseat-watch.md)
 
-### W25+ 候选（未开工）
+### W25 — B4 meta-window + Elliott assert + multi-symbol trades
+
+| 切片 | 内容 | 状态 |
+|------|------|------|
+| **W25a** | B4 `--meta-window` + 独立 `run_id`（禁 baseline3） | ✅ |
+| **W25b** | `assert_elliott_cost_package.py` 一键结构门 | ✅ |
+| **W25c** | `multi_symbol_trades` coordinator | ✅ |
+| 测试 | `test_w25_*` 5 passed | ✅ |
+
+详情：[w25-meta-assert-multi.md](./w25-meta-assert-multi.md)
+
+### W26+ 候选（未开工）
 
 | 切片 | 内容 |
 |------|------|
-| 可选 | B4 真实 meta 窗 challenger（独立 run_id；仍禁改 B3） |
-| 可选 | Elliott cost-grid 与 promotion_path 一键 assert 脚本 |
-| 可选 | multi-symbol trades ingest |
+| 可选 | B4 adjudication freeze 模板（不写 GO） |
+| 可选 | CLI 接线 assert-elliott |
+| 可选 | trades multi-symbol overlay YAML |
 
 并行：**T023** 墙钟至 consecutive≥7（自 UTC 2026-08-11）。
 

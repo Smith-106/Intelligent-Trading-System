@@ -209,12 +209,34 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Synthetic OHLCV smoke replay (structure only)",
     )
+    ap.add_argument(
+        "--meta-window",
+        action="store_true",
+        help="W25a: attempt real OHLCV+funding pin window (independent run_id under baseline4/)",
+    )
+    ap.add_argument("--start", default="2021-01-01")
+    ap.add_argument("--end", default="2026-08-04")
+    ap.add_argument(
+        "--run-id",
+        default=None,
+        help="Subdir under out-dir for dated artifacts (default: UTC stamp)",
+    )
+    ap.add_argument(
+        "--meta-root",
+        action="append",
+        default=None,
+        help="Parquet root with meta_funding_rate (repeatable)",
+    )
     ap.add_argument("--n-bars", type=int, default=120)
     args = ap.parse_args(argv)
 
     out_dir = Path(args.out_dir)
     if not out_dir.is_absolute():
         out_dir = REPO_ROOT / out_dir
+    # W25a: independent run_id so re-runs never overwrite sibling packages
+    if args.meta_window or args.run_id:
+        rid = args.run_id or datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        out_dir = out_dir / rid
     try:
         _assert_not_baseline3(out_dir)
     except SystemExit as e:
@@ -241,15 +263,135 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"ok": True, **pkg["adjudication"], "out": pkg["out_dir"]}))
         return 0
 
-    # Default path is synthetic smoke (safe for CI / no parquet). Full meta
-    # challenger can be added later; --synthetic is explicit but equivalent.
-    if args.synthetic or not args.dry_run:
-        df = _synthetic_ohlcv(n=max(40, int(args.n_bars)))
-        # inject mild funding column for strategy if it reads from bar attrs — optional
-        results: dict[str, Any] = {}
+    if args.meta_window:
+        return _run_meta_window(args, out_dir)
+
+    # Default path is synthetic smoke (safe for CI / no parquet).
+    df = _synthetic_ohlcv(n=max(40, int(args.n_bars)))
+    results: dict[str, Any] = {}
+    try:
+        results["classic"] = asyncio.run(
+            _replay_variant("trend_following", df, params=None, fee=0.001, slip=0.001)
+        )
+        results["funding_rate_b4"] = asyncio.run(
+            _replay_variant(
+                "funding_rate",
+                df,
+                params=B4_PARAMS,
+                fee=0.001,
+                slip=0.001,
+            )
+        )
+        status = "SYNTHETIC_SMOKE"
+        notes = [
+            "W24a synthetic smoke — not a sealed OOS adjudication",
+            f"B4 entry_threshold={B4_PARAMS['entry_threshold']} (B3 frozen at {B3_ENTRY})",
+        ]
+    except Exception as e:
+        status = "ERROR"
+        notes = [f"synthetic replay error: {e}"]
+        results = {"error": str(e)}
+
+    pkg = _write_package(
+        out_dir,
+        mode="synthetic",
+        status=status,
+        notes=notes,
+        results=results,
+        df=df,
+    )
+    print(json.dumps({"ok": status != "ERROR", "status": status, "out": pkg["out_dir"]}))
+    return 0 if status != "ERROR" else 1
+
+
+def _run_meta_window(args: argparse.Namespace, out_dir: Path) -> int:
+    """W25a: real pin-window attempt; BLOCKED/NARROWED/OK with independent run_id."""
+    from quantflow.data.store import DataStore
+    from quantflow.strategy.research.contract_pin import parse_window_ms
+
+    notes: list[str] = [
+        "W25a meta-window challenger scaffold",
+        "Does not write baseline3/; does not mutate B3 YAML",
+        f"B4 entry_threshold={B4_PARAMS['entry_threshold']} (B3 frozen {B3_ENTRY})",
+    ]
+    try:
+        start_ms, end_ms = parse_window_ms(args.start, args.end)
+    except Exception as e:
+        print(f"[b4] pin error: {e}", file=sys.stderr)
+        return 2
+
+    meta_roots = (
+        [Path(p) if Path(p).is_absolute() else REPO_ROOT / p for p in args.meta_root]
+        if args.meta_root
+        else [
+            REPO_ROOT / "data" / "s3_verify" / "raw",
+            REPO_ROOT / "data" / "parquet",
+            REPO_ROOT / "data" / "meta_merged",
+        ]
+    )
+
+    # OHLCV
+    ohlcv_store = DataStore(str(REPO_ROOT / "data" / "parquet"), ":memory:")
+    try:
+        raw = ohlcv_store.query(SYMBOL, start=start_ms, end=end_ms, timeframe="1h")
+    except Exception as e:
+        raw = pd.DataFrame()
+        notes.append(f"ohlcv query error: {e}")
+    finally:
+        ohlcv_store.close()
+
+    # Funding via light meta scan (reuse B3 roots without importing B3 OUT_DIR)
+    funding_n = 0
+    funding_max_abs = 0.0
+    for root in meta_roots:
+        if not root.is_dir():
+            notes.append(f"meta root missing: {root}")
+            continue
+        try:
+            store = DataStore(str(root), ":memory:")
+            try:
+                f = store.query_funding_rates(SYMBOL, start=start_ms, end=end_ms)
+            finally:
+                store.close()
+            if f is not None and not f.empty and "funding_rate" in f.columns:
+                funding_n = max(funding_n, len(f))
+                funding_max_abs = max(
+                    funding_max_abs, float(f["funding_rate"].abs().max())
+                )
+                notes.append(f"funding from {root.as_posix()} n={len(f)}")
+        except Exception as e:
+            notes.append(f"meta load skip {root}: {e}")
+
+    status = "OK"
+    block_reasons: list[str] = []
+    if raw is None or raw.empty:
+        status = "BLOCKED"
+        block_reasons.append("no OHLCV in pin window")
+    if funding_n < 24:
+        status = "BLOCKED" if status != "OK" else "BLOCKED"
+        block_reasons.append(f"funding points {funding_n} < 24")
+
+    results: dict[str, Any] = {
+        "funding_points": funding_n,
+        "funding_max_abs": funding_max_abs,
+        "ohlcv_bars": int(len(raw)) if raw is not None else 0,
+        "block_reasons": block_reasons,
+    }
+
+    df: pd.DataFrame | None = None
+    if status != "BLOCKED" and raw is not None and not raw.empty:
+        df = raw[["timestamp", "open", "high", "low", "close", "volume"]].reset_index(
+            drop=True
+        )
+        # Cap bars for smoke-scale replay if huge
+        if len(df) > 2000:
+            df = df.iloc[-2000:].reset_index(drop=True)
+            notes.append("ohlcv truncated to last 2000 bars for scaffold replay")
         try:
             results["classic"] = asyncio.run(
-                _replay_variant("trend_following", df, params=None, fee=0.001, slip=0.001)
+                _replay_variant(
+                    "trend_following", df, params=None, fee=0.001, slip=0.001
+                )
             )
             results["funding_rate_b4"] = asyncio.run(
                 _replay_variant(
@@ -260,26 +402,34 @@ def main(argv: list[str] | None = None) -> int:
                     slip=0.001,
                 )
             )
-            status = "SYNTHETIC_SMOKE"
-            notes = [
-                "W24a synthetic smoke — not a sealed OOS adjudication",
-                f"B4 entry_threshold={B4_PARAMS['entry_threshold']} (B3 frozen at {B3_ENTRY})",
-            ]
+            notes.append("meta-window paper_replay completed (not sealed UPGRADE)")
         except Exception as e:
             status = "ERROR"
-            notes = [f"synthetic replay error: {e}"]
-            results = {"error": str(e)}
+            notes.append(f"replay error: {e}")
+            results["error"] = str(e)
+    else:
+        notes.extend(block_reasons)
 
-        pkg = _write_package(
-            out_dir,
-            mode="synthetic",
-            status=status,
-            notes=notes,
-            results=results,
-            df=df,
+    # Still KEEP_B0 by default — human must upgrade
+    pkg = _write_package(
+        out_dir,
+        mode="meta_window",
+        status=status if status != "OK" else "META_SMOKE",
+        notes=notes,
+        results=results,
+        df=df,
+    )
+    print(
+        json.dumps(
+            {
+                "ok": status not in ("ERROR",),
+                "status": status if status != "OK" else "META_SMOKE",
+                "out": pkg["out_dir"],
+                "funding_points": funding_n,
+            }
         )
-        print(json.dumps({"ok": status != "ERROR", "status": status, "out": pkg["out_dir"]}))
-        return 0 if status != "ERROR" else 1
+    )
+    return 0 if status != "ERROR" else 1
 
 
 if __name__ == "__main__":
