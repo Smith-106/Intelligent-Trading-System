@@ -88,7 +88,8 @@ python scripts/run_btc_beta_overlay_eval.py --sweep --fee 0.0002 --slip 0.0002 \
 - [x] B0 相对失败与 overlay 相对改进 **同表披露**  
 - [x] 不宣称已达幻方硬件/收益规模  
 - [x] RiskEngine **可选**注入 `book_risk_budget`（默认 None=旧行为；单测覆盖 kill）  
-- [ ] 后续：default.yaml 产品档默认打开预算；paper 日课挂 excess 报表  
+- [x] `RiskConfig.book_risk_budget` + `default.yaml` 开关（**默认 false**）经 TradingSession 装配  
+- [ ] 后续：产品档默认 `enabled: true`；paper 日课挂 excess 报表  
 
 ---
 
