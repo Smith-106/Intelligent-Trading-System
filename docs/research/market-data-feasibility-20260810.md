@@ -17,6 +17,7 @@
 | Baseline-0 是否仍 **PAPER-GO**？ | **是** — 五门 checks 全 true |
 | 这是否等于 live 可上？ | **否** — 仍差 T023 墙钟 + T024 真实 paper evidence；live 非默认验收 |
 | 成本是否吃掉 alpha？ | **会** — 零成本 vs 生产费滑 drag **≈20.9pp**（BTC 1h reframe）；必须双报 |
+| **是否跑赢现货 HODL？** | **否（本窗）** — B0 shared RP **+5.1%** vs BTC HODL **+118%**；见 [b0-vs-spot-hodl-20260810.md](./b0-vs-spot-hodl-20260810.md) |
 | funding 挑战者（B3–B5）？ | 已密封 **KEEP_B0**；本次不重开 |
 
 ---
