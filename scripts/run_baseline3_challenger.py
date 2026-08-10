@@ -121,8 +121,8 @@ def _load_meta(
     from quantflow.data.store import DataStore
 
     notes: list[str] = []
-    funding = pd.DataFrame()
-    oi = pd.DataFrame()
+    funding_parts: list[pd.DataFrame] = []
+    oi_parts: list[pd.DataFrame] = []
     for root in meta_roots:
         if not root.is_dir():
             notes.append(f"meta root missing: {root}")
@@ -134,13 +134,29 @@ def _load_meta(
         finally:
             store.close()
         if f is not None and not f.empty:
-            funding = f
+            funding_parts.append(f)
             notes.append(f"funding from {root.as_posix()} n={len(f)}")
         if o is not None and not o.empty:
-            oi = o
+            oi_parts.append(o)
             notes.append(f"oi from {root.as_posix()} n={len(o)}")
-        if not funding.empty:
-            break
+    funding = pd.DataFrame()
+    oi = pd.DataFrame()
+    if funding_parts:
+        funding = (
+            pd.concat(funding_parts, ignore_index=True)
+            .drop_duplicates(subset=["timestamp"], keep="last")
+            .sort_values("timestamp")
+            .reset_index(drop=True)
+        )
+        notes.append(f"funding merged n={len(funding)}")
+    if oi_parts:
+        oi = (
+            pd.concat(oi_parts, ignore_index=True)
+            .drop_duplicates(subset=["timestamp"], keep="last")
+            .sort_values("timestamp")
+            .reset_index(drop=True)
+        )
+        notes.append(f"oi merged n={len(oi)}")
     return funding, oi, notes
 
 

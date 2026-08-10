@@ -45,13 +45,15 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 ---
 
-## W15 — 数据平面（下一波立项）
+## W15 — 数据平面
 
-| 任务 | done_when |
-|------|-----------|
-| T031 denser funding/OI 入库（全 pin 或诚实子窗） | meta 覆盖可支撑 B3 重跑 |
-| T032 B3 **新** run_meta 重跑（或正式 BLOCKED） | 不覆盖 T026 工件 |
-| T033 可选：新信号合同（横截面/阈值修订）— 非 B1 换皮 | 独立 Candidate-Baseline-4+ |
+| 任务 | done_when | 状态 |
+|------|-----------|------|
+| T031 denser funding/OI 入库 | merge 315 funding / 1073 OI；窗延至 2024→2026-08 | ✅ |
+| T032 B3 **新** run_meta 重跑 | `baseline3/20260810_w15/`；**KEEP_B0**；0 funding trades | ✅ |
+| T033 可选：新信号合同（阈值/横截面） | 独立 B4+ — **未开**（阈值改动禁止写进 B3） | ⏳ optional |
+
+详情：[baseline3-w15-rerun.md](./baseline3-w15-rerun.md)
 
 ---
 

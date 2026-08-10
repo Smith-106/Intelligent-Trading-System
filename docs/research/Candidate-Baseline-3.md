@@ -1,12 +1,14 @@
 # Candidate Baseline-3 — Funding-rate family (signal A/B)
 
-**Status**: **FROZEN KEEP_BASELINE_0**（T027）— first-class sparse-meta / zero-trade negative evidence  
-**Task**: T025 contract · T026 runner · **T027 freeze**  
+**Status**: **FROZEN KEEP_BASELINE_0**（T027）— confirmed by **W15 denser re-run** (still 0 trades @ thr)  
+**Task**: T025 contract · T026 runner · **T027 freeze** · W15 re-run `20260810_w15/`  
 **Date**: 2026-08-09  
 **Against**: [Baseline-0](./Candidate-Baseline-0.md)（唯一 **PAPER-GO**）  
 **Runner**: `python scripts/run_baseline3_challenger.py`  
-**Artifacts**: `data/paper_replay/baseline3/`  
+**Artifacts**: `data/paper_replay/baseline3/` (T026) + **`baseline3/20260810_w15/`** (W15; no overwrite)  
   (`funding_wfo.json`, `fee_slip_grid.json`, `funding_tca.json`, `adjudication.json`, `run_meta.json`, **`adjudication_frozen.json`**)
+
+**W15 note**: merged funding n=315 (was 63); max \|rate\|=0.0005 still &lt; 0.001 → 0 orders; verdict remains KEEP. See [baseline3-w15-rerun.md](./baseline3-w15-rerun.md).
 
 ---
 
