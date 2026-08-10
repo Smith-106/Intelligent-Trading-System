@@ -1,0 +1,17 @@
+metadata:
+  title: "Simple (thin DX)"
+  description: "Jesse-style thin template — override should_long/should_short (W16)"
+
+param_space:
+  fast_period: [5, 20]
+  slow_period: [20, 60]
+
+strategy:
+  name: "simple"
+  enabled: true
+  symbol: "BTC/USDT"
+  timeframe: "1h"
+  params:
+    fast_period: 10
+    slow_period: 30
+    required_regime: "any"

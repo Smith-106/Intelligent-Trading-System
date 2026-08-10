@@ -1,0 +1,18 @@
+# Optional paper fill model: BBO (bid/ask) touch fills (W16).
+# DEFAULT OFF — merge only when intentionally testing book-aware paper.
+#
+# Usage:
+#   quantflow run --mode paper ... --config quantflow/config/paper_orderbook_fill_overlay.yaml
+#
+# Feed BBO into the gateway:
+#   gateway.update_orderbook(symbol, bid, ask)
+# Without BBO updates, fills fall back to last price + flat slippage.
+
+execution:
+  mode: paper
+  # Nested block also accepted by PaperGateway as orderbook_fill.enabled
+  orderbook_fill_enabled: true
+  orderbook_fill:
+    enabled: true
+    # Extra slip on top of touch (default 0 = fill at bid/ask only)
+    extra_slippage: 0.0

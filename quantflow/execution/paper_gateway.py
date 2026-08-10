@@ -40,12 +40,28 @@ class PaperGateway(GatewayBase):
         self._partial_fill_ratio: float | None = (
             max(0.01, min(float(raw_ratio), 0.99)) if raw_ratio is not None else None
         )
+        # W16: opt-in BBO (bid/ask) fill model. Default OFF preserves last-price
+        # + flat slippage (byte-stable for B0 paper / existing tests).
+        # When enabled, market buys fill at ask and sells at bid (optional extra
+        # slip still applied). Missing BBO falls back to legacy last-price path.
+        ob = cfg.get("orderbook_fill")
+        if not isinstance(ob, dict):
+            ob = {}
+        self._orderbook_fill_enabled = bool(
+            cfg.get("orderbook_fill_enabled", ob.get("enabled", False))
+        )
+        self._orderbook_extra_slip = max(
+            0.0,
+            min(float(ob.get("extra_slippage", cfg.get("orderbook_extra_slippage", 0.0))), 0.5),
+        )
         # ISS-20260720-004 Wave 2: PaperGateway no longer keeps a cash ledger.
         # _positions remains as the gateway's local exchange view (query_positions
         # / reduceOnly caps); cash is owned solely by L4 PortfolioManager.
         self._positions: dict[str, Position] = {}
         self._order_counter = 0
         self._prices: dict[str, float] = {}  # symbol → last known price
+        # symbol → (bid, ask) when orderbook fill is used
+        self._bbo: dict[str, tuple[float, float]] = {}
         # ISS-003: mock WebSocket subscription task (paper mode simulates a
         # push feed by periodically emitting local position state).
         self._ws_task: asyncio.Task[Any] | None = None
@@ -53,9 +69,10 @@ class PaperGateway(GatewayBase):
     async def connect(self, config: dict[str, Any] | None = None) -> None:
         self._positions.clear()
         logger.info(
-            "PaperGateway connected: slippage=%.4f, taker_fee=%.4f",
+            "PaperGateway connected: slippage=%.4f, taker_fee=%.4f, orderbook_fill=%s",
             self._slippage,
             self._taker_fee,
+            self._orderbook_fill_enabled,
         )
 
     async def disconnect(self) -> None:
@@ -84,7 +101,7 @@ class PaperGateway(GatewayBase):
         quantity = order.quantity
         price = order.price
 
-        fill_price = price or self._prices.get(symbol, 0.0)
+        fill_price = self._resolve_fill_price(symbol, side, order_price=price)
         if fill_price <= 0:
             # No reference price: reject explicitly and log so the dropped order
             # is visible (CORR-L3 — the previous path set REJECTED silently,
@@ -122,9 +139,16 @@ class PaperGateway(GatewayBase):
             # else: same-direction reduceOnly is a no-op-ish case (e.g. SELL on a
             # short); leave quantity unchanged — _update_position handles it.
 
-        # Apply slippage
-        slip_mult = 1 + self._slippage if side == "buy" else 1 - self._slippage
-        fill_price *= slip_mult
+        # Slippage: legacy path applies flat slip on last/mid; orderbook path
+        # already used bid/ask as the touch — only optional extra_slip applies.
+        if self._orderbook_fill_enabled and symbol in self._bbo:
+            extra = self._orderbook_extra_slip
+            if extra > 0:
+                slip_mult = 1 + extra if side == "buy" else 1 - extra
+                fill_price *= slip_mult
+        else:
+            slip_mult = 1 + self._slippage if side == "buy" else 1 - self._slippage
+            fill_price *= slip_mult
 
         # Calculate fees
         notional = fill_price * quantity
@@ -248,6 +272,56 @@ class PaperGateway(GatewayBase):
             # the unrealized-PnL formula now has a single owner
             # (common/models.py), shared with PortfolioManager.
             self._positions[symbol] = pos.with_current_price(price)
+
+    def update_orderbook(
+        self,
+        symbol: str,
+        bid: float,
+        ask: float,
+        *,
+        mid_to_last: bool = True,
+    ) -> None:
+        """Push best bid/ask for optional orderbook fill (W16).
+
+        No-op effect on fills unless ``orderbook_fill.enabled`` is true.
+        Invalid/crossed books are ignored (keep previous BBO).
+        """
+        try:
+            b = float(bid)
+            a = float(ask)
+        except (TypeError, ValueError):
+            return
+        if b <= 0 or a <= 0 or b > a:
+            logger.debug(
+                "PaperGateway.update_orderbook ignored invalid BBO %s bid=%s ask=%s",
+                symbol,
+                bid,
+                ask,
+            )
+            return
+        self._bbo[symbol] = (b, a)
+        if mid_to_last:
+            mid = (b + a) / 2.0
+            self.update_market_price(symbol, mid)
+
+    def _resolve_fill_price(
+        self,
+        symbol: str,
+        side: str,
+        *,
+        order_price: float | None,
+    ) -> float:
+        """Pick reference fill price before slip (W16 orderbook opt-in)."""
+        if self._orderbook_fill_enabled:
+            bbo = self._bbo.get(symbol)
+            if bbo is not None:
+                bid, ask = bbo
+                if side == "buy":
+                    return float(ask)
+                return float(bid)
+        if order_price is not None and float(order_price) > 0:
+            return float(order_price)
+        return float(self._prices.get(symbol, 0.0) or 0.0)
 
     def _update_position(
         self, symbol: str, quantity: float, price: float, *, strategy_id: str = ""

@@ -57,13 +57,15 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 ---
 
-## W16 — 保真与 DX（再下一波）
+## W16 — 保真与 DX
 
-| 任务 | done_when |
-|------|-----------|
-| T034 Paper 可选吃 OKX 盘口填充（非 HFT） | paper fill 文档 + 开关默认关 |
-| T035 策略模板 DX（Jesse 式薄 API） | 1 个模板示范 + 测试 |
-| T036 RD-Agent/Qlib **旁路** 进 validation only | 无直连 live |
+| 任务 | done_when | 状态 |
+|------|-----------|------|
+| T034 Paper 可选 BBO 盘口填充（非 HFT） | `orderbook_fill` 默认关 + overlay + 测试 | ✅ |
+| T035 策略模板 DX（Jesse 式薄 API） | `SimpleStrategy` + catalog `simple` + 测试 | ✅ |
+| T036 RD-Agent/Qlib **旁路** 进 validation only | 无直连 live | ⏳ optional residual |
+
+详情：[w16-paper-fill-and-strategy-dx.md](./w16-paper-fill-and-strategy-dx.md)
 
 ---
 

@@ -26,6 +26,12 @@ def _trend_following_factory(params: dict[str, Any] | None = None) -> StrategyBa
     return TrendFollowingStrategy(params)
 
 
+def _simple_factory(params: dict[str, Any] | None = None) -> StrategyBase:
+    from quantflow.strategy.templates.simple import SimpleStrategy
+
+    return SimpleStrategy(params)
+
+
 def _mean_reversion_factory(params: dict[str, Any] | None = None) -> StrategyBase:
     from quantflow.strategy.templates.mean_reversion import MeanReversionStrategy
 
@@ -90,6 +96,7 @@ _STRATEGY_CONFIG_DIR = _PACKAGE_ROOT / "config" / "strategies"
 
 _FACTORY_REGISTRY: dict[str, StrategyFactory] = {
     "trend_following": _trend_following_factory,
+    "simple": _simple_factory,
     "mean_reversion": _mean_reversion_factory,
     "elliott_wave": _elliott_wave_factory,
     "volatility_breakout": _volatility_breakout_factory,
@@ -109,6 +116,7 @@ def _get_factory_registry() -> dict[str, StrategyFactory]:
 
 _DEFAULT_DESCRIPTIONS = {
     "trend_following": "MA crossover, MACD, RSI, ATR, volume multi-filter trend strategy",
+    "simple": "Jesse-style thin template (should_long/should_short hooks; W16 DX)",
     "mean_reversion": "RSI plus Bollinger Band mean reversion with volume confirmation",
     "elliott_wave": "Wave-structure strategy with ZigZag consensus and Fibonacci rules",
     "volatility_breakout": "ATR and channel breakout strategy tuned for crypto volatility",
