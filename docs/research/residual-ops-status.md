@@ -4,6 +4,7 @@
 **Session**: residual-close（post wave-close）  
 **HEAD**: see `main`  
 **Honesty**: 不伪造 7 日；不改 visibility；不把 synthetic promote 当真实 ops  
+**完整待办分层清单**: [pending-checklist.md](./pending-checklist.md)（P0–P3 + 禁做 + 日序）  
 
 ---
 

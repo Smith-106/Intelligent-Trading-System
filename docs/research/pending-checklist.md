@@ -1,0 +1,204 @@
+# QuantFlow 待完成事项清单（Pending Checklist）
+
+**As of**: 2026-08-10 (UTC)  
+**HEAD**: `d1f82a5`（main）  
+**North star**: cost-aware paper-first research OS — not win-rate  
+**Source of truth for ops residual**: [residual-ops-status.md](./residual-ops-status.md) · [t023-wall-clock-status.md](./t023-wall-clock-status.md)
+
+---
+
+## 0. 总览（一眼）
+
+| 优先级 | 类别 | 事项 | 阻塞？ | 谁做 |
+|--------|------|------|--------|------|
+| **P0** | 运营 | **T023** Path A 日课 streak → **7/7** | 日历墙钟 | 人/每日脚本 |
+| **P0** | 运营 | **T024** 真实 paper_evidence + promote（非 dry 演示） | **等 T023≥7** + fills | 人 |
+| P1 | 卫生 | 本地敏感文件复核（gitleaks 工作区 2 命中） | 否 | 人 |
+| P1 | 卫生 | Maestro 陈旧 session seal（W18…） | 否 | 人/agent |
+| P2 | 可选 | bar 数据刷新（age~50h WARN） | 否 | 人 |
+| P2 | 可选 | OSS Scheme C 人审包勾选 | 否；**禁 agent 改 visibility** | 人 |
+| P3 | 研究 | 新信号合同（仅当有假设） | 否；**独立合同 ID** | 人+agent |
+| — | 关闭 | W17–W27 / B1–B5 工程与合同 | **已完成** | — |
+
+**工程 wave 轨道**：**已关闭**（W27）。禁止自动开 W28。  
+**Todo 列表 #0–#68**：**已全部 completed**。
+
+---
+
+## 1. P0 — 必须推进（运营，非代码 wave）
+
+### 1.1 T023 — Path A 连续日课
+
+| 字段 | 当前 |
+|------|------|
+| consecutive | **3 / 7** |
+| credited UTC | 2026-08-08, 08-09, **08-10** |
+| target_met | **false** |
+| 尚缺 | **未来** UTC 日：约 **08-11 … 08-14**（4 天） |
+| 禁止 | 回填/伪造 08-04…08-07 或未来日 |
+
+**每日 checklist（UTC 日切后执行一次）**
+
+- [ ] `python scripts/paper_day_session.py`（preflight + summary；默认不 `--start-run`）
+- [ ] 可选：`--start-run` 仅当操作员在场要挂 paper
+- [ ] `python scripts/paper_day_streak.py ingest`
+- [ ] `python scripts/paper_day_streak.py status --min-days 7`
+- [ ] 确认当日 UTC 进入 `streak_ledger.json` 且 `consecutive` +1
+- [ ] 可选：`quantflow download` 若 preflight 持续 WARN bar age
+
+**完成定义**: `target_met_consecutive == true`（consecutive ≥ 7）  
+**文档**: [t023-wall-clock-status.md](./t023-wall-clock-status.md) · [t023-wall-clock-calendar.md](./t023-wall-clock-calendar.md)
+
+### 1.2 T024 — 真实 promote 证据链
+
+| 前置 | 状态 |
+|------|------|
+| T024 管道（export + dry-run） | ✅ 已有 |
+| T023 consecutive≥7 | ❌ 3/7 |
+| T016 min_fills（默认 ≥20） | 上次真实导出 fills 不足 → reject |
+
+**T023 达标后 checklist**
+
+- [ ] `python scripts/paper_evidence_export.py`（或项目约定入口）导出**真实** session 窗
+- [ ] 核对 evidence：`paper_days ≥ 7`、`fills ≥ 20`（以 T016 配置为准）
+- [ ] promote dry-run → 预期应能过样本门（仍非 live 验收）
+- [ ] 若仍 reject：记录原因（天数/fills/路径指纹），**不**降门限
+- [ ] 真实 promote / live：**默认不做**；仅人类明确授权
+
+**完成定义**: 真实（非 synthetic）evidence 包满足 T016 且 dry promote 不再因样本不足 reject  
+**诚实约束**: synthetic-full pass **不算** ops 完成
+
+---
+
+## 2. P1 — 建议尽快（卫生 / 会话）
+
+### 2.1 本地敏感面复核
+
+| 项 | 动作 |
+|----|------|
+| `.workflow/recovery/**` | 确认 gitignore；**勿 commit** |
+| `data/live_evidence/**` | 确认 gitignore；敏感字段本地清理/轮换 |
+| 工作区 gitleaks 2 命中 | 人审非历史泄漏（历史已 0） |
+
+- [ ] 人工打开 report / 文件确认无密钥入仓  
+- [ ] 不把 gitleaks 全量 JSON 提交进 git  
+
+### 2.2 Maestro 陈旧 session
+
+| 项 | 说明 |
+|----|------|
+| session | `w18a-w18b-w18c-…` 等可能仍 `running` / CHAIN_COMPLETE |
+| 动作 | `maestro run seal-session <id>` 或项目约定 seal（**非功能阻塞**） |
+
+- [ ] 列出 active sessions  
+- [ ] seal 已无 pending step 的 session  
+
+### 2.3 仓库噪音
+
+- [ ] 决定 `.experts-mode.json`：加入 gitignore **或** 不提交保持 untracked  
+- [ ] `git status` 保持无意外 staged `data/paper_*` / recovery  
+
+---
+
+## 3. P2 — 可选增强
+
+### 3.1 数据新鲜度
+
+- [ ] 若 Path A 持续 WARN `last bar age > 48h`：  
+  `quantflow download --symbol BTC/USDT,ETH/USDT,SOL/USDT --timeframe 1h …`  
+- [ ] **不**为 streak 伪造 bar  
+
+### 3.2 OSS Scheme C（人审 only）
+
+- [ ] 阅读 [oss-c-human-review-pack.md](./oss-c-human-review-pack.md) / gate checklist  
+- [ ] 决策：Stay B / Start C / Defer  
+- [ ] **Visibility 变更仅人类**（agent 禁止 `gh repo edit --visibility`）  
+
+### 3.3 文档小对齐（低优先级）
+
+- [ ] `post-t021-implementation-roadmap.md` 中 T033「B4+ 未开」可注：B4/B5 **已跑并 KEEP**（可选文案）  
+- [ ] `status` CLI 文案仍写 v0.5 时可改 v0.6.0（cosmetic）  
+
+---
+
+## 4. P3 — 研究合同（仅有新假设时）
+
+规则：**独立合同 ID**（`B6-…` / 日期戳），**禁止**静默改 B3/B4/B5 冻结包与默认 YAML。
+
+| 若假设是… | 建议合同形态 | 禁做 |
+|-----------|--------------|------|
+| 更密 funding 历史再 pin | 新 run_id + denser meta；可仍 B4/B5 族 | 改 thr 冒充旧合同 GO |
+| 非 funding 新 alpha | 新 Baseline-N 合同 + challenger | Optuna 当晋级主路径 |
+| Elliott 真 GO | 密封 multi-run + cost grid + human | proxy/reseat 包当 GO |
+| 组合/多标的 funding | 新 book 合同 | 默认打开 portfolio_optimization |
+
+当前 **无强制** P3 工程项；B5 已回答「EMA/OI 消融」→ KEEP_B0。
+
+---
+
+## 5. 已关闭（勿重开除非回归）
+
+| 轨道 | 状态 |
+|------|------|
+| ISS-004 / 005 / 006 母题 | 关 |
+| T001–T027 主线工程（含 T024 管道） | 关（T023 **墙钟**除外） |
+| Option B W17–W27 | 关；无 W28+ 候选 |
+| B1–B5 challenger 合同 | 全 **KEEP_B0 冻结** |
+| B0 research | **PAPER-GO**（研究候选；≠ live 已 promote） |
+
+---
+
+## 6. 明确不做（边界）
+
+- 替换执行核（Nautilus/Lean/Freqtrade）  
+- 多交易所适配器超市  
+- Optuna/Hyperopt 作晋级主路径  
+- 默认 `portfolio_optimization` / checkpoint / recon = true  
+- Agent 改 GitHub visibility  
+- 伪造 T023 日历天 / synthetic 冒充真实 promote  
+- 静默改 B3 `entry_threshold=0.001` 或重写 `baseline3/` / `B4-OOS-*` / `B5-ABL-*`  
+
+---
+
+## 7. 建议执行顺序（滚动 2 周）
+
+| 日序（UTC） | 动作 |
+|-------------|------|
+| 每天 | §1.1 Path A + streak（直到 7/7） |
+| 任意空档 | §2.1 敏感面 · §2.2 seal session · §2.3 噪音 |
+| consecutive 达 7 当日 | §1.2 evidence export + dry promote |
+| 仅人类决策后 | §3.2 Scheme C 或 live 相关 |
+| 有新研究假设时 | §4 新合同 ID |
+
+---
+
+## 8. 一键命令速查
+
+```bash
+# --- 每日 T023 ---
+python scripts/paper_day_session.py
+python scripts/paper_day_streak.py ingest
+python scripts/paper_day_streak.py status --min-days 7
+
+# --- T023 满后 T024 ---
+python scripts/paper_evidence_export.py
+# promote dry-run：按 residual-ops / T024 文档入口
+
+# --- 合同复现（已冻结，勿当新 GO）---
+python scripts/run_baseline4_full_oos.py --run-id B4-OOS-20260810
+python scripts/run_baseline5_ablation_oos.py --run-id B5-ABL-20260810
+
+# --- 卫生 ---
+python scripts/oss_c_gate.py --quick
+git status -sb
+```
+
+---
+
+## 9. 变更日志
+
+| 日期 | 说明 |
+|------|------|
+| 2026-08-10 | 初版：T023=3/7；B4/B5 KEEP；wave 关；P0–P3 分层 |
+
+*本清单描述「还剩什么」，不创造新的 W-number 流水线。*

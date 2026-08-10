@@ -209,7 +209,7 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 **停止条件已满足**：roadmap 不再列出 `W28+ 工程候选`。后续若人类立项新合同（如 B4 全量 OOS），以 **独立合同 ID** 开启，不自动续 W-number 流水线。
 
-并行运营（**非 wave**）：
+并行运营（**非 wave**）— **待办总表**: [pending-checklist.md](./pending-checklist.md)
 
 | 残留 | 状态 |
 |------|------|
