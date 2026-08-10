@@ -1,8 +1,10 @@
 # 架构诊断：胜率焦虑 vs 是否大改架构
 
 **Date**: 2026-08-10  
-**Method**: OSS 对照（`Desktop/oss-quant-benchmark`）+ QuantFlow 合同/门控证据  
-**Note**: `team-swarm` skill 依赖的 ACO/team-worker 总线在本 Pi 环境不完整；改为并行探索 + 本地合成（swarm 精神）。
+**Method**: OSS 对照（`Desktop/oss-quant-benchmark`）+ QuantFlow 合同/门控证据 + 双 agent 深潜（explorer OSS map + analyst QF diag）  
+**Note**: `team-swarm` ACO 总线在本 Pi 环境不完整；以 teammate 并行探索替代蚁群迭代。
+
+**B0 硬数（gate.json）**: decision=**PAPER-GO** · OOS meanSh **0.727** · cumRet **+12.93%** · maxDD **2.55%** · full_orders 1547。
 
 ---
 
@@ -15,7 +17,10 @@
 | **要不要大改架构（换 Nautilus/Freqtrade/Lean）？** | **不建议。** 大改解决不了 alpha/数据问题，且违反 paper-first、OKX 个人闭环、非 HFT 边界。 |
 | **要不要改？** | **要做针对性增强（B）**，不是推倒重来（C）。 |
 
-推荐选项：**(B) 定向演进**，拒绝 **(C) 大换引擎**。
+推荐选项：
+- **默认 (A)**：不重写六层；继续日课 + 新信号/数据合同（analyst 主推）。  
+- **可选 (B)**：定向演进（paper 保真 / meta 数据 / 晋级纪律）— 若要“动刀”只动这些。  
+- **拒绝 (C)**：大换 Nautilus/Freqtrade/Lean 引擎。
 
 ---
 
@@ -56,12 +61,13 @@ L1 data → L2 indicators → L3 strategy/research/validation
 | **hummingbot** | MM / 多场所 | 高频做市、CEX+DEX | **非目标**（HFT/多所超市） |
 | **vnpy / Lean / FinRL / OctoBot** | 多市场 / 多资产 / RL / UI bot | 各有生态 | 对个人 OKX paper OS **投入产出差** |
 
-### 可借鉴（不整仓替换）
+### 可借鉴（不整仓替换）— explorer 深潜摘要
 
-1. **Jesse 式**：策略入口极简、多周期无前视的纪律。  
-2. **Nautilus 式理念（轻量）**：同一事件语义贯穿 paper 主路径；**不必**上 Rust。  
-3. **Qlib 式**：因子/标签/模型实验与执行解耦（RD-Agent 已在路线图）。  
-4. **Freqtrade 式**：dry-run 运营体验、配置驱动 — QuantFlow checklist/overlay 已部分覆盖。
+1. **One engine, two reality sources**：paper/live 共用执行核，仅 gateway+clock 不同；backtest 可保持向量化旁路（与 QuantFlow「parity=paper↔live」一致；nautilus/hummingbot/freqtrade 均未宣称 backtest=live 字节级）。  
+2. **Paper 吃真盘口**（hummingbot `simulate_buy/sell`、freqtrade dry-run orderbook）— 提高 dry-run 保真，**仍非 HFT**。  
+3. **成本可注入组件**（nautilus Fee/Fill/LatencyModel；qlib open/close cost）— 与现有 fee×slip + funding_tca 同方向。  
+4. **晋级前显著性门**（jesse bootstrap / Monte-Carlo shuffle；freqtrade lookahead-analysis）— 叠在 CPCV/DSR/PBO/WFO 上，不换引擎。  
+5. **Jesse DX + Qlib 研究旁路**：策略 API 更薄；RD-Agent 只进 validation，不直连 live。
 
 ### 明确不要抄
 
