@@ -85,3 +85,18 @@ def obv_slope(close: pd.Series, volume: pd.Series, period: int = 10) -> pd.Serie
     """
     line = obv(close, volume)
     return line.diff(period)
+
+
+def cvd_proxy(close: pd.Series, volume: pd.Series) -> pd.Series:
+    """Bar-level Cumulative Volume Delta **proxy** (W20b).
+
+    Without trade-level aggressor flags, approximate delta as:
+    ``sign(close_t - close_{t-1}) * volume_t``, then cumulative sum.
+    This is **not** true exchange CVD; do not claim trade-tape fidelity.
+    First bar contributes 0 (no prior close).
+    """
+    direction = np.sign(close.diff())
+    direction = direction.fillna(0.0)
+    direction.iloc[0] = 0.0
+    delta = volume.astype(float) * direction
+    return delta.cumsum()

@@ -84,6 +84,8 @@ CLASSICAL_EXTENDED_NAMES = [
     # W19c volume extensions
     "session_vwap",
     "obv_slope",
+    # W20b bar-level CVD proxy (not trade-tape CVD)
+    "cvd_proxy",
 ]
 
 WAVE_FACTOR_NAMES = [
@@ -171,10 +173,11 @@ class IndicatorEngine:
         for col in dc_df.columns:
             result[col] = dc_df[col]
 
-        # W19c volume extensions
+        # W19c / W20b volume extensions
         ts = result["timestamp"] if "timestamp" in result.columns else None
         result["session_vwap"] = volume.session_vwap(high, low, close, vol, ts)
         result["obv_slope"] = volume.obv_slope(close, vol, 10)
+        result["cvd_proxy"] = volume.cvd_proxy(close, vol)
 
         return result
 
@@ -286,6 +289,8 @@ class IndicatorEngine:
             result["session_vwap"] = volume.session_vwap(high, low, close, vol, ts)
         if "obv_slope" in requested:
             result["obv_slope"] = volume.obv_slope(close, vol, 10)
+        if "cvd_proxy" in requested:
+            result["cvd_proxy"] = volume.cvd_proxy(close, vol)
 
         return result
 

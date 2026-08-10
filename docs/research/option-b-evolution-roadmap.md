@@ -122,13 +122,24 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 详情：[w19-invalidation-bbo-volume.md](./w19-invalidation-bbo-volume.md)
 
-### W20+ 候选（未开工）
+### W20 — BBO poll + CVD proxy + Elliott WFO smoke
+
+| 切片 | 内容 | 状态 |
+|------|------|------|
+| **W20a** | `bbo_poll_enabled` 默认关；ticker poll → push | ✅ |
+| **W20b** | `cvd_proxy` bar 级量差近似（非 tape CVD） | ✅ |
+| **W20c** | `elliott_wave_wfo_smoke`（vectorized_smoke，禁 GO） | ✅ |
+| 测试 | `test_w20_*` 等 34 passed | ✅ |
+
+详情：[w20-bbo-poll-cvd-wfo.md](./w20-bbo-poll-cvd-wfo.md)
+
+### W21+ 候选（未开工）
 
 | 切片 | 内容 |
 |------|------|
-| 可选 | ticker BBO 自动 poll 任务（现仅 push API） |
-| 可选 | CVD / trade aggressor（需 trades 数据） |
-| 可选 | Elliott 真实数据 WFO 烟测 |
+| 可选 | 真实 trades → true CVD（需数据面） |
+| 可选 | paper_replay 路径跑 Elliott 合同（非 vectorized smoke） |
+| 可选 | funding risk gate 接 KillSwitch |
 
 并行：**T023** 墙钟至 consecutive≥7（自 UTC 2026-08-11）。
 

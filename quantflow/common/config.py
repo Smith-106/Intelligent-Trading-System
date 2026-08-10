@@ -205,6 +205,10 @@ class ExecutionConfig(BaseModel):
     # T-s2-04: funding/OI 喂数接线开关（默认 false 零行为变化）。YAML 写权在
     # config/strategies/funding_rate.yaml（避免 default.yaml wave3 冲突）。
     funding_feed_enabled: bool = False
+    # W20a: optional ticker BBO poll → push_ticker_bbo (default false = bar_proxy only).
+    # Does not enable orderbook_fill; only refreshes BBO cache when poll is on.
+    bbo_poll_enabled: bool = False
+    bbo_poll_interval_s: float = 5.0
     # M4-2.4: multi-symbol support. When non-empty, TradingSession creates
     # per-(strategy, symbol) instances and the data loop rotates over all
     # symbols. Empty list = legacy single-symbol mode (symbol supplied by

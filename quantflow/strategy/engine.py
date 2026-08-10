@@ -286,11 +286,13 @@ class TradingSession:
         self._meta_fetcher: Any | None = None
         self._dq_monitor: Any | None = None
         self._meta_fresh: dict[str, dict[str, Any]] = {}
-        # W19b: optional ticker BBO cache (symbol → (bid, ask)). Populated by
-        # push_ticker_bbo / optional poll; when bbo_source=ticker and a fresh
+        # W19b/W20a: optional ticker BBO cache + poll task.
+        # push_ticker_bbo / _bbo_poll_loop; when bbo_source=ticker and a fresh
         # quote exists, on_bar prefers it over bar low/high proxy.
         self._ticker_bbo: dict[str, tuple[float, float]] = {}
         self._bbo_source: str = "bar_proxy"
+        self._bbo_poll_task: asyncio.Task[None] | None = None
+        self._bbo_fetcher: Any | None = None  # injectable DataFetcher for tests
 
     async def start(
         self,
@@ -420,6 +422,11 @@ class TradingSession:
         # exist when the first samples land.
         if self._config.execution.funding_feed_enabled:
             self._meta_feed_task = asyncio.create_task(self._meta_feed_loop())
+        # W20a: opt-in ticker BBO poll (default false). Switches source to ticker
+        # so on_bar prefers polled quotes; orderbook_fill remains independently off.
+        if getattr(self._config.execution, "bbo_poll_enabled", False):
+            self.set_bbo_source("ticker")
+            self._bbo_poll_task = asyncio.create_task(self._bbo_poll_loop())
         logger.info(
             "Trading session started: %d strategies, %d symbols, mode=%s",
             len(self._strategies),
@@ -1069,6 +1076,58 @@ class TradingSession:
     # RateLimiter keeps adjacent requests >=200 ms apart). Collector
     # failures are log-only — they MUST NOT interrupt the main data loop.
     # ------------------------------------------------------------------ #
+    async def _bbo_poll_loop(self) -> None:
+        """W20a: background ticker BBO poller (opt-in via bbo_poll_enabled).
+
+        Fetches bid/ask via DataFetcher.fetch_ticker (or injectable
+        ``_bbo_fetcher``) and pushes into the session BBO cache. Failures are
+        log-only — never kill the main data loop. Default interval 5s.
+        """
+        from quantflow.data.fetcher import DataFetcher
+
+        symbols = list(self._symbols or self._config.execution.symbols or [])
+        if not symbols:
+            logger.warning("bbo poll enabled but no symbols resolved — poll idle")
+            return
+        interval = max(
+            1.0, float(getattr(self._config.execution, "bbo_poll_interval_s", 5.0) or 5.0)
+        )
+        fetcher = self._bbo_fetcher
+        own_fetcher = False
+        if fetcher is None:
+            fetcher = DataFetcher(self._config.data)
+            own_fetcher = True
+            try:
+                await fetcher.connect()
+            except Exception as e:
+                logger.error("BBO poll connect failed: %s", redact_secrets(str(e)))
+        try:
+            while self._running:
+                for sym in symbols:
+                    try:
+                        ticker = await fetcher.fetch_ticker(sym)
+                    except Exception as e:
+                        logger.warning(
+                            "BBO poll ticker failed (%s): %s",
+                            sym,
+                            redact_secrets(str(e)),
+                        )
+                        continue
+                    bid = ticker.get("bid") if isinstance(ticker, dict) else None
+                    ask = ticker.get("ask") if isinstance(ticker, dict) else None
+                    if bid is None or ask is None:
+                        # CCXT sometimes nests under info; tolerate missing
+                        continue
+                    self.push_ticker_bbo(sym, float(bid), float(ask))
+                await asyncio.sleep(interval)
+        except asyncio.CancelledError:
+            logger.info("BBO poll loop cancelled")
+            raise
+        finally:
+            if own_fetcher and fetcher is not None:
+                with contextlib.suppress(Exception):
+                    await fetcher.disconnect()
+
     async def _meta_feed_loop(self) -> None:
         """Background funding/OI collector (opt-in via funding_feed_enabled)."""
         from quantflow.data.dq_monitor import DataQualityMonitor
@@ -1513,6 +1572,12 @@ class TradingSession:
             self._meta_feed_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._meta_feed_task
+        # W20a: drain BBO poll task
+        if self._bbo_poll_task is not None and not self._bbo_poll_task.done():
+            self._bbo_poll_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._bbo_poll_task
+            self._bbo_poll_task = None
         await self._execution.stop()
         logger.info("Trading session stopped")
 
