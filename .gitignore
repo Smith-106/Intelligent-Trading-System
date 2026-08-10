@@ -145,3 +145,7 @@ gitleaks-report.json
 
 # Local agent experts-mode state (UI dispatch metadata; not project source)
 .experts-mode.json
+
+# Domain glossary local lock/backups (canonical glossary.yaml is tracked)
+.workflow/domain/.glossary.lock
+.workflow/domain/.backups/

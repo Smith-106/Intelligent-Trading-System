@@ -6,6 +6,8 @@ tags: [execution, fee, slippage, paper-replay, fidelity]
 status: active
   - session-reframe-exec-risk-20260808-20260808-040125
 related:
+  - knowhow-doc-20260810-residual-ops-t023-wave-close
+  - knowhow-doc-20260810-b4-b5-funding-contracts-keep-b0
   - DOC-research-direction-gate-wfo-overfit
   - DOC-knowhow-live-cost-modeling-funding-fee-alerts
   - DOC-research-multi-symbol-replay-regime-fix

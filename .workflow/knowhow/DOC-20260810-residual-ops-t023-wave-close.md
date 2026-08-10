@@ -3,6 +3,9 @@ title: Residual ops T023 streak + T024 promote + W27 close
 type: document
 explicitId: doc-20260810-residual-ops-t023-wave-close
 created: 2026-08-10T12:42:53.212Z
+related:
+  - knowhow-tip-20260810-wiki-kg-false-positive-broken-links
+  - knowhow-doc-20260810-b4-b5-funding-contracts-keep-b0
 ---
 
 # Residual ops: T023 streak + T024 promote + wave close

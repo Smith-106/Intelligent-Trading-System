@@ -1,0 +1,123 @@
+$schema: domain/1.0
+terms:
+  - id: b0
+    canonical: B0
+    aliases: []
+    definition: Baseline-0 multi-symbol shared RP classic trend_following; sole PAPER-GO research candidate.
+    relationships: []
+    keywords: []
+    tier: core
+    status: active
+    source:
+      kind: manual
+      registered_at: 2026-08-10T12:47:58.304Z
+  - id: paper-first
+    canonical: paper-first
+    aliases: []
+    definition: "North star: cost-aware paper-first research OS; not win-rate. B0 is sole PAPER-GO research candidate."
+    relationships: []
+    keywords: []
+    tier: core
+    status: active
+    source:
+      kind: manual
+      registered_at: 2026-08-10T12:47:58.357Z
+  - id: b3
+    canonical: B3
+    aliases: []
+    definition: Funding_rate thr=0.001 frozen KEEP_B0; zero fills under measured max rate.
+    relationships: []
+    keywords: []
+    tier: core
+    status: active
+    source:
+      kind: manual
+      registered_at: 2026-08-10T12:48:00.962Z
+  - id: b4-oos
+    canonical: B4-OOS
+    aliases: []
+    definition: Contract B4-OOS-20260810 thr=0.0004 full OOS KEEP_B0; artifacts baseline4/ only.
+    relationships: []
+    keywords: []
+    tier: core
+    status: active
+    source:
+      kind: manual
+      registered_at: 2026-08-10T12:48:03.379Z
+  - id: b5-abl
+    canonical: B5-ABL
+    aliases: []
+    definition: Contract B5-ABL-20260810 EMA x OI ablation KEEP_B0; OI-off fills cost-negative.
+    relationships: []
+    keywords: []
+    tier: core
+    status: active
+    source:
+      kind: manual
+      registered_at: 2026-08-10T12:48:05.808Z
+  - id: t023
+    canonical: T023
+    aliases: []
+    definition: Path A paper day-session consecutive UTC streak toward min_days=7; no calendar forgery.
+    relationships: []
+    keywords: []
+    tier: core
+    status: active
+    source:
+      kind: manual
+      registered_at: 2026-08-10T12:48:08.036Z
+  - id: t024
+    canonical: T024
+    aliases: []
+    definition: paper_evidence export + promote path; real ops needs T023 and T016 floors.
+    relationships: []
+    keywords: []
+    tier: extended
+    status: active
+    source:
+      kind: manual
+      registered_at: 2026-08-10T12:48:10.280Z
+  - id: funding-tca
+    canonical: funding_tca
+    aliases: []
+    definition: Funding transaction cost analysis attached to promotion cost fidelity.
+    relationships: []
+    keywords: []
+    tier: extended
+    status: active
+    source:
+      kind: manual
+      registered_at: 2026-08-10T12:48:12.550Z
+  - id: paper-replay
+    canonical: paper_replay
+    aliases: []
+    definition: Research execution path for sealed OOS packages; distinct from live.
+    relationships: []
+    keywords: []
+    tier: core
+    status: active
+    source:
+      kind: manual
+      registered_at: 2026-08-10T12:48:14.643Z
+  - id: keep-baseline-0
+    canonical: KEEP_BASELINE_0
+    aliases: []
+    definition: "Challenger adjudication: keep Baseline-0; valid success for B1-B5 freezes (not a failure)."
+    relationships: []
+    keywords: []
+    tier: core
+    status: active
+    source:
+      kind: manual
+      registered_at: 2026-08-10T12:48:48.830Z
+  - id: cost-fidelity
+    canonical: cost_fidelity
+    aliases: []
+    definition: Promotion gate requiring fee x slip grid + funding_tca; fail-closed.
+    relationships: []
+    keywords: []
+    tier: extended
+    status: active
+    source:
+      kind: manual
+      registered_at: 2026-08-10T12:48:50.925Z

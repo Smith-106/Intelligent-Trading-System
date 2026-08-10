@@ -3,6 +3,10 @@ title: B4/B5 funding contracts sealed KEEP_BASELINE_0
 type: document
 explicitId: doc-20260810-b4-b5-funding-contracts-keep-b0
 created: 2026-08-10T12:42:52.570Z
+related:
+  - knowhow-doc-20260810-residual-ops-t023-wave-close
+  - knowhow-doc-research-direction-gate-wfo-overfit
+  - knowhow-doc-research-execution-fidelity-fee-slip
 ---
 
 # B4/B5 funding contracts sealed KEEP_BASELINE_0

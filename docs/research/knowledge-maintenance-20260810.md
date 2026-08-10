@@ -101,4 +101,63 @@ maestro knowhow list
 
 ---
 
+---
+
+## 6. Pass 2 — domain glossary + cross-links (same day)
+
+### Pending pipeline (dry only)
+
+| Item | Result |
+|------|--------|
+| `knowledge audit --prune` | **findings=0**, **prune_plan=[]** — no soft-prune apply |
+| Sample `knowledge review` (t027 / knowledge-sync) | No mass promote; historical candidates already promoted or empty |
+| Observed pending (pipeline) | **256** left for **human** promote — agent did not `--all` |
+
+### Domain glossary (new)
+
+Initialized `.workflow/domain/glossary.yaml` with **11** terms:
+
+| ID | Canonical | Tier |
+|----|-----------|------|
+| b0 | B0 | core |
+| paper-first | paper-first | core |
+| b3 | B3 | core |
+| b4-oos | B4-OOS | core |
+| b5-abl | B5-ABL | core |
+| t023 | T023 | core |
+| t024 | T024 | extended |
+| funding-tca | funding_tca | extended |
+| paper-replay | paper_replay | core |
+| keep-baseline-0 | KEEP_BASELINE_0 | core |
+| cost-fidelity | cost_fidelity | extended |
+
+`maestro domain validate` → **valid**.  
+`maestro kg sync --source knowhow,domain` → **domain_term: 11**, staleness **0%**.
+
+### Knowhow related-graph
+
+Cross-linked:
+
+- `DOC-research-execution-fidelity-fee-slip` ↔ B4/B5 + residual-ops DOCs  
+- `DOC-research-direction-gate-wfo-overfit` → B4/B5 DOC  
+- `DOC-research-multi-symbol-replay-regime-fix` → residual-ops DOC  
+- New DOCs link each other + fee-slip / direction-gate classics  
+
+### Pass-2 health
+
+| Surface | Value |
+|---------|--------|
+| wiki | **92/100** · orphans **0** · broken **4** (same FP) |
+| knowledge audit | **0 findings** |
+| kg nodes | **~2954** (incl. 11 domain_term) |
+
+### Commands added
+
+```bash
+maestro domain list
+maestro domain search KEEP
+maestro domain validate
+maestro kg sync --source knowhow,domain
+```
+
 *Receipt for knowledge OS maintenance; research source of truth remains docs/research/* + sealed contracts.*

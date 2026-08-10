@@ -6,6 +6,7 @@ tags: [multi-symbol, regime, paper-replay, portfolio, risk-parity]
 status: active
   - knowhow-kh-multi-symbol-patterns
 related:
+  - knowhow-doc-20260810-residual-ops-t023-wave-close
   - session-multi-symbol-replay-20260808-20260808-045132
   - DOC-research-execution-fidelity-fee-slip
   - kh-multi-symbol-patterns
