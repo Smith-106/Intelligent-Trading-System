@@ -1,10 +1,20 @@
-"""Funding rate as a **risk gate** (W21a) — not an alpha signal.
+"""Funding rate as a **risk gate** (W21a / W22c) — not an alpha signal.
 
 When |funding_rate| exceeds a configured absolute threshold, new entries
 should be blocked (and optionally the kill switch activated). This reuses
 meta-feed funding observations already collected by TradingSession.
 
 Default posture: gate **off** (zero behavior change).
+
+**W22c track separation (do not merge with B3):**
+
+- **B3** ``funding_rate`` strategy ``entry_threshold=0.001`` is a **frozen
+  research signal contract** (KEEP_B0). Changing it requires a new baseline
+  version (B4+), never a silent edit.
+- **This module** is a **portfolio / session risk control**
+  (``RiskConfig.max_funding_rate_abs``). It may share the same numeric scale
+  by coincidence but is **not** the B3 signal parameter and must not be used
+  to rewrite B3 adjudication or B0 PAPER-GO history.
 """
 
 from __future__ import annotations

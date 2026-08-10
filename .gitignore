@@ -24,6 +24,8 @@ data/*.duckdb
 data/*.duckdb.wal
 data/station_history_probe*/
 data/meta_merged/
+# Public trades tape / CVD research dumps (W22a; rebuildable)
+data/trades/
 
 # Config with secrets
 .env

@@ -144,13 +144,24 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 详情：[w21-funding-paper-cvd.md](./w21-funding-paper-cvd.md)
 
-### W22+ 候选（未开工）
+### W22 — Trades CVD store + Elliott contract + funding/B3 tracks
+
+| 切片 | 内容 | 状态 |
+|------|------|------|
+| **W22a** | `TradesStore` + FeatureStore CVD 列（proxy 回退） | ✅ |
+| **W22b** | Elliott paper_replay 合同包 + fingerprint（W14 path pass） | ✅ |
+| **W22c** | funding risk gate ≠ B3 entry_threshold 分轨文档 | ✅ |
+| 测试 | `test_w22_*` 等 18 passed | ✅ |
+
+详情：[w22-trades-contract-funding-tracks.md](./w22-trades-contract-funding-tracks.md)
+
+### W23+ 候选（未开工）
 
 | 切片 | 内容 |
 |------|------|
-| 可选 | trades WS 持久化 + FeatureStore CVD 列 |
-| 可选 | Elliott paper_replay 合同 + fingerprint 正式包 |
-| 可选 | funding gate 与 B3 阈值分轨文档化 |
+| 可选 | trades WS 实时灌入 TradesStore |
+| 可选 | Elliott 正式 cost-grid 合同（非 package-only） |
+| 可选 | B4 funding 信号新合同（若改阈值；禁改 B3） |
 
 并行：**T023** 墙钟至 consecutive≥7（自 UTC 2026-08-11）。
 

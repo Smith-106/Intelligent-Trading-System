@@ -174,9 +174,12 @@ class RiskConfig(BaseModel):
     # PositionSizer 最小下单名义价值阈值（原 position_sizer.py 硬编码 10.0，
     # ISS-20260721-012 config-source）。低于此值的订单被跳过。
     min_order_notional: float = 10.0
-    # W21a: funding as risk gate (not alpha). When enabled, |funding_rate|
-    # above max_funding_rate_abs blocks new entries and adds pause reason
-    # "funding_risk_gate". Optional hard path activates KillSwitch.
+    # W21a/W22c: funding as risk gate (not alpha; not B3 signal threshold).
+    # B3 entry_threshold=0.001 is a frozen signal contract (KEEP_B0) — do not
+    # "fix" B3 by flipping these risk knobs. See docs/research/w22-*.md.
+    # When enabled, |funding_rate| above max_funding_rate_abs blocks new
+    # entries and adds pause reason "funding_risk_gate". Optional hard path
+    # activates KillSwitch.
     funding_risk_gate_enabled: bool = False
     max_funding_rate_abs: float = 0.001  # e.g. 0.1% per settlement
     funding_risk_gate_kill: bool = False  # True → KillSwitch.activate (hard)
