@@ -293,6 +293,11 @@ class TradingSession:
         self._bbo_source: str = "bar_proxy"
         self._bbo_poll_task: asyncio.Task[None] | None = None
         self._bbo_fetcher: Any | None = None  # injectable DataFetcher for tests
+        # W21a: session-level pause set for soft risk gates (funding, etc.)
+        from quantflow.common.pause_reasons import PauseReasonSet
+
+        self._risk_pauses = PauseReasonSet()
+        self._last_funding_rate: dict[str, float] = {}
 
     async def start(
         self,
@@ -742,6 +747,27 @@ class TradingSession:
                     data={
                         "type": "signal_blocked",
                         "reason": "recovery_unverified",
+                        "strategy_id": signal.strategy_id,
+                    },
+                )
+            )
+            self._record_signal_latency(signal.strategy_id, started_at)
+            return
+
+        # W21a: soft risk pauses (funding_risk_gate, …) block new entries only.
+        if self._risk_pauses.is_paused:
+            reasons = ",".join(sorted(self._risk_pauses.reasons))
+            logger.warning(
+                "Signal blocked: risk_pause (%s) strategy=%s",
+                reasons,
+                signal.strategy_id,
+            )
+            self._event_bus.publish(
+                Event(
+                    type=EVENT_RISK,
+                    data={
+                        "type": "signal_blocked",
+                        "reason": f"risk_pause:{reasons}",
                         "strategy_id": signal.strategy_id,
                     },
                 )
@@ -1211,6 +1237,9 @@ class TradingSession:
             meta["funding"] = True
             meta["funding_at_ms"] = snap.fetched_at_ms
             meta["settled_interval_ms"] = snap.settlement_interval_ms
+            self._last_funding_rate[sym] = float(snap.funding_rate)
+            # W21a: funding risk gate (opt-in) — soft pause or kill
+            self._apply_funding_risk_gate(sym, float(snap.funding_rate))
             self._event_bus.publish(
                 Event(
                     type=EVENT_FUNDING,
@@ -1222,6 +1251,56 @@ class TradingSession:
                     },
                 )
             )
+
+    def _apply_funding_risk_gate(self, symbol: str, funding_rate: float) -> None:
+        """W21a: opt-in funding absolute-rate risk gate (not alpha).
+
+        Soft path: add/remove pause reason ``funding_risk_gate`` on session
+        ``_risk_pauses`` (blocks new entries only). Hard path (config
+        ``funding_risk_gate_kill``): schedule KillSwitch.activate.
+        Default config leaves the gate disabled → no-op.
+        """
+        from quantflow.signal.funding_risk_gate import REASON, evaluate_funding_risk
+
+        risk = self._config.risk
+        decision = evaluate_funding_risk(
+            funding_rate,
+            enabled=bool(getattr(risk, "funding_risk_gate_enabled", False)),
+            max_abs=float(getattr(risk, "max_funding_rate_abs", 0.001) or 0.001),
+            symbol=symbol,
+        )
+        if not bool(getattr(risk, "funding_risk_gate_enabled", False)):
+            return
+        if decision.blocked:
+            self._risk_pauses.add(REASON)
+            logger.warning(
+                "Funding risk gate blocked new entries: %s (%s)",
+                decision.reason,
+                symbol,
+            )
+            self._event_bus.publish(
+                Event(
+                    type=EVENT_RISK,
+                    data={
+                        "type": "funding_risk_gate",
+                        "symbol": symbol,
+                        **decision.to_dict(),
+                    },
+                )
+            )
+            if bool(getattr(risk, "funding_risk_gate_kill", False)) and self._kill_switch:
+                if not self._kill_switch.is_active:
+                    # Fire-and-forget hard stop; failures logged by KillSwitch.
+                    asyncio.create_task(
+                        self._kill_switch.activate(decision.reason or REASON)
+                    )
+        else:
+            self._risk_pauses.remove(REASON)
+
+    def note_funding_rate(self, symbol: str, funding_rate: float) -> None:
+        """Public helper for tests / injectors to feed funding into the risk gate."""
+        self._last_funding_rate[symbol] = float(funding_rate)
+        self._apply_funding_risk_gate(symbol, float(funding_rate))
 
     async def _meta_poll_oi(self, symbols: list[str]) -> None:
         """One open-interest round over all symbols (per-symbol isolation)."""

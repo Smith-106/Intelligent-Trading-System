@@ -87,6 +87,36 @@ def obv_slope(close: pd.Series, volume: pd.Series, period: int = 10) -> pd.Serie
     return line.diff(period)
 
 
+def cvd_from_trades(
+    prices: pd.Series,
+    amounts: pd.Series,
+    sides: pd.Series,
+) -> pd.Series:
+    """True-ish CVD from trade tape (W21c).
+
+    ``sides`` values: buy/long/b/+1 → +amount; sell/short/s/-1 → -amount.
+    Returns cumulative sum aligned to the trade index. Empty inputs → empty Series.
+    """
+    if len(amounts) == 0:
+        return pd.Series(dtype=float)
+    side_num = sides.map(_side_to_sign).astype(float)
+    delta = amounts.astype(float) * side_num
+    return delta.cumsum()
+
+
+def _side_to_sign(side: object) -> float:
+    s = str(side or "").strip().lower()
+    if s in ("buy", "b", "long", "1", "+1", "bid"):
+        return 1.0
+    if s in ("sell", "s", "short", "-1", "ask"):
+        return -1.0
+    try:
+        v = float(s)
+        return 1.0 if v > 0 else (-1.0 if v < 0 else 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def cvd_proxy(close: pd.Series, volume: pd.Series) -> pd.Series:
     """Bar-level Cumulative Volume Delta **proxy** (W20b).
 

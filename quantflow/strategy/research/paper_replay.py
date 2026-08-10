@@ -51,6 +51,20 @@ STRATEGIES = {
     "funding_rate": FundingRateStrategy,
 }
 
+
+def _resolve_strategy_class(strategy_name: str) -> type[StrategyBase]:
+    """Resolve catalog + research-only strategies (W21b: liu_yudong_wave)."""
+    if strategy_name in STRATEGIES:
+        return STRATEGIES[strategy_name]
+    if strategy_name in ("liu_yudong_wave", "elliott_wave_liu"):
+        from quantflow.strategy.elliott_wave_strategy import LiuYudongWaveStrategy
+
+        return LiuYudongWaveStrategy  # type: ignore[return-value]
+    raise ValueError(
+        f"Unknown strategy '{strategy_name}'. Available: "
+        f"{list(STRATEGIES) + ['liu_yudong_wave']}"
+    )
+
 BARS_PER_YEAR = 24 * 365  # 1h bars (back-compat default)
 
 # Minutes per bar for annualization and HTF nesting.
@@ -142,9 +156,7 @@ def build_session(
         cfg.risk.kill_switch_enabled = False
         cfg.risk.max_drawdown = -0.90
 
-    strategy_cls = STRATEGIES.get(strategy_name)
-    if strategy_cls is None:
-        raise ValueError(f"Unknown strategy '{strategy_name}'. Available: {list(STRATEGIES)}")
+    strategy_cls = _resolve_strategy_class(strategy_name)
     strategy = strategy_cls(params=params)  # type: ignore[abstract]
     session = TradingSession(cfg, [strategy], monitoring_sink=sink)
     session._execution = ExecutionEngine(
@@ -204,9 +216,7 @@ def build_multi_symbol_session(
     if max_positions is not None:
         cfg.risk.max_positions = int(max_positions)
 
-    strategy_cls = STRATEGIES.get(strategy_name)
-    if strategy_cls is None:
-        raise ValueError(f"Unknown strategy '{strategy_name}'. Available: {list(STRATEGIES)}")
+    strategy_cls = _resolve_strategy_class(strategy_name)
     strategy = strategy_cls(params=params)  # type: ignore[abstract]
     session = TradingSession(cfg, [strategy], monitoring_sink=sink)
     session._execution = ExecutionEngine(

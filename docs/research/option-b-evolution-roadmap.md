@@ -133,13 +133,24 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 详情：[w20-bbo-poll-cvd-wfo.md](./w20-bbo-poll-cvd-wfo.md)
 
-### W21+ 候选（未开工）
+### W21 — Funding risk gate + Elliott paper_replay + trades CVD
+
+| 切片 | 内容 | 状态 |
+|------|------|------|
+| **W21a** | funding risk gate → pause / optional KillSwitch（默认关） | ✅ |
+| **W21b** | `liu_yudong_wave` paper_replay smoke（禁 auto-GO） | ✅ |
+| **W21c** | `fetch_trades` + `cvd_from_trades` 脚手架 | ✅ |
+| 测试 | `test_w21_*` 等 23 passed | ✅ |
+
+详情：[w21-funding-paper-cvd.md](./w21-funding-paper-cvd.md)
+
+### W22+ 候选（未开工）
 
 | 切片 | 内容 |
 |------|------|
-| 可选 | 真实 trades → true CVD（需数据面） |
-| 可选 | paper_replay 路径跑 Elliott 合同（非 vectorized smoke） |
-| 可选 | funding risk gate 接 KillSwitch |
+| 可选 | trades WS 持久化 + FeatureStore CVD 列 |
+| 可选 | Elliott paper_replay 合同 + fingerprint 正式包 |
+| 可选 | funding gate 与 B3 阈值分轨文档化 |
 
 并行：**T023** 墙钟至 consecutive≥7（自 UTC 2026-08-11）。
 

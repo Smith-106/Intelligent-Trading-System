@@ -214,6 +214,43 @@ class DataFetcher:
             await asyncio.wait_for(self._exchange.fetch_ticker(symbol), timeout=CALL_TIMEOUT),
         )
 
+    async def fetch_trades(
+        self,
+        symbol: str,
+        *,
+        since: int | None = None,
+        limit: int = 100,
+    ) -> pd.DataFrame:
+        """W21c: fetch recent public trades (scaffold for true CVD).
+
+        Returns DataFrame columns: timestamp, price, amount, side.
+        Empty frame when exchange unavailable or no trades — callers should
+        fail closed to ``cvd_proxy`` rather than inventing aggressor flags.
+        """
+        if not self._exchange:
+            raise GatewayConnectionError("Not connected")
+        raw = await asyncio.wait_for(
+            self._exchange.fetch_trades(symbol, since=since, limit=limit),
+            timeout=CALL_TIMEOUT,
+        )
+        if not raw:
+            return pd.DataFrame(columns=["timestamp", "price", "amount", "side"])
+        rows: list[dict[str, Any]] = []
+        for t in raw:
+            if not isinstance(t, dict):
+                continue
+            rows.append(
+                {
+                    "timestamp": int(t.get("timestamp") or 0),
+                    "price": float(t.get("price") or 0.0),
+                    "amount": float(t.get("amount") or 0.0),
+                    "side": str(t.get("side") or ""),
+                }
+            )
+        if not rows:
+            return pd.DataFrame(columns=["timestamp", "price", "amount", "side"])
+        return pd.DataFrame(rows)
+
     def get_last_timestamp(self, symbol: str, timeframe: str, parquet_dir: Path) -> int | None:
         """Get the last stored timestamp for incremental updates.
 
