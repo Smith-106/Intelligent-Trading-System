@@ -6,7 +6,8 @@
 **Source of truth for ops residual**: [residual-ops-status.md](./residual-ops-status.md) · [t023-wall-clock-status.md](./t023-wall-clock-status.md)  
 **P1/P2 hygiene log**: [p1-p2-hygiene-status.md](./p1-p2-hygiene-status.md)  
 **Full completeness audit**: [project-completeness-audit-20260810.md](./project-completeness-audit-20260810.md)（工程已关；仅 T023/T024 运营残留）  
-**How-to 操作手册**: [how-to-close-p0-p3.md](./how-to-close-p0-p3.md)（P0 日课→T024、P1 seal/knowledge、P2 Scheme C、P3 纪律）
+**How-to 操作手册**: [how-to-close-p0-p3.md](./how-to-close-p0-p3.md)（P0 日课→T024、P1 seal/knowledge、P2 Scheme C、P3 纪律）  
+**市场数据可行性（B0 全量复现）**: [market-data-feasibility-20260810.md](./market-data-feasibility-20260810.md) — PAPER-GO 复现；≠ live
 
 ---
 
