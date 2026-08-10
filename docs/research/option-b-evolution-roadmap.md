@@ -215,6 +215,7 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 |------|------|
 | **T023** 墙钟 | **3/7** consecutive（UTC 08-08…08-10）；见 [t023-wall-clock-status.md](./t023-wall-clock-status.md) |
 | **B4 full OOS** | 独立合同 **B4-OOS-20260810** → **KEEP_B0**；见 [Candidate-Baseline-4-results.md](./Candidate-Baseline-4-results.md) |
+| **B5 EMA/OI ablation** | 独立合同 **B5-ABL-20260810** → **KEEP_B0**（OI-off 有成交但 −6%）；见 [Candidate-Baseline-5-results.md](./Candidate-Baseline-5-results.md) |
 | 真实 paper promote | 仍待 consecutive≥7 + fills（T024） |
 
 ---

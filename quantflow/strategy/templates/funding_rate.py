@@ -39,6 +39,9 @@ class FundingRateStrategy(StrategyBase):
         self._oi_lookback = p.get("oi_lookback", 3)
         self._oi_change_threshold = p.get("oi_change_threshold", 0.05)
         self._rate_ema_period = p.get("rate_ema_period", 8)
+        # B5 ablation knobs — defaults preserve B3/B4 sealed behavior
+        self._use_rate_ema = bool(p.get("use_rate_ema", True))
+        self._require_oi_confirmation = bool(p.get("require_oi_confirmation", True))
         self._cooldown_bars = p.get("cooldown_bars", 6)
         self._profit_take_pct: float = p.get("take_profit_pct", p.get("profit_take_pct", 0.02))
         self._max_holding_bars: int = p.get("max_holding_bars", 8)
@@ -76,7 +79,7 @@ class FundingRateStrategy(StrategyBase):
         if in_cooldown:
             self._cooldown_counter -= 1
 
-        min_bars = max(self._rate_ema_period * 2, self._oi_lookback + 1)
+        min_bars = self._min_bars()
         if len(self._bars) < min_bars or len(self._funding_rates) < min_bars:
             return
 
@@ -145,8 +148,17 @@ class FundingRateStrategy(StrategyBase):
         if len(self._open_interests) > self._max_bars:
             self._open_interests = self._open_interests[-self._max_bars :]
 
+    def _min_bars(self) -> int:
+        """Warmup bars; shorter when EMA/OI filters are ablated (B5)."""
+        need = 1
+        if self._use_rate_ema:
+            need = max(need, int(self._rate_ema_period) * 2)
+        if self._require_oi_confirmation:
+            need = max(need, int(self._oi_lookback) + 1)
+        return max(1, need)
+
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
-        min_bars = max(self._rate_ema_period * 2, self._oi_lookback + 1)
+        min_bars = self._min_bars()
         if len(df) < min_bars:
             empty = pd.Series(False, index=df.index)
             return empty, empty
@@ -154,26 +166,34 @@ class FundingRateStrategy(StrategyBase):
         funding_rate = df.get("funding_rate", pd.Series(0.0, index=df.index))
         open_interest = df.get("open_interest", pd.Series(0.0, index=df.index))
 
-        # Rate EMA for smoothing
-        rate_ema = funding_rate.ewm(span=self._rate_ema_period).mean()
+        # Rate level: EMA smooth (B3/B4 default) or raw (B5 EMA-off)
+        if self._use_rate_ema:
+            rate_level = funding_rate.ewm(span=self._rate_ema_period).mean()
+        else:
+            rate_level = funding_rate.astype(float)
 
         # Extreme funding rate signals
-        long_signal = rate_ema < -self._entry_threshold  # shorts crowded → go long
-        short_signal = rate_ema > self._entry_threshold  # longs crowded → go short
+        long_signal = rate_level < -self._entry_threshold  # shorts crowded → go long
+        short_signal = rate_level > self._entry_threshold  # longs crowded → go short
 
-        # Open interest confirmation: OI increasing in crowded direction
-        oi_change = open_interest.pct_change(self._oi_lookback)
-        oi_rising = oi_change > self._oi_change_threshold
-        oi_falling = oi_change < -self._oi_change_threshold
+        if self._require_oi_confirmation:
+            # Open interest confirmation: OI increasing in crowded direction
+            oi_change = open_interest.pct_change(self._oi_lookback)
+            oi_rising = oi_change > self._oi_change_threshold
+            oi_falling = oi_change < -self._oi_change_threshold
+            long_entry = long_signal & oi_rising
+            short_entry = short_signal & oi_rising
+            oi_reversal = (long_signal & oi_falling) | (short_signal & oi_falling)
+        else:
+            # B5 OI-off: pure rate extreme; no OI filter on entry/exit
+            long_entry = long_signal
+            short_entry = short_signal
+            oi_reversal = pd.Series(False, index=df.index)
 
-        long_entry = long_signal & oi_rising
-        short_entry = short_signal & oi_rising
         entries = long_entry | short_entry
 
-        # Exit: rate returns to neutral
-        neutral_zone = rate_ema.abs() < self._exit_threshold
-        # Or OI reversal
-        oi_reversal = (long_signal & oi_falling) | (short_signal & oi_falling)
+        # Exit: rate returns to neutral (+ optional OI reversal when OI on)
+        neutral_zone = rate_level.abs() < self._exit_threshold
         exits = neutral_zone | oi_reversal
 
         # Profit target exit

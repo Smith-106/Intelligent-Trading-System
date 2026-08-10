@@ -35,7 +35,7 @@ Measured max \|rate\| = **0.0005** > **0.0004**, so a raw level gate could fire.
 2. **OI confirmation** (`oi_lookback=3`, `oi_change_threshold=0.05`) — entries need OI co-movement  
 3. **freshness / bar_hook** path on paper_replay  
 
-Net: **0 orders** is an honest negative for this contract package, not a runner bug. A future **B5** would need a *new* written contract if humans want EMA-off or OI-off ablations — not a silent B4 edit.
+Net: **0 orders** is an honest negative for this contract package, not a runner bug. **B5** (`B5-ABL-20260810`) is the separate EMA-off / OI-off ablation — see [Candidate-Baseline-5-results.md](./Candidate-Baseline-5-results.md); it does **not** re-open this B4 freeze.
 
 ---
 

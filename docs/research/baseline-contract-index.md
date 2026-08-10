@@ -1,6 +1,6 @@
 # Baseline contract index
 
-**Updated**: 2026-08-10 (**B4-OOS-20260810** full OOS frozen KEEP B0; B3 still frozen)  
+**Updated**: 2026-08-10 (**B5-ABL-20260810** EMA/OI ablation frozen KEEP B0; B3/B4 frozen)  
 **North star**: cost-aware paper-first research OS — not win-rate, not stars.
 
 | ID | Doc | Signal family | Book | Status | Runner / artifacts |
@@ -10,6 +10,7 @@
 | **B2** | [Candidate-Baseline-2.md](./Candidate-Baseline-2.md) | mean_reversion + volatility_breakout | BTC-only A/B | **KEEP B0** (frozen) | `scripts/run_baseline2_challenger.py` → `baseline2/` |
 | **B3** | [Candidate-Baseline-3.md](./Candidate-Baseline-3.md) | **`funding_rate`** thr=0.001 (+ OI) | BTC-only A/B | **KEEP B0** (T027 + **W15 confirm**) | `run_baseline3_challenger.py` → `baseline3/` + `20260810_w15/` |
 | **B4** | [Candidate-Baseline-4.md](./Candidate-Baseline-4.md) · [results](./Candidate-Baseline-4-results.md) | **`funding_rate`** thr=**0.0004** (+ OI) | BTC-only A/B | **KEEP B0** (**B4-OOS-20260810**) | `run_baseline4_full_oos.py` → `baseline4/B4-OOS-20260810/` |
+| **B5** | [Candidate-Baseline-5.md](./Candidate-Baseline-5.md) · [results](./Candidate-Baseline-5-results.md) | funding thr=0.0004 **EMA×OI ablation** | BTC-only A/B | **KEEP B0** (**B5-ABL-20260810**) | `run_baseline5_ablation_oos.py` → `baseline5/B5-ABL-20260810/` |
 
 ## Complementarity matrix
 
@@ -20,6 +21,7 @@
 | B2 | control only | — | **Yes** | **Yes** | — |
 | B3 | control only | — | funding mean-rev | — | **Yes** (sparse; 0 trades @ thr=0.001) |
 | B4 | control only | — | funding mean-rev (lower thr) | — | **Yes** (0 trades @ thr=0.0004; KEEP B0) |
+| B5 | control only | — | funding EMA×OI ablation | — | **Yes** (OI-off fills but −6% @0.1%; KEEP B0) |
 
 ## Shared protocol pins
 
@@ -37,7 +39,8 @@
 3. **B1 / B2 / B3** are **negative or non-upgrade results as first-class evidence**.  
 4. B3 specifically freezes: **NARROWED meta window** + **zero funding_rate fills** under contract `entry_threshold=0.001` (measured max |rate|=0.0005).  
 5. Funding/OI **TCA** productized in **T014**; signal-family B3 contracted T025, run T026, **frozen T027**.  
-6. **B4** full OOS **B4-OOS-20260810** is **FROZEN KEEP_B0** (0 fills; max\|rate\|=0.0005; NARROWED window). Never silently edits B3 YAML or `baseline3/` artifacts; session `funding_risk_gate` remains a separate risk track (W22c). Not a W-wave — independent contract ID.
+6. **B4** full OOS **B4-OOS-20260810** is **FROZEN KEEP_B0** (0 fills; max\|rate\|=0.0005; NARROWED window). Never silently edits B3 YAML or `baseline3/` artifacts; session `funding_risk_gate` remains a separate risk track (W22c). Not a W-wave — independent contract ID.  
+7. **B5** ablation **B5-ABL-20260810** is **FROZEN KEEP_B0**: OI-off unlocks fills but cost-honest ret≈−6%; EMA-off alone still 0 fills with OI-on. Defaults `use_rate_ema`/`require_oi_confirmation` remain true. Does not re-open B3/B4.
 
 ## Freeze discipline
 
@@ -45,7 +48,7 @@
 |------|---------|
 | No silent overwrite of sealed `adjudication*.json` / `run_meta.json` | All B* |
 | Re-run → new dated dir or new contract version | B3 denser funding later |
-| KEEP B0 is a valid success for challengers | B1–B3 |
+| KEEP B0 is a valid success for challengers | B1–B5 |
 | Agent must not change GitHub visibility for “open source strongest” | Ops |
 
 ## Quick re-run
@@ -55,6 +58,8 @@ python scripts/run_baseline0.py --skip-full
 python scripts/run_baseline1_challenger.py
 python scripts/run_baseline2_challenger.py
 python scripts/run_baseline3_challenger.py --meta-root data/s3_verify/raw
+python scripts/run_baseline4_full_oos.py --run-id B4-OOS-20260810
+python scripts/run_baseline5_ablation_oos.py --run-id B5-ABL-20260810
 ```
 
 Paper day ops: [baseline0-paper-run-checklist.md](./baseline0-paper-run-checklist.md)  

@@ -1,0 +1,25 @@
+# B5 research overlay — DOES NOT replace funding_rate.yaml or B4 overlay.
+# Ablation contract: EMA-off / OI-off with thr=0.0004 (same probe thr as B4).
+# Forbidden: silently editing B3/B4 frozen params / baseline3 / baseline4 sealed runs.
+#
+# Usage: research scripts merge into strategy.params for named ablation cells.
+
+metadata:
+  title: "Funding Rate B5 ablation overlay"
+  description: "EMA-off / OI-off cells; KEEP B3/B4 frozen"
+  baseline: "B5"
+  contract_id: "B5-ABL-20260810"
+  supersedes: null
+  related_frozen: ["B3", "B4"]
+
+strategy:
+  name: "funding_rate"
+  params:
+    entry_threshold: 0.0004
+    exit_threshold: 0.00015
+    oi_lookback: 3
+    oi_change_threshold: 0.05
+    rate_ema_period: 8
+    # Ablation defaults for documentation; runner sets per-cell overrides
+    use_rate_ema: true
+    require_oi_confirmation: true
