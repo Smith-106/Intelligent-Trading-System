@@ -60,19 +60,68 @@ def test_assert_promotion_cost_ready_ok():
             "decision": "GO",
             "fee_slip_grid": _grid_ok(),
             "funding_tca": _funding_ok(),
+            "execution_path": "paper_replay",
+            "data_fingerprint": {"aggregate": "abc"},
         }
     )
 
 
 def test_assert_promotion_cost_ready_requires_funding_tca():
     with pytest.raises(CostFidelityError, match="funding_tca"):
-        assert_promotion_cost_ready({"decision": "GO", "fee_slip_grid": _grid_ok()})
+        assert_promotion_cost_ready(
+            {
+                "decision": "GO",
+                "fee_slip_grid": _grid_ok(),
+                "execution_path": "paper_replay",
+                "data_fingerprint": {"aggregate": "abc"},
+            }
+        )
 
 
 def test_assert_promotion_legacy_skip_funding():
     assert_promotion_cost_ready(
-        {"decision": "GO", "fee_slip_grid": _grid_ok()},
+        {
+            "decision": "GO",
+            "fee_slip_grid": _grid_ok(),
+            "execution_path": "paper_replay",
+            "data_fingerprint": {"aggregate": "abc"},
+        },
         require_funding=False,
+    )
+
+
+def test_assert_promotion_requires_execution_path():
+    with pytest.raises(CostFidelityError, match="execution_path"):
+        assert_promotion_cost_ready(
+            {
+                "decision": "GO",
+                "fee_slip_grid": _grid_ok(),
+                "funding_tca": _funding_ok(),
+            }
+        )
+
+
+def test_assert_promotion_refuses_vectorized_only():
+    with pytest.raises(CostFidelityError, match="research-filter"):
+        assert_promotion_cost_ready(
+            {
+                "decision": "GO",
+                "fee_slip_grid": _grid_ok(),
+                "funding_tca": _funding_ok(),
+                "execution_path": "vectorized",
+                "data_fingerprint": {"aggregate": "abc"},
+            }
+        )
+
+
+def test_assert_promotion_legacy_skip_path():
+    assert_promotion_cost_ready(
+        {
+            "decision": "GO",
+            "fee_slip_grid": _grid_ok(),
+            "funding_tca": _funding_ok(),
+        },
+        require_execution_path=False,
     )
 
 

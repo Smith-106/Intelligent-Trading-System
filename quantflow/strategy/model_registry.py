@@ -4,6 +4,8 @@ s3-ai-research-pipeline (wave2, T-s3-03): registry + paper → live promotion
 gate. ``register`` refuses any model whose validation report did not pass
 ``validation_gate`` (decision != "GO") — fail-closed. P0 strongest-gaps also
 requires a fee×slip cost grid (and rejects zero-cost-only GO narratives).
+W14: also requires ``execution_path=paper_replay`` (or equivalent event path)
+plus data fingerprint — vectorized-only GO is refused.
 Models live as JSON entries under ``registry_dir``; ``promote`` moves a paper
 model to live only if the paper registration exists and is intact.
 """
@@ -146,7 +148,7 @@ class ModelRegistry:
             "features_hash": features_hash,
             "status": STATUS_PAPER,
             "decision": "GO",
-            "reason": "validation gate + cost fidelity passed",
+            "reason": "validation gate + cost fidelity + execution path passed",
             "registered_at": self._now(),
             "validation": _summarize_validation(validation_report),  # type: ignore[dict-item]
         }

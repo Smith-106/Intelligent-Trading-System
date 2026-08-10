@@ -7,6 +7,12 @@ from quantflow.strategy.validation.cost_fidelity import (
     require_cost_grid,
     require_dual_risk_report,
 )
+from quantflow.strategy.validation.promotion_path import (
+    PromotionPathError,
+    assert_promotion_path_ready,
+    attach_promotion_path,
+    check_promotion_path,
+)
 from quantflow.strategy.validation.paper_readiness import (
     PaperReadinessConfig,
     PaperReadinessError,
@@ -38,9 +44,13 @@ __all__ = [
     "MonteCarloResult",
     "PaperReadinessConfig",
     "PaperReadinessError",
+    "PromotionPathError",
     "assert_paper_readiness",
     "assert_promotion_cost_ready",
+    "assert_promotion_path_ready",
     "attach_cost_fidelity",
+    "attach_promotion_path",
+    "check_promotion_path",
     "check_paper_readiness",
     "cpcv_backtest",
     "deflated_sharpe_ratio",

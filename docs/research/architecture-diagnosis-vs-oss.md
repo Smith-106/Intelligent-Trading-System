@@ -171,8 +171,10 @@ L1 data → L2 indicators → L3 strategy/research/validation
 
 ## 8. 建议的下一波（若立项）
 
+**已选 B** → 见 [option-b-evolution-roadmap.md](./option-b-evolution-roadmap.md)
+
 ```text
-W14  研究路径纪律：晋级仅 paper_replay + 指纹
+W14  研究路径纪律：晋级仅 paper_replay + 指纹  ✅ 已交付（promotion_path）
 W15  Meta 数据充实 + B3/B4 合同（非换皮 B1）
 W16  策略 DX + Feature 一致性审计
 （明确不做）引擎大换血 / 多所 / 为 win_rate 松门

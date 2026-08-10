@@ -22,7 +22,7 @@ from quantflow.strategy.model_registry import (
 
 
 def _go_report_with_cost(**extra: object) -> dict:
-    """Minimal GO report that satisfies P0+T014 cost-fidelity promotion gate."""
+    """Minimal GO report: P0+T014 cost + W14 paper_replay path."""
     from quantflow.strategy.validation.cost_fidelity import build_funding_tca
 
     report: dict = {
@@ -32,6 +32,8 @@ def _go_report_with_cost(**extra: object) -> dict:
             {"taker_fee": 0.001, "slippage": 0.001, "sharpe": 0.55, "return_pct": 10.0},
         ],
         "funding_tca": build_funding_tca(mode="assumption"),
+        "execution_path": "paper_replay",
+        "data_fingerprint": {"aggregate": "test-fingerprint-w14"},
         "checks": {},
     }
     report.update(extra)

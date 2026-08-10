@@ -389,13 +389,31 @@ def assert_promotion_cost_ready(
     validation_report: dict[str, Any] | None,
     *,
     require_funding: bool = True,
+    require_execution_path: bool = True,
+    require_fingerprint: bool = True,
 ) -> None:
-    """Full cost-fidelity gate for paper registration (fail-closed).
+    """Full cost-fidelity + path gate for paper registration (fail-closed).
 
     T014: ``require_funding`` defaults True — GO without funding_tca is refused.
-    Pass ``require_funding=False`` only for legacy research diagnostics.
+    W14: ``require_execution_path`` defaults True — GO must cite paper_replay
+    (or equivalent event path), not vectorized-only BacktestEngine/VectorBT.
+    Pass ``require_funding=False`` / ``require_execution_path=False`` only for
+    legacy research diagnostics.
     """
     require_cost_grid(validation_report)
     reject_zero_cost_only_go(validation_report)
     if require_funding:
         require_funding_tca(validation_report)
+    if require_execution_path:
+        from quantflow.strategy.validation.promotion_path import (
+            PromotionPathError,
+            assert_promotion_path_ready,
+        )
+
+        try:
+            assert_promotion_path_ready(
+                validation_report,
+                require_fingerprint=require_fingerprint,
+            )
+        except PromotionPathError as exc:
+            raise CostFidelityError(str(exc)) from exc
