@@ -3,7 +3,8 @@
 **Session**: `maestro-20260809-post-t021-plan-20260809-125759`  
 **上游**: T001–T021 ✅ · 非 live pytest **2154/0** · HEAD `a441d78`  
 **北极星**: 成本后可复现的 paper-first **研究 OS**（GO + fee×slip + funding_tca + 钉扎合同）  
-**不是 KPI**: 胜率、GitHub stars、多所超市、HFT
+**不是 KPI**: 胜率、GitHub stars、多所超市、HFT  
+**波次状态**: **工程收口** — 见 [post-t021-wave-close.md](./post-t021-wave-close.md)；**唯一残留** = 每日 Path A streak（T023 墙钟）
 
 机器可读：`.workflow/sessions/maestro-20260809-post-t021-plan-20260809-125759/runs/20260809-001-plan/outputs/`
 
@@ -17,7 +18,9 @@
 | T010–T021（合同钉扎 / Alpha 三合同 / 成本门控 / 日课偏差 / catalog / 宇宙 / OSS 门禁 / 韧性演练） | ✅ |
 | 全量非 live pytest | ✅ 2154 passed / 0 failed |
 | B0 | **PAPER-GO**（唯一晋升） |
-| B1 / B2 | **KEEP B0**（负结果一等证据，不重跑幻想升级） |
+| B1 / B2 / **B3** | **KEEP B0**（负结果/稀疏 meta 一等证据；B3 已 T027 冻结） |
+| **T022–T030 工程** | ✅ 可交付项已完成（见 wave-close） |
+| **T023 墙钟 7 日** | 🔧 **唯一残留自动任务**（ops-open，不伪造） |
 
 ---
 

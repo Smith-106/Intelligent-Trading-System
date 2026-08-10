@@ -1,9 +1,12 @@
 # T023 Path A streak — status note
 
-**Updated**: 2026-08-09  
+**Updated**: 2026-08-10  
 **Engineering**: done (`scripts/paper_day_streak.py`, day-session, checklist §6.0)  
+**Wave**: post-T021 **engineering closed** — this is the **only residual automated ops task**  
 **Wall-clock target**: ≥7 **consecutive UTC days** with credited Path A summaries  
 **Honesty rule**: **never fabricate calendar days**
+
+See also: [post-t021-wave-close.md](./post-t021-wave-close.md)
 
 ## Current ledger (local runtime)
 
