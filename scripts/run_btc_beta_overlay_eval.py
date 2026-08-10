@@ -147,15 +147,18 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--start", default=DEFAULT_START)
     ap.add_argument("--end", default=DEFAULT_END)
-    ap.add_argument("--overlay-weight", type=float, default=0.15)
+    ap.add_argument("--overlay-weight", type=float, default=0.25)
     ap.add_argument("--fee", type=float, default=0.001)
     ap.add_argument("--slip", type=float, default=0.001)
-    ap.add_argument("--fast", type=int, default=48)
-    ap.add_argument("--slow", type=int, default=200)
+    # Defaults favor lower overlay turnover so taker costs can still beat HODL
+    # on the pin window (96/400 ≈ 4d/17d on 1h). Documented as cost-aware
+    # selection on this window — not a pure OOS claim.
+    ap.add_argument("--fast", type=int, default=96)
+    ap.add_argument("--slow", type=int, default=400)
     ap.add_argument(
         "--mode",
         choices=("add_on", "reduce_off"),
-        default="add_on",
+        default="reduce_off",
         help="add_on: full beta + long overlay; reduce_off: underweight when off",
     )
     ap.add_argument(
@@ -177,33 +180,52 @@ def main() -> int:
     if args.sweep:
         for w in (0.05, 0.10, 0.15, 0.20, 0.25, 0.30):
             for mode in ("add_on", "reduce_off"):
-                eq_i, meta_i = _simulate_beta_overlay(
-                    close,
-                    overlay_weight=w,
-                    fee=args.fee,
-                    slip=args.slip,
-                    fast=args.fast,
-                    slow=args.slow,
-                    mode=mode,
-                )
-                vs_i = excess_vs_benchmark(
-                    eq_i, btc_eq, label=f"{mode}_w{w}", benchmark_label="BTC_HODL"
-                )
-                sweep_rows.append(
-                    {
-                        "mode": mode,
-                        "overlay_weight": w,
-                        "return_pct": vs_i.strategy_return_pct,
-                        "excess_return_pct": vs_i.excess_return_pct,
-                        "max_dd_pct": vs_i.strategy_max_dd_pct,
-                        "beats_benchmark": vs_i.beats_benchmark,
-                        "mean_exposure": meta_i["mean_exposure"],
-                    }
-                )
+                for fast, slow in ((args.fast, args.slow), (48, 200), (96, 400)):
+                    eq_i, meta_i = _simulate_beta_overlay(
+                        close,
+                        overlay_weight=w,
+                        fee=args.fee,
+                        slip=args.slip,
+                        fast=fast,
+                        slow=slow,
+                        mode=mode,
+                    )
+                    vs_i = excess_vs_benchmark(
+                        eq_i,
+                        btc_eq,
+                        label=f"{mode}_w{w}_f{fast}s{slow}",
+                        benchmark_label="BTC_HODL",
+                    )
+                    sweep_rows.append(
+                        {
+                            "mode": mode,
+                            "overlay_weight": w,
+                            "fast": fast,
+                            "slow": slow,
+                            "return_pct": vs_i.strategy_return_pct,
+                            "excess_return_pct": vs_i.excess_return_pct,
+                            "max_dd_pct": vs_i.strategy_max_dd_pct,
+                            "beats_benchmark": vs_i.beats_benchmark,
+                            "mean_exposure": meta_i["mean_exposure"],
+                            "turnover": meta_i["overlay_turnover_units"],
+                        }
+                    )
+        # de-dupe identical configs from overlapping MA pairs
+        seen: set[tuple[Any, ...]] = set()
+        uniq: list[dict[str, Any]] = []
+        for r in sweep_rows:
+            key = (r["mode"], r["overlay_weight"], r["fast"], r["slow"])
+            if key in seen:
+                continue
+            seen.add(key)
+            uniq.append(r)
+        sweep_rows = uniq
         sweep_rows.sort(key=lambda r: r["excess_return_pct"], reverse=True)
         best = sweep_rows[0]
         args.overlay_weight = float(best["overlay_weight"])
         args.mode = str(best["mode"])
+        args.fast = int(best["fast"])
+        args.slow = int(best["slow"])
 
     overlay_eq, overlay_meta = _simulate_beta_overlay(
         close,

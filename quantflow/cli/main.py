@@ -62,6 +62,8 @@ app = typer.Typer(
     no_args_is_help=True,
     rich_markup_mode="rich",
 )
+
+
 def _make_console() -> Console:
     """Build a Console that does not crash on Windows GBK terminals.
 
@@ -1140,9 +1142,7 @@ def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
     runner = RDAgentRunner()
     available, msg = runner.check_available()
     if not available:
-        console.print(
-            "[yellow]Qlib not installed — using built-in baseline factor evaluation.[/]"
-        )
+        console.print("[yellow]Qlib not installed — using built-in baseline factor evaluation.[/]")
         console.print(f"[dim]{msg.splitlines()[0] if msg else ''}[/]")
 
     cfg = _load(config)
@@ -1252,9 +1252,7 @@ def _ai_train(
                     factors = load_discovered_factors(fj)
                     features = materialize_factor_frame(df, factors, selected_only=True)
                     if features.empty or features.shape[1] == 0:
-                        features = materialize_factor_frame(
-                            df, factors, selected_only=False
-                        )
+                        features = materialize_factor_frame(df, factors, selected_only=False)
                     if features is not None and not features.empty and features.shape[1] > 0:
                         close = df["close"].reindex(features.index)
                         console.print(
@@ -1272,9 +1270,7 @@ def _ai_train(
                 engine = IndicatorEngine()
                 fs = FeatureStore(cfg.data.parquet_dir, indicator_computer=engine)
                 raw = store.query(symbol)
-                features = fs.compute_features(
-                    symbol, int(raw["timestamp"].max()), [], store
-                )
+                features = fs.compute_features(symbol, int(raw["timestamp"].max()), [], store)
                 close = raw["close"]
                 console.print(
                     f"[bold blue]Training on IndicatorEngine features for {symbol} "
@@ -1286,7 +1282,9 @@ def _ai_train(
     if "timestamp" in features.columns and "close" not in features.columns:
         features = features.drop(columns=["timestamp", "symbol", "computed_at"], errors="ignore")
 
-    pipe = AITrainingPipeline(validation_kwargs={"cpcv_groups": 4, "cpcv_test_groups": 1, "wfo_windows": 3})
+    pipe = AITrainingPipeline(
+        validation_kwargs={"cpcv_groups": 4, "cpcv_test_groups": 1, "wfo_windows": 3}
+    )
     report = pipe.train(features, close, None, n_estimators=50, max_depth=3)
 
     # Persist the training report so 'ai register --model-id <id>' can consume it.
@@ -1298,7 +1296,9 @@ def _ai_train(
     report_path = report_dir / f"{model_id}.json"
     report_payload = report.to_dict()
     report_payload["model_id"] = model_id
-    report_path.write_text(json.dumps(report_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    report_path.write_text(
+        json.dumps(report_payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     verdict = "[green]GO[/]" if report.decision == "GO" else "[red]NO-GO[/]"
     console.print(f"\n[bold]Validation gate: {verdict}[/]")
@@ -1315,9 +1315,13 @@ def _ai_train(
         "(zero-cost + 0.1%/0.1% cells). Attach via cost_fidelity.attach_cost_fidelity "
         "or scripts/reframe_sensitivity_1h.py before GO→paper.[/]"
     )
-    if report.decision == "GO" and not report_payload.get("fee_slip_grid") and not (
-        isinstance(report_payload.get("validation"), dict)
-        and report_payload["validation"].get("fee_slip_grid")
+    if (
+        report.decision == "GO"
+        and not report_payload.get("fee_slip_grid")
+        and not (
+            isinstance(report_payload.get("validation"), dict)
+            and report_payload["validation"].get("fee_slip_grid")
+        )
     ):
         console.print(
             "[red]This GO report has no fee_slip_grid — "
@@ -1366,9 +1370,7 @@ def _ai_register(model_id: str, config: str, registry_dir: str = "") -> None:
             threshold = float(ic_block.get("threshold", 0.03))
             if abs_ic < threshold:
                 validation_report["decision"] = "NO-GO"
-                validation_report["reason"] = (
-                    f"IC gate failed: |IC|={abs_ic:.4f} < {threshold}"
-                )
+                validation_report["reason"] = f"IC gate failed: |IC|={abs_ic:.4f} < {threshold}"
         except (TypeError, ValueError):
             validation_report["decision"] = "NO-GO"
             validation_report["reason"] = "IC metrics unparseable — fail-closed"
@@ -1416,8 +1418,7 @@ def _ai_validation_bypass(
             df = df.set_index("datetime")
 
         console.print(
-            f"[bold blue]AI validation bypass (T036) — {symbol}[/] "
-            "[dim]live wire forbidden[/]"
+            f"[bold blue]AI validation bypass (T036) — {symbol}[/] [dim]live wire forbidden[/]"
         )
         result = run_ai_validation_bypass(
             symbol=symbol,
@@ -1520,13 +1521,11 @@ def assert_elliott(
     if code != 0:
         console = _make_console()
         console.print(
-            "[red]assert-elliott failed[/] "
-            "(structure incomplete — not a GO signal either way)"
+            "[red]assert-elliott failed[/] (structure incomplete — not a GO signal either way)"
         )
         raise typer.Exit(code=code)
     _make_console().print(
-        "[green]assert-elliott structure OK[/] "
-        "(still not promotion_eligible / not auto-GO)"
+        "[green]assert-elliott structure OK[/] (still not promotion_eligible / not auto-GO)"
     )
 
 
@@ -1545,6 +1544,70 @@ def freeze_b4(
     if code != 0:
         raise typer.Exit(code=code)
     _make_console().print(f"[green]B4 freeze written under[/] {run_dir}")
+
+
+@app.command("eval-btc-overlay")
+def eval_btc_overlay(
+    start: str = typer.Option("2021-01-01", "--start"),
+    end: str = typer.Option("2026-08-04", "--end"),
+    overlay_weight: float = typer.Option(0.25, "--overlay-weight"),
+    fee: float = typer.Option(
+        0.001, "--fee", help="Fee on overlay rebalances (default taker 10bp)"
+    ),
+    slip: float = typer.Option(0.001, "--slip"),
+    fast: int = typer.Option(96, "--fast", help="Overlay fast MA bars"),
+    slow: int = typer.Option(400, "--slow", help="Overlay slow MA bars"),
+    mode: str = typer.Option("reduce_off", "--mode", help="add_on | reduce_off"),
+    sweep: bool = typer.Option(False, "--sweep", help="Sweep weights/modes for best excess"),
+    out: str = typer.Option(
+        "data/paper_replay/beta_overlay/eval.json",
+        "--out",
+        help="JSON report path",
+    ),
+) -> None:
+    """Product-bar eval: BTC beta+overlay vs BTC HODL (not research PAPER-GO).
+
+    Thin CLI over ``scripts/run_btc_beta_overlay_eval.py``.
+    PASS = positive excess after stated costs; dual cost matrix in JSON.
+    """
+    import sys as _sys
+
+    import scripts.run_btc_beta_overlay_eval as eval_mod
+
+    argv: list[str] = [
+        "--start",
+        start,
+        "--end",
+        end,
+        "--overlay-weight",
+        str(overlay_weight),
+        "--fee",
+        str(fee),
+        "--slip",
+        str(slip),
+        "--fast",
+        str(fast),
+        "--slow",
+        str(slow),
+        "--mode",
+        mode,
+        "--out",
+        out,
+    ]
+    if sweep:
+        argv.append("--sweep")
+    # eval main reads argparse from sys.argv
+    old = _sys.argv
+    try:
+        _sys.argv = ["run_btc_beta_overlay_eval.py", *argv]
+        code = eval_mod.main()
+    finally:
+        _sys.argv = old
+    if code != 0:
+        raise typer.Exit(code=code)
+    _make_console().print(
+        f"[green]eval-btc-overlay written[/] {out} (product gate vs BTC HODL — see cost_matrix)"
+    )
 
 
 @app.command()
