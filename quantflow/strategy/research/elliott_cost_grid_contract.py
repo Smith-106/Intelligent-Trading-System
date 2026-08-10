@@ -103,6 +103,51 @@ def _proxy_grid_from_equity(
     return rows
 
 
+async def _reseat_grid_from_replays(
+    df: pd.DataFrame,
+    *,
+    symbol: str,
+    capital: float,
+    params: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """W24b: one paper_replay per fee×slip cell (true reseat, still not GO)."""
+    from quantflow.common.config import AppConfig, ExecutionConfig, RiskConfig
+    from quantflow.strategy.research.paper_replay import RecordingSink, build_session, replay
+
+    rows: list[dict[str, Any]] = []
+    for fee, slip in _GRID_POINTS:
+        cfg = AppConfig(
+            execution=ExecutionConfig(mode="paper", taker_fee=fee, slippage=slip),
+            risk=RiskConfig(kill_switch_enabled=False, max_drawdown=-0.9),
+        )
+        sink = RecordingSink()
+        session = build_session(
+            "liu_yudong_wave",
+            capital=capital,
+            sink=sink,
+            config=cfg,
+            params=params,
+            research_risk_bypass=True,
+        )
+        fills: list[dict[str, object]] = []
+        risk_events: list[dict[str, object]] = []
+        curve = await replay(session, df, symbol, fills=fills, risk_events=risk_events)
+        final_eq = float(curve[-1]["equity"]) if curve else capital
+        ret_pct = (final_eq - capital) / capital * 100.0 if capital else 0.0
+        rows.append(
+            {
+                "taker_fee": fee,
+                "slippage": slip,
+                "total_return_pct": ret_pct,
+                "final_equity": final_eq,
+                "n_fills": len(fills),
+                "method": "paper_replay_reseat",
+                "note": "W24b multi-run reseat — still not sealed GO",
+            }
+        )
+    return rows
+
+
 async def build_elliott_cost_grid_package(
     *,
     df: pd.DataFrame | None = None,
@@ -112,11 +157,16 @@ async def build_elliott_cost_grid_package(
     params: dict[str, Any] | None = None,
     output_dir: str | Path | None = None,
     contract_id: str = "elliott_paper_replay_cost_v1",
+    reseat: bool = True,
 ) -> ElliottCostGridPackage:
-    """Run W22 package then attach cost_fidelity + funding_tca (assumption)."""
+    """Run W22 package then attach cost_fidelity + funding_tca (assumption).
+
+    W24b: ``reseat=True`` (default) re-runs paper_replay once per fee×slip cell.
+    Pass ``reseat=False`` for the faster W23b proxy_from_fills grid.
+    """
     notes = [
-        "W23b cost-grid package — structure for require_cost_grid/funding_tca",
-        "promotion_eligible=false: proxy grid is not sealed GO evidence",
+        "W23b/W24b cost-grid package — structure for require_cost_grid/funding_tca",
+        "promotion_eligible=false: grid is not sealed GO evidence",
         "Does not supersede B0; independent research contract",
     ]
     base = await build_elliott_paper_replay_package(
@@ -128,23 +178,49 @@ async def build_elliott_cost_grid_package(
         output_dir=None,  # write combined package below
         contract_id=contract_id,
     )
-    grid = _proxy_grid_from_equity(
-        capital,
-        float(base.final_equity),
-        n_fills=int(base.n_fills),
-    )
+
+    # Materialize frame for reseat (same path as smoke)
+    from quantflow.strategy.research.elliott_wave_backtest import generate_synthetic_wave_data
+
+    if df is None:
+        frame = generate_synthetic_wave_data(n_bars=n_bars)
+    else:
+        frame = df.copy()
+    if "timestamp" not in frame.columns:
+        frame["timestamp"] = list(range(len(frame)))
+
+    cfg_params = dict(params or {})
+    cfg_params.setdefault("allow_degraded_consensus", True)
+    cfg_params.setdefault("require_confirmed_pivots", True)
+
+    if reseat:
+        grid = await _reseat_grid_from_replays(
+            frame, symbol=symbol, capital=capital, params=cfg_params
+        )
+        notes.append("cost grid method=paper_replay_reseat (W24b)")
+    else:
+        grid = _proxy_grid_from_equity(
+            capital,
+            float(base.final_equity),
+            n_fills=int(base.n_fills),
+        )
+        notes.append("cost grid method=proxy_from_fills (W23b)")
+
     funding = build_funding_tca(
         mode="assumption",
         assumed_abs_funding_per_event=DEFAULT_ASSUMED_ABS_FUNDING_PER_EVENT,
         events_per_day=DEFAULT_FUNDING_EVENTS_PER_DAY,
-        notes="W23b assumption TCA for structure only",
+        notes="W23b/W24b assumption TCA for structure only",
     )
 
     report: dict[str, Any] = {
         "execution_path": "paper_replay",
         "data_fingerprint": base.data_fingerprint,
-        "run_meta": base.run_meta,
-        "decision": "NO_GO",  # explicit — never claim GO from proxy
+        "run_meta": {
+            **base.run_meta,
+            "cost_grid_method": "paper_replay_reseat" if reseat else "proxy_from_fills",
+        },
+        "decision": "NO_GO",  # explicit — never claim GO from package alone
         "promotion_eligible": False,
         "contract_id": contract_id,
     }
@@ -170,7 +246,7 @@ async def build_elliott_cost_grid_package(
         dest = Path(output_dir)
         dest.mkdir(parents=True, exist_ok=True)
         (dest / "run_meta.json").write_text(
-            json.dumps(base.run_meta, indent=2, ensure_ascii=False) + "\n",
+            json.dumps(report["run_meta"], indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
         (dest / "cost_report.json").write_text(
@@ -184,6 +260,7 @@ async def build_elliott_cost_grid_package(
             "promotion_eligible": False,
             "n_fills": base.n_fills,
             "decision": "NO_GO",
+            "cost_grid_method": "paper_replay_reseat" if reseat else "proxy_from_fills",
         }
         (dest / "summary.json").write_text(
             json.dumps(summary, indent=2, ensure_ascii=False) + "\n",

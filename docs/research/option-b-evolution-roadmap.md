@@ -166,13 +166,24 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 详情：[w23-trades-cost-b4.md](./w23-trades-cost-b4.md)
 
-### W24+ 候选（未开工）
+### W24 — B4 runner + Elliott reseat + watch_trades
+
+| 切片 | 内容 | 状态 |
+|------|------|------|
+| **W24a** | `run_baseline4_challenger.py` → `baseline4/` only（禁 baseline3） | ✅ |
+| **W24b** | Elliott fee×slip **paper_replay reseat**（默认；proxy 可选） | ✅ |
+| **W24c** | `DataFetcher.watch_trades` + ingest attach（无 WS 则 poll） | ✅ |
+| 测试 | `test_w24_*` 等 15 passed | ✅ |
+
+详情：[w24-b4-reseat-watch.md](./w24-b4-reseat-watch.md)
+
+### W25+ 候选（未开工）
 
 | 切片 | 内容 |
 |------|------|
-| 可选 | B4 challenger runner + 独立 `baseline4/` 产物 |
-| 可选 | Elliott multi-run reseat cost grid（替换 proxy） |
-| 可选 | trades WS 真流（ccxt watch_trades） |
+| 可选 | B4 真实 meta 窗 challenger（独立 run_id；仍禁改 B3） |
+| 可选 | Elliott cost-grid 与 promotion_path 一键 assert 脚本 |
+| 可选 | multi-symbol trades ingest |
 
 并行：**T023** 墙钟至 consecutive≥7（自 UTC 2026-08-11）。
 

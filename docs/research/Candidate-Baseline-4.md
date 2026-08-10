@@ -61,12 +61,23 @@ remains **KEEP_B0** unless evidence is overwhelming.
 
 ---
 
-## 5. Next steps (out of W23)
+## 5. Runner (W24a)
 
-1. Optional: `scripts/run_baseline4_challenger.py` (copy B3 runner, new out dir).  
-2. Optional: denser funding history re-pin with T011 fingerprint.  
-3. Human adjudication only after cost-honest OOS package.
+```bash
+python scripts/run_baseline4_challenger.py --dry-run
+python scripts/run_baseline4_challenger.py --synthetic --out-dir data/paper_replay/baseline4/smoke
+```
+
+- Writes **only** under `baseline4/` (refuses paths containing `baseline3`).  
+- Synthetic/dry modes are **structure smoke** — not sealed OOS UPGRADE.  
+- Default promotion field remains `KEEP_BASELINE_0` / `promotion_eligible=false`.
+
+## 6. Next steps (out of W24)
+
+1. Optional: real meta window challenger with denser funding + T011 pin.  
+2. Human adjudication only after cost-honest OOS package.  
+3. Never edit B3 frozen artifacts to “make B4 pass”.
 
 ---
 
-*W23c delivers the written contract + overlay; execution is intentionally deferred.*
+*W23c: contract + overlay. W24a: runner scaffold. Full OOS still deferred.*

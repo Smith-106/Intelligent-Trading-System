@@ -135,3 +135,26 @@ def make_fetcher_adapter(data_fetcher: Any) -> FetchTradesFn:
         return await data_fetcher.fetch_trades(symbol, limit=limit)
 
     return _fetch
+
+
+async def attach_watch_trades(
+    loop: TradesIngestLoop,
+    data_fetcher: Any,
+    symbol: str,
+    *,
+    poll_fallback_interval_s: float = 5.0,
+) -> None:
+    """W24c: wire ``DataFetcher.watch_trades`` into ingest ``push_trades``.
+
+    Starts the fetcher stream; each batch is persisted. Caller must
+    ``data_fetcher.stop_stream()`` / ``loop.stop()`` on shutdown.
+    """
+
+    async def _on_batch(frame: pd.DataFrame) -> None:
+        await loop.push_trades(symbol, frame)
+
+    await data_fetcher.watch_trades(
+        symbol,
+        _on_batch,
+        poll_fallback_interval_s=poll_fallback_interval_s,
+    )

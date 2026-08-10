@@ -251,6 +251,96 @@ class DataFetcher:
             return pd.DataFrame(columns=["timestamp", "price", "amount", "side"])
         return pd.DataFrame(rows)
 
+    async def watch_trades(
+        self,
+        symbol: str,
+        callback: Callable[[pd.DataFrame], Any] | None = None,
+        *,
+        limit: int = 50,
+        poll_fallback_interval_s: float = 5.0,
+    ) -> None:
+        """W24c: stream public trades via ccxt.pro ``watch_trades`` when available.
+
+        Falls back to REST ``fetch_trades`` polling when WS is missing. Stops when
+        ``stop_stream()`` is called (shares ``_ws_running`` with bar streams — only
+        one active stream per DataFetcher instance).
+
+        Callback receives a DataFrame with columns timestamp/price/amount/side.
+        """
+        if not self._exchange:
+            raise GatewayConnectionError("Not connected")
+        self.stop_stream()
+        self._ws_running = True
+        self._ws_task = asyncio.ensure_future(
+            self._watch_trades_loop(
+                symbol,
+                callback,
+                limit=limit,
+                poll_fallback_interval_s=poll_fallback_interval_s,
+            )
+        )
+
+    async def _watch_trades_loop(
+        self,
+        symbol: str,
+        callback: Callable[[pd.DataFrame], Any] | None,
+        *,
+        limit: int,
+        poll_fallback_interval_s: float,
+    ) -> None:
+        exchange = self._exchange
+        if exchange is None:
+            return
+        use_ws = hasattr(exchange, "watch_trades")
+        if not use_ws:
+            logger.info(
+                "watch_trades: no ccxt.pro watch_trades — REST poll fallback (%.1fs)",
+                poll_fallback_interval_s,
+            )
+        try:
+            while self._ws_running:
+                try:
+                    if use_ws:
+                        raw = await asyncio.wait_for(
+                            exchange.watch_trades(symbol), timeout=CALL_TIMEOUT
+                        )
+                    else:
+                        raw = await asyncio.wait_for(
+                            exchange.fetch_trades(symbol, limit=limit),
+                            timeout=CALL_TIMEOUT,
+                        )
+                        await asyncio.sleep(max(1.0, float(poll_fallback_interval_s)))
+                except Exception as e:
+                    logger.warning("watch_trades error: %s — retry", e)
+                    await asyncio.sleep(2.0)
+                    continue
+                if not raw:
+                    continue
+                rows: list[dict[str, Any]] = []
+                for t in raw if isinstance(raw, list) else [raw]:
+                    if not isinstance(t, dict):
+                        continue
+                    rows.append(
+                        {
+                            "timestamp": int(t.get("timestamp") or 0),
+                            "price": float(t.get("price") or 0.0),
+                            "amount": float(t.get("amount") or 0.0),
+                            "side": str(t.get("side") or ""),
+                        }
+                    )
+                if not rows:
+                    continue
+                frame = pd.DataFrame(rows)
+                if callback is not None:
+                    result = callback(frame)
+                    if inspect.isawaitable(result):
+                        await result
+        except asyncio.CancelledError:
+            logger.info("watch_trades loop cancelled")
+            raise
+        finally:
+            self._ws_running = False
+
     def get_last_timestamp(self, symbol: str, timeframe: str, parquet_dir: Path) -> int | None:
         """Get the last stored timestamp for incremental updates.
 
