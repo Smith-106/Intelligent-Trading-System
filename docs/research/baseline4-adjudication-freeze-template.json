@@ -1,0 +1,50 @@
+{
+  "kind": "baseline_adjudication_freeze",
+  "task": "W26a",
+  "baseline": "B4",
+  "status": "TEMPLATE_NOT_FROZEN",
+  "frozen_at": null,
+  "source_run": null,
+  "verdict": "KEEP_BASELINE_0",
+  "upgrade": false,
+  "keep_baseline0": true,
+  "b3_reference": {
+    "entry_threshold": 0.001,
+    "status": "FROZEN KEEP_B0",
+    "note": "B4 must never overwrite baseline3 artifacts or funding_rate.yaml defaults"
+  },
+  "b4_params": {
+    "entry_threshold": 0.0004,
+    "exit_threshold": 0.00015
+  },
+  "data_status": "PENDING",
+  "effective_window": {
+    "start": null,
+    "end": null,
+    "note": "fill after --meta-window run_id"
+  },
+  "challenger": {
+    "label": "funding_rate_b4",
+    "full_orders": null,
+    "notes": []
+  },
+  "classic_control": {
+    "full_return_pct": null,
+    "full_sharpe": null,
+    "full_orders": null
+  },
+  "immutable_rules": [
+    "Do not rebrand KEEP as UPGRADE without new run_meta + human adjudication",
+    "Do not silent-overwrite prior baseline4/<run_id>/ packages — use a new run_id",
+    "Do not write into data/paper_replay/baseline3/",
+    "Do not edit quantflow/config/strategies/funding_rate.yaml entry_threshold (B3)",
+    "B0 remains sole PAPER-GO until a future contract explicitly upgrades",
+    "Zero-cost-only narratives forbidden; funding_tca must sit beside fee×slip",
+    "Session funding_risk_gate is a separate risk track (not B4 alpha)"
+  ],
+  "human_docs": [
+    "docs/research/Candidate-Baseline-4.md",
+    "docs/research/baseline-contract-index.md",
+    "docs/research/w25-meta-assert-multi.md"
+  ]
+}

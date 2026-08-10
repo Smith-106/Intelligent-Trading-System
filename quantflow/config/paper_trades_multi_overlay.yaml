@@ -1,0 +1,22 @@
+# W26c: multi-symbol public-trades poll → TradesStore (research scaffold).
+# DEFAULT OFF in AppConfig — merge only when intentionally collecting tape.
+#
+# Usage:
+#   quantflow run --mode paper ... --config quantflow/config/paper_trades_multi_overlay.yaml
+#
+# Notes:
+#   - Does not enable orderbook_fill or bbo_poll
+#   - Trades land under data/trades/{SYMBOL}/ (gitignored)
+#   - Use with multi-symbol paper sessions (execution.symbols)
+
+execution:
+  mode: paper
+  trades_poll_enabled: true
+  trades_poll_interval_s: 30.0
+  trades_store_dir: data/trades
+  trades_poll_limit: 100
+  # Example multi-symbol set (override via CLI --symbols when preferred)
+  symbols:
+    - BTC/USDT
+    - ETH/USDT
+    - SOL/USDT

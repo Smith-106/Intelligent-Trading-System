@@ -1477,6 +1477,76 @@ def new_strategy(
     )
 
 
+@app.command("assert-elliott")
+def assert_elliott(
+    dir: str | None = typer.Option(
+        None,
+        "--dir",
+        help="Package dir with cost_report.json / run_meta.json",
+    ),
+    build: bool = typer.Option(
+        False,
+        "--build",
+        help="Build a synthetic Elliott cost package before assert",
+    ),
+    n_bars: int = typer.Option(80, "--n-bars", help="Bars when --build"),
+    reseat: bool = typer.Option(
+        True,
+        "--reseat/--no-reseat",
+        help="paper_replay reseat grid when --build (default on)",
+    ),
+    require_full: bool = typer.Option(
+        True,
+        "--require-full/--no-require-full",
+        help="Fail if full register structure (path+cost+funding) fails",
+    ),
+) -> None:
+    """W26b: assert Elliott cost-grid package structure (not auto-GO).
+
+    Thin CLI over ``scripts/assert_elliott_cost_package.py``.
+    Structure pass ≠ promotion; decision remains research/NO_GO.
+    """
+    import scripts.assert_elliott_cost_package as assert_mod
+
+    argv: list[str] = []
+    if build:
+        argv.append("--build")
+    if dir:
+        argv.extend(["--dir", dir])
+    argv.extend(["--n-bars", str(n_bars)])
+    argv.append("--reseat" if reseat else "--no-reseat")
+    argv.append("--require-full" if require_full else "--no-require-full")
+    code = assert_mod.main(argv)
+    if code != 0:
+        console = _make_console()
+        console.print(
+            "[red]assert-elliott failed[/] "
+            "(structure incomplete — not a GO signal either way)"
+        )
+        raise typer.Exit(code=code)
+    _make_console().print(
+        "[green]assert-elliott structure OK[/] "
+        "(still not promotion_eligible / not auto-GO)"
+    )
+
+
+@app.command("freeze-b4")
+def freeze_b4(
+    run_dir: str = typer.Option(
+        ...,
+        "--run-dir",
+        help="baseline4/<run_id> directory (never baseline3/)",
+    ),
+) -> None:
+    """W26a: write adjudication_frozen.json under a B4 run dir (KEEP_B0 only)."""
+    import scripts.freeze_baseline4_adjudication as freeze_mod
+
+    code = freeze_mod.main(["--run-dir", run_dir])
+    if code != 0:
+        raise typer.Exit(code=code)
+    _make_console().print(f"[green]B4 freeze written under[/] {run_dir}")
+
+
 @app.command()
 def status() -> None:
     """Show current system status."""

@@ -188,15 +188,28 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 详情：[w25-meta-assert-multi.md](./w25-meta-assert-multi.md)
 
-### W26+ 候选（未开工）
+### W26 — B4 freeze + CLI assert-elliott + trades multi overlay
 
-| 切片 | 内容 |
-|------|------|
-| 可选 | B4 adjudication freeze 模板（不写 GO） |
-| 可选 | CLI 接线 assert-elliott |
-| 可选 | trades multi-symbol overlay YAML |
+| 切片 | 内容 | 状态 |
+|------|------|------|
+| **W26a** | B4 adjudication freeze 模板 + freeze 脚本/CLI（禁 GO） | ✅ |
+| **W26b** | `quantflow assert-elliott` CLI 接线 | ✅ |
+| **W26c** | `paper_trades_multi_overlay.yaml` | ✅ |
+| 测试 | `test_w26_*` 6 passed | ✅ |
 
-并行：**T023** 墙钟至 consecutive≥7（自 UTC 2026-08-11）。
+详情：[w26-freeze-cli-overlay.md](./w26-freeze-cli-overlay.md)
+
+### W27 — Option B 工程 wave 轨道收口
+
+| 切片 | 内容 | 状态 |
+|------|------|------|
+| **W27a** | 声明 **无新工程 wave 切片**（W17–W26 闭环） | ✅ |
+| **W27b** | 残留仅运营：T023 墙钟 / 真实 paper promote 证据 | ✅ |
+| **W27c** | 索引文档 [w27-wave-track-close.md](./w27-wave-track-close.md) | ✅ |
+
+**停止条件已满足**：roadmap 不再列出 `W28+ 工程候选`。后续若人类立项新合同（如 B4 全量 OOS），以 **独立合同 ID** 开启，不自动续 W-number 流水线。
+
+并行：**T023** 墙钟至 consecutive≥7（自 UTC 2026-08-11）— **非 wave 切片**。
 
 ---
 
