@@ -1,10 +1,11 @@
 # QuantFlow 待完成事项清单（Pending Checklist）
 
 **As of**: 2026-08-10 (UTC)  
-**HEAD**: see `main`（hygiene pass after `4554da2`）  
+**HEAD**: see `main`  
 **North star**: cost-aware paper-first research OS — not win-rate  
 **Source of truth for ops residual**: [residual-ops-status.md](./residual-ops-status.md) · [t023-wall-clock-status.md](./t023-wall-clock-status.md)  
-**P1/P2 hygiene log**: [p1-p2-hygiene-status.md](./p1-p2-hygiene-status.md)
+**P1/P2 hygiene log**: [p1-p2-hygiene-status.md](./p1-p2-hygiene-status.md)  
+**Full completeness audit**: [project-completeness-audit-20260810.md](./project-completeness-audit-20260810.md)（工程已关；仅 T023/T024 运营残留）
 
 ---
 
@@ -197,5 +198,6 @@ git status -sb
 |------|------|
 | 2026-08-10 | 初版：T023=3/7；B4/B5 KEEP；wave 关；P0–P3 分层 |
 | 2026-08-10 | P1/P2 hygiene：ignore experts-mode；seal 7 sessions；v0.6 文案；download 尝试；见 p1-p2-hygiene-status.md |
+| 2026-08-10 | 全量 completeness audit + kg sync：无强制工程缺口；见 project-completeness-audit-20260810.md |
 
 *本清单描述「还剩什么」，不创造新的 W-number 流水线。*
