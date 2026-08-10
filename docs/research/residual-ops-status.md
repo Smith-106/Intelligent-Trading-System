@@ -11,7 +11,7 @@
 
 | 残留类 | 本轮结果 | 是否仍开放 |
 |--------|----------|------------|
-| **A. 日课 streak** | 刷新至 **3/7** 连续 UTC 日 | 🔧 是（墙钟） |
+| **A. 日课 streak** | **3/7**；缺 **08-11…08-14**（未来日）— 见 [t023-wall-clock-calendar.md](./t023-wall-clock-calendar.md) | 🔧 是（**日历绑定**，同日不可压完） |
 | **B. 可选人审** | `oss_c_gate` 绿；**git 历史 gitleaks = 0**；工作区 2 命中（本地未跟踪路径） | 🔧 人审项 |
 | **C. 真实 promote 证据** | dry-run **rejected**（days=3 &lt; 7；fills=5 &lt; 20） | 🔧 依赖 A |
 
@@ -24,14 +24,16 @@
 | credited | `2026-08-08`, `2026-08-09`, **`2026-08-10`** |
 | consecutive | **3** |
 | target_met (min_days=7) | **false** |
-| 今日 Path A | preflight OK · deviation ok |
+| 今日 Path A | preflight OK · deviation ok · **08-10 已 credit** |
+| 尚缺 | **2026-08-11 … 2026-08-14**（UTC 未到则无法合法 credit） |
 
 ```bash
 python scripts/paper_day_streak.py ingest --run-day-session
 python scripts/paper_day_streak.py status --min-days 7
+# 或: pwsh -File scripts/path_a_daily.ps1
 ```
 
-**剩余**: 至少再 **4** 个连续 UTC 日 credit。禁止补写历史日期。
+**剩余**: **4** 个**未来**连续 UTC 日。禁止预写/回填。日历: [t023-wall-clock-calendar.md](./t023-wall-clock-calendar.md)。
 
 详见 [t023-streak-status.md](./t023-streak-status.md)。
 

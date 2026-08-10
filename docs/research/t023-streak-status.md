@@ -6,7 +6,9 @@
 **Wall-clock target**: ≥7 **consecutive UTC days** with credited Path A summaries  
 **Honesty rule**: **never fabricate calendar days**
 
-See also: [post-t021-wave-close.md](./post-t021-wave-close.md) · [residual-ops-status.md](./residual-ops-status.md)
+See also: [post-t021-wave-close.md](./post-t021-wave-close.md) · [residual-ops-status.md](./residual-ops-status.md) · [t023-wall-clock-calendar.md](./t023-wall-clock-calendar.md)
+
+**Next credits (must wait for real UTC days)**: 2026-08-11 → 12 → 13 → **14** (then consecutive=7).
 
 ## Current ledger (local runtime)
 
