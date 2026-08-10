@@ -1578,7 +1578,7 @@ def status() -> None:
         pass
 
     table.add_row("Version", __version__)
-    table.add_row("Phase", "v0.5 paper-first (shared RP + AI pipeline)")
+    table.add_row("Phase", "v0.6 paper-first (shared RP + AI pipeline)")
     table.add_row("Data Layer", data_status)
     table.add_row("Config", config_status)
     table.add_row("Indicators", "Ready (21 factors)")

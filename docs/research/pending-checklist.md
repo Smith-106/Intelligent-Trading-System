@@ -1,9 +1,10 @@
 # QuantFlow 待完成事项清单（Pending Checklist）
 
 **As of**: 2026-08-10 (UTC)  
-**HEAD**: `d1f82a5`（main）  
+**HEAD**: see `main`（hygiene pass after `4554da2`）  
 **North star**: cost-aware paper-first research OS — not win-rate  
-**Source of truth for ops residual**: [residual-ops-status.md](./residual-ops-status.md) · [t023-wall-clock-status.md](./t023-wall-clock-status.md)
+**Source of truth for ops residual**: [residual-ops-status.md](./residual-ops-status.md) · [t023-wall-clock-status.md](./t023-wall-clock-status.md)  
+**P1/P2 hygiene log**: [p1-p2-hygiene-status.md](./p1-p2-hygiene-status.md)
 
 ---
 
@@ -72,52 +73,47 @@
 
 ## 2. P1 — 建议尽快（卫生 / 会话）
 
-### 2.1 本地敏感面复核
+### 2.1 本地敏感面复核 — ✅ 2026-08-10
 
-| 项 | 动作 |
+| 项 | 结果 |
 |----|------|
-| `.workflow/recovery/**` | 确认 gitignore；**勿 commit** |
-| `data/live_evidence/**` | 确认 gitignore；敏感字段本地清理/轮换 |
-| 工作区 gitleaks 2 命中 | 人审非历史泄漏（历史已 0） |
+| `.workflow/recovery/**` | gitignore ✅ · untracked · keyword scan clean |
+| `data/live_evidence/**` | gitignore ✅ · untracked · **no api keys** (balances/timings only) |
+| oss_c_gate secret_scan | hits=0 |
 
-- [ ] 人工打开 report / 文件确认无密钥入仓  
-- [ ] 不把 gitleaks 全量 JSON 提交进 git  
+- [x] 确认无密钥入仓  
+- [x] 不提交 gitleaks JSON / recovery / live_evidence  
 
-### 2.2 Maestro 陈旧 session
+### 2.2 Maestro 陈旧 session — ✅ partial
 
-| 项 | 说明 |
-|----|------|
-| session | `w18a-w18b-w18c-…` 等可能仍 `running` / CHAIN_COMPLETE |
-| 动作 | `maestro run seal-session <id>` 或项目约定 seal（**非功能阻塞**） |
+- [x] 列出 active sessions  
+- [x] seal 7 个无阻塞 session（含 w18…）  
+- [ ] 余 3 个 `SESSION_SEAL_BLOCKED`（unsealed Runs）— 可选后续  
 
-- [ ] 列出 active sessions  
-- [ ] seal 已无 pending step 的 session  
+### 2.3 仓库噪音 — ✅
 
-### 2.3 仓库噪音
-
-- [ ] 决定 `.experts-mode.json`：加入 gitignore **或** 不提交保持 untracked  
-- [ ] `git status` 保持无意外 staged `data/paper_*` / recovery  
+- [x] `.experts-mode.json` → **`.gitignore`**  
+- [x] `git status` 无 paper/recovery staged  
 
 ---
 
 ## 3. P2 — 可选增强
 
-### 3.1 数据新鲜度
+### 3.1 数据新鲜度 — ✅ attempted 2026-08-10
 
-- [ ] 若 Path A 持续 WARN `last bar age > 48h`：  
-  `quantflow download --symbol BTC/USDT,ETH/USDT,SOL/USDT --timeframe 1h …`  
-- [ ] **不**为 streak 伪造 bar  
+- [x] BTC/SOL 1h download OK；ETH 曾 connect fail（可再试）  
+- [x] **未**伪造 bar / streak  
 
-### 3.2 OSS Scheme C（人审 only）
+### 3.2 OSS Scheme C（人审 only） — gate 绿；决策仍属人
 
-- [ ] 阅读 [oss-c-human-review-pack.md](./oss-c-human-review-pack.md) / gate checklist  
-- [ ] 决策：Stay B / Start C / Defer  
-- [ ] **Visibility 变更仅人类**（agent 禁止 `gh repo edit --visibility`）  
+- [x] `oss_c_gate --quick` → ready_for_human_c_review=True  
+- [ ] 人类决策：Stay B / Start C / Defer  
+- [x] **Agent 未改 visibility**  
 
-### 3.3 文档小对齐（低优先级）
+### 3.3 文档小对齐 — ✅
 
-- [ ] `post-t021-implementation-roadmap.md` 中 T033「B4+ 未开」可注：B4/B5 **已跑并 KEEP**（可选文案）  
-- [ ] `status` CLI 文案仍写 v0.5 时可改 v0.6.0（cosmetic）  
+- [x] option-b T033 行注明 B4/B5 已封 KEEP  
+- [x] `__version__` + CLI Phase → **v0.6.0**  
 
 ---
 
@@ -200,5 +196,6 @@ git status -sb
 | 日期 | 说明 |
 |------|------|
 | 2026-08-10 | 初版：T023=3/7；B4/B5 KEEP；wave 关；P0–P3 分层 |
+| 2026-08-10 | P1/P2 hygiene：ignore experts-mode；seal 7 sessions；v0.6 文案；download 尝试；见 p1-p2-hygiene-status.md |
 
 *本清单描述「还剩什么」，不创造新的 W-number 流水线。*

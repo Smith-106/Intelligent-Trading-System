@@ -142,3 +142,6 @@ data/paper_sessions/
 # Local secret scan reports (do not commit)
 gitleaks*.json
 gitleaks-report.json
+
+# Local agent experts-mode state (UI dispatch metadata; not project source)
+.experts-mode.json

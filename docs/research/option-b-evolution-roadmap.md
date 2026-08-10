@@ -51,7 +51,7 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 |------|-----------|------|
 | T031 denser funding/OI 入库 | merge 315 funding / 1073 OI；窗延至 2024→2026-08 | ✅ |
 | T032 B3 **新** run_meta 重跑 | `baseline3/20260810_w15/`；**KEEP_B0**；0 funding trades | ✅ |
-| T033 可选：新信号合同（阈值/横截面） | 独立 B4+ — **未开**（阈值改动禁止写进 B3） | ⏳ optional |
+| T033 可选：新信号合同（阈值/横截面） | funding 族已独立交付 **B4-OOS / B5-ABL**（均 KEEP_B0）；其它 alpha 仍 optional | ⏳ optional（B4/B5 已封） |
 
 详情：[baseline3-w15-rerun.md](./baseline3-w15-rerun.md)
 
