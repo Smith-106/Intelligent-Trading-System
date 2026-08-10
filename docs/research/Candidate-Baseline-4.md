@@ -1,8 +1,9 @@
 # Candidate Baseline-4 — Funding threshold sensitivity (contract only)
 
-**Status**: **DRAFT CONTRACT — NOT RUN** (W23c)  
+**Status**: **FROZEN KEEP_BASELINE_0** — full OOS run **B4-OOS-20260810**  
 **Date**: 2026-08-10  
 **Against**: [Baseline-0](./Candidate-Baseline-0.md)（唯一 **PAPER-GO**）  
+**Results**: [Candidate-Baseline-4-results.md](./Candidate-Baseline-4-results.md)  
 **Supersedes**: **nothing** — does **not** edit or re-open [B3](./Candidate-Baseline-3.md)
 
 ---
@@ -12,7 +13,7 @@
 | Contract | Threshold story | Status |
 |----------|-----------------|--------|
 | **B3** | `entry_threshold=0.001` on `funding_rate` | **FROZEN KEEP_B0** (0 fills; max \|rate\|≈0.0005) |
-| **B4（本文件）** | **Lower** entry threshold **0.0004** as a **new** signal contract | Draft only — runner optional later |
+| **B4（本文件）** | **Lower** entry threshold **0.0004** as a **new** signal contract | **FROZEN KEEP_B0** (0 fills @ thr; max\|rate\|=0.0005) |
 
 B3 measured max \|funding\| under the pin window was **below** 0.001, so the
 strategy never entered. That is a **valid negative result**, not a bug to
@@ -61,23 +62,27 @@ remains **KEEP_B0** unless evidence is overwhelming.
 
 ---
 
-## 5. Runner (W24a)
+## 5. Runners
 
 ```bash
+# structure smoke (W24)
 python scripts/run_baseline4_challenger.py --dry-run
-python scripts/run_baseline4_challenger.py --synthetic --out-dir data/paper_replay/baseline4/smoke
+python scripts/run_baseline4_challenger.py --synthetic
+
+# full OOS package (independent contract ID — not a W-wave)
+python scripts/run_baseline4_full_oos.py --run-id B4-OOS-20260810
 ```
 
-- Writes **only** under `baseline4/` (refuses paths containing `baseline3`).  
-- Synthetic/dry modes are **structure smoke** — not sealed OOS UPGRADE.  
-- Default promotion field remains `KEEP_BASELINE_0` / `promotion_eligible=false`.
+- Writes **only** under `baseline4/<run_id>/` (refuses `baseline3/`).  
+- Full OOS attaches WFO rows, fee×slip grid, funding_tca, fingerprint, freeze.  
+- Sealed verdict for B4-OOS-20260810: **KEEP_BASELINE_0** (0 challenger fills).
 
-## 6. Next steps (out of W24)
+## 6. After freeze
 
-1. Optional: real meta window challenger with denser funding + T011 pin.  
-2. Human adjudication only after cost-honest OOS package.  
-3. Never edit B3 frozen artifacts to “make B4 pass”.
+1. Do **not** re-open B3 or silent-edit thr to chase fills.  
+2. Optional future ablation (EMA-off / OI-off) = **new contract ID** (e.g. B5), new run dir.  
+3. B0 remains sole PAPER-GO until a human UPGRADE contract.
 
 ---
 
-*W23c: contract + overlay. W24a: runner scaffold. Full OOS still deferred.*
+*W23c draft → W24 scaffold → B4-OOS-20260810 full OOS FROZEN KEEP_B0.*

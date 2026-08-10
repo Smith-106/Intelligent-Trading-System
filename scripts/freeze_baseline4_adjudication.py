@@ -40,6 +40,10 @@ def freeze(run_dir: Path) -> Path:
 
     out = dict(tmpl)
     out["status"] = "FROZEN"
+    if meta.get("contract_id"):
+        out["contract_id"] = meta.get("contract_id")
+    elif adj.get("contract_id"):
+        out["contract_id"] = adj.get("contract_id")
     out["frozen_at"] = datetime.now(UTC).isoformat()
     out["source_run"] = str(run_dir).replace("\\", "/")
     out["verdict"] = adj.get("promotion") or adj.get("verdict") or "KEEP_BASELINE_0"

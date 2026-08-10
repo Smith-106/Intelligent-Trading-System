@@ -209,7 +209,13 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 **停止条件已满足**：roadmap 不再列出 `W28+ 工程候选`。后续若人类立项新合同（如 B4 全量 OOS），以 **独立合同 ID** 开启，不自动续 W-number 流水线。
 
-并行：**T023** 墙钟至 consecutive≥7（自 UTC 2026-08-11）— **非 wave 切片**。
+并行运营（**非 wave**）：
+
+| 残留 | 状态 |
+|------|------|
+| **T023** 墙钟 | **3/7** consecutive（UTC 08-08…08-10）；见 [t023-wall-clock-status.md](./t023-wall-clock-status.md) |
+| **B4 full OOS** | 独立合同 **B4-OOS-20260810** → **KEEP_B0**；见 [Candidate-Baseline-4-results.md](./Candidate-Baseline-4-results.md) |
+| 真实 paper promote | 仍待 consecutive≥7 + fills（T024） |
 
 ---
 
