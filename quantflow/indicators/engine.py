@@ -81,6 +81,9 @@ CLASSICAL_EXTENDED_NAMES = [
     "dc_upper",
     "dc_middle",
     "dc_lower",
+    # W19c volume extensions
+    "session_vwap",
+    "obv_slope",
 ]
 
 WAVE_FACTOR_NAMES = [
@@ -167,6 +170,11 @@ class IndicatorEngine:
         dc_df = volatility.donchian_channel(high, low)
         for col in dc_df.columns:
             result[col] = dc_df[col]
+
+        # W19c volume extensions
+        ts = result["timestamp"] if "timestamp" in result.columns else None
+        result["session_vwap"] = volume.session_vwap(high, low, close, vol, ts)
+        result["obv_slope"] = volume.obv_slope(close, vol, 10)
 
         return result
 
@@ -272,6 +280,12 @@ class IndicatorEngine:
             dc_df = volatility.donchian_channel(high, low)
             for col in dc_columns & requested:
                 result[col] = dc_df[col]
+
+        if "session_vwap" in requested:
+            ts = result["timestamp"] if "timestamp" in result.columns else None
+            result["session_vwap"] = volume.session_vwap(high, low, close, vol, ts)
+        if "obv_slope" in requested:
+            result["obv_slope"] = volume.obv_slope(close, vol, 10)
 
         return result
 

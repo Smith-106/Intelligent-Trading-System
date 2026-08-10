@@ -137,7 +137,21 @@ class FeatureStore:
 
             existing = pd.read_parquet(month_path) if month_path.exists() else pd.DataFrame()
             combined = pd.concat([existing, group], ignore_index=True)
-            combined = combined.drop_duplicates(subset=["timestamp"]).sort_values("timestamp")
+            # W19a: explicit keep="first" — existing / earlier rows win. Prevents a
+            # later backfill from silently overwriting a PIT feature row at the
+            # same timestamp (anti-lookahead write path). Conflicts are logged.
+            before = len(combined)
+            combined = combined.drop_duplicates(subset=["timestamp"], keep="first").sort_values(
+                "timestamp"
+            )
+            dropped = before - len(combined)
+            if dropped > 0:
+                logger.warning(
+                    "FeatureStore.save_features: dropped %d duplicate timestamp row(s) "
+                    "for %s (keep=first / existing wins)",
+                    dropped,
+                    symbol,
+                )
             combined.to_parquet(month_path, index=False, compression="zstd")
 
         logger.info("Saved %d feature rows for %s", len(features), symbol)

@@ -47,3 +47,41 @@ def volume_ratio(volume: pd.Series, period: int = 20) -> pd.Series:
     """Volume Ratio (current / SMA)."""
     avg = volume_sma(volume, period)
     return volume / avg.replace(0, 1e-10)
+
+
+def session_vwap(
+    high: pd.Series,
+    low: pd.Series,
+    close: pd.Series,
+    volume: pd.Series,
+    timestamps: pd.Series | None = None,
+) -> pd.Series:
+    """Session VWAP reset on UTC calendar day (W19c).
+
+    When ``timestamps`` (ms epoch) is provided, cumulative TP*V / V resets at
+    each UTC day boundary. Without timestamps, falls back to full-series
+    cumulative VWAP (same as :func:`vwap`).
+    """
+    typical_price = (high + low + close) / 3.0
+    tp_vol = typical_price * volume
+    if timestamps is None:
+        cum_tp = tp_vol.cumsum()
+        cum_v = volume.cumsum()
+        return cum_tp / cum_v.replace(0, 1e-10)
+
+    day = (pd.to_numeric(timestamps, errors="coerce").astype("int64") // 86_400_000).astype(
+        "int64"
+    )
+    # groupby cumsum is causal within each day (no future leakage across days)
+    cum_tp = tp_vol.groupby(day).cumsum()
+    cum_v = volume.groupby(day).cumsum()
+    return cum_tp / cum_v.replace(0, 1e-10)
+
+
+def obv_slope(close: pd.Series, volume: pd.Series, period: int = 10) -> pd.Series:
+    """Rolling slope of OBV over ``period`` bars (W19c).
+
+    ``obv_t - obv_{t-period}`` — simple causal difference, not a regression fit.
+    """
+    line = obv(close, volume)
+    return line.diff(period)

@@ -26,6 +26,10 @@ params:
   require_confirmed_pivots: true   # drop trailing in-progress pivot before identify
   allow_degraded_consensus: false  # skip windows when ZigZag low-consensus fallback fires
 
+  # W19a: invalidation exits via WaveInvalidationChecker (hard breach → exit)
+  use_invalidation_exits: true
+  max_consecutive_stops: 3
+
   # Divergence settings
   use_divergence: true
   divergence_oscillators: [rsi_14, macd_histogram, volume]

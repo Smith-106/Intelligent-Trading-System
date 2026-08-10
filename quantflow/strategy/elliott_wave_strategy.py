@@ -25,6 +25,11 @@ from quantflow.indicators.wave_channel import ChannelResult, WaveChannel
 from quantflow.indicators.wave_identifier import WaveIdentifier
 from quantflow.indicators.wave_models import AnalysisMode, WavePattern, WaveSegment
 from quantflow.indicators.zigzag import PivotSequence, ZigZagIndicator
+from quantflow.signal.wave_signal_generator import (
+    InvalidationSeverity,
+    WaveInvalidationChecker,
+    WaveSignalGenerator,
+)
 from quantflow.strategy.base import StrategyBase
 
 
@@ -63,6 +68,12 @@ class LiuYudongWaveStrategy(StrategyBase):
         self.wave_channel = WaveChannel()
         self.divergence_det = DivergenceDetector()
         self.zigzag = ZigZagIndicator()
+        # W19a: wire signal enrich + invalidation (previously unit-tested only)
+        self.wave_signal_gen = WaveSignalGenerator()
+        self.invalidation_checker = WaveInvalidationChecker(
+            max_consecutive_stops=int(config.get("max_consecutive_stops", 3))
+        )
+        self._last_invalidation_events: list[Any] = []
 
         # Configurable parameters (S-003)
         self.zigzag_thresholds = config.get("zigzag_thresholds", [0.03, 0.05, 0.08, 0.12, 0.15])
@@ -96,14 +107,68 @@ class LiuYudongWaveStrategy(StrategyBase):
         # allow_degraded_consensus=False (default): skip windows where ZigZag
         # fell back to single-threshold (degraded=True) — fail-closed.
         self.allow_degraded_consensus = bool(config.get("allow_degraded_consensus", False))
+        # W19a: when True (default), hard invalidation on the window exit bar marks exit
+        self.use_invalidation_exits = bool(config.get("use_invalidation_exits", True))
 
     def on_init(self, ctx: Any) -> None:
         """Initialize strategy with context."""
         pass
 
     def on_bar(self, ctx: Any, bar: Any) -> None:
-        """Process a new bar and update wave analysis."""
-        pass
+        """Process a new bar: accumulate window, re-run signals, emit on last bar.
+
+        W19a: bridges the previous no-op ``on_bar`` so paper/live event paths
+        can produce entries/exits. Uses the same causal ``generate_signals``
+        path (CORR-019) on the accumulated frame.
+        """
+        if not hasattr(self, "_bar_rows"):
+            self._bar_rows: list[dict[str, Any]] = []
+        row = {
+            "open": float(getattr(bar, "open", 0.0)),
+            "high": float(getattr(bar, "high", 0.0)),
+            "low": float(getattr(bar, "low", 0.0)),
+            "close": float(getattr(bar, "close", 0.0)),
+            "volume": float(getattr(bar, "volume", 0.0)),
+            "timestamp": int(getattr(bar, "timestamp", 0) or 0),
+        }
+        self._bar_rows.append(row)
+        # Cap memory: keep last incremental_window * 2 bars
+        max_rows = max(self.incremental_window * 2, 100)
+        if len(self._bar_rows) > max_rows:
+            self._bar_rows = self._bar_rows[-max_rows:]
+
+        if len(self._bar_rows) < 20:
+            return
+
+        df = pd.DataFrame(self._bar_rows)
+        entries, exits = self.generate_signals(df)
+        last_i = len(df) - 1
+        if bool(entries.iloc[last_i]) or bool(exits.iloc[last_i]):
+            # Prefer emit_signal when StrategyBase provides it; else no-op.
+            emit = getattr(self, "emit_signal", None)
+            if callable(emit):
+                from quantflow.common.models import Direction, Signal
+
+                if bool(exits.iloc[last_i]):
+                    emit(
+                        Signal(
+                            symbol=str(getattr(bar, "symbol", "")),
+                            direction=Direction.FLAT,
+                            price=float(row["close"]),
+                            strategy_id=self.name,
+                            timestamp=int(row["timestamp"]),
+                        )
+                    )
+                elif bool(entries.iloc[last_i]):
+                    emit(
+                        Signal(
+                            symbol=str(getattr(bar, "symbol", "")),
+                            direction=Direction.LONG,
+                            price=float(row["close"]),
+                            strategy_id=self.name,
+                            timestamp=int(row["timestamp"]),
+                        )
+                    )
 
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         """Generate entry and exit signals from OHLCV data.
@@ -147,7 +212,7 @@ class LiuYudongWaveStrategy(StrategyBase):
 
             # Compute supporting indicators
             fib_levels = self.fibonacci_calc.calculate(wave_count)
-            self.critical_level_det.detect(wave_count)
+            critical_levels = self.critical_level_det.detect(wave_count)
             channel = self.wave_channel.calculate(window_df, wave_count)
 
             # Add MACD/RSI if available for divergence check
@@ -204,6 +269,24 @@ class LiuYudongWaveStrategy(StrategyBase):
                         idx = waves[-2].end.index
                         if new_start <= idx < end_idx and idx < n:
                             exits.iat[idx] = True
+
+            # W19a: WaveInvalidationChecker — hard breach → exit on last bar of window
+            levels_list = getattr(critical_levels, "levels", None)
+            if (
+                self.use_invalidation_exits
+                and critical_levels is not None
+                and isinstance(levels_list, list)
+            ):
+                last_close = float(window_df["close"].iloc[-1])
+                events = self.invalidation_checker.check(
+                    wave_count, critical_levels, last_close
+                )
+                self._last_invalidation_events = events
+                hard = [e for e in events if e.severity == InvalidationSeverity.HARD]
+                if hard:
+                    idx = end_idx - 1
+                    if new_start <= idx < end_idx and idx < n:
+                        exits.iat[idx] = True
 
         return entries, exits
 

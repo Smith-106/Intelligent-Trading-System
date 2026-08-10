@@ -286,6 +286,11 @@ class TradingSession:
         self._meta_fetcher: Any | None = None
         self._dq_monitor: Any | None = None
         self._meta_fresh: dict[str, dict[str, Any]] = {}
+        # W19b: optional ticker BBO cache (symbol → (bid, ask)). Populated by
+        # push_ticker_bbo / optional poll; when bbo_source=ticker and a fresh
+        # quote exists, on_bar prefers it over bar low/high proxy.
+        self._ticker_bbo: dict[str, tuple[float, float]] = {}
+        self._bbo_source: str = "bar_proxy"
 
     async def start(
         self,
@@ -422,6 +427,42 @@ class TradingSession:
             mode,
         )
 
+    def set_bbo_source(self, source: str) -> None:
+        """W19b: select BBO source for paper fills — ``bar_proxy`` (default) or ``ticker``."""
+        src = (source or "bar_proxy").strip().lower()
+        if src not in ("bar_proxy", "ticker"):
+            raise ValueError(f"bbo_source must be bar_proxy|ticker, got {source!r}")
+        self._bbo_source = src
+
+    def push_ticker_bbo(self, symbol: str, bid: float, ask: float) -> None:
+        """W19b: cache a real ticker top-of-book quote for optional BBO fills."""
+        try:
+            b = float(bid)
+            a = float(ask)
+        except (TypeError, ValueError):
+            return
+        if b <= 0 or a <= 0 or b > a:
+            return
+        self._ticker_bbo[symbol] = (b, a)
+        # Immediately forward so age gates see a fresh timestamp even between bars.
+        if self._bbo_source == "ticker":
+            self._execution.update_orderbook(symbol, bid=b, ask=a, mid_to_last=False)
+
+    def _push_bbo_for_bar(self, bar: Bar) -> None:
+        """Push BBO for this bar using configured source (W18b/W19b)."""
+        if self._bbo_source == "ticker":
+            quote = self._ticker_bbo.get(bar.symbol)
+            if quote is not None:
+                self._execution.update_orderbook(
+                    bar.symbol, bid=quote[0], ask=quote[1], mid_to_last=False
+                )
+                return
+            # Fall through to bar proxy when ticker cache is empty
+        if bar.low > 0 and bar.high > 0 and bar.low <= bar.high:
+            self._execution.update_orderbook(
+                bar.symbol, bid=float(bar.low), ask=float(bar.high), mid_to_last=False
+            )
+
     async def on_bar(self, bar: Bar) -> None:
         """Process a new bar through the full pipeline."""
         if not self._running:
@@ -445,13 +486,10 @@ class TradingSession:
 
         # Update position prices
         self._execution.update_market_price(bar.symbol, bar.close)
-        # W18b: push bar-level BBO proxy (low/high) so PaperGateway.update_orderbook
-        # has a production caller. Fills still use last+slip unless orderbook_fill
-        # is opt-in enabled; invalid/crossed books are ignored by the gateway.
-        if bar.low > 0 and bar.high > 0 and bar.low <= bar.high:
-            self._execution.update_orderbook(
-                bar.symbol, bid=float(bar.low), ask=float(bar.high), mid_to_last=False
-            )
+        # W18b/W19b: push BBO so PaperGateway.update_orderbook has a caller.
+        # Default source=bar_proxy (low/high). When bbo_source=ticker and a
+        # quote was pushed via push_ticker_bbo, prefer that bid/ask.
+        self._push_bbo_for_bar(bar)
         self._portfolio.update_position(bar.symbol, 0, bar.close)
 
         # Feed the realized per-bar return to the risk engine and position

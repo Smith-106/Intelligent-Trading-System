@@ -231,12 +231,13 @@ class TestDivergenceDetector:
             _frame(6),
         )
 
+        # W19a: W2 retraces ≥50% of W1 from W1 peak; RSI at W2 > RSI at W1 peak
         bullish_df = _frame(6)
-        bullish_df.loc[:, "rsi_14"] = [45.0, 20.0, 35.0, 40.0, 42.0, 44.0]
+        bullish_df.loc[:, "rsi_14"] = [45.0, 40.0, 55.0, 40.0, 42.0, 44.0]
         bullish_result = detector._check_rsi_divergence(
             {
-                1: _wave(1, 0, 100.0, 1, 110.0),
-                2: _wave(2, 1, 110.0, 2, 90.0),
+                1: _wave(1, 0, 100.0, 1, 110.0),  # amp=10, peak=110
+                2: _wave(2, 1, 110.0, 2, 104.0),  # retrace 6/10=0.6 from peak
             },
             bullish_df,
         )
@@ -250,7 +251,17 @@ class TestDivergenceDetector:
             bullish_df,
         )
 
+        # Shallow retrace should not fire even with high RSI
+        shallow = detector._check_rsi_divergence(
+            {
+                1: _wave(1, 0, 100.0, 1, 110.0),
+                2: _wave(2, 1, 110.0, 2, 108.0),  # only 20% retrace
+            },
+            bullish_df,
+        )
+
         assert out_of_range is None
         assert bullish_result is not None
         assert bullish_result.divergence_type == "rsi_bullish"
         assert no_divergence is None
+        assert shallow is None

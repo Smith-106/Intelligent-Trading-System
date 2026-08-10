@@ -219,7 +219,13 @@ class DivergenceDetector(FactorBase):
         waves: dict[int, WaveSegment],
         df: pd.DataFrame,
     ) -> Divergence | None:
-        """Check RSI divergence at W2 bottom (bullish)."""
+        """Check RSI divergence at W2 bottom (bullish).
+
+        W19a: compare W2 end against the **W1 extreme (W1 end peak)**, not W1
+        origin. Iron-law-valid W2 rarely undercuts W1 start, so the old
+        ``w2.end < w1.start * 0.95`` gate almost never fired. Bullish signal:
+        deep retracement of W1 amplitude with RSI holding up vs RSI at W1 peak.
+        """
         w2 = waves.get(2)
         w1 = waves.get(1)
         if w2 is None or w1 is None:
@@ -235,10 +241,15 @@ class DivergenceDetector(FactorBase):
         is_bullish = w1.end.price > w1.start.price
 
         if is_bullish:
-            # Bullish: W2 price lower but RSI higher
+            w1_amp = abs(w1.end.price - w1.start.price)
+            if w1_amp <= 0:
+                return None
+            # Retracement measured from W1 peak (end), not origin (start).
+            retracement = abs(w1.end.price - w2.end.price) / w1_amp
             w1_rsi = float(rsi.iloc[w1_idx])
             w2_rsi = float(rsi.iloc[w2_idx])
-            if w2.end.price < w1.start.price * 0.95 and w2_rsi > 30:
+            # Deep pullback (≥50% of W1) with RSI not collapsing vs W1-peak RSI.
+            if retracement >= 0.5 and w2_rsi > w1_rsi and w2_rsi > 30:
                 strength = min(1.0, abs(w2_rsi - w1_rsi) / max(abs(w1_rsi), 0.001))
                 return Divergence(
                     divergence_type="rsi_bullish",

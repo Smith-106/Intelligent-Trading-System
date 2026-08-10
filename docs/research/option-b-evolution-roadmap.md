@@ -111,13 +111,24 @@ Legacy 诊断可 `require_execution_path=False`（**不得**用于生产 registe
 
 详情：[w18-wave-bbo-factors.md](./w18-wave-bbo-factors.md)
 
-### W19+ 候选（未开工）
+### W19 — Invalidation + ticker BBO + volume factors
+
+| 切片 | 内容 | 状态 |
+|------|------|------|
+| **W19a** | Invalidation 接线 + RSI 参考点 + save keep-first | ✅ |
+| **W19b** | `set_bbo_source` / `push_ticker_bbo`（默认 bar_proxy） | ✅ |
+| **W19c** | session_vwap + obv_slope | ✅ |
+| 测试 | `test_w19_*` 等 92 passed | ✅ |
+
+详情：[w19-invalidation-bbo-volume.md](./w19-invalidation-bbo-volume.md)
+
+### W20+ 候选（未开工）
 
 | 切片 | 内容 |
 |------|------|
-| 可选 | `WaveInvalidationChecker` 接线 / RSI 背离参考点 / save_features 写保护 |
-| 可选 | 真实 ticker BBO 替换 bar low/high 代理 |
-| 可选 | session VWAP / OBV slope |
+| 可选 | ticker BBO 自动 poll 任务（现仅 push API） |
+| 可选 | CVD / trade aggressor（需 trades 数据） |
+| 可选 | Elliott 真实数据 WFO 烟测 |
 
 并行：**T023** 墙钟至 consecutive≥7（自 UTC 2026-08-11）。
 
