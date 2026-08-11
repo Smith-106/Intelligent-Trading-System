@@ -139,6 +139,9 @@ data/station_history/
 # Paper day-session summaries (local runtime)
 data/paper_sessions/
 
+# KOL / Discord ingest runtime (signals, OCR attachments)
+data/kol_signals/
+
 # Local secret scan reports (do not commit)
 gitleaks*.json
 gitleaks-report.json

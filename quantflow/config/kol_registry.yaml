@@ -1,0 +1,32 @@
+# KOL / Discord source registry (advisory aggregation only)
+# channel_ids: Discord snowflake strings from channel settings / dev mode
+# weight: relative influence in consensus (default 1.0)
+# enabled: false to mute a source without deleting
+
+sources:
+  - source_id: example_alpha
+    display_name: "Example Alpha (replace me)"
+    platform: discord
+    channel_ids: []          # e.g. ["123456789012345678"]
+    weight: 1.0
+    tags: [trend, futures]
+    enabled: false
+    notes: "Template — set channel_ids and enabled: true"
+
+  - source_id: example_scalper
+    display_name: "Example Scalper"
+    platform: discord
+    channel_ids: []
+    weight: 0.7
+    tags: [scalp]
+    enabled: false
+    notes: "Lower weight for high-frequency noisy callers"
+
+# Global ingest defaults (read by CLI / scripts; not secrets)
+defaults:
+  window_hours: 6
+  min_sources: 2
+  min_score: 0.35
+  min_confidence: 0.35
+  ocr_backend: auto          # none | auto | tesseract | vision_stub
+  auto_trade: false          # MUST stay false unless future paper contract

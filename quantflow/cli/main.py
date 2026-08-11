@@ -1610,6 +1610,77 @@ def eval_btc_overlay(
     )
 
 
+@app.command("kol-ingest")
+def kol_ingest(
+    action: str = typer.Argument(
+        ...,
+        help="export | poll | consensus",
+    ),
+    path: str = typer.Option("", "--path", help="Export JSON path (action=export)"),
+    channel: str = typer.Option("", "--channel", help="Discord channel id (poll)"),
+    limit: int = typer.Option(50, "--limit"),
+    images: bool = typer.Option(False, "--images/--no-images"),
+    ocr: str = typer.Option("none", "--ocr", help="none|auto|tesseract|vision_stub"),
+    registry: str = typer.Option("quantflow/config/kol_registry.yaml", "--registry"),
+    data_dir: str = typer.Option("data/kol_signals", "--data-dir"),
+    window_hours: float = typer.Option(6.0, "--window-hours"),
+    min_sources: int = typer.Option(2, "--min-sources"),
+) -> None:
+    """Ingest Discord KOL messages and build advisory consensus (no auto-trade).
+
+    Thin CLI over ``scripts/kol_discord_ingest.py``.
+    """
+    import sys as _sys
+
+    import scripts.kol_discord_ingest as kol_mod
+
+    argv: list[str] = [
+        "--registry",
+        registry,
+        "--data-dir",
+        data_dir,
+        action,
+    ]
+    if action == "export":
+        if not path:
+            _make_console().print("[red]--path required for export[/]")
+            raise typer.Exit(code=2)
+        argv.append(path)
+        if images:
+            argv.append("--images")
+        argv.extend(["--ocr", ocr])
+    elif action == "poll":
+        if channel:
+            argv.extend(["--channel", channel])
+        argv.extend(["--limit", str(limit)])
+        argv.append("--images" if images else "--no-images")
+        argv.extend(["--ocr", ocr if ocr != "none" else "auto"])
+    elif action == "consensus":
+        argv.extend(
+            [
+                "--window-hours",
+                str(window_hours),
+                "--min-sources",
+                str(min_sources),
+            ]
+        )
+    else:
+        _make_console().print("[red]action must be export|poll|consensus[/]")
+        raise typer.Exit(code=2)
+
+    old = _sys.argv
+    try:
+        _sys.argv = ["kol_discord_ingest.py", *argv]
+        code = kol_mod.main()
+    finally:
+        _sys.argv = old
+    if code != 0:
+        raise typer.Exit(code=code)
+    _make_console().print(
+        f"[green]kol-ingest {action} done[/] (advisory only — auto_trade stays false)"
+    )
+
+
 @app.command()
 def status() -> None:
     """Show current system status."""
