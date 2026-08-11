@@ -216,3 +216,4 @@ git status -sb
 | 2026-08-11 | **TPSL+R:R**：离散 dual-MA 止盈止损；推荐 SL4%/TP10% min_rr2.5 → excess +3.98pp maxDD21% payoff2.5；见 [iaf-tpsl-rr-20260811.md](./iaf-tpsl-rr-20260811.md) |
 
 *本清单描述「还剩什么」，不创造新的 W-number 流水线。*
+| 2026-08-11 | **Path B multi-window OOS + IAF prune→CPCV**：honest n_trials / GO_DISCUSS only; IAF never hard-bind；knowledge 10/10 promoted |

@@ -85,3 +85,30 @@ Notes:
 ## 6. One-liner
 
 > Maximize excess with continuous overlay w=0.30; control DD/R:R with discrete TPSL 4/10; never merge scores; gate with causal + CPCV/DSR/WFO/cost/vs-BTC; IAF is a pruneable library.
+
+## 5. Post-closeout extensions (2026-08-11)
+
+### Path B multi-window OOS + honest n_trials
+
+```bash
+set PYTHONUTF8=1
+python scripts/run_path_b_oos.py --n-windows 4 --mode rolling --out data/paper_replay/dual_path/path_b_oos.json
+```
+
+- `research_go=GO_DISCUSS` only when honest n_trials AND ≥50% OOS windows beat BTC AND median OOS excess>0.
+- **Never** `promotion_eligible=true`; GO_DISCUSS is research discussion only.
+- Pin run (rolling 4-window): see `data/paper_replay/dual_path/path_b_oos.json`.
+
+### IAF prune → CPCV (no hard-bind)
+
+```bash
+python scripts/run_iaf_prune_cpcv.py --out data/paper_replay/dual_path/iaf_prune_cpcv.json
+```
+
+- Kept factors after Spearman prune are **research-only**; `hard_bind_entry=false` always.
+- Pin run: CPCV NO-GO (PBO≈0.73) → do not bind IAF to entry/freeze.
+
+### Knowledge promote (closeout session)
+
+Session `20260811-iaf-adversarial-closeout-20260811-080734`: 10/10 candidates promoted (pending=0).
+
