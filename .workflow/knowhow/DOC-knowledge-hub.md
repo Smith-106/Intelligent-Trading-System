@@ -10,6 +10,8 @@ related:
   - knowhow-doc-20260810-b4-b5-funding-contracts-keep-b0
   - knowhow-doc-20260810-residual-ops-t023-wave-close
   - knowhow-tip-20260810-wiki-kg-false-positive-broken-links
+  - knowhow-doc-20260811-imp-residual-research-os-v070
+  - knowhow-tip-20260811-knowledge-pending-observed-not-auto-promote
 ---
 ---
 title: Knowledge Hub
@@ -45,6 +47,8 @@ related:
   - knowhow-doc-20260810-b4-b5-funding-contracts-keep-b0
   - knowhow-doc-20260810-residual-ops-t023-wave-close
   - knowhow-tip-20260810-wiki-kg-false-positive-broken-links
+  - knowhow-doc-20260811-imp-residual-research-os-v070
+  - knowhow-tip-20260811-knowledge-pending-observed-not-auto-promote
   - roadmap-roadmap
 ---
 

@@ -1151,3 +1151,35 @@ Bump minor 0.6.0→0.7.0 for IMP residual research OS
 no force-push; no secrets; no live promote
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-2be914ab41c82659" title="Broken wiki links FP leave sealed sessions untouched" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#constraint:C-002" source="session:20260811-kb-maint-20260811-105226:KDC-2be914ab41c82659">
+
+### Broken wiki links FP leave sealed sessions untouched
+
+Broken wiki links FP leave sealed sessions untouched
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-56ac92356f6e5c2d" title="Add DOC IMP residual research OS + TIP pending_observed policy; link from hub" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-001" source="session:20260811-kb-maint-20260811-105226:KDC-56ac92356f6e5c2d">
+
+### Add DOC IMP residual research OS + TIP pending_observed policy; link from hub
+
+Add DOC IMP residual research OS + TIP pending_observed policy; link from hub
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-5e7a3a193d473c8c" title="kg sync sufficient; no rebuild" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-002" source="session:20260811-kb-maint-20260811-105226:KDC-5e7a3a193d473c8c">
+
+### kg sync sufficient; no rebuild
+
+kg sync sufficient; no rebuild
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-ca1bec8ea05c8d81" title="Do not mass-promote uncorroborated pending_observed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#constraint:C-001" source="session:20260811-kb-maint-20260811-105226:KDC-ca1bec8ea05c8d81">
+
+### Do not mass-promote uncorroborated pending_observed
+
+Do not mass-promote uncorroborated pending_observed
+
+</spec-entry>
