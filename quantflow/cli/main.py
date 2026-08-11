@@ -466,7 +466,10 @@ def validate(
     end: str = typer.Option("2025-01-01", help="End date"),
     method: str = typer.Option(
         "full",
-        help="Validation: cpcv | dsr | pbo | wfo | full | gate | lookahead | recursive | stress",
+        help=(
+            "Validation: cpcv | dsr | pbo | wfo | full | gate | lookahead | "
+            "causal_preflight | recursive | stress"
+        ),
     ),
     groups: int = typer.Option(8, help="CPCV groups"),
     test_groups: int = typer.Option(2, help="CPCV test groups"),
@@ -487,6 +490,7 @@ def validate(
         full       — All validation methods
         gate       — GO/NO-GO decision gate (CPCV + DSR + WFO)
         lookahead  — Static look-ahead leak scan (no data needed)
+        causal_preflight — Look-ahead + negative-shift AST preflight (no data needed)
         recursive  — Recursive indicator dependency scan (no data needed)
         stress     — Monte Carlo path-level stress (diagnostic, non-gate)
 
@@ -494,21 +498,10 @@ def validate(
         quantflow validate --strategy trend_following --method gate
         quantflow validate --method cpcv --groups 10 --test-groups 3
         quantflow validate --method lookahead --strategy trend_following
+        quantflow validate --method causal_preflight --strategy trend_following
         quantflow validate --method stress --strategy trend_following
     """
     from quantflow.data.store import DataStore
-
-    cfg = _load(config)
-    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
-    start_ts = _date_to_ms(start)
-    end_ts = _date_to_ms(end)
-    df = store.query(symbol, start=start_ts, end=end_ts)
-    if df.empty:
-        console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
-        return
-
-    if "datetime" in df.columns:
-        df = df.set_index("datetime")
 
     strategy_specs = _get_strategy_specs()
     strategy_spec = strategy_specs.get(strategy)
@@ -519,13 +512,21 @@ def validate(
     strategy_factory, param_space = strategy_spec
     strategy_instance = strategy_factory(None)
 
+    # Static scans: no market data required (fail-open on missing parquet).
+    if method == "causal_preflight":
+        from quantflow.strategy.validation.causal_preflight import run_causal_preflight
+
+        console.print("[bold blue]Running causal preflight (lookahead + negative shift)...[/]")
+        preflight = run_causal_preflight(strategy_instance)
+        _display_causal_preflight(preflight)
+        return
+
     if method == "lookahead":
         from quantflow.strategy.validation.lookahead import scan_strategy
 
         console.print("[bold blue]Running static look-ahead leak scan on generate_signals...[/]")
         lookahead_report = scan_strategy(strategy_instance)
         _display_lookahead(lookahead_report)
-        store.close()
         return
 
     if method == "recursive":
@@ -534,8 +535,20 @@ def validate(
         console.print("[bold blue]Running recursive indicator dependency scan...[/]")
         recursive_report = scan_recursive(type(strategy_instance))
         _display_recursive(recursive_report)
+        return
+
+    cfg = _load(config)
+    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+    start_ts = _date_to_ms(start)
+    end_ts = _date_to_ms(end)
+    df = store.query(symbol, start=start_ts, end=end_ts)
+    if df.empty:
+        console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
         store.close()
         return
+
+    if "datetime" in df.columns:
+        df = df.set_index("datetime")
 
     entries, exits = strategy_instance.generate_signals(df)
     close = df["close"]
@@ -888,6 +901,44 @@ def _display_gate(result: ResultDict) -> None:
         console.print(f"  {status} {check_name}")
         if check_result.get("signal_quality"):
             console.print(f"    Signal quality: {_signal_quality_summary(check_result)}")
+    console.print()
+
+
+def _display_causal_preflight(report: Any) -> None:
+    """Render causal preflight (lookahead + negative-shift) result."""
+    color = "green" if report.passed else "red"
+    console.print(f"\n[bold {color}]{report.summary()}[/]")
+    counts = report.severity_counts or {}
+    console.print(
+        f"Severity: high={counts.get('high', 0)} medium={counts.get('medium', 0)} "
+        f"low={counts.get('low', 0)}"
+    )
+    if report.lookahead:
+        la = report.lookahead
+        console.print(
+            f"Lookahead: {'PASS' if la.get('passed') else 'FAIL'} "
+            f"scanned={', '.join(la.get('scanned_methods') or []) or '(none)'}"
+        )
+    if report.negative_shifts:
+        table = Table(title=f"Negative shift findings ({len(report.negative_shifts)})")
+        table.add_column("Where", style="cyan")
+        table.add_column("Line", justify="right")
+        table.add_column("Snippet")
+        for hit in report.negative_shifts:
+            table.add_row(
+                str(hit.get("where", "")),
+                str(hit.get("line", "")),
+                str(hit.get("snippet", ""))[:60],
+            )
+        console.print(table)
+    if report.passed:
+        console.print("[green]No high-severity causal leaks detected.[/]")
+    else:
+        console.print(
+            "[yellow]Fix high findings before dual-path gate / promotion research.[/]"
+        )
+    for note in report.notes or []:
+        console.print(f"[dim]note: {note}[/]")
     console.print()
 
 

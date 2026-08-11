@@ -69,6 +69,8 @@ N_future_function_guard → N_anti_overfit_validation → N_tpsl_rr_control → 
 
 ## Next (optional engineering)
 
+> **Implemented as plan**: [dual-path-research-os-20260811.md](./dual-path-research-os-20260811.md) (Dual-Path Research OS).
+
 1. Wire IAF factors into a **research filter** (corr prune) — not default live entry  
 2. Add CPCV/PBO report on TPSL barrier grid (honest n_trials)  
 3. Dual-dashboard: Path A excess + Path B DD/R:R  

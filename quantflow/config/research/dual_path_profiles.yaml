@@ -1,0 +1,44 @@
+# Dual-path research OS profiles (2026-08-11)
+# Path A = continuous overlay excess flagship
+# Path B = discrete TPSL DD / R:R control sleeve
+# FORBIDDEN: merge path_a and path_b into combined_score / single GO
+# FORBIDDEN: silent edits to B0/B3–B5 freeze contracts
+
+contract: DUAL-PATH-RESEARCH-OS-20260811
+promotion_eligible_default: false
+
+path_a:
+  kind: continuous_overlay
+  name: primary_w30
+  mode: reduce_off
+  overlay_weight: 0.30
+  fast: 96
+  slow: 400
+  fee: 0.001
+  slip: 0.001
+  dd_throttle: 0.0
+  notes: "Flagship excess vs BTC HODL (pin taker ~+47pp). Not pen-trade winrate."
+
+path_b:
+  kind: discrete_tpsl
+  name: tpsl_sl4_tp10_rr25
+  entry: dual_ma_lag1
+  fast: 96
+  slow: 400
+  stop_loss_pct: 0.04
+  take_profit_pct: 0.10
+  min_rr: 2.5
+  max_holding_bars: 0
+  fee: 0.001
+  slip: 0.001
+  notes: "Control sleeve: ~21% maxDD, wr~39%, payoff~2.5, slight HODL beat."
+
+gates:
+  require_causal_preflight: true
+  forbid_combined_score: true
+  pipeline:
+    - causal_preflight
+    - cpcv_dsr_wfo
+    - cost
+    - vs_btc
+    - paper_replay
