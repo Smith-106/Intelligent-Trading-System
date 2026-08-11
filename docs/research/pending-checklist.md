@@ -23,7 +23,10 @@
 | P2 | 可选 | bar 数据刷新（age~50h WARN） | 否 | 人 |
 | P2 | 可选 | OSS Scheme C 人审包勾选 | 否；**禁 agent 改 visibility** | 人 |
 | P3 | 研究 | 新信号合同（仅当有假设） | 否；**独立合同 ID** | 人+agent |
+| **DEFER** | 旁路 | **KOL/Discord 真实群接入**（管道已就绪，默认关） | **等智能交易系统主线完成后再做** | 人+agent |
 | — | 关闭 | W17–W27 / B1–B5 工程与合同 | **已完成** | — |
+
+**KOL/Discord 冻结存档**: [kol-discord-deferred-plan.md](./kol-discord-deferred-plan.md) · [kol-member-near-realtime-sync.md](./kol-member-near-realtime-sync.md) · [kol-discord-aggregation.md](./kol-discord-aggregation.md)
 
 **工程 wave 轨道**：**已关闭**（W27）。禁止自动开 W28。  
 **Todo 列表 #0–#68**：**已全部 completed**。
@@ -204,5 +207,6 @@ git status -sb
 | 2026-08-10 | P1/P2 hygiene：ignore experts-mode；seal 7 sessions；v0.6 文案；download 尝试；见 p1-p2-hygiene-status.md |
 | 2026-08-10 | 全量 completeness audit + kg sync：无强制工程缺口；见 project-completeness-audit-20260810.md |
 | 2026-08-10 | **doable-close**：同日 Path A 刷新仍 3/7；3 session DEFER；knowledge observed DEFER；oss_c 再确认；见 doable-close-20260810.md |
+| 2026-08-11 | **KOL/Discord DEFER**：管道/参考权重/准实时/通知触发已入库，真实群接入冻结至主线完成；见 [kol-discord-deferred-plan.md](./kol-discord-deferred-plan.md) |
 
 *本清单描述「还剩什么」，不创造新的 W-number 流水线。*
