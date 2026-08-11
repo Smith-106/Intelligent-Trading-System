@@ -8,6 +8,7 @@
 | Doc | Why |
 |-----|-----|
 | [pending-checklist.md](./pending-checklist.md) | **唯一待办权威**：P0=T023/T024 运营 |
+| [team-swarm-gaps-vs-oss-20260811.md](./team-swarm-gaps-vs-oss-20260811.md) | OSS 对照残差（swarm） |
 | [performance-metrics-verify-20260811.md](./performance-metrics-verify-20260811.md) | 组合/overlay/PathB 性能面板 |
 | [market-capability-verify-20260811.md](./market-capability-verify-20260811.md) | 研究栈能力冒烟 |
 | [dual-path-research-os-20260811.md](./dual-path-research-os-20260811.md) | 双路径 OS 设计 |
