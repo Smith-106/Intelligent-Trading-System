@@ -47,10 +47,22 @@ set PYTHONUTF8=1
 python -m pytest tests/unit/test_dual_path_profiles.py -q
 python scripts/run_btc_beta_overlay_eval.py --fee 0.001 --slip 0.001
 python scripts/run_btc_tpsl_eval.py --sl 0.04 --tp 0.10 --min-rr 2.5
-# after Wave1+:
-# python scripts/run_dual_path_report.py
-# python scripts/run_dual_path_research_os.py --out data/paper_replay/dual_path/smoke.json
+python scripts/run_dual_path_report.py
+python scripts/run_dual_path_research_os.py --out data/paper_replay/dual_path/research_os_full.json
+quantflow validate --method causal_preflight --strategy trend_following
 ```
+
+### Full OS pin result (2026-08-11 closeout)
+
+| Path | excess | maxDD | gate vs HODL | validation |
+|------|-------:|------:|--------------|------------|
+| A primary_w30 | +47.09pp | 69.47% | PASS | n/a (continuous) |
+| B TPSL 4/10 | +3.98pp | 21.13% | PASS product | CPCV **NO-GO** PBO=0.75 (honest; promotion_eligible=false) |
+
+Notes:
+- Path B product gate (beat HODL under taker costs) can PASS while anti-overfit CPCV fails — dual reporting is intentional.
+- Default fixed barrier uses no in-gate Optuna; multi-point grids force `optimize_method=grid` (discrete axes break bayesian `(low,high)`).
+- IAF prune example kept: cci_20, aroon_up/down, cmf_20, realized_vol_20, trix_15 (research-only).
 
 ---
 

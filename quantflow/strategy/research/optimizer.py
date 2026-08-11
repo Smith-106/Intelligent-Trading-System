@@ -209,6 +209,11 @@ class StrategyOptimizer:
 
     @staticmethod
     def _grid_values(spec: tuple[Any, ...], n_trials: int) -> list[Any]:
+        if not spec:
+            return []
+        if len(spec) == 1:
+            return [spec[0]]
+        # len > 2: treat as an explicit discrete candidate list (not a continuous range)
         if len(spec) > 2:
             return list(spec)[:n_trials]
 

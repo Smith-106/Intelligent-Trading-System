@@ -38,3 +38,31 @@ def test_skip_gate_has_breakdown() -> None:
     assert rep["n_trials_accounted"] >= 1
     assert rep["promotion_eligible"] is False
     assert rep["pbo_source"] == "CPCV-embedded"
+
+
+def test_gate_uses_grid_for_discrete_barrier_space() -> None:
+    """Discrete barrier tuples must not go through Optuna (low, high) path."""
+    n = 600
+    rng = np.random.default_rng(3)
+    close = 100 * np.exp(np.cumsum(rng.normal(0, 0.01, n)))
+    df = pd.DataFrame({"close": close})
+    rep = build_tpsl_validation_report(
+        df,
+        fast=20,
+        slow=60,
+        optimize_trials=2,
+        cpcv_groups=3,
+        cpcv_test_groups=1,
+        wfo_windows=2,
+        run_gate=True,
+        param_space={
+            "stop_loss_pct": (0.04, 0.05),
+            "min_rr": (2.0, 2.5),
+            "max_holding_bars": (0,),
+        },
+    )
+    assert rep["promotion_eligible"] is False
+    assert rep["underreported"] is False
+    # Must produce a gate decision without optimizer IndexError
+    assert rep.get("decision") in {"GO", "NO-GO"}
+    assert rep.get("validation") is not None

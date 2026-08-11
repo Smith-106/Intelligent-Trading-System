@@ -94,20 +94,32 @@ def build_tpsl_validation_report(
         report["notes"].append("gate skipped (run_gate=False)")
         return report
 
-    gate_out = validation_gate(
-        close,
-        entries,
-        exits,
-        n_trials=acc.n_trials_accounted,
-        cpcv_groups=cpcv_groups,
-        cpcv_test_groups=cpcv_test_groups,
-        wfo_windows=wfo_windows,
-        fee=fee,
-        signal_fn=signal_fn,
-        param_space=space,
-        data=data,
-        optimize_trials=optimize_trials,
-    )
+    # Optuna bayesian expects continuous (low, high). Discrete barrier axes are
+    # enumerated via optimize_method=grid. Single-point spaces skip in-gate
+    # optimization and evaluate fixed dual-MA+TPSL entries/exits only.
+    multi_point = any(len(tuple(v)) > 1 for v in space.values())
+    gate_kwargs: dict[str, Any] = {
+        "n_trials": acc.n_trials_accounted,
+        "cpcv_groups": cpcv_groups,
+        "cpcv_test_groups": cpcv_test_groups,
+        "wfo_windows": wfo_windows,
+        "fee": fee,
+    }
+    if multi_point:
+        gate_kwargs.update(
+            {
+                "signal_fn": signal_fn,
+                "param_space": space,
+                "data": data,
+                "optimize_trials": optimize_trials,
+                "optimize_method": "grid",
+            }
+        )
+        report["notes"].append("in-gate optimize_method=grid for discrete barrier space")
+    else:
+        report["notes"].append("fixed barrier config — no in-gate param optimize")
+
+    gate_out = validation_gate(close, entries, exits, **gate_kwargs)
     report["validation"] = gate_out
     report["decision"] = gate_out.get("decision")
     # Never allow promote from this research envelope
