@@ -1127,3 +1127,27 @@ Multi-symbol dual-path equal book weights display-only
 no combined_score; no multi-exchange; no live promote
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-2307c60010637468" title="Untrack .workflow/scratch runtime junk from remote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-002" source="session:20260811-cleanup-release-070-20260811-102622:KDC-2307c60010637468">
+
+### Untrack .workflow/scratch runtime junk from remote
+
+Untrack .workflow/scratch runtime junk from remote
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-84fb484bf75f0412" title="Bump minor 0.6.0→0.7.0 for IMP residual research OS" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-001" source="session:20260811-cleanup-release-070-20260811-102622:KDC-84fb484bf75f0412">
+
+### Bump minor 0.6.0→0.7.0 for IMP residual research OS
+
+Bump minor 0.6.0→0.7.0 for IMP residual research OS
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-ae40629038b5966b" title="no force-push; no secrets; no live promote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#constraint:C-001" source="session:20260811-cleanup-release-070-20260811-102622:KDC-ae40629038b5966b">
+
+### no force-push; no secrets; no live promote
+
+no force-push; no secrets; no live promote
+
+</spec-entry>
