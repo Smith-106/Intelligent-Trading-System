@@ -1215,3 +1215,11 @@ No live promote without human authorization
 Credit 2026-08-11 after PREFLIGHT OK day-session only
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-ce2679d2ed4a8f0d" title="Treat Path B validation NO-GO and OOS GO_DISCUSS as successful system verification" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#decision:D-002" source="session:20260811-mkt-cap-verify-20260811-113906:KDC-ce2679d2ed4a8f0d">
+
+### Treat Path B validation NO-GO and OOS GO_DISCUSS as successful system verification
+
+Treat Path B validation NO-GO and OOS GO_DISCUSS as successful system verification
+
+</spec-entry>
