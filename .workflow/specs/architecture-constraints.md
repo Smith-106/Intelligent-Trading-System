@@ -1287,3 +1287,11 @@ Parity only paper↔live; vectorized research not promotion-eligible
 Use multi_symbol_replay full window as primary portfolio performance panel
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-eea51789e34ff16d" title="Land IMP-06 via test_imp06_hard_bind_lock.py" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-003" source="session:20260811-learn-opt-struct-20260811-124137:KDC-eea51789e34ff16d">
+
+### Land IMP-06 via test_imp06_hard_bind_lock.py
+
+Land IMP-06 via test_imp06_hard_bind_lock.py
+
+</spec-entry>
