@@ -183,3 +183,7 @@ W16  策略 DX + Feature 一致性审计
 ---
 
 *Architecture is not the bottleneck for “win rate”; evaluation protocol and alpha/data are. Keep the six-layer OS; evolve the research path and data plane.*
+
+## Next (2026-08-11 team-swarm)
+
+对抗更新见 [team-swarm-oss-improve-20260811.md](./team-swarm-oss-improve-20260811.md)。

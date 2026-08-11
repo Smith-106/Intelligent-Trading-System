@@ -217,3 +217,4 @@ git status -sb
 
 *本清单描述「还剩什么」，不创造新的 W-number 流水线。*
 | 2026-08-11 | **Path B multi-window OOS + IAF prune→CPCV**：honest n_trials / GO_DISCUSS only; IAF never hard-bind；knowledge 10/10 promoted |
+| 2026-08-11 | **Team-swarm×OSS 对抗**：需提升点 P0 晋级指纹/PathB OOS/TCA；P1 meta+PIT+Qlib旁路；否决换引擎 — [team-swarm-oss-improve-20260811.md](./team-swarm-oss-improve-20260811.md) |
