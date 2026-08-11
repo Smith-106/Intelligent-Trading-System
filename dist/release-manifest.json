@@ -62,6 +62,27 @@
         }
       ],
       "checksum_bundle": "dist/SHA256SUMS.txt"
+    },
+    {
+      "version": "0.7.0",
+      "tag": "v0.7.0",
+      "release_dir": "docs/release",
+      "notes_file": "docs/release/v0.7.0.md",
+      "assets": [
+        {
+          "name": "quantflow-0.7.0.tar.gz",
+          "sha256": "29635f60cbabd65559caeb769e49f57dba3a253a3f687b905ad78ceb5dc3e3be",
+          "path": "dist/quantflow-0.7.0.tar.gz",
+          "checksum_path": "dist/quantflow-0.7.0.tar.gz.sha256"
+        },
+        {
+          "name": "quantflow-0.7.0-py3-none-any.whl",
+          "sha256": "b4e8bc42dda076565802c273af2b1bc2745934e879d3037cf029faf90d434273",
+          "path": "dist/quantflow-0.7.0-py3-none-any.whl",
+          "checksum_path": "dist/quantflow-0.7.0-py3-none-any.whl.sha256"
+        }
+      ],
+      "checksum_bundle": "dist/SHA256SUMS.txt"
     }
   ],
   "checksum_bundle": "dist/SHA256SUMS.txt",
