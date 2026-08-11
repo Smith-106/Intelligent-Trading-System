@@ -266,7 +266,12 @@ def scan_strategy(strategy: StrategyBase) -> LookaheadReport:
 
     Scans ``generate_signals`` (vectorized research/backtest API) by default.
     Also scans ``on_bar`` if present, since incremental paths can leak too.
+
+    Additional pass (IAF): flags ``.shift(-n)`` / ``shift(periods=-n)`` which
+    pull future bar values into the current decision (true future function).
     """
+    from quantflow.indicators.causal import scan_source_for_negative_shift
+
     report = LookaheadReport(strategy=type(strategy).__name__)
     try:
         report.source_path = inspect.getsourcefile(type(strategy)) or None
@@ -280,6 +285,28 @@ def scan_strategy(strategy: StrategyBase) -> LookaheadReport:
         tree, lines = parsed
         report.scanned_methods.append(method_name)
         _scan_node(tree, report.findings, report.strategy, method_name, lines)
+        # Negative shift scan on the same method source
+        try:
+            src = inspect.getsource(getattr(strategy, method_name))
+        except (OSError, TypeError):
+            continue
+        for hit in scan_source_for_negative_shift(src, where=method_name):
+            report.findings.append(
+                LookaheadFinding(
+                    strategy=report.strategy,
+                    method=method_name,
+                    pattern=hit.detail,
+                    line=hit.line,
+                    column=0,
+                    snippet=hit.snippet,
+                    severity="high",
+                    note=(
+                        "Negative shift is an explicit future function: value at t "
+                        "depends on t+|n|. Use lag (shift(+n)) or decision lag via "
+                        "quantflow.indicators.causal.shift_for_trade."
+                    ),
+                )
+            )
 
     return report
 

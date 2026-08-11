@@ -210,5 +210,6 @@ git status -sb
 | 2026-08-10 | **doable-close**：同日 Path A 刷新仍 3/7；3 session DEFER；knowledge observed DEFER；oss_c 再确认；见 doable-close-20260810.md |
 | 2026-08-11 | **KOL/Discord DEFER**：管道/参考权重/准实时/通知触发已入库，真实群接入冻结至主线完成；见 [kol-discord-deferred-plan.md](./kol-discord-deferred-plan.md) |
 | 2026-08-11 | **BTC overlay 再优化**：primary w=0.30；DD 网格脚本；holdout OOS+；见 [btc-dd-return-optimize-20260811.md](./btc-dd-return-optimize-20260811.md) |
+| 2026-08-11 | **IAF 指标/防未来**：12 正交振荡因子 + causal 单测 + 负向 shift 扫描；**非正式 W-number**；见 [iaf-indicators-anti-leak-20260811.md](./iaf-indicators-anti-leak-20260811.md) |
 
 *本清单描述「还剩什么」，不创造新的 W-number 流水线。*

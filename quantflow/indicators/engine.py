@@ -1,10 +1,11 @@
 """Indicator engine — batch compute classical indicators from pure pandas.
 
-W18c surface (names in FACTOR_NAMES):
-- Classical batch (batch_calculate / compute_all default): 21 core + 5 dormant
-  extended factors that are now wired (supertrend/dema/stochRSI/keltner/donchian).
+Factor surface (names in FACTOR_NAMES):
+- Classical batch (batch_calculate / compute_all default): 21 core + extended
+  (W18c supertrend/dema/stochRSI/KC/DC + volume ext + **IAF oscillators**).
 - Wave names (6) remain listed for discovery but are NOT computed by batch_calculate;
   they require FactorRegistry + wave_count injection (see docs/research/w17-antifuture-and-factors.md).
+- New factors must pass causal truncation tests (``indicators.causal``).
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ import logging
 
 import pandas as pd
 
-from quantflow.indicators import momentum, trend, volatility, volume
+from quantflow.indicators import momentum, oscillators, trend, volatility, volume
 from quantflow.indicators.base import registry
 from quantflow.indicators.critical_level import CriticalLevelDetector
 from quantflow.indicators.divergence import DivergenceDetector
@@ -86,6 +87,19 @@ CLASSICAL_EXTENDED_NAMES = [
     "obv_slope",
     # W20b bar-level CVD proxy (not trade-tape CVD)
     "cvd_proxy",
+    # IAF anti-overfit pack — orthogonal oscillators / vol surface
+    "cci_20",
+    "roc_12",
+    "mom_10",
+    "aroon_up",
+    "aroon_down",
+    "aroon_osc",
+    "cmf_20",
+    "realized_vol_20",
+    "bb_width_20",
+    "percent_b_20",
+    "trix_15",
+    "tsi",
 ]
 
 WAVE_FACTOR_NAMES = [
@@ -178,6 +192,20 @@ class IndicatorEngine:
         result["session_vwap"] = volume.session_vwap(high, low, close, vol, ts)
         result["obv_slope"] = volume.obv_slope(close, vol, 10)
         result["cvd_proxy"] = volume.cvd_proxy(close, vol)
+
+        # IAF orthogonal oscillators (diversify factor surface; causal windows)
+        result["cci_20"] = oscillators.cci(high, low, close, 20)
+        result["roc_12"] = oscillators.roc(close, 12)
+        result["mom_10"] = oscillators.momentum(close, 10)
+        aroon_df = oscillators.aroon(high, low, 25)
+        for col in aroon_df.columns:
+            result[col] = aroon_df[col]
+        result["cmf_20"] = oscillators.cmf(high, low, close, vol, 20)
+        result["realized_vol_20"] = oscillators.realized_vol(close, 20)
+        result["bb_width_20"] = oscillators.bb_width(close, 20)
+        result["percent_b_20"] = oscillators.percent_b(close, 20)
+        result["trix_15"] = oscillators.trix(close, 15)
+        result["tsi"] = oscillators.tsi(close)
 
         return result
 
@@ -291,6 +319,31 @@ class IndicatorEngine:
             result["obv_slope"] = volume.obv_slope(close, vol, 10)
         if "cvd_proxy" in requested:
             result["cvd_proxy"] = volume.cvd_proxy(close, vol)
+
+        # IAF orthogonal oscillators
+        if "cci_20" in requested:
+            result["cci_20"] = oscillators.cci(high, low, close, 20)
+        if "roc_12" in requested:
+            result["roc_12"] = oscillators.roc(close, 12)
+        if "mom_10" in requested:
+            result["mom_10"] = oscillators.momentum(close, 10)
+        aroon_cols = {"aroon_up", "aroon_down", "aroon_osc"}
+        if requested & aroon_cols:
+            aroon_df = oscillators.aroon(high, low, 25)
+            for col in aroon_cols & requested:
+                result[col] = aroon_df[col]
+        if "cmf_20" in requested:
+            result["cmf_20"] = oscillators.cmf(high, low, close, vol, 20)
+        if "realized_vol_20" in requested:
+            result["realized_vol_20"] = oscillators.realized_vol(close, 20)
+        if "bb_width_20" in requested:
+            result["bb_width_20"] = oscillators.bb_width(close, 20)
+        if "percent_b_20" in requested:
+            result["percent_b_20"] = oscillators.percent_b(close, 20)
+        if "trix_15" in requested:
+            result["trix_15"] = oscillators.trix(close, 15)
+        if "tsi" in requested:
+            result["tsi"] = oscillators.tsi(close)
 
         return result
 
