@@ -1079,3 +1079,19 @@ Produce IMP-* residual improvement plan (plan stage)
 no combined_score; no engine rewrite
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c1227b888e904430" title="IMP-02 default n_windows=6 with fee_slip_grid+funding_tca assumption" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002" source="session:20260811-imp01-02-exec-20260811-091927:KDC-c1227b888e904430">
+
+### IMP-02 default n_windows=6 with fee_slip_grid+funding_tca assumption
+
+IMP-02 default n_windows=6 with fee_slip_grid+funding_tca assumption
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-dfdad156f5b9404b" title="Research dual-path claims vectorized path honestly rather than fake paper_replay" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001" source="session:20260811-imp01-02-exec-20260811-091927:KDC-dfdad156f5b9404b">
+
+### Research dual-path claims vectorized path honestly rather than fake paper_replay
+
+Research dual-path claims vectorized path honestly rather than fake paper_replay
+
+</spec-entry>
