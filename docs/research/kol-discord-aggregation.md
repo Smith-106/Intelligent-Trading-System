@@ -221,6 +221,56 @@ pip install pytesseract Pillow
 
 ---
 
-## 8. 一句话
+## 8. 作为「参考权重」接入交易系统（你的目标）
 
-> **先把几十个 KOL 的文字+TV 图变成可审计的结构化信号与多源共识；默认只辅助决策，不自动跟单。**
+你要的是：**市场评估 + 实时带单 → 参考权重**，不是跟单机器人。
+
+```text
+你的策略方向（trend / 风控后 signal）
+        ×
+KOL reference_multiplier  ∈ [1-max_cut, 1+max_boost]
+        =
+最终仓位名义（仍过 RiskEngine / max_position）
+```
+
+| 规则 | 行为 |
+|------|------|
+| KOL 与系统**同向** | 仓位略增（默认最多 **+15%**） |
+| KOL 与系统**反向** | 仓位略减（默认最多 **−25%**） |
+| 无共识 / 过期 / 未达 min_sources | **×1.0**（不掺和） |
+| KOL 单独喊单、系统无方向 | **不开仓**（只写 assessment） |
+
+### 配置（默认关）
+
+`quantflow/config/default.yaml`：
+
+```yaml
+kol_reference:
+  enabled: false   # 共识稳定后再 true
+  max_boost: 0.15
+  max_cut: 0.25
+  consensus_path: "data/kol_signals/latest_consensus.json"
+```
+
+### 日常数据流（付费成员）
+
+```bash
+# 1) 导出/更新 KOL 消息 → 2) 共识 → 3) 看参考权重
+python scripts/kol_discord_ingest.py export data/kol_exports/ch.json --images --ocr auto
+python scripts/kol_discord_ingest.py consensus --window-hours 6 --min-sources 2
+python scripts/kol_discord_ingest.py reference --system-side BTC/USDT=long,ETH/USDT=long
+```
+
+`reference` 输出：
+
+- `market_assessment.label`: risk-on / risk-off / mixed / neutral  
+- `symbols.*.multiplier`: 给你的系统方向用的仓位系数  
+- **不会**调用下单 API  
+
+开启 `kol_reference.enabled: true` 后，`TradingSession` 在 `PositionSizer.size(..., reference_multiplier=…)` 自动乘上该系数。
+
+---
+
+## 9. 一句话
+
+> **KOL 只提供市场评估与带单共识权重：同向略加仓、反向略减仓；系统策略仍是唯一方向源，默认不跟单。**

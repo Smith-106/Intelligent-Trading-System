@@ -150,6 +150,17 @@ ai:
     enabled: false                      # 是否启用自动回测闭环（默认关闭）
     log_path: "./data/ai_loop/decisions.jsonl"  # 决策日志（JSONL 追加）
 
+# ==================== KOL 参考权重（顾问，默认关闭）====================
+# Discord 共识只缩放仓位，不单独开仓/反向。需先有 data/kol_signals/latest_consensus.json
+kol_reference:
+  enabled: false
+  max_boost: 0.15                       # 与系统同向时最多 +15% 名义
+  max_cut: 0.25                         # 与系统反向时最多 -25% 名义
+  min_abs_score: 0.35
+  require_actionable: true
+  max_age_hours: 6.0
+  consensus_path: "data/kol_signals/latest_consensus.json"
+
 # 告警渠道示例（取消注释并填入真实值即可启用）:
 # alert_channels:
 #   - type: "telegram"                  # Telegram 告警

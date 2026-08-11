@@ -83,6 +83,59 @@ def _cmd_poll(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_reference(args: argparse.Namespace) -> int:
+    """Show market assessment + per-symbol size multipliers (no trading)."""
+    from quantflow.strategy.kol_signals.reference_weight import (
+        ReferenceWeightConfig,
+        build_reference_snapshot,
+        load_consensus_reports,
+        market_assessment,
+    )
+
+    reports = load_consensus_reports(args.consensus)
+    if not reports:
+        store = KolSignalStore(args.data_dir)
+        reports = aggregate_consensus(
+            store.load_signals(),
+            window_ms=int(args.window_hours * 3600 * 1000),
+            min_sources=args.min_sources,
+            min_score=args.min_score,
+            min_confidence=args.min_confidence,
+        )
+    symbols = [s.strip() for s in args.symbols.split(",") if s.strip()]
+    if not symbols:
+        symbols = sorted({r.symbol for r in reports if r.symbol})
+    dirs: dict[str, str] = {}
+    if args.system_side:
+        for part in args.system_side.split(","):
+            if "=" in part:
+                k, v = part.split("=", 1)
+                dirs[k.strip()] = v.strip()
+    cfg = ReferenceWeightConfig(
+        enabled=True,
+        max_boost=args.max_boost,
+        max_cut=args.max_cut,
+        min_abs_score=args.min_score,
+        require_actionable=not args.allow_non_actionable,
+    )
+    snap = build_reference_snapshot(
+        symbols,
+        system_directions=dirs,
+        reports=reports,
+        config=cfg,
+    )
+    if not symbols:
+        snap["market_assessment"] = market_assessment(reports).to_dict()
+    if args.out:
+        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.out).write_text(
+            json.dumps(snap, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        print(f"written {args.out}")
+    print(json.dumps(snap, indent=2, ensure_ascii=False)[:5000])
+    return 0
+
+
 def _cmd_consensus(args: argparse.Namespace) -> int:
     store = KolSignalStore(args.data_dir)
     signals = store.load_signals()
@@ -162,6 +215,41 @@ def main(argv: list[str] | None = None) -> int:
         default="data/kol_signals/latest_consensus.json",
     )
     p_con.set_defaults(func=_cmd_consensus)
+
+    p_ref = sub.add_parser(
+        "reference",
+        help="Market assessment + size multipliers (reference only)",
+    )
+    p_ref.add_argument(
+        "--consensus",
+        default="data/kol_signals/latest_consensus.json",
+    )
+    p_ref.add_argument(
+        "--symbols",
+        default="",
+        help="Comma symbols (default: all in consensus)",
+    )
+    p_ref.add_argument(
+        "--system-side",
+        default="",
+        help="e.g. BTC/USDT=long,ETH/USDT=short (your system bias)",
+    )
+    p_ref.add_argument("--window-hours", type=float, default=6.0)
+    p_ref.add_argument("--min-sources", type=int, default=2)
+    p_ref.add_argument("--min-score", type=float, default=0.35)
+    p_ref.add_argument("--min-confidence", type=float, default=0.35)
+    p_ref.add_argument("--max-boost", type=float, default=0.15)
+    p_ref.add_argument("--max-cut", type=float, default=0.25)
+    p_ref.add_argument(
+        "--allow-non-actionable",
+        action="store_true",
+        help="Use weak consensus too (not recommended)",
+    )
+    p_ref.add_argument(
+        "--out",
+        default="data/kol_signals/latest_reference.json",
+    )
+    p_ref.set_defaults(func=_cmd_reference)
 
     args = ap.parse_args(argv)
     return int(args.func(args))

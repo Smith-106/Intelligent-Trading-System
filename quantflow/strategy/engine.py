@@ -844,11 +844,15 @@ class TradingSession:
         # Strategy × symbol weight when symbol-level RP is active; otherwise
         # identical to get_strategy_allocation (symbol weights empty).
         allocation = self._portfolio.get_allocation_for_signal(signal.strategy_id, signal.symbol)
+        # KOL consensus as optional size reference only (never flips direction).
+        # Default off: missing file / disabled config → multiplier 1.0.
+        ref_mult = self._kol_reference_multiplier(signal)
         size = self._position_sizer.size(
             signal,
             portfolio,
             strategy_win_rates=self._strategy_win_rates,
             allocation=allocation,
+            reference_multiplier=ref_mult,
         )
 
         if size <= 0:
@@ -1111,6 +1115,45 @@ class TradingSession:
     def _record_signal_latency(self, strategy_id: str, started_at: float) -> None:
         self._sink.record_signal_latency(strategy_id, perf_counter() - started_at)
 
+    def _kol_reference_multiplier(self, signal: Signal) -> float:
+        """Optional KOL consensus size scale (1.0 if disabled/unavailable).
+
+        Never changes direction; fail-soft on any load/parse error.
+        """
+        try:
+            from quantflow.strategy.kol_signals.reference_weight import (
+                ReferenceWeightConfig,
+                reference_multiplier,
+            )
+
+            kol_cfg = getattr(self._config, "kol_reference", None)
+            if kol_cfg is None or not getattr(kol_cfg, "enabled", False):
+                return 1.0
+            rw = ReferenceWeightConfig(
+                enabled=True,
+                max_boost=float(getattr(kol_cfg, "max_boost", 0.15)),
+                max_cut=float(getattr(kol_cfg, "max_cut", 0.25)),
+                min_abs_score=float(getattr(kol_cfg, "min_abs_score", 0.35)),
+                require_actionable=bool(getattr(kol_cfg, "require_actionable", True)),
+                max_age_ms=int(float(getattr(kol_cfg, "max_age_hours", 6.0)) * 3600 * 1000),
+            )
+            path = str(
+                getattr(
+                    kol_cfg,
+                    "consensus_path",
+                    "data/kol_signals/latest_consensus.json",
+                )
+            )
+            ref = reference_multiplier(
+                signal.symbol,
+                system_direction=signal.direction,
+                consensus_path=path,
+                config=rw,
+            )
+            return float(ref.multiplier)
+        except Exception:
+            return 1.0
+
     def _on_risk_event(self, event: Event) -> None:
         """Handle risk events — trigger kill switch on emergencies."""
         severity = event.data.get("severity", "warn")
@@ -1358,9 +1401,7 @@ class TradingSession:
             if bool(getattr(risk, "funding_risk_gate_kill", False)) and self._kill_switch:
                 if not self._kill_switch.is_active:
                     # Fire-and-forget hard stop; failures logged by KillSwitch.
-                    asyncio.create_task(
-                        self._kill_switch.activate(decision.reason or REASON)
-                    )
+                    asyncio.create_task(self._kill_switch.activate(decision.reason or REASON))
         else:
             self._risk_pauses.remove(REASON)
 

@@ -108,6 +108,7 @@ class PositionSizer:
         win_loss_ratio: float = 2.0,
         strategy_win_rates: dict[str, float] | None = None,
         allocation: float = 1.0,
+        reference_multiplier: float = 1.0,
     ) -> float:
         """Return order notional value (quote currency).
 
@@ -123,6 +124,11 @@ class PositionSizer:
         max_position_pct (ISS-038). The prior call site multiplied by
         allocation AFTER size() returned, re-inflating an already-capped
         target.
+
+        ``reference_multiplier`` is an optional external scale (e.g. KOL
+        consensus reference weight). Default 1.0 = no change. Applied after
+        strength*allocation and still subject to max_position / vol caps.
+        Never flips direction — callers must not encode side in this factor.
         """
         total_value = portfolio.total_value
         if total_value <= 0:
@@ -147,7 +153,8 @@ class PositionSizer:
         # clamps the final notional even when a compound strategy_id sums > 1.
         strength = max(0.0, min(signal.strength, 1.0))
         allocation = max(0.0, allocation)
-        target = base * strength * allocation
+        ref_m = max(0.0, float(reference_multiplier))
+        target = base * strength * allocation * ref_m
 
         # Vol-target cap (opt-in): min(half-Kelly, vol-target, single-name cap).
         # When OFF or insufficient history, this is a no-op (None).

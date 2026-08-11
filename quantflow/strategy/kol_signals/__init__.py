@@ -18,6 +18,16 @@ from quantflow.strategy.kol_signals.models import (
     SignalSide,
 )
 from quantflow.strategy.kol_signals.parser import parse_trade_text
+from quantflow.strategy.kol_signals.reference_weight import (
+    MarketAssessment,
+    ReferenceWeightConfig,
+    SymbolReference,
+    apply_reference_to_notional,
+    build_reference_snapshot,
+    load_consensus_reports,
+    market_assessment,
+    reference_multiplier,
+)
 from quantflow.strategy.kol_signals.registry import load_kol_registry
 
 __all__ = [
@@ -25,8 +35,16 @@ __all__ = [
     "ConsensusReport",
     "KolSignal",
     "KolSource",
+    "MarketAssessment",
+    "ReferenceWeightConfig",
     "SignalSide",
+    "SymbolReference",
     "aggregate_consensus",
+    "apply_reference_to_notional",
+    "build_reference_snapshot",
+    "load_consensus_reports",
     "load_kol_registry",
+    "market_assessment",
     "parse_trade_text",
+    "reference_multiplier",
 ]

@@ -30,3 +30,13 @@ defaults:
   min_confidence: 0.35
   ocr_backend: auto          # none | auto | tesseract | vision_stub
   auto_trade: false          # MUST stay false unless future paper contract
+
+# Reference weight only — scales size when YOUR strategy already has a side.
+# Does NOT open/close/reverse from KOL alone.
+reference_weight:
+  enabled: false             # set true after consensus file is healthy
+  max_boost: 0.15            # +15% notional when KOL agrees with you
+  max_cut: 0.25              # -25% notional when KOL disagrees
+  min_abs_score: 0.35
+  require_actionable: true
+  max_age_hours: 6           # ignore stale consensus

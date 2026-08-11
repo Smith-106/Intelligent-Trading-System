@@ -330,6 +330,22 @@ class AIConfig(BaseModel):
     auto_loop: AutoLoopConfigModel = Field(default_factory=AutoLoopConfigModel)
 
 
+class KolReferenceConfig(BaseModel):
+    """KOL Discord consensus as size reference only (default OFF).
+
+    Never opens/closes/reverses from KOL alone. When enabled, multiplies
+    PositionSizer notional if consensus aligns/opposes the system signal.
+    """
+
+    enabled: bool = False
+    max_boost: float = 0.15
+    max_cut: float = 0.25
+    min_abs_score: float = 0.35
+    require_actionable: bool = True
+    max_age_hours: float = 6.0
+    consensus_path: str = "data/kol_signals/latest_consensus.json"
+
+
 class AppConfig(BaseModel):
     data: DataConfig = Field(default_factory=DataConfig)
     indicators: IndicatorConfig = Field(default_factory=IndicatorConfig)
@@ -340,6 +356,8 @@ class AppConfig(BaseModel):
     reconciliation: ReconciliationConfig = Field(default_factory=ReconciliationConfig)
     state: StateConfig = Field(default_factory=StateConfig)
     ai: AIConfig = Field(default_factory=AIConfig)
+    # KOL market assessment / live-call reference weight (advisory).
+    kol_reference: KolReferenceConfig = Field(default_factory=KolReferenceConfig)
 
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent.parent
