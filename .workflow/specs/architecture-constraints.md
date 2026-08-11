@@ -1223,3 +1223,27 @@ Credit 2026-08-11 after PREFLIGHT OK day-session only
 Treat Path B validation NO-GO and OOS GO_DISCUSS as successful system verification
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-66e3aa726ba549db" title="No combined_score" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#constraint:C-002" source="session:20260811-mkt-cap-verify-20260811-113906:KDC-66e3aa726ba549db">
+
+### No combined_score
+
+No combined_score
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-79f3ebde51e2aa82" title="Use full contract window 2021-01-01..2026-08-04 offline parquet as capability proof" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#decision:D-001" source="session:20260811-mkt-cap-verify-20260811-113906:KDC-79f3ebde51e2aa82">
+
+### Use full contract window 2021-01-01..2026-08-04 offline parquet as capability proof
+
+Use full contract window 2021-01-01..2026-08-04 offline parquet as capability proof
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-8ebd3489a8edc6bc" title="No live promote; promotion_eligible remains false" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#constraint:C-001" source="session:20260811-mkt-cap-verify-20260811-113906:KDC-8ebd3489a8edc6bc">
+
+### No live promote; promotion_eligible remains false
+
+No live promote; promotion_eligible remains false
+
+</spec-entry>
