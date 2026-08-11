@@ -1,0 +1,7 @@
+# Discord channel snowflake IDs for near-realtime export (one per line).
+# Enable Developer Mode in Discord → right-click channel → Copy Channel ID.
+# Prefer signal / callout channels only (not course video dumps).
+#
+# Examples (replace with real IDs from your Kolunite membership):
+# 123456789012345678
+# 234567890123456789

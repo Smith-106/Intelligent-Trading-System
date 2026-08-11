@@ -46,41 +46,101 @@ Discord 读消息的正规方式 = Bot 已被邀请进该服务器
 [你的会员账号能看见的频道]
         │  每 N 分钟
         ▼
-DiscordChatExporter（或同类，本机会话）
-  → data/kol_exports/<channel>.json (+ 附件可选)
+DiscordChatExporter CLI（用户 Token / 本机会话）
+  → data/kol_exports/<channelId>.json (+ media 可选)
         │
         ▼
-python scripts/kol_discord_ingest.py export ... --images --ocr auto
-        │  message_id 去重，重复跑安全
-        ▼
-python scripts/kol_discord_ingest.py consensus
+scripts/kol_near_realtime_tick.ps1
+  → export（message_id 去重）→ consensus → reference
         │
         ▼
 data/kol_signals/latest_consensus.json
         │
-        ├─ reference 命令 → 看市场评估/权重
+        ├─ 人工看 reference / 仪表
         └─ kol_reference.enabled → paper 仓位微调（不跟单）
 ```
 
-### Windows 任务计划（思路）
+### 「实时导出」怎么做（仓库已提供）
 
-1. 固定目录：`data/kol_exports/`  
-2. 任务 A（每 2～5 分钟）：只导出**带单/持仓/信号**相关频道（不要一次导出学习视频区）  
-3. 任务 B（紧接 A 或同一脚本后半段）：
+**含义**：不是 Discord Gateway 推送，而是 **每 2～5 分钟整频道再导出一次（或增量工具）**，再自动入库。延迟 ≈ 导出间隔 + 解析时间。
+
+#### 一次性准备
+
+1. 安装 [DiscordChatExporter CLI](https://github.com/Tyrrrz/DiscordChatExporter/releases)，保证终端能跑 `DiscordChatExporter.Cli`（或改脚本里的 `-DceCli` 为完整路径）。  
+2. 在**本机用户环境变量**设 `DISCORD_USER_TOKEN`（或 `DCE_TOKEN`）——**禁止写入仓库 / 聊天 / 截图**。  
+   - 工具支持用户 Token；**自动化用户账号违 Discord ToS**，项目 README 也警告，**风险自担**（封号可能丢会员）。  
+3. 编辑 `scripts/kol_channels.txt`：每行一个**信号频道**雪花 ID（开发者模式 → 复制频道 ID）。只列带单/持仓/信号，不要学习视频全区。  
+4. （可选）`kol_registry.yaml` 里用同一批 `channel_ids` + `weight`。
+
+#### 手动跑一圈（验证）
 
 ```powershell
 $env:PYTHONUTF8 = "1"
+$env:DISCORD_USER_TOKEN = "只在本机设置"   # 勿提交
 cd "C:\Users\niko\Desktop\智能交易系统"
 
-# 对每个导出文件（示例）
-Get-ChildItem .\data\kol_exports\*.json | ForEach-Object {
-  python .\scripts\kol_discord_ingest.py export $_.FullName --images --ocr auto
-}
-python .\scripts\kol_discord_ingest.py consensus --window-hours 6 --min-sources 2
-python .\scripts\kol_discord_ingest.py reference --system-side BTC/USDT=long
+# 导出 + 入库 + 共识 + 参考权重（单次）
+pwsh -File .\scripts\kol_export_loop.ps1 -Once -SystemSide "BTC/USDT=long"
+
+# 看结果
+Get-Content .\data\kol_signals\latest_consensus.json -TotalCount 40
+Get-Content .\data\kol_signals\latest_reference.json -TotalCount 40
 ```
 
-4. 电脑休眠则断更 → 可挂一台常开小主机 / 云主机（**仍是你的会员会话与导出，不是 self-bot 服务化爬群**）。
+若 CLI 不在 PATH：
+
+```powershell
+pwsh -File .\scripts\kol_export_loop.ps1 -Once `
+  -DceCli "C:\Tools\DiscordChatExporter.Cli.exe"
+```
+
+#### 前台循环（调试用）
+
+```powershell
+pwsh -File .\scripts\kol_export_loop.ps1 -IntervalMinutes 3 -SystemSide "BTC/USDT=long"
+# Ctrl+C 停止
+```
+
+#### Windows 任务计划（推荐准实时）
+
+1. 任务计划程序 → 创建基本任务 → 每 **3 分钟**（或 2～5）。  
+2. 操作：启动程序  
+   - 程序：`pwsh` 或 `powershell`  
+   - 参数：
+
+```text
+-NoProfile -File "C:\Users\niko\Desktop\智能交易系统\scripts\kol_export_loop.ps1" -Once -SystemSide "BTC/USDT=long"
+```
+
+3. 在任务「常规」用你的 Windows 用户；在「操作」或系统环境里配置 `DISCORD_USER_TOKEN`（不要写进参数字符串进 git）。  
+4. 电脑休眠会停 → 常开主机更稳。  
+5. 附件多时加 `-SkipImages` 可先只吃文字加快；要 TV 图再开图片/OCR。
+
+#### 只要「已有 JSON」入库（不调用 DCE）
+
+```powershell
+pwsh -File .\scripts\kol_near_realtime_tick.ps1 -SystemSide "BTC/USDT=long"
+```
+
+#### 数据落盘（均 gitignore）
+
+| 路径 | 内容 |
+|------|------|
+| `data/kol_exports/*.json` | 原始导出 |
+| `data/kol_exports/media/` | 附件 |
+| `data/kol_signals/signals.jsonl` | 结构化信号审计 |
+| `data/kol_signals/latest_consensus.json` | 多源共识 |
+| `data/kol_signals/latest_reference.json` | 仓位参考系数 |
+
+#### 延迟与频率建议
+
+| 间隔 | 场景 |
+|------|------|
+| 2～3 分钟 | 带单参考权重（默认建议） |
+| 5 分钟 | 更省 Token/限速 |
+| &lt;1 分钟 | 易触发限速 + 更像滥用，不推荐 |
+
+**不是**交易所行情实时；KOL 图文本身也有人工延迟。
 
 ### 延迟怎么选
 

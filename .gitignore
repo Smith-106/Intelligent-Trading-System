@@ -141,6 +141,8 @@ data/paper_sessions/
 
 # KOL / Discord ingest runtime (signals, OCR attachments)
 data/kol_signals/
+# Raw DiscordChatExporter dumps + media (may contain paid content)
+data/kol_exports/
 
 # Local secret scan reports (do not commit)
 gitleaks*.json
