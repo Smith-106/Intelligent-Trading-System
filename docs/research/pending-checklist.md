@@ -239,6 +239,7 @@ maestro kg sync --json && maestro kg health --json
 | 2026-08-11 | IMP-01…05 landed；v0.7.0 release；scratch untrack；kb maintenance |
 | 2026-08-11 | **catalog 修复**：B4/B5 funding overlay 移出 strategies/（不再覆盖 funding_rate）+ IMP-07/09 ops 配方 |
 | 2026-08-11 | **经验→结构**：research 公共 API + IMP-06 hard_bind 锁 + Simple DX + learnings knowhow — [README.md](./README.md) |
+| 2026-08-11 | **性能参数复验**：shared_RP +5.14% PAPER-GO · overlay +47pp · PathB NO-GO/GO_DISCUSS — [performance-metrics-verify-20260811.md](./performance-metrics-verify-20260811.md) §8 |
 | 2026-08-11 | **性能指标验证**：multi_symbol_replay + B0 PAPER-GO + overlay/PathB 面板 — [performance-metrics-verify-20260811.md](./performance-metrics-verify-20260811.md) |
 | 2026-08-11 | **市场能力验证**：dual-path/PathB OOS/multi-symbol/demo pack 全绿跑通；Path B validation NO-GO + OOS GO_DISCUSS 诚实结果 — [market-capability-verify-20260811.md](./market-capability-verify-20260811.md) |
 | **2026-08-11** | **T023 日课推进**：day-session + ingest → **4/7**；T024 dry-run 诚实 reject（days=4 fills=0）；bar download 网络失败非阻塞 |

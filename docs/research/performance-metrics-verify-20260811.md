@@ -145,4 +145,14 @@ python scripts/run_path_b_oos.py --n-windows 6 --out data/paper_replay/perf_veri
 - Live 下单 / promote_to_live  
 - 伪造 paper 样本门（T023 仍 **4/7**）  
 - 宣称 backtest ≡ paper ≡ live  
-- 合并 Path A+B 成单一 score  
+- 合并 Path A+B 成单一 score
+
+---
+
+## 8. Re-verification
+
+**UTC**: 2026-08-11 13:26  
+**HEAD**: `e172cae`  
+**Result**: **CONFIRMED** — multi_symbol_replay / overlay / dual-path / path_b_oos / B0 gate 数值与 §1–§4 一致；B0 full-window **exact match** (`shared_RP +5.143%`); promotion_eligible=false; no combined_score; silo RP not marketed as shared.
+
+Runtime panel: `data/paper_replay/perf_verify/performance_panel.json` (gitignored).
