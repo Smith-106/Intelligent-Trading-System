@@ -264,6 +264,86 @@ Discord 帮助中心 [Automated User Accounts (Self-Bots)](https://support.disco
 
 ---
 
-## 9. 一句话
+## 9. smart-search：第三方「实时/连续导出」方案对照（2026-08）
 
-> **调研结果：无管理员时没有合规真实时；要么 self-bot（封号风险，本项目不做），要么 2～5 分钟导出准实时，要么继续要管理员开只读/转发。**
+### 9.1 总判断
+
+| 你想要的 | 市场现实 |
+|----------|----------|
+| 无管理员 + 云端 SaaS 一直同步 Discord 频道 | **基本没有可靠产品**（API/ToS 限制） |
+| 无管理员 + 本机/浏览器导出 | **有很多**，多为**点一下导出**，不是 Gateway 推送 |
+| 服务器内「实时记日志」 | 有（Carl-bot / Dyno / Quark 等）但 **要管理员加 Bot** |
+| 准实时连续备份 | **DCE CLI + 计划任务**（+ 可选 rclone）仍是主流金标准 |
+
+### 9.2 方案分桶
+
+#### A. 开源桌面/CLI（准实时靠调度）— 首选接 QuantFlow
+
+| 工具 | 链接 | 实时？ | 要管理员？ | 备注 |
+|------|------|--------|------------|------|
+| **DiscordChatExporter** | https://github.com/Tyrrrz/DiscordChatExporter | 否；CLI 可调度 | 否（用户 Token）/ 是（Bot） | GUI+CLI+Docker；JSON/HTML/CSV/TXT；README **警告用户账号自动化违 ToS** |
+| **DCE-incrementalBackup** | https://github.com/slatinsky/DiscordChatExporter-incrementalBackup | 分钟级轮询更省 | 同上 | 只拉上次之后的新消息 |
+| **DCE + rclone 云备份** | 行业文：定时 DCE → 加密同步 B2/Dropbox | 日/小时级归档 | Bot 更合规 | 偏备份，不是交易秒级 |
+| **Bellingcat 工具页** | https://bellingcat.gitbook.io/toolkit/more/all-tools/discord-chat-exporter | — | — | 写明 ToS 风险、用户报告封禁趋严 |
+
+**与本仓库**：已接 `scripts/kol_export_loop.ps1`（DCE → export → consensus）。
+
+#### B. 浏览器扩展（第三方商业/半商业，点选导出）
+
+多为 Chrome/Firefox 扩展，用你**已登录的 Web Discord 会话**，**不加 Bot**；一般是 **手动/按次**，不是 24h 守护进程。
+
+| 名称 | 入口 | 格式 | 特点 |
+|------|------|------|------|
+| **DiscordKit** | [Chrome](https://chromewebstore.google.com/detail/discord-chat-exporter-dis/nelhngppldhijmnpickkgniepoifbpon) / [Firefox](https://addons.mozilla.org/en-US/firefox/addon/discord-chat-exporter) | CSV/HTML/JSON/TXT | 宣称本地处理；免费额度（FF 页约 200 条）+ 付费无限 |
+| **Discrub** | 商店搜 Discrub / Message Manager | JSON/CSV 等 | 搜索、过滤、导出；适合批量整理 |
+| **ExportComments Discord** | https://exportcomments.com/export-discord-conversation | Excel/CSV/JSON | 频道历史 + 附件；扩展式 |
+| 其它同名扩展 | Discordmate、DiscordView、Dimmy… | 各异 | 评分参差；**隐私/付费墙需自审** |
+
+**用法建议**：偶发补数、或人在电脑前点导出 JSON → 丢进 `data/kol_exports/` → `kol_near_realtime_tick.ps1`。  
+**不适合**单独当无人值守「实时导出」（扩展难稳定挂任务计划）。
+
+#### C. 服内实时日志 Bot（真·事件流，但要管理员）
+
+| 工具 | 说明 |
+|------|------|
+| **Quark Logger**、**Carl-bot**、**Dyno**、YAGPDB 等 | 新消息/编辑/删除写入日志频道；**必须邀请进服** |
+
+对你：Kolunite **管理员不同意就用不了**；这不是「成员侧第三方导出」。
+
+#### D. 商业 SaaS「连续归档、无 Bot」
+
+检索结论：**几乎没有**同时满足「无管理员、无 Bot、云端连续同步」的成熟 SaaS。  
+对比文里提到的 Guilded Archive / DiscordLog 一类多为 **要权限或锁厂商**；不宜当付费成员默认可选项。
+
+#### E. 不推荐
+
+| 类型 | 原因 |
+|------|------|
+| Self-bot / Token 登录类扩展 | 违 ToS；盗号风险 |
+| 不明「一键云同步」网页 | 常要你贴 Token，高危 |
+| 把扩展当无人值守实时 | UI 一改就挂；难与 QuantFlow 稳定衔接 |
+
+### 9.3 按你的目标怎么选
+
+| 目标 | 推荐第三方路径 |
+|------|----------------|
+| **KOL 参考权重准实时** | **DCE CLI 定时**（本仓库 loop）或 DCE-incremental |
+| **偶尔补历史** | DiscordKit / Discrub / ExportComments → JSON → `data/kol_exports/` |
+| **真秒级** | 仍只有管理员只读 Bot / 转发 |
+| **合规优先** | 等 Bot；少用用户 Token 高频轮询 |
+
+### 9.4 关键链接（证据）
+
+- DCE 官方：https://github.com/Tyrrrz/DiscordChatExporter （含用户自动化警告）  
+- Bellingcat 说明 + ToS：https://bellingcat.gitbook.io/toolkit/more/all-tools/discord-chat-exporter  
+- DiscordKit Chrome：https://chromewebstore.google.com/detail/discord-chat-exporter-dis/nelhngppldhijmnpickkgniepoifbpon  
+- DiscordKit Firefox：https://addons.mozilla.org/en-US/firefox/addon/discord-chat-exporter  
+- ExportComments：https://exportcomments.com/export-discord-conversation  
+- 增量包装：https://github.com/slatinsky/DiscordChatExporter-incrementalBackup  
+- 定时备份栈讨论：https://lifetips.alibaba.com/tech-efficiency/automatic-discord-server-backup-setup  
+
+---
+
+## 10. 一句话
+
+> **第三方「导出」很多，但「无管理员真·实时 SaaS」几乎没有；浏览器扩展适合手动，连续准实时仍靠 DCE+计划任务，秒级仍要管理员 Bot。**
