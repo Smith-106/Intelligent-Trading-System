@@ -1335,3 +1335,11 @@ Optimize structure and regression locks rather than alpha re-search this session
 hard_bind_entry must remain false on research OS surfaces
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-8441f2ce8b9f05da" title="Catalog skips *_overlay.yaml and rejects duplicate strategy.name" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002" source="session:20260811-catalog-imp-20260811-130143:KDC-8441f2ce8b9f05da">
+
+### Catalog skips *_overlay.yaml and rejects duplicate strategy.name
+
+Catalog skips *_overlay.yaml and rejects duplicate strategy.name
+
+</spec-entry>
