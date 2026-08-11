@@ -143,6 +143,8 @@ data/paper_sessions/
 data/kol_signals/
 # Raw DiscordChatExporter dumps + media (may contain paid content)
 data/kol_exports/
+# Notify-trigger inbox stamps (watch folder)
+data/kol_notify_inbox/
 
 # Local secret scan reports (do not commit)
 gitleaks*.json
