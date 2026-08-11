@@ -103,6 +103,28 @@ POSITIONS_COUNT = Gauge(
     "Number of open positions",
 )
 
+# IMP-05: TradingSession / paper-live health (exportable snapshot + gauges).
+SESSION_HEALTH_UP = Gauge(
+    "quantflow_session_health_up",
+    "Session liveness (1=healthy/running, 0=stopped/degraded)",
+    ["mode", "strategy_id"],
+)
+SESSION_BARS_PROCESSED = Gauge(
+    "quantflow_session_bars_processed",
+    "Bars processed in the active session",
+    ["mode", "strategy_id"],
+)
+SESSION_LAST_BAR_AGE_SECONDS = Gauge(
+    "quantflow_session_last_bar_age_seconds",
+    "Seconds since last bar handled (staleness)",
+    ["mode", "strategy_id"],
+)
+SESSION_OPEN_ORDERS = Gauge(
+    "quantflow_session_open_orders",
+    "Open orders tracked by the active session",
+    ["mode", "strategy_id"],
+)
+
 # s4 (T-s4-05): strategy-level PnL split (realized + unrealized attribution)
 # and budget utilization. Fed by MonitoringSink.record_strategy_pnl; strategy
 # granularity matches the strategy_id labels already on signal/order metrics.
@@ -292,3 +314,23 @@ def update_portfolio_metrics(
     PORTFOLIO_CASH.set(cash)
     PORTFOLIO_DRAWDOWN.set(drawdown)
     POSITIONS_COUNT.set(n_positions)
+
+
+def update_session_health(
+    *,
+    mode: str,
+    strategy_id: str = "default",
+    up: bool = True,
+    bars_processed: int = 0,
+    last_bar_age_seconds: float = 0.0,
+    open_orders: int = 0,
+) -> None:
+    """Update IMP-05 session health gauges (paper/live/backtest modes)."""
+    m = str(mode or "unknown")
+    sid = str(strategy_id or "default")
+    SESSION_HEALTH_UP.labels(mode=m, strategy_id=sid).set(1.0 if up else 0.0)
+    SESSION_BARS_PROCESSED.labels(mode=m, strategy_id=sid).set(float(bars_processed))
+    SESSION_LAST_BAR_AGE_SECONDS.labels(mode=m, strategy_id=sid).set(
+        float(last_bar_age_seconds)
+    )
+    SESSION_OPEN_ORDERS.labels(mode=m, strategy_id=sid).set(float(open_orders))

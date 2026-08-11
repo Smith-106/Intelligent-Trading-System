@@ -1103,3 +1103,11 @@ Research dual-path claims vectorized path honestly rather than fake paper_replay
 promotion_eligible=false; vectorized is not register-ready
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-e1c94993e5585fd9" title="Reuse existing FeatureStore PIT tests; add pit_audit helper" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001" source="session:20260811-imp03-05-exec-20260811-093415:KDC-e1c94993e5585fd9">
+
+### Reuse existing FeatureStore PIT tests; add pit_audit helper
+
+Reuse existing FeatureStore PIT tests; add pit_audit helper
+
+</spec-entry>

@@ -14,6 +14,11 @@ from quantflow.monitoring.metrics import (
     SIGNALS_GENERATED,
     start_metrics_server,
     update_portfolio_metrics,
+    update_session_health,
+)
+from quantflow.monitoring.session_health import (
+    alert_taxonomy_summary,
+    build_session_health,
 )
 
 __all__ = [
@@ -27,7 +32,10 @@ __all__ = [
     "RISK_EVENTS",
     "SIGNALS_GENERATED",
     "AlertManager",
+    "alert_taxonomy_summary",
+    "build_session_health",
     "setup_logging",
     "start_metrics_server",
     "update_portfolio_metrics",
+    "update_session_health",
 ]

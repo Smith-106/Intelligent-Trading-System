@@ -211,3 +211,17 @@ python scripts/run_path_b_oos.py --n-windows 6 --out data/paper_replay/dual_path
 python -m pytest tests/unit/test_dual_path_report.py tests/unit/test_path_b_oos.py -q
 ```
 
+## 10. Execution status IMP-03/04/05 (2026-08-11)
+
+| Wave | Status | Evidence |
+|------|--------|----------|
+| **IMP-03** | **landed** | `quantflow/data/pit_audit.py` + `tests/unit/test_pit_audit.py` (+ existing `test_feature_store_pit.py`) |
+| **IMP-04** | **landed** | `multi_symbol_dual_path.py` + `scripts/run_multi_symbol_dual_path.py` + unit tests; no combined_score |
+| **IMP-05** | **landed** | session health gauges + `session_health.py` + `docs/ops/alert-taxonomy-session-health.md` |
+
+```bash
+set PYTHONUTF8=1
+python -m pytest tests/unit/test_pit_audit.py tests/unit/test_feature_store_pit.py tests/unit/test_multi_symbol_dual_path.py tests/unit/test_session_health.py -q
+python scripts/run_multi_symbol_dual_path.py --symbols BTC/USDT,ETH/USDT
+```
+
