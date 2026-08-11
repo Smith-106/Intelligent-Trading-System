@@ -156,3 +156,11 @@ gitleaks-report.json
 # Domain glossary local lock/backups (canonical glossary.yaml is tracked)
 .workflow/domain/.glossary.lock
 .workflow/domain/.backups/
+
+# Maestro runtime (local only; regenerable)
+.workflow/tmp/
+.workflow/archive/
+.workflow/search-daemon-spawning
+.workflow/search-daemon*.json
+.workflow/scratch/
+

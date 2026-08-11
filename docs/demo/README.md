@@ -60,3 +60,5 @@ Implementation: [Smith-106/Intelligent-Trading-System](https://github.com/Smith-
 This pack is intentionally **thin** (docs + synthetic samples only) so readers can evaluate the research-OS philosophy without market data dumps or credentials.
 
 Research artifacts (`data/`, live keys, session logs) stay out of both this pack and default gitignore of the engine repo.
+
+> Upstream research OS residual pack: **v0.7.0** (see private repo release notes).

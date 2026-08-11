@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.7.0] — 2026-08-11
+
+### Features
+- IMP-01: dual-path / path_b_oos attach honest vectorized promotion_path + data_fingerprint (not fake paper_replay GO)
+- IMP-02: Path B multi-window OOS default n_windows=6 + cost_attachment (fee_slip_grid + funding_tca)
+- IMP-03: Feature Store PIT audit helper (`pit_audit`) fail-closed on lookahead
+- IMP-04: multi-symbol dual-path research report (≥2 OKX symbols; no combined_score)
+- IMP-05: session health Prometheus gauges + alert taxonomy ops doc
+
+### Research docs
+- OSS adversarial residual improvement plan + team-swarm map
+- dual-path research OS IMP status sections
+- docs/ops/alert-taxonomy-session-health.md
+- Release notes: docs/release/v0.7.0.md
+
+### Cleanup
+- Untrack `.workflow/scratch/` runtime logs/screenshots (~153 files)
+- .gitignore: workflow tmp/archive/scratch/search-daemon artifacts
+- Local cache purge (__pycache__, pytest/ruff)
+
+### Tests
+- Focused suites: dual_path/path_b_oos/promotion_path, pit_audit, multi_symbol_dual_path, session_health
+
 ## [0.6.0] — 2026-08-10
 
 ### Features

@@ -1,6 +1,6 @@
 # QuantFlow
 
-> 当前版本 **v0.6.0** — 详见 [docs/release/v0.6.0.md](docs/release/v0.6.0.md)
+> 当前版本 **v0.7.0** — 详见 [docs/release/v0.7.0.md](docs/release/v0.7.0.md)
 
 个人 Crypto 量化交易系统 — 从策略研究到实盘交易的完整闭环。
 
@@ -44,6 +44,7 @@
 - **配置驱动**：策略参数、风控规则、交易对全部 YAML 管理，零硬编码
 - **多 Symbol 组合**：共享账本 multi-symbol 回放 + **symbol-level 周期再平衡 Risk Parity**（WFO OOS 验证）
 - **研究保真**：paper 路径注入 fee/slippage；`research_risk_bypass` 双报研究/生产风控
+- **Dual-path 研究 OS（v0.7）**：Path A 超额 / Path B TPSL 分轴；promotion 指纹诚实接线；PIT 审计；多标的并列报告；会话健康指标
 
 ## 架构
 
@@ -391,5 +392,5 @@ risk:
     min_samples: 30
 ```
 
-发布说明：[docs/release/v0.5.0.md](docs/release/v0.5.0.md) · 运维手册：[docs/operations-guide.md](docs/operations-guide.md)
+发布说明：[docs/release/v0.7.0.md](docs/release/v0.7.0.md) · 运维手册：[docs/operations-guide.md](docs/operations-guide.md) · 告警/会话健康：[docs/ops/alert-taxonomy-session-health.md](docs/ops/alert-taxonomy-session-health.md)
 

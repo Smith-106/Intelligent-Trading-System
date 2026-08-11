@@ -60,3 +60,16 @@ Implementation: [Smith-106/Intelligent-Trading-System](https://github.com/Smith-
 This pack is intentionally **thin** (docs + synthetic samples only) so readers can evaluate the research-OS philosophy without market data dumps or credentials.
 
 Research artifacts (`data/`, live keys, session logs) stay out of both this pack and default gitignore of the engine repo.
+
+## Upstream snapshot (v0.7.0)
+
+Private core (Intelligent-Trading-System) residual research OS:
+
+- Dual-path reports attach honest `execution_path=vectorized` + fingerprint (not live GO)
+- Path B multi-window OOS + cost attachment structure
+- Feature Store PIT audit helpers
+- Multi-symbol dual-path side-by-side (no combined_score)
+- Session health metrics + alert taxonomy docs
+
+This public pack remains **docs-only** (no API keys, no live data).
+
