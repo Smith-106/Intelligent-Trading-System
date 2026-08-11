@@ -247,3 +247,7 @@ pytest tests/unit/test_promotion_path.py tests/unit/test_cost_fidelity.py tests/
 ```
 
 *Option B: evolve the research path, keep the OS.*
+
+## Post-swarm residual plan (2026-08-11)
+
+See [oss-adversarial-improvement-plan-20260811.md](./oss-adversarial-improvement-plan-20260811.md) (IMP-01..05).

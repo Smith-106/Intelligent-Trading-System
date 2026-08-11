@@ -1007,3 +1007,67 @@ IAF prune kept factors remain research library after CPCV NO-GO
 promotion_eligible=false; GO_DISCUSS is research discussion only
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-391e6909273c1f99" title="Do not re-open completed W14-W26 as greenfield" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-001" source="session:20260811-oss-improve-plan-20260811-090327:KDC-391e6909273c1f99">
+
+### Do not re-open completed W14-W26 as greenfield
+
+Do not re-open completed W14-W26 as greenfield
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-45dc964a714d6459" title="no engine rewrite / combined_score / IAF hard-bind / fee loosen" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#constraint:C-002" source="session:20260811-oss-improve-plan-20260811-090327:KDC-45dc964a714d6459">
+
+### no engine rewrite / combined_score / IAF hard-bind / fee loosen
+
+no engine rewrite / combined_score / IAF hard-bind / fee loosen
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6a68e3dadcbc1540" title="No engine rewrite; no combined_score; no IAF hard-bind" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-002" source="session:20260811-oss-improve-plan-20260811-090327:KDC-6a68e3dadcbc1540">
+
+### No engine rewrite; no combined_score; no IAF hard-bind
+
+No engine rewrite; no combined_score; no IAF hard-bind
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f9df6cbdc9a9db31" title="residual-first; do not re-open W14-W26" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#constraint:C-001" source="session:20260811-oss-improve-plan-20260811-090327:KDC-f9df6cbdc9a9db31">
+
+### residual-first; do not re-open W14-W26
+
+residual-first; do not re-open W14-W26
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-cef3ee51014134fb" title="Adopt IMP-01 then IMP-02 as next execute priority" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#decision:D-001" source="session:20260811-oss-improve-plan-20260811-090327:KDC-cef3ee51014134fb">
+
+### Adopt IMP-01 then IMP-02 as next execute priority
+
+Adopt IMP-01 then IMP-02 as next execute priority
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-e8406607b736b027" title="Prioritize IMP-01 promotion attach + IMP-02 Path B OOS thickness" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-002" source="session:20260811-oss-improve-plan-20260811-090327:KDC-e8406607b736b027">
+
+### Prioritize IMP-01 promotion attach + IMP-02 Path B OOS thickness
+
+Prioritize IMP-01 promotion attach + IMP-02 Path B OOS thickness
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-a23d6dc5bc873177" title="IMP-03 parallelizable with IMP-01" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#decision:D-002" source="session:20260811-oss-improve-plan-20260811-090327:KDC-a23d6dc5bc873177">
+
+### IMP-03 parallelizable with IMP-01
+
+IMP-03 parallelizable with IMP-01
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-e7af89d3d61a773b" title="Produce IMP-* residual improvement plan (plan stage)" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-001" source="session:20260811-oss-improve-plan-20260811-090327:KDC-e7af89d3d61a773b">
+
+### Produce IMP-* residual improvement plan (plan stage)
+
+Produce IMP-* residual improvement plan (plan stage)
+
+</spec-entry>
