@@ -1111,3 +1111,19 @@ promotion_eligible=false; vectorized is not register-ready
 Reuse existing FeatureStore PIT tests; add pit_audit helper
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-09247aabe8ae530d" title="Multi-symbol dual-path equal book weights display-only" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002" source="session:20260811-imp03-05-exec-20260811-093415:KDC-09247aabe8ae530d">
+
+### Multi-symbol dual-path equal book weights display-only
+
+Multi-symbol dual-path equal book weights display-only
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-2d2429a1d6c202a2" title="no combined_score; no multi-exchange; no live promote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001" source="session:20260811-imp03-05-exec-20260811-093415:KDC-2d2429a1d6c202a2">
+
+### no combined_score; no multi-exchange; no live promote
+
+no combined_score; no multi-exchange; no live promote
+
+</spec-entry>
