@@ -1,3 +1,6 @@
+# Location: quantflow/config/research/overlays/ (NOT strategies/).
+# Catalog only loads strategies/*.yaml without *_overlay.yaml suffix so
+# research contracts never clobber funding_rate base catalog entry.
 # B5 research overlay — DOES NOT replace funding_rate.yaml or B4 overlay.
 # Ablation contract: EMA-off / OI-off with thr=0.0004 (same probe thr as B4).
 # Forbidden: silently editing B3/B4 frozen params / baseline3 / baseline4 sealed runs.

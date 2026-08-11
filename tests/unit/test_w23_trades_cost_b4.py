@@ -136,7 +136,14 @@ class TestW23cB4Contract:
     def test_b4_doc_and_overlay_exist(self) -> None:
         root = Path(__file__).resolve().parents[2]
         doc = root / "docs" / "research" / "Candidate-Baseline-4.md"
-        overlay = root / "quantflow" / "config" / "strategies" / "funding_rate_b4_overlay.yaml"
+        overlay = (
+            root
+            / "quantflow"
+            / "config"
+            / "research"
+            / "overlays"
+            / "funding_rate_b4_overlay.yaml"
+        )
         assert doc.is_file()
         assert overlay.is_file()
         text = doc.read_text(encoding="utf-8")

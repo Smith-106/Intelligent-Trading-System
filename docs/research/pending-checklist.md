@@ -27,7 +27,7 @@
 | P2 | 可选 | bar 数据刷新 | ✅ 尝试过；可再刷 | 否 | 人 |
 | P2 | 人审 | OSS Scheme C 决策（Stay B / Start C / Defer） | gate 绿 · **未决策** | 否；**禁 agent 改 visibility** | **人** |
 | P3 | 研究 | 新信号合同（仅当有假设） | 空闲 | 否；**独立合同 ID** | 人+agent |
-| 可选 | 工程 | IMP-06…09 polish | 未立项 | 否 | 按需 |
+| 可选 | 工程 | IMP-06…09 polish | **06/07/09 landed · 08 partial** | 否 | — |
 | **DEFER** | 旁路 | KOL/Discord 真实群接入 | 管道就绪默认关 | 主线后 | 人+agent |
 | — | 关闭 | W17–W27 / B1–B5 / IMP-01…05 / v0.7.0 | **已完成** | — | — |
 
@@ -156,10 +156,10 @@
 
 | ID | 内容 | 何时做 | 状态 |
 |----|------|--------|------|
-| IMP-06 | IAF `hard_bind_entry=false` e2e 锁进 dual-path suite | 加固回归时 | 可选 |
-| IMP-07 | AI bypass ops 文档 + 离线 RD-Agent job 配方 | 要跑 RD-Agent 时 | 可选 |
-| IMP-08 | SimpleStrategy catalog 抛光 | DX 抱怨时 | 可选 |
-| IMP-09 | paper_replay `orderbook_fill` 推荐 overlay YAML | 保真实验时 | 可选 |
+| IMP-06 | IAF `hard_bind_entry=false` e2e 锁进 dual-path suite | **landed** | — |
+| IMP-07 | AI bypass ops 文档 + 离线 RD-Agent job 配方 | **landed** [rdagent-offline-job-recipe.md](../ops/rdagent-offline-job-recipe.md) | — |
+| IMP-08 | SimpleStrategy catalog 抛光 | **partial** (catalog+yaml) | — |
+| IMP-09 | paper_replay `orderbook_fill` 推荐 overlay YAML | **landed** [paper-orderbook-fill-recipe.md](../ops/paper-orderbook-fill-recipe.md) | — |
 
 **IMP-01…05**：**全部 landed**（v0.7.0）— 见 [oss-adversarial-improvement-plan-20260811.md](./oss-adversarial-improvement-plan-20260811.md) §9–10。
 
@@ -237,6 +237,7 @@ maestro kg sync --json && maestro kg health --json
 | 2026-08-10 | P1/P2 hygiene；doable-close；completeness audit |
 | 2026-08-11 | KOL DEFER；BTC overlay；IAF/TPSL；dual-path OS；team-swarm OSS |
 | 2026-08-11 | IMP-01…05 landed；v0.7.0 release；scratch untrack；kb maintenance |
+| 2026-08-11 | **catalog 修复**：B4/B5 funding overlay 移出 strategies/（不再覆盖 funding_rate）+ IMP-07/09 ops 配方 |
 | 2026-08-11 | **经验→结构**：research 公共 API + IMP-06 hard_bind 锁 + Simple DX + learnings knowhow — [README.md](./README.md) |
 | 2026-08-11 | **性能指标验证**：multi_symbol_replay + B0 PAPER-GO + overlay/PathB 面板 — [performance-metrics-verify-20260811.md](./performance-metrics-verify-20260811.md) |
 | 2026-08-11 | **市场能力验证**：dual-path/PathB OOS/multi-symbol/demo pack 全绿跑通；Path B validation NO-GO + OOS GO_DISCUSS 诚实结果 — [market-capability-verify-20260811.md](./market-capability-verify-20260811.md) |

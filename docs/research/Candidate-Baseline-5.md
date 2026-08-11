@@ -45,7 +45,7 @@ Strategy knobs (defaults keep B3/B4 behavior):
 | Optuna | **Forbidden** |
 | Artifacts | `data/paper_replay/baseline5/<run_id>/` **only** |
 
-Overlay: `quantflow/config/strategies/funding_rate_b5_overlay.yaml`  
+Overlay: `quantflow/config/research/overlays/funding_rate_b5_overlay.yaml`  
 Runner: `scripts/run_baseline5_ablation_oos.py`
 
 ---

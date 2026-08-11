@@ -1,3 +1,6 @@
+# Location: quantflow/config/research/overlays/ (NOT strategies/).
+# Catalog only loads strategies/*.yaml without *_overlay.yaml suffix so
+# research contracts never clobber funding_rate base catalog entry.
 # B4 research overlay — DOES NOT replace funding_rate.yaml defaults.
 # W23c: new signal contract for lower funding entry threshold.
 # Forbidden: silently editing B3 frozen params / baseline3 artifacts.

@@ -41,7 +41,7 @@ directory — never overwrite `baseline3/` or `adjudication_frozen.json`.
 
 YAML overlay (research only; does not change catalog defaults):
 
-- `quantflow/config/strategies/funding_rate_b4_overlay.yaml`
+- `quantflow/config/research/overlays/funding_rate_b4_overlay.yaml`
 
 ---
 

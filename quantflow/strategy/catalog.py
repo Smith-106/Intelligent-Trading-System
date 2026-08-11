@@ -154,6 +154,11 @@ def get_strategy_definitions(
     factories = _get_factory_registry()
 
     for yaml_path in sorted(_STRATEGY_CONFIG_DIR.glob("*.yaml")):
+        # Research contract overlays (B4/B5, …) live under config/research/overlays/.
+        # Never load `*_overlay.yaml` here — same strategy.name would clobber the base.
+        if yaml_path.name.endswith("_overlay.yaml"):
+            logger.debug("Skipping research overlay asset in strategies/: %s", yaml_path.name)
+            continue
         try:
             raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
         except (yaml.YAMLError, OSError) as exc:
@@ -168,6 +173,15 @@ def get_strategy_definitions(
         if not isinstance(strategy_config, dict):
             strategy_config = {}
         strategy_id = strategy_config.get("name", yaml_path.stem)
+        # Fail-closed: one strategy_id → one catalog entry (first wins; later is orphan noise).
+        if strategy_id in definitions:
+            logger.warning(
+                "Duplicate strategy name %r from %s; keeping %s",
+                strategy_id,
+                yaml_path.name,
+                definitions[strategy_id].config_path.name,
+            )
+            continue
 
         # Metadata from YAML, fallback to _DEFAULT_DESCRIPTIONS
         meta = raw.get("metadata", {})
@@ -243,6 +257,8 @@ def catalog_hygiene() -> dict[str, Any]:
     disabled: list[str] = []
     enabled: list[str] = []
     for yaml_path in sorted(_STRATEGY_CONFIG_DIR.glob("*.yaml")):
+        if yaml_path.name.endswith("_overlay.yaml"):
+            continue
         try:
             raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
         except (yaml.YAMLError, OSError):

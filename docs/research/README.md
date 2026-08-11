@@ -36,3 +36,13 @@ live          ── needs human + sample floors ──► default OFF
 
 Workflow knowhow: `.workflow/knowhow/DOC-20260811-learnings-params-structure.md`  
 (also linked from Knowledge Hub after promote/sync)
+
+## Ops recipes (optional polish)
+
+| Doc | IMP |
+|-----|-----|
+| [paper-orderbook-fill-recipe.md](../ops/paper-orderbook-fill-recipe.md) | IMP-09 |
+| [rdagent-offline-job-recipe.md](../ops/rdagent-offline-job-recipe.md) | IMP-07 |
+
+Research contract overlays (not catalog): `quantflow/config/research/overlays/`
+

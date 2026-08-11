@@ -84,7 +84,8 @@ class TestB5ContractArtifacts:
             root
             / "quantflow"
             / "config"
-            / "strategies"
+            / "research"
+            / "overlays"
             / "funding_rate_b5_overlay.yaml"
         )
         text = ov.read_text(encoding="utf-8")
@@ -99,7 +100,12 @@ class TestB5ContractArtifacts:
         )
         assert "entry_threshold: 0.001" in b3
         b4 = (
-            root / "quantflow" / "config" / "strategies" / "funding_rate_b4_overlay.yaml"
+            root
+            / "quantflow"
+            / "config"
+            / "research"
+            / "overlays"
+            / "funding_rate_b4_overlay.yaml"
         ).read_text(encoding="utf-8")
         assert "0.0004" in b4
         assert "use_rate_ema" not in b4  # B4 never set ablation knobs
