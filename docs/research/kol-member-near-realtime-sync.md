@@ -166,6 +166,44 @@ python .\scripts\kol_discord_ingest.py reference --system-side BTC/USDT=long
 
 ---
 
-## 8. 一句话
+## 8. smart-search 调研：有没有「无需管理员」的真实时？（2026-08）
 
-> **管理员不给 Bot = 没有合规真实时拉流；用「高频导出 + 去重 ingest + 共识」做 1～5 分钟准实时参考权重，才是付费成员的正解。**
+### 8.1 官方结论（权威）
+
+Discord 帮助中心 [Automated User Accounts (Self-Bots)](https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots)：
+
+> 自动化应使用 **bot account**；**Automating normal user accounts (self-bots) is forbidden**，发现可 **account termination**。
+
+因此：**不存在「官方认可 + 无需管理员 + 用户账号 WebSocket 实时」的方案。**
+
+### 8.2 网上实际出现的「无管理员实时」类别
+
+| 类别 | 代表 | 要管理员？ | 真实时？ | 合规 | QuantFlow 态度 |
+|------|------|------------|----------|------|----------------|
+| **Self-bot / 用户 Token 常驻** | YouTube 教程、[discord-selfbot crate](https://lib.rs/crates/discord-selfbot) 等 | 否 | 是（Gateway） | **违 ToS**，作者自述可封号 | **不实现、不接入** |
+| **转发 SaaS / 跨服 Bot** | ForwardMsg、开源 Message-Forwarder 等 | **是**（源服要装 Bot） | 是 | 正规 Bot API 可合规 | 需管理员；装好后可 `poll` |
+| **DiscordChatExporter** | [Tyrrrz/DiscordChatExporter](https://github.com/Tyrrrz/DiscordChatExporter) | 否（用户可读频道） | **否**，快照导出 | 用户 Token 自动化 **违 ToS**（项目 README 亦警告） | 仅作 **人工/低频** 导出入口；**不**内置用户 Token 轮询 |
+| **增量备份包装** | [DiscordChatExporter-incrementalBackup](https://github.com/slatinsky/DiscordChatExporter-incrementalBackup) | 否 | **准实时轮询**（分钟级） | 同上，依赖用户 Token | 可选外部工具；风险自担 |
+| **浏览器扩展一次性导出** | ExportComments 等 | 否 | 否 | 偏手动会话 | 偶发补数 |
+
+### 8.3 调研结论（直接回答）
+
+1. **没有** 同时满足：无需管理员 + 官方合规 + 秒级实时 的公开方案。  
+2. 网上「无管理员实时」几乎都是 **self-bot** → 与官方禁令冲突；QuantFlow **不会**加用户 Token `poll`。  
+3. **最接近且仍属成员可做的**：外部 **DCE / 增量导出 每 2～5 分钟** → 本仓库 `export` + `consensus`（见 §2 与 `scripts/kol_near_realtime_tick.ps1`）。  
+4. **唯一合规秒级**：管理员只读 Bot 或转发到你自有服（§3）。  
+5. 转发类产品（Discord↔TG 等）写的是 **Bot 进源服**，**不能**替代「管理员不给权限」。
+
+### 8.4 证据链接
+
+- Discord 官方 self-bot 禁令：https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots  
+- DiscordChatExporter：https://github.com/Tyrrrz/DiscordChatExporter  
+- 增量导出包装：https://github.com/slatinsky/DiscordChatExporter-incrementalBackup  
+- Self-bot 库自述违 ToS：https://lib.rs/crates/discord-selfbot  
+- 转发需 Bot/权限的行业文（需源服装 Bot）：检索示例 ForwardMsg / Discord-Message-Forwarder 类产品说明  
+
+---
+
+## 9. 一句话
+
+> **调研结果：无管理员时没有合规真实时；要么 self-bot（封号风险，本项目不做），要么 2～5 分钟导出准实时，要么继续要管理员开只读/转发。**
