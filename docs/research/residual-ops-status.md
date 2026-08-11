@@ -1,12 +1,13 @@
 # 残留收口状态：运营 streak · 人审 · promote 证据
 
-**Date**: 2026-08-10  
+**Date**: 2026-08-10（运营快照）· **清单刷新**: 2026-08-11  
 **Session**: residual-close（post wave-close）  
-**HEAD**: see `main`  
+**HEAD**: see `main` · **版本**: v0.7.0  
 **Honesty**: 不伪造 7 日；不改 visibility；不把 synthetic promote 当真实 ops  
-**完整待办分层清单**: [pending-checklist.md](./pending-checklist.md)（P0–P3 + 禁做 + 日序）  
-**P1/P2 hygiene**: [p1-p2-hygiene-status.md](./p1-p2-hygiene-status.md)（2026-08-10 已做 seal/ignore/v0.6；P0 T023 仍 3/7）  
-**Doable-close**: [doable-close-20260810.md](./doable-close-20260810.md)（同日可做项已做；3 seal DEFER；knowledge DEFER；T023 仍 3/7）  
+**完整待办分层清单**: [pending-checklist.md](./pending-checklist.md)（2026-08-11 全面盘点：P0 仅 T023/T024；IMP-01…05 landed）  
+**P1/P2 hygiene**: [p1-p2-hygiene-status.md](./p1-p2-hygiene-status.md)（seal/ignore；P0 T023 仍 3/7）  
+**Doable-close**: [doable-close-20260810.md](./doable-close-20260810.md)（3 seal DEFER；T023 仍 3/7）  
+**知识维护**: [knowledge-maintenance-20260811.md](./knowledge-maintenance-20260811.md)  
 
 ---
 

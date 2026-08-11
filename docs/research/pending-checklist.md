@@ -1,36 +1,41 @@
 # QuantFlow 待完成事项清单（Pending Checklist）
 
-**As of**: 2026-08-10 (UTC)  
-**HEAD**: see `main`  
+**As of**: 2026-08-11（全面盘点刷新）  
+**HEAD**: `963952d` · **版本**: **v0.7.0**  
 **North star**: cost-aware paper-first research OS — not win-rate  
-**Source of truth for ops residual**: [residual-ops-status.md](./residual-ops-status.md) · [t023-wall-clock-status.md](./t023-wall-clock-status.md)  
-**P1/P2 hygiene log**: [p1-p2-hygiene-status.md](./p1-p2-hygiene-status.md)  
-**Full completeness audit**: [project-completeness-audit-20260810.md](./project-completeness-audit-20260810.md)（工程已关；仅 T023/T024 运营残留）  
-**How-to 操作手册**: [how-to-close-p0-p3.md](./how-to-close-p0-p3.md)（P0 日课→T024、P1 seal/knowledge、P2 Scheme C、P3 纪律）  
-**市场数据可行性（B0 全量复现）**: [market-data-feasibility-20260810.md](./market-data-feasibility-20260810.md) — PAPER-GO 复现；≠ live  
-**顶流/幻方收敛**: [highflyer-convergence-20260810.md](./highflyer-convergence-20260810.md) — vs-BTC 门 + 账本预算 + beta/overlay  
-**BTC 降回撤/提超额（2026-08-11）**: [btc-dd-return-optimize-20260811.md](./btc-dd-return-optimize-20260811.md) — primary **w=0.30** taker excess **+47.1pp**（较 w=0.25 **+6.7pp**），maxDD **−1.4pp**
+**工作树**: 干净（`main` = origin）
+
+| 权威文档 | 用途 |
+|----------|------|
+| [residual-ops-status.md](./residual-ops-status.md) | 运营残留总览 |
+| [t023-wall-clock-status.md](./t023-wall-clock-status.md) · [t023-wall-clock-calendar.md](./t023-wall-clock-calendar.md) | T023 墙钟 |
+| [how-to-close-p0-p3.md](./how-to-close-p0-p3.md) | P0→T024 / P1–P3 操作手册 |
+| [oss-adversarial-improvement-plan-20260811.md](./oss-adversarial-improvement-plan-20260811.md) | IMP residual（01–05 **landed**） |
+| [knowledge-maintenance-20260811.md](./knowledge-maintenance-20260811.md) | 知识库/wiki/kg 维护回执 |
+| [docs/release/v0.7.0.md](../release/v0.7.0.md) | 发布说明 |
 
 ---
 
 ## 0. 总览（一眼）
 
-| 优先级 | 类别 | 事项 | 阻塞？ | 谁做 |
-|--------|------|------|--------|------|
-| **P0** | 运营 | **T023** Path A 日课 streak → **7/7** | 日历墙钟 | 人/每日脚本 |
-| **P0** | 运营 | **T024** 真实 paper_evidence + promote（非 dry 演示） | **等 T023≥7** + fills | 人 |
-| P1 | 卫生 | 本地敏感文件复核（gitleaks 工作区 2 命中） | 否 | 人 |
-| P1 | 卫生 | Maestro 陈旧 session seal（W18…） | 否 | 人/agent |
-| P2 | 可选 | bar 数据刷新（age~50h WARN） | 否 | 人 |
-| P2 | 可选 | OSS Scheme C 人审包勾选 | 否；**禁 agent 改 visibility** | 人 |
-| P3 | 研究 | 新信号合同（仅当有假设） | 否；**独立合同 ID** | 人+agent |
-| **DEFER** | 旁路 | **KOL/Discord 真实群接入**（管道已就绪，默认关） | **等智能交易系统主线完成后再做** | 人+agent |
-| — | 关闭 | W17–W27 / B1–B5 工程与合同 | **已完成** | — |
+| 优先级 | 类别 | 事项 | 状态 | 阻塞？ | 谁做 |
+|--------|------|------|------|--------|------|
+| **P0** | 运营 | **T023** Path A 日课 streak → **7/7** | **3/7** | 日历墙钟 | **人** / 每日脚本 |
+| **P0** | 运营 | **T024** 真实 paper_evidence + promote dry-run | 管道✅ · 未验收 | **等 T023≥7** + fills≥20 | **人** |
+| P1 | 卫生 | 本地敏感面 / gitleaks 复核 | ✅ 2026-08-10 | — | — |
+| P1 | 会话 | 3 个陈旧 `running` session seal | **DEFER** | lifecycle drift | 人/可选 |
+| P2 | 可选 | bar 数据刷新 | ✅ 尝试过；可再刷 | 否 | 人 |
+| P2 | 人审 | OSS Scheme C 决策（Stay B / Start C / Defer） | gate 绿 · **未决策** | 否；**禁 agent 改 visibility** | **人** |
+| P3 | 研究 | 新信号合同（仅当有假设） | 空闲 | 否；**独立合同 ID** | 人+agent |
+| 可选 | 工程 | IMP-06…09 polish | 未立项 | 否 | 按需 |
+| **DEFER** | 旁路 | KOL/Discord 真实群接入 | 管道就绪默认关 | 主线后 | 人+agent |
+| — | 关闭 | W17–W27 / B1–B5 / IMP-01…05 / v0.7.0 | **已完成** | — | — |
+
+**工程 wave 轨道**：**已关闭**（W27）。**禁止自动开 W28**。  
+**Todo 历史列表 #0–#68**：**已全部 completed**。  
+**Issues open-like**：**0**。
 
 **KOL/Discord 冻结存档**: [kol-discord-deferred-plan.md](./kol-discord-deferred-plan.md) · [kol-member-near-realtime-sync.md](./kol-member-near-realtime-sync.md) · [kol-discord-aggregation.md](./kol-discord-aggregation.md)
-
-**工程 wave 轨道**：**已关闭**（W27）。禁止自动开 W28。  
-**Todo 列表 #0–#68**：**已全部 completed**。
 
 ---
 
@@ -38,12 +43,13 @@
 
 ### 1.1 T023 — Path A 连续日课
 
-| 字段 | 当前 |
-|------|------|
+| 字段 | 当前（实测 2026-08-11） |
+|------|------------------------|
 | consecutive | **3 / 7** |
 | credited UTC | 2026-08-08, 08-09, **08-10** |
 | target_met | **false** |
-| 尚缺 | **未来** UTC 日：约 **08-11 … 08-14**（4 天） |
+| 7d 窗缺失 | 08-05, 08-06, 08-07, **08-11**（今日若未跑则计入） |
+| 尚缺 | 约 **4** 个**未来** UTC 日（不可回填） |
 | 禁止 | 回填/伪造 08-04…08-07 或未来日 |
 
 **每日 checklist（UTC 日切后执行一次）**
@@ -63,8 +69,9 @@
 | 前置 | 状态 |
 |------|------|
 | T024 管道（export + dry-run） | ✅ 已有 |
-| T023 consecutive≥7 | ❌ 3/7 |
+| T023 consecutive≥7 | ❌ **3/7** |
 | T016 min_fills（默认 ≥20） | 上次真实导出 fills 不足 → reject |
+| live promote | **默认不做**（仅人类明确授权） |
 
 **T023 达标后 checklist**
 
@@ -79,124 +86,146 @@
 
 ---
 
-## 2. P1 — 建议尽快（卫生 / 会话）
+## 2. P1 — 卫生 / 会话
 
 ### 2.1 本地敏感面复核 — ✅ 2026-08-10
 
 | 项 | 结果 |
 |----|------|
-| `.workflow/recovery/**` | gitignore ✅ · untracked · keyword scan clean |
-| `data/live_evidence/**` | gitignore ✅ · untracked · **no api keys** (balances/timings only) |
+| `.workflow/recovery/**` | gitignore · untracked · keyword scan clean |
+| `data/live_evidence/**` | gitignore · untracked · no api keys |
 | oss_c_gate secret_scan | hits=0 |
+| `.workflow/scratch/**` | **v0.7.0 已从 Git 取消跟踪**（~153 文件） |
 
 - [x] 确认无密钥入仓  
-- [x] 不提交 gitleaks JSON / recovery / live_evidence  
+- [x] 不提交 gitleaks JSON / recovery / live_evidence / scratch 运行时  
 
 ### 2.2 Maestro 陈旧 session — ✅ partial + **DEFER×3**
 
+仍为 `running`（seal 曾失败 / lifecycle drift；见 [doable-close-20260810.md](./doable-close-20260810.md)）：
+
+| Session ID | Intent（摘要） |
+|------------|----------------|
+| `a-b-mr-88-sma200-20260807-101222` | 方向门 A/B：mr 88d SMA200 |
+| `a-b-mr-88-sma200-20260807-101321` | 同上（重复） |
+| `maestro-arch-iss003-004-005-011-20260727-131947` | 旧 ExecutionEngine SRP / ISS 包 |
+
 - [x] 列出 active sessions  
-- [x] seal 7 个无阻塞 session（含 w18…）  
-- [x] 余 3 个 seal 失败已 **DEFER**（lifecycle command sha256 drift；见 [doable-close-20260810.md](./doable-close-20260810.md)）  
-  - `a-b-mr-88-sma200-20260807-101222` / `…101321` / `maestro-arch-iss003-…`  
+- [x] seal 无阻塞 session（含 w18…）  
+- [ ] **可选**：修复 lifecycle 后 seal 上述 3 个（**不阻塞** T023/T024）  
+- [x] 其余 session 均为 sealed（~77）
 
-### 2.3 仓库噪音 — ✅
+### 2.3 仓库噪音 — ✅（v0.7.0 加固）
 
-- [x] `.experts-mode.json` → **`.gitignore`**  
-- [x] `git status` 无 paper/recovery staged  
+- [x] `.experts-mode.json` → gitignore  
+- [x] `.workflow/tmp|archive|scratch|search-daemon*` → gitignore  
+- [x] `git status` 干净  
 
 ---
 
 ## 3. P2 — 可选增强
 
-### 3.1 数据新鲜度 — ✅ attempted 2026-08-10
+### 3.1 数据新鲜度
 
-- [x] BTC/SOL 1h download OK；ETH 曾 connect fail（可再试）  
+- [x] BTC/SOL 1h download 曾成功；ETH 曾 connect fail（可再试）  
 - [x] **未**伪造 bar / streak  
+- [ ] 可选：再跑 `quantflow download` 降低 bar age WARN  
 
-### 3.2 OSS Scheme C（人审 only） — gate 绿；决策仍属人
+### 3.2 OSS Scheme C（人审 only）
 
-- [x] `oss_c_gate --quick` → ready_for_human_c_review=True  
-- [ ] 人类决策：Stay B / Start C / Defer  
+- [x] `oss_c_gate --quick` → `ready_for_human_c_review=True`  
+- [ ] **人类决策**：Stay B / Start C / Defer  
 - [x] **Agent 未改 visibility**  
 
-### 3.3 文档小对齐 — ✅
+---
 
-- [x] option-b T033 行注明 B4/B5 已封 KEEP  
-- [x] `__version__` + CLI Phase → **v0.6.0**  
+## 4. P3 — 研究（有假设再开）
+
+| 规则 | 说明 |
+|------|------|
+| 新信号 / 新合同 | **独立合同 ID**，不占用 W28+ 自动流水线 |
+| B4/B5 | 已 **KEEP_B0** 封存；不重置 T023 |
+| dual-path | Path A / Path B **分轴**；**禁止** `combined_score` |
+| 晋级 | research `vectorized` 诚实标签；`promotion_eligible=false` 直至 paper 路径 |
+
+- [ ] 仅当有可检验假设时立项（文档 + 验收命令 + 否决标准）
 
 ---
 
-## 4. P3 — 研究合同（仅有新假设时）
+## 5. 可选工程 polish（IMP-06…09 — 非阻塞）
 
-规则：**独立合同 ID**（`B6-…` / 日期戳），**禁止**静默改 B3/B4/B5 冻结包与默认 YAML。
+| ID | 内容 | 何时做 | 状态 |
+|----|------|--------|------|
+| IMP-06 | IAF `hard_bind_entry=false` e2e 锁进 dual-path suite | 加固回归时 | 可选 |
+| IMP-07 | AI bypass ops 文档 + 离线 RD-Agent job 配方 | 要跑 RD-Agent 时 | 可选 |
+| IMP-08 | SimpleStrategy catalog 抛光 | DX 抱怨时 | 可选 |
+| IMP-09 | paper_replay `orderbook_fill` 推荐 overlay YAML | 保真实验时 | 可选 |
 
-| 若假设是… | 建议合同形态 | 禁做 |
-|-----------|--------------|------|
-| 更密 funding 历史再 pin | 新 run_id + denser meta；可仍 B4/B5 族 | 改 thr 冒充旧合同 GO |
-| 非 funding 新 alpha | 新 Baseline-N 合同 + challenger | Optuna 当晋级主路径 |
-| Elliott 真 GO | 密封 multi-run + cost grid + human | proxy/reseat 包当 GO |
-| 组合/多标的 funding | 新 book 合同 | 默认打开 portfolio_optimization |
-
-当前 **无强制** P3 工程项；B5 已回答「EMA/OI 消融」→ KEEP_B0。
+**IMP-01…05**：**全部 landed**（v0.7.0）— 见 [oss-adversarial-improvement-plan-20260811.md](./oss-adversarial-improvement-plan-20260811.md) §9–10。
 
 ---
 
-## 5. 已关闭（勿重开除非回归）
+## 6. 已关闭轨道（勿重开）
 
 | 轨道 | 状态 |
 |------|------|
-| ISS-004 / 005 / 006 母题 | 关 |
-| T001–T027 主线工程（含 T024 管道） | 关（T023 **墙钟**除外） |
 | Option B W17–W27 | 关；无 W28+ 候选 |
-| B1–B5 challenger 合同 | 全 **KEEP_B0 冻结** |
-| B0 research | **PAPER-GO**（研究候选；≠ live 已 promote） |
+| B0 PAPER-GO 研究候选 | 合同保留；≠ live |
+| B1–B5 / funding 族 | KEEP / 封存 |
+| Dual-path Research OS + IAF/TPSL library-only | 落地；不 hard-bind entry |
+| IMP-01…05 residual | landed + 测试 + knowledge |
+| 知识库/wiki/kg 维护 2026-08-11 | audit 0 findings；kg pass；见 [knowledge-maintenance-20260811.md](./knowledge-maintenance-20260811.md) |
+| v0.7.0 release + docs-demo | tag + GH release + public pack sync |
+| Issues open | 0 |
+
+**硬约束（持续有效）**
+
+- paper-first · OKX 个人闭环 · 非 HFT  
+- 不换引擎（拒绝整仓迁 Nautilus/Lean/Freqtrade）  
+- 不引入跨所 / 默认组合优化（`portfolio_optimization.enabled=false`）  
+- 不伪造 streak / bar / 样本门  
+- `pending_observed` **≠** 自动 promote 队列  
 
 ---
 
-## 6. 明确不做（边界）
+## 7. 建议执行顺序
 
-- 替换执行核（Nautilus/Lean/Freqtrade）  
-- 多交易所适配器超市  
-- Optuna/Hyperopt 作晋级主路径  
-- 默认 `portfolio_optimization` / checkpoint / recon = true  
-- Agent 改 GitHub visibility  
-- 伪造 T023 日历天 / synthetic 冒充真实 promote  
-- 静默改 B3 `entry_threshold=0.001` 或重写 `baseline3/` / `B4-OOS-*` / `B5-ABL-*`  
+```text
+1) [人·每日] T023 日课 → ingest → status          ← 唯一硬路径
+2) consecutive ≥ 7
+3) [人] T024 真实 evidence + dry promote           ← 仍默认不做 live
+4) [人] Scheme C 决策（Stay B / Start C / Defer）
+5) [空窗] IMP-06…09 或 seal 3× DEFER session
+6) [有假设] 新研究合同（独立 ID）
+```
 
----
-
-## 7. 建议执行顺序（滚动 2 周）
-
-| 日序（UTC） | 动作 |
-|-------------|------|
-| 每天 | §1.1 Path A + streak（直到 7/7） |
-| 任意空档 | §2.1 敏感面 · §2.2 seal session · §2.3 噪音 |
-| consecutive 达 7 当日 | §1.2 evidence export + dry promote |
-| 仅人类决策后 | §3.2 Scheme C 或 live 相关 |
-| 有新研究假设时 | §4 新合同 ID |
-
----
-
-## 8. 一键命令速查
+### 7.1 今日最小动作（T023）
 
 ```bash
-# --- 每日 T023 ---
+set PYTHONUTF8=1
 python scripts/paper_day_session.py
 python scripts/paper_day_streak.py ingest
 python scripts/paper_day_streak.py status --min-days 7
-
-# --- T023 满后 T024 ---
-python scripts/paper_evidence_export.py
-# promote dry-run：按 residual-ops / T024 文档入口
-
-# --- 合同复现（已冻结，勿当新 GO）---
-python scripts/run_baseline4_full_oos.py --run-id B4-OOS-20260810
-python scripts/run_baseline5_ablation_oos.py --run-id B5-ABL-20260810
-
-# --- 卫生 ---
-python scripts/oss_c_gate.py --quick
-git status -sb
 ```
+
+### 7.2 知识面巡检（可选）
+
+```bash
+maestro knowledge audit --scope all --json
+maestro wiki health
+maestro kg sync --json && maestro kg health --json
+```
+
+---
+
+## 8. DEFER 明细
+
+| 项 | 原因 | 解冻条件 |
+|----|------|----------|
+| KOL/Discord 真实群 | 主线优先；管道已就绪默认关 | 主线 ops 稳定 + 明确授权 |
+| 3× running session seal | lifecycle command sha drift | 人决定修协议或归档忽略 |
+| live promote | 样本门 + 风控 | T023/T024 + 人类授权 |
+| 历史 knowledge `pending_observed` 批量 promote | uncorroborated | 逐条人工裁决；见 TIP pending_observed |
 
 ---
 
@@ -205,19 +234,11 @@ git status -sb
 | 日期 | 说明 |
 |------|------|
 | 2026-08-10 | 初版：T023=3/7；B4/B5 KEEP；wave 关；P0–P3 分层 |
-| 2026-08-10 | P1/P2 hygiene：ignore experts-mode；seal 7 sessions；v0.6 文案；download 尝试；见 p1-p2-hygiene-status.md |
-| 2026-08-10 | 全量 completeness audit + kg sync：无强制工程缺口；见 project-completeness-audit-20260810.md |
-| 2026-08-10 | **doable-close**：同日 Path A 刷新仍 3/7；3 session DEFER；knowledge observed DEFER；oss_c 再确认；见 doable-close-20260810.md |
-| 2026-08-11 | **KOL/Discord DEFER**：管道/参考权重/准实时/通知触发已入库，真实群接入冻结至主线完成；见 [kol-discord-deferred-plan.md](./kol-discord-deferred-plan.md) |
-| 2026-08-11 | **BTC overlay 再优化**：primary w=0.30；DD 网格脚本；holdout OOS+；见 [btc-dd-return-optimize-20260811.md](./btc-dd-return-optimize-20260811.md) |
-| 2026-08-11 | **IAF 指标/防未来**：12 正交振荡因子 + causal 单测 + 负向 shift 扫描；**非正式 W-number**；见 [iaf-indicators-anti-leak-20260811.md](./iaf-indicators-anti-leak-20260811.md) |
-| 2026-08-11 | **Team-swarm 对抗设计**：双路径 overlay/TPSL + 因果/门禁共识；见 [team-swarm-iaf-tpsl-adversarial-20260811.md](./team-swarm-iaf-tpsl-adversarial-20260811.md) |
-| 2026-08-11 | **Dual-path Research OS**：统一并列报告/IAF prune/诚实 n_trials/因果预检 **已落地**；见 [dual-path-research-os-20260811.md](./dual-path-research-os-20260811.md) |
-| 2026-08-11 | **TPSL+R:R**：离散 dual-MA 止盈止损；推荐 SL4%/TP10% min_rr2.5 → excess +3.98pp maxDD21% payoff2.5；见 [iaf-tpsl-rr-20260811.md](./iaf-tpsl-rr-20260811.md) |
+| 2026-08-10 | P1/P2 hygiene；doable-close；completeness audit |
+| 2026-08-11 | KOL DEFER；BTC overlay；IAF/TPSL；dual-path OS；team-swarm OSS |
+| 2026-08-11 | IMP-01…05 landed；v0.7.0 release；scratch untrack；kb maintenance |
+| **2026-08-11** | **全面盘点刷新本清单**：P0 仍仅 T023/T024；P1 敏感面/scratch 关闭；3 session DEFER；IMP-06…09 标可选；知识面健康 |
 
-*本清单描述「还剩什么」，不创造新的 W-number 流水线。*
-| 2026-08-11 | **Path B multi-window OOS + IAF prune→CPCV**：honest n_trials / GO_DISCUSS only; IAF never hard-bind；knowledge 10/10 promoted |
-| 2026-08-11 | **Team-swarm×OSS 对抗**：需提升点 P0 晋级指纹/PathB OOS/TCA；P1 meta+PIT+Qlib旁路；否决换引擎 — [team-swarm-oss-improve-20260811.md](./team-swarm-oss-improve-20260811.md) |
-| 2026-08-11 | **OSS 对抗改进计划（IMP-01..05 residual-first）**：[oss-adversarial-improvement-plan-20260811.md](./oss-adversarial-improvement-plan-20260811.md) |
-| 2026-08-11 | **IMP-01/02 landed**：dual-path/path_b_oos promotion_path fingerprint + Path B 6-window cost_attachment |
-| 2026-08-11 | **IMP-03/04/05 landed**：PIT audit + multi-symbol dual-path + session health/ops |
+---
+
+*本清单描述「还剩什么」，不创造新的 W-number 流水线。唯一硬残留是 **T023 日历 streak（3→7）及其后的 T024 真实样本门**。*
