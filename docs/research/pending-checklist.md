@@ -211,5 +211,6 @@ git status -sb
 | 2026-08-11 | **KOL/Discord DEFER**：管道/参考权重/准实时/通知触发已入库，真实群接入冻结至主线完成；见 [kol-discord-deferred-plan.md](./kol-discord-deferred-plan.md) |
 | 2026-08-11 | **BTC overlay 再优化**：primary w=0.30；DD 网格脚本；holdout OOS+；见 [btc-dd-return-optimize-20260811.md](./btc-dd-return-optimize-20260811.md) |
 | 2026-08-11 | **IAF 指标/防未来**：12 正交振荡因子 + causal 单测 + 负向 shift 扫描；**非正式 W-number**；见 [iaf-indicators-anti-leak-20260811.md](./iaf-indicators-anti-leak-20260811.md) |
+| 2026-08-11 | **TPSL+R:R**：离散 dual-MA 止盈止损；推荐 SL4%/TP10% min_rr2.5 → excess +3.98pp maxDD21% payoff2.5；见 [iaf-tpsl-rr-20260811.md](./iaf-tpsl-rr-20260811.md) |
 
 *本清单描述「还剩什么」，不创造新的 W-number 流水线。*
