@@ -1,7 +1,7 @@
 # QuantFlow — public docs & demo pack
 
 **License:** Apache-2.0（见 `LICENSE`）  
-**Engine version (private repo):** v0.6.0 (2026-08-10)  
+**Engine version (private repo):** v0.7.1 (2026-08-11)  
 **Scope:** documentation + synthetic gate examples only.  
 **Not included:** trading engine source, market data, live credentials, private research PnL.
 
@@ -61,7 +61,7 @@ This pack is intentionally **thin** (docs + synthetic samples only) so readers c
 
 Research artifacts (`data/`, live keys, session logs) stay out of both this pack and default gitignore of the engine repo.
 
-## Upstream snapshot (v0.7.0)
+## Upstream snapshot (v0.7.1)
 
 Private core (Intelligent-Trading-System) residual research OS:
 

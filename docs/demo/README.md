@@ -61,4 +61,4 @@ This pack is intentionally **thin** (docs + synthetic samples only) so readers c
 
 Research artifacts (`data/`, live keys, session logs) stay out of both this pack and default gitignore of the engine repo.
 
-> Upstream research OS residual pack: **v0.7.0** (see private repo release notes).
+> Upstream research OS residual pack: **v0.7.1** (see private repo release notes).

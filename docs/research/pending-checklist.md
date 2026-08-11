@@ -1,7 +1,7 @@
 # QuantFlow 待完成事项清单（Pending Checklist）
 
 **As of**: 2026-08-11（全面盘点刷新）  
-**HEAD**: `44ebbaf`+ · **版本**: **v0.7.0**  
+**HEAD**: `012362d` · **版本**: **v0.7.1**  
 **North star**: cost-aware paper-first research OS — not win-rate  
 **工作树**: 干净（`main` = origin）
 
@@ -242,6 +242,7 @@ maestro kg sync --json && maestro kg health --json
 | 2026-08-11 | IMP-01…05 landed；v0.7.0 release；scratch untrack；kb maintenance |
 | 2026-08-11 | **catalog 修复**：B4/B5 funding overlay 移出 strategies/（不再覆盖 funding_rate）+ IMP-07/09 ops 配方 |
 | 2026-08-11 | **经验→结构**：research 公共 API + IMP-06 hard_bind 锁 + Simple DX + learnings knowhow — [README.md](./README.md) |
+| 2026-08-11 | **v0.7.1 cleanup+release** — [cleanup-release-071-20260811.md](./cleanup-release-071-20260811.md) · [v0.7.1.md](../release/v0.7.1.md) |
 | 2026-08-11 | **完善计划 execute**：B1 coverage/backfill · B2 B6-META · B3 orderbook-fill · C1 fixtures — [improvement-plan-20260811.md](./improvement-plan-20260811.md) |
 | 2026-08-11 | **team-swarm 残差**：相对 OSS 短板 = T023/meta/BBO接线（非换引擎）— [team-swarm-gaps-vs-oss-20260811.md](./team-swarm-gaps-vs-oss-20260811.md) |
 | 2026-08-11 | **性能参数复验**：shared_RP +5.14% PAPER-GO · overlay +47pp · PathB NO-GO/GO_DISCUSS — [performance-metrics-verify-20260811.md](./performance-metrics-verify-20260811.md) §8 |

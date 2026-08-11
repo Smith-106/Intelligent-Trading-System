@@ -1,7 +1,7 @@
 # Research docs index (north star)
 
 **North star**: cost-aware paper-first research OS — not win-rate.  
-**Release**: v0.7.0 · **Wave track**: closed (W27); no auto W28.
+**Release**: v0.7.1 · **Wave track**: closed (W27); no auto W28.
 
 ## Start here
 

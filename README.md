@@ -1,6 +1,6 @@
 # QuantFlow
 
-> 当前版本 **v0.7.0** — 详见 [docs/release/v0.7.0.md](docs/release/v0.7.0.md)
+> 当前版本 **v0.7.1** — 详见 [docs/release/v0.7.1.md](docs/release/v0.7.1.md)
 
 个人 Crypto 量化交易系统 — 从策略研究到实盘交易的完整闭环。
 
@@ -392,5 +392,5 @@ risk:
     min_samples: 30
 ```
 
-发布说明：[docs/release/v0.7.0.md](docs/release/v0.7.0.md) · 运维手册：[docs/operations-guide.md](docs/operations-guide.md) · 告警/会话健康：[docs/ops/alert-taxonomy-session-health.md](docs/ops/alert-taxonomy-session-health.md)
+发布说明：[docs/release/v0.7.1.md](docs/release/v0.7.1.md) · 运维手册：[docs/operations-guide.md](docs/operations-guide.md) · 告警/会话健康：[docs/ops/alert-taxonomy-session-health.md](docs/ops/alert-taxonomy-session-health.md)
 
