@@ -31,6 +31,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 OVERLAY = "quantflow/config/paper_baseline0_overlay.yaml"
+ORDERBOOK_OVERLAY = "quantflow/config/paper_day_orderbook_overlay.yaml"
 
 
 def _baseline_symbols_csv() -> str:
@@ -58,7 +59,9 @@ def _run(cmd: list[str], *, check: bool = False) -> subprocess.CompletedProcess[
 
 
 def _preflight() -> int:
-    return _run([sys.executable, str(REPO_ROOT / "scripts" / "preflight_baseline0_paper.py")]).returncode
+    return _run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "preflight_baseline0_paper.py")]
+    ).returncode
 
 
 def _write_summary(payload: dict[str, Any]) -> Path:
@@ -132,9 +135,7 @@ def _attach_baseline_deviation(
                 print(f"[day-session] day metrics load failed: {exc}", flush=True)
 
     snap = load_baseline_snapshot(repo_root=REPO_ROOT)
-    report = evaluate_day_deviation(
-        baseline=snap, day_metrics=metrics, repo_root=REPO_ROOT
-    )
+    report = evaluate_day_deviation(baseline=snap, day_metrics=metrics, repo_root=REPO_ROOT)
     summary["baseline_snapshot"] = {
         "id": snap.get("baseline_id"),
         "decision": snap.get("decision"),
@@ -199,7 +200,26 @@ def main() -> int:
         default="",
         help="Optional Path A metrics JSON for diagnostic PnL band vs Baseline full RP",
     )
+    ap.add_argument(
+        "--orderbook-fill",
+        action="store_true",
+        help=(
+            "Wave B3: use paper_day_orderbook_overlay (orderbook_fill + bbo_poll). "
+            "Default OFF. Requires --config only if you need a custom path; "
+            "this flag overrides --config to the orderbook overlay."
+        ),
+    )
     args = ap.parse_args()
+
+    # B3: optional orderbook-fill path — never the silent default.
+    if args.orderbook_fill:
+        if args.config == OVERLAY:
+            args.config = ORDERBOOK_OVERLAY
+        print(
+            f"[day-session] orderbook-fill ON → config={args.config} "
+            "(bbo_poll + orderbook_fill; still paper-only)",
+            flush=True,
+        )
 
     started = datetime.now(UTC).isoformat()
     t0 = time.time()
@@ -227,6 +247,8 @@ def main() -> int:
             "config": args.config,
             "mode": "paper",
             "fee_slip": "0.001/0.001 via overlay",
+            "orderbook_fill": bool(args.orderbook_fill),
+            "bbo_poll_requested": bool(args.orderbook_fill),
         },
         "commands": {
             "preflight": "python scripts/preflight_baseline0_paper.py",
@@ -237,8 +259,7 @@ def main() -> int:
             ),
             "research_path_b": "python scripts/run_baseline0.py",
             "batch_gate": (
-                "python scripts/batch_gate_pipeline.py "
-                f"--strategies {args.batch_strategies}"
+                f"python scripts/batch_gate_pipeline.py --strategies {args.batch_strategies}"
             ),
         },
     }
@@ -249,8 +270,8 @@ def main() -> int:
             day_metrics_path=args.day_metrics or None,
         )
         summary["commands"]["deviation"] = (
-            "python -c \"from quantflow.strategy.research.day_deviation import "
-            "evaluate_day_deviation; print(evaluate_day_deviation())\""
+            'python -c "from quantflow.strategy.research.day_deviation import '
+            'evaluate_day_deviation; print(evaluate_day_deviation())"'
         )
 
     summary_path = _write_summary(summary)
@@ -275,9 +296,7 @@ def main() -> int:
         ]
         batch_rc = _run(batch_cmd).returncode
         summary["batch_gate_rc"] = batch_rc
-        summary["batch_gate_out"] = str(batch_out.relative_to(REPO_ROOT)).replace(
-            "\\", "/"
-        )
+        summary["batch_gate_out"] = str(batch_out.relative_to(REPO_ROOT)).replace("\\", "/")
         if batch_rc != 0:
             summary["status"] = "batch_gate_failed"
             summary["note"] = "batch_gate_pipeline returned non-zero"

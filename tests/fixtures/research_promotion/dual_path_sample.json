@@ -1,0 +1,26 @@
+{
+  "contract": {
+    "kind": "dual_path_research_os",
+    "fixture": true
+  },
+  "run_meta": {
+    "promotion_eligible": false,
+    "hard_bind_entry": false
+  },
+  "paths": {
+    "path_a": {
+      "promotion_eligible": false,
+      "gate": "PASS"
+    },
+    "path_b": {
+      "promotion_eligible": false,
+      "validation": {
+        "decision": "NO-GO"
+      }
+    }
+  },
+  "honesty": {
+    "no_combined_score": true,
+    "promotion_eligible": false
+  }
+}

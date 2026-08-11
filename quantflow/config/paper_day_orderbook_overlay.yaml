@@ -1,0 +1,31 @@
+# Paper day-session overlay: Baseline-0 paper book + optional orderbook fill + BBO poll.
+# DEFAULT OFF in paper_day_session — pass --orderbook-fill to select this config.
+#
+# Does NOT replace default.yaml. Does NOT enable live.
+# Merge semantics: load_config deep-merges this file as the active config path
+# when used with quantflow run --config ...
+
+execution:
+  mode: paper
+  taker_fee: 0.001
+  maker_fee: 0.0008
+  slippage: 0.001
+  market_type: spot
+  # BBO poll → TradingSession.push_ticker_bbo → PaperGateway.update_orderbook path
+  bbo_poll_enabled: true
+  bbo_poll_interval_s: 5.0
+  orderbook_fill_enabled: true
+  orderbook_fill:
+    enabled: true
+    extra_slippage: 0.0
+    bbo_max_age_sec: 5.0
+
+risk:
+  portfolio_optimization:
+    enabled: true
+    method: risk_parity
+    level: symbol
+    vol_window: 30
+    min_samples: 30
+    rebalance_every_n_bars: 48
+    fallback: equal

@@ -28,6 +28,7 @@
 | P2 | 人审 | OSS Scheme C 决策（Stay B / Start C / Defer） | gate 绿 · **未决策** | 否；**禁 agent 改 visibility** | **人** |
 | P3 | 研究 | 新信号合同（仅当有假设） | 空闲 | 否；**独立合同 ID** | 人+agent |
 | 可选 | 工程 | IMP-06…09 polish | **06/07/09 landed · 08 partial** | 否 | — |
+| P1 | 工程 | **完善计划 Wave B/C**（meta/BBO/CI） | **in progress → land this commit** | 否 | agent |
 | **DEFER** | 旁路 | KOL/Discord 真实群接入 | 管道就绪默认关 | 主线后 | 人+agent |
 | — | 关闭 | W17–W27 / B1–B5 / IMP-01…05 / v0.7.0 | **已完成** | — | — |
 
@@ -239,6 +240,7 @@ maestro kg sync --json && maestro kg health --json
 | 2026-08-11 | IMP-01…05 landed；v0.7.0 release；scratch untrack；kb maintenance |
 | 2026-08-11 | **catalog 修复**：B4/B5 funding overlay 移出 strategies/（不再覆盖 funding_rate）+ IMP-07/09 ops 配方 |
 | 2026-08-11 | **经验→结构**：research 公共 API + IMP-06 hard_bind 锁 + Simple DX + learnings knowhow — [README.md](./README.md) |
+| 2026-08-11 | **完善计划 execute**：B1 coverage/backfill · B2 B6-META · B3 orderbook-fill · C1 fixtures — [improvement-plan-20260811.md](./improvement-plan-20260811.md) |
 | 2026-08-11 | **team-swarm 残差**：相对 OSS 短板 = T023/meta/BBO接线（非换引擎）— [team-swarm-gaps-vs-oss-20260811.md](./team-swarm-gaps-vs-oss-20260811.md) |
 | 2026-08-11 | **性能参数复验**：shared_RP +5.14% PAPER-GO · overlay +47pp · PathB NO-GO/GO_DISCUSS — [performance-metrics-verify-20260811.md](./performance-metrics-verify-20260811.md) §8 |
 | 2026-08-11 | **性能指标验证**：multi_symbol_replay + B0 PAPER-GO + overlay/PathB 面板 — [performance-metrics-verify-20260811.md](./performance-metrics-verify-20260811.md) |

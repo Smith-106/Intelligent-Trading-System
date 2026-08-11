@@ -1,0 +1,12 @@
+{
+  "promotion_eligible": false,
+  "hard_bind_entry": false,
+  "research_go": "GO_DISCUSS",
+  "execution_path": "vectorized",
+  "fixture": true,
+  "n_trials_accounted": 69,
+  "summary": {
+    "n_windows": 6,
+    "frac_beat_btc": 0.5
+  }
+}

@@ -56,3 +56,16 @@ Without BBO updates, fills **fall back** to last price + flat slippage (safe deg
 - [w16-paper-fill-and-strategy-dx.md](../research/w16-paper-fill-and-strategy-dx.md)
 - [w17-orderbook-microstructure.md](../research/w17-orderbook-microstructure.md)
 - Baseline paper overlay: `quantflow/config/paper_baseline0_overlay.yaml`
+
+## Day-session flag (Wave B3)
+
+```bash
+set PYTHONUTF8=1
+python scripts/paper_day_session.py --orderbook-fill
+# with hand-off:
+python scripts/paper_day_session.py --orderbook-fill --start-run
+```
+
+Selects `quantflow/config/paper_day_orderbook_overlay.yaml` (orderbook_fill + bbo_poll).
+Default day-session remains baseline0 overlay without orderbook fill.
+
