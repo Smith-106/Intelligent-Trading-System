@@ -344,6 +344,97 @@ Discord 帮助中心 [Automated User Accounts (Self-Bots)](https://support.disco
 
 ---
 
-## 10. 一句话
+## 10. 事件触发：通知有更新 → 再拉消息（推荐增强）
 
-> **第三方「导出」很多，但「无管理员真·实时 SaaS」几乎没有；浏览器扩展适合手动，连续准实时仍靠 DCE+计划任务，秒级仍要管理员 Bot。**
+### 10.1 思路
+
+固定每 3 分钟全量/大窗导出 = 浪费 + 易限速。  
+更好：
+
+```text
+[外部「有新消息」信号]  ──防抖 45s──►  增量 DCE(--after 游标)
+        │                                    │
+        │                                    ▼
+        │                         export → consensus → reference
+        │
+        └─ 信号来源（任选其一，不必 Discord Gateway）
+```
+
+| 通知源 | 成员可做？ | 说明 |
+|--------|------------|------|
+| **Discord 桌面/手机通知** → 本机钩子 | 是 | 看到 toast 再拉；可用 Power Automate / 辅助工具写 stamp 文件 |
+| **文件 inbox** | 是 | 任意程序 `New-Item data/kol_notify_inbox/ping` 即触发 |
+| **转发到你自己的服 / TG / webhook** | 要管理员装转发 **或** 你人工转发 | 你方 webhook 收到后调脚本 |
+| **Kolunite 官方 Bot 事件** | 要管理员 | 真 Gateway；本仓库 `poll` |
+| **用户 Token 常驻 Gateway** | 技术上可 | **违 ToS，QuantFlow 不做** |
+
+核心：**通知只负责「叫醒」；真正读消息仍走 DCE 导出或 Bot poll。**  
+没有「Discord 直接把频道事件推给成员脚本」的官方通道。
+
+### 10.2 仓库脚本
+
+| 脚本 | 作用 |
+|------|------|
+| `scripts/kol_on_notify_pull.ps1` | 防抖 + 锁 + **按频道游标 `--after` 增量导出** + ingest |
+| `scripts/kol_notify_watch_folder.ps1` | 监视 `data/kol_notify_inbox/`，落盘即触发 |
+| `scripts/kol_export_loop.ps1` | 仍可作兜底定时全扫 |
+
+游标文件：`data/kol_signals/export_cursors.json`（gitignore）。  
+首次无游标时默认只拉最近 `LookbackMinutes`（默认 5 分钟），避免一次拉整史。
+
+### 10.3 用法
+
+**A. 手动 / 外部程序直接调**
+
+```powershell
+$env:DISCORD_USER_TOKEN = "本机"
+pwsh -File .\scripts\kol_on_notify_pull.ps1
+# 只拉一个频道：
+pwsh -File .\scripts\kol_on_notify_pull.ps1 -ChannelId 123456789012345678
+```
+
+**B. 文件夹触发（最简单挂钩）**
+
+```powershell
+# 终端 1：常驻监视
+pwsh -File .\scripts\kol_notify_watch_folder.ps1
+
+# 终端 2 / Power Automate / 任意钩子：有通知时
+New-Item .\data\kol_notify_inbox\ping.txt
+# 或按频道：
+New-Item .\data\kol_notify_inbox\123456789012345678.ping
+```
+
+**C. 与定时兜底组合**
+
+```text
+通知触发：kol_on_notify_pull（增量，快）
+每 15～30 分钟：kol_export_loop -Once（补漏，防漏通知）
+```
+
+### 10.4 防抖 / 锁
+
+- **DebounceSeconds=45**：连弹多条 toast 只拉一次  
+- **on_notify.lock**：避免两次导出并行撞限速  
+- 成功后把该频道 `last_after` 推到「当前 UTC」，下次只拉更新
+
+### 10.5 延迟预期
+
+| 环节 | 大约 |
+|------|------|
+| 通知出现 | 秒级（Discord 客户端） |
+| 防抖 | 0～45s |
+| 增量 DCE + 解析 | 数秒～数十秒（视附件） |
+| **端到端** | 通常 **30s～2min**，优于固定 3min 盲扫 |
+
+### 10.6 和「真实时」差别
+
+- 仍依赖 **用户 Token 导出**（ToS 风险）或以后换成 **Bot poll**  
+- 通知漏了 → 靠定时兜底  
+- 不是交易所 tick；足够 **参考权重**
+
+---
+
+## 11. 一句话
+
+> **「有通知再拉」= 外部叫醒 + 防抖 + 增量 DCE；比盲轮询更省、更快，但仍不是官方 Gateway；无管理员时这是成员侧最接近实时的务实架构。**
