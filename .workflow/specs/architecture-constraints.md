@@ -1191,3 +1191,27 @@ Do not mass-promote uncorroborated pending_observed
 No backfill/forge streak days
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-6c49109795969619" title="Run T024 dry-run while short to prove fail-closed floors" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, report.md#decision:D-002" source="session:20260811-t023-ops-20260811-112304:KDC-6c49109795969619">
+
+### Run T024 dry-run while short to prove fail-closed floors
+
+Run T024 dry-run while short to prove fail-closed floors
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6c586f79e2f3b6c5" title="No live promote without human authorization" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, report.md#constraint:C-002" source="session:20260811-t023-ops-20260811-112304:KDC-6c586f79e2f3b6c5">
+
+### No live promote without human authorization
+
+No live promote without human authorization
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-9e130f8a12708897" title="Credit 2026-08-11 after PREFLIGHT OK day-session only" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, report.md#decision:D-001" source="session:20260811-t023-ops-20260811-112304:KDC-9e130f8a12708897">
+
+### Credit 2026-08-11 after PREFLIGHT OK day-session only
+
+Credit 2026-08-11 after PREFLIGHT OK day-session only
+
+</spec-entry>
