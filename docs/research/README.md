@@ -1,0 +1,38 @@
+# Research docs index (north star)
+
+**North star**: cost-aware paper-first research OS — not win-rate.  
+**Release**: v0.7.0 · **Wave track**: closed (W27); no auto W28.
+
+## Start here
+
+| Doc | Why |
+|-----|-----|
+| [pending-checklist.md](./pending-checklist.md) | **唯一待办权威**：P0=T023/T024 运营 |
+| [performance-metrics-verify-20260811.md](./performance-metrics-verify-20260811.md) | 组合/overlay/PathB 性能面板 |
+| [market-capability-verify-20260811.md](./market-capability-verify-20260811.md) | 研究栈能力冒烟 |
+| [dual-path-research-os-20260811.md](./dual-path-research-os-20260811.md) | 双路径 OS 设计 |
+| [oss-adversarial-improvement-plan-20260811.md](./oss-adversarial-improvement-plan-20260811.md) | IMP-01…05 landed · 06–09 optional |
+| [btc-dd-return-optimize-20260811.md](./btc-dd-return-optimize-20260811.md) | Path A primary **w=0.30** |
+| [Candidate-Baseline-0.md](./Candidate-Baseline-0.md) · [Candidate-Baseline-0-results.md](./Candidate-Baseline-0-results.md) | B0 合同与 PAPER-GO 结果 |
+| [how-to-close-p0-p3.md](./how-to-close-p0-p3.md) | 日课→T024 操作手册 |
+| [t023-wall-clock-status.md](./t023-wall-clock-status.md) | streak 墙钟 |
+
+## Path map
+
+```text
+paper_replay  ── multi_symbol_replay / B0 ──► PAPER-GO candidate (ops T023/T024)
+vectorized    ── dual-path / overlay / path_b_oos ──► research only (no promote)
+live          ── needs human + sample floors ──► default OFF
+```
+
+## Frozen contracts (do not silently edit)
+
+- B0 / B3 / B4 / B5 KEEP  
+- No `combined_score`  
+- IAF `hard_bind_entry=false`  
+- Research `promotion_eligible=false` until paper path  
+
+## Learnings distill
+
+Workflow knowhow: `.workflow/knowhow/DOC-20260811-learnings-params-structure.md`  
+(also linked from Knowledge Hub after promote/sync)

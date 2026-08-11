@@ -1,6 +1,8 @@
 metadata:
   title: "Simple (thin DX)"
-  description: "Jesse-style thin template — override should_long/should_short (W16)"
+  description: >-
+    Jesse-style thin template — override should_long/should_short/should_exit_*;
+    default long-only SMA (W16 DX; research→paper shared hooks)
 
 param_space:
   fast_period: [5, 20]

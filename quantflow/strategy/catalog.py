@@ -116,7 +116,10 @@ def _get_factory_registry() -> dict[str, StrategyFactory]:
 
 _DEFAULT_DESCRIPTIONS = {
     "trend_following": "MA crossover, MACD, RSI, ATR, volume multi-filter trend strategy",
-    "simple": "Jesse-style thin template (should_long/should_short hooks; W16 DX)",
+    "simple": (
+        "Jesse-style thin template — override should_long/should_short/should_exit_*; "
+        "default long-only SMA (W16 DX; research→paper shared hooks)"
+    ),
     "mean_reversion": "RSI plus Bollinger Band mean reversion with volume confirmation",
     "elliott_wave": "Wave-structure strategy with ZigZag consensus and Fibonacci rules",
     "volatility_breakout": "ATR and channel breakout strategy tuned for crypto volatility",
@@ -124,8 +127,7 @@ _DEFAULT_DESCRIPTIONS = {
     "momentum_rotation": "Cross-asset momentum ranking and periodic rotation strategy",
     "ml_ensemble": "Model-driven ensemble signals with configurable thresholds",
     "ai_factor": (
-        "Registry-driven AI factor strategy — model P(up) gates momentum signals "
-        "(s4 T-s4-03)"
+        "Registry-driven AI factor strategy — model P(up) gates momentum signals (s4 T-s4-03)"
     ),
     "spot_perp_arb": (
         "Funding-rate extreme symmetric spot-perp prototype — synthetic-data "

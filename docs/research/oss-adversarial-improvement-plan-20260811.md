@@ -115,9 +115,9 @@
 
 | ID | 内容 | 何时做 |
 |----|------|--------|
-| IMP-06 | IAF hard_bind e2e 回归锁进 dual-path suite | 与 IMP-01/02 同 PR 可顺手 |
+| IMP-06 | IAF hard_bind e2e 回归锁进 dual-path suite | **landed 2026-08-11** (`tests/unit/test_imp06_hard_bind_lock.py`) |
 | IMP-07 | AI bypass ops 文档 + 离线 job 配方 | 有人要跑 RD-Agent 时 |
-| IMP-08 | SimpleStrategy catalog 抛光 | DX 抱怨时 |
+| IMP-08 | SimpleStrategy catalog 抛光 | **partial 2026-08-11** (catalog+yaml description) |
 | IMP-09 | paper_replay orderbook_fill 推荐 overlay YAML | 保真实验时 |
 
 ---

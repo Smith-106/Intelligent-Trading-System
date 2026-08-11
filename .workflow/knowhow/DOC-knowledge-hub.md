@@ -11,6 +11,7 @@ related:
   - knowhow-doc-20260810-residual-ops-t023-wave-close
   - knowhow-tip-20260810-wiki-kg-false-positive-broken-links
   - knowhow-doc-20260811-imp-residual-research-os-v070
+  - knowhow-doc-20260811-learnings-params-structure
   - knowhow-tip-20260811-knowledge-pending-observed-not-auto-promote
 ---
 ---
@@ -48,6 +49,7 @@ related:
   - knowhow-doc-20260810-residual-ops-t023-wave-close
   - knowhow-tip-20260810-wiki-kg-false-positive-broken-links
   - knowhow-doc-20260811-imp-residual-research-os-v070
+  - knowhow-doc-20260811-learnings-params-structure
   - knowhow-tip-20260811-knowledge-pending-observed-not-auto-promote
   - roadmap-roadmap
 ---
