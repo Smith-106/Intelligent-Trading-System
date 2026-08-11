@@ -1295,3 +1295,43 @@ Use multi_symbol_replay full window as primary portfolio performance panel
 Land IMP-06 via test_imp06_hard_bind_lock.py
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-61fd2baf5a9748b8" title="No combined_score; B0 freeze untouched" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-003" source="session:20260811-learn-opt-struct-20260811-124137:KDC-61fd2baf5a9748b8">
+
+### No combined_score; B0 freeze untouched
+
+No combined_score; B0 freeze untouched
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-b0a80762d62f2293" title="Do not re-sweep overlay_weight away from 0.30 without new cost matrix evidence" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001" source="session:20260811-learn-opt-struct-20260811-124137:KDC-b0a80762d62f2293">
+
+### Do not re-sweep overlay_weight away from 0.30 without new cost matrix evidence
+
+Do not re-sweep overlay_weight away from 0.30 without new cost matrix evidence
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c1055a8731dca0cf" title="Export dual-path research surface from quantflow.strategy.research" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002" source="session:20260811-learn-opt-struct-20260811-124137:KDC-c1055a8731dca0cf">
+
+### Export dual-path research surface from quantflow.strategy.research
+
+Export dual-path research surface from quantflow.strategy.research
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c52d933ce0a1e6cb" title="Optimize structure and regression locks rather than alpha re-search this session" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001" source="session:20260811-learn-opt-struct-20260811-124137:KDC-c52d933ce0a1e6cb">
+
+### Optimize structure and regression locks rather than alpha re-search this session
+
+Optimize structure and regression locks rather than alpha re-search this session
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-d1651d9fe4f9d813" title="hard_bind_entry must remain false on research OS surfaces" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-002" source="session:20260811-learn-opt-struct-20260811-124137:KDC-d1651d9fe4f9d813">
+
+### hard_bind_entry must remain false on research OS surfaces
+
+hard_bind_entry must remain false on research OS surfaces
+
+</spec-entry>
