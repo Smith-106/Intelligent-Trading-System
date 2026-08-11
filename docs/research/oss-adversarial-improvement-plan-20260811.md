@@ -195,3 +195,19 @@ python -m pytest tests/unit/test_promotion_path.py tests/unit/test_path_b_oos.py
 ---
 
 *Plan only. Implementation belongs to a subsequent execute session.*
+
+## 9. Execution status (2026-08-11)
+
+| Wave | Status | Evidence |
+|------|--------|----------|
+| **IMP-01** | **landed** | `build_dual_path_report` attaches `attachments.promotion_path` + fingerprint; path_b_oos `checks.promotion_path`; honest `execution_path=vectorized`; register gate still refuses vectorized |
+| **IMP-02** | **landed** | default `--n-windows 6`; `cost_attachment` fee_slip_grid + funding_tca; optional `--compare-modes`; pin `path_b_oos_v2.json` GO_DISCUSS n_trials=69 |
+
+Reproduce:
+
+```bash
+set PYTHONUTF8=1
+python scripts/run_path_b_oos.py --n-windows 6 --out data/paper_replay/dual_path/path_b_oos_v2.json
+python -m pytest tests/unit/test_dual_path_report.py tests/unit/test_path_b_oos.py -q
+```
+

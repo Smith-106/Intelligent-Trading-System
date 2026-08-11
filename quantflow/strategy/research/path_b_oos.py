@@ -159,6 +159,55 @@ def _is_select_params(
     return best
 
 
+def build_path_b_cost_attachment(
+    *,
+    fee: float,
+    slip: float,
+    funding_mode: str = "assumption",
+) -> dict[str, Any]:
+    """IMP-02: fee x slip grid + funding_tca structure (research attachment)."""
+    from quantflow.strategy.validation.cost_fidelity import (
+        DEFAULT_SLIPPAGE,
+        DEFAULT_TAKER_FEE,
+        build_funding_tca,
+    )
+
+    f = float(fee)
+    s = float(slip)
+    # Minimal honest grid: zero + profile + default production cell
+    cells = {
+        (0.0, 0.0),
+        (f, s),
+        (float(DEFAULT_TAKER_FEE), float(DEFAULT_SLIPPAGE)),
+    }
+    fee_slip_grid = [
+        {
+            "taker_fee": cf,
+            "slippage": cs,
+            "label": (
+                "zero"
+                if cf == 0.0 and cs == 0.0
+                else ("profile" if cf == f and cs == s else "production_default")
+            ),
+        }
+        for cf, cs in sorted(cells)
+    ]
+    funding_tca = build_funding_tca(
+        mode=funding_mode,
+        notes=(
+            "IMP-02 Path B OOS research attachment; assumption mode when "
+            "measured funding series not injected"
+        ),
+    )
+    return {
+        "fee_slip_grid": fee_slip_grid,
+        "funding_tca": funding_tca,
+        "profile_fee": f,
+        "profile_slip": s,
+        "note": "structure for cost narrative; not a paper_replay GO package",
+    }
+
+
 def run_path_b_multi_window_oos(
     df: pd.DataFrame,
     *,
@@ -170,6 +219,9 @@ def run_path_b_multi_window_oos(
     fixed_params: bool = False,
     claimed_n_trials: int | None = None,
     max_is_candidates: int = 12,
+    data_fingerprint: dict[str, Any] | str | None = None,
+    include_cost_attachment: bool = True,
+    compare_modes: bool = False,
 ) -> dict[str, Any]:
     """Multi-window OOS for Path B TPSL with honest n_trials accounting.
 
@@ -180,6 +232,10 @@ def run_path_b_multi_window_oos(
     - median OOS maxDD is finite
 
     ``promotion_eligible`` is always False.
+
+    IMP-01/02: attaches honest vectorized promotion_path + optional cost block.
+    When ``compare_modes`` is True, also runs the alternate mode (rolling↔anchored)
+    and stores summary under ``mode_compare`` (does not merge scores).
     """
     if df is None or df.empty or "close" not in df.columns:
         raise ValueError("df with close required (fail-closed)")
@@ -187,6 +243,45 @@ def run_path_b_multi_window_oos(
         raise ValueError("n_windows must be >= 2 for multi-window OOS")
     if not (0.05 <= oos_ratio <= 0.5):
         raise ValueError("oos_ratio must be in [0.05, 0.5]")
+
+    if compare_modes:
+        primary = run_path_b_multi_window_oos(
+            df,
+            profile=profile,
+            n_windows=n_windows,
+            oos_ratio=oos_ratio,
+            mode=mode,
+            param_space=param_space,
+            fixed_params=fixed_params,
+            claimed_n_trials=claimed_n_trials,
+            max_is_candidates=max_is_candidates,
+            data_fingerprint=data_fingerprint,
+            include_cost_attachment=include_cost_attachment,
+            compare_modes=False,
+        )
+        alt_mode = "anchored" if mode == "rolling" else "rolling"
+        alt = run_path_b_multi_window_oos(
+            df,
+            profile=profile,
+            n_windows=n_windows,
+            oos_ratio=oos_ratio,
+            mode=alt_mode,
+            param_space=param_space,
+            fixed_params=fixed_params,
+            claimed_n_trials=claimed_n_trials,
+            max_is_candidates=max_is_candidates,
+            data_fingerprint=data_fingerprint,
+            include_cost_attachment=False,
+            compare_modes=False,
+        )
+        primary["mode_compare"] = {
+            "primary_mode": mode,
+            "alternate_mode": alt_mode,
+            "alternate_summary": alt.get("summary"),
+            "alternate_research_go": alt.get("research_go"),
+            "note": "dual-mode compare; not a combined_score",
+        }
+        return primary
 
     prof = profile or path_b_profile()
     fast = int(prof["fast"])
@@ -322,7 +417,21 @@ def run_path_b_multi_window_oos(
         research_go = "NO-GO"
         go_discussion_allowed = False
 
-    return {
+    # IMP-01: honest research path + fingerprint (not paper_replay GO)
+    fp = data_fingerprint
+    if fp is None and "timestamp" in df.columns:
+        try:
+            from quantflow.strategy.research.contract_pin import fingerprint_ohlcv
+
+            fp = {"aggregate": fingerprint_ohlcv(df), "source": "path_b_oos_slice"}
+        except Exception:
+            fp = {"aggregate": f"bars:{len(df)}", "source": "fallback_len"}
+
+    cost_attachment = None
+    if include_cost_attachment:
+        cost_attachment = build_path_b_cost_attachment(fee=fee, slip=slip)
+
+    out: dict[str, Any] = {
         "promotion_eligible": False,
         "hard_bind_entry": False,
         "research_go": research_go,
@@ -330,6 +439,20 @@ def run_path_b_multi_window_oos(
         "n_trials_accounted": acc.n_trials_accounted,
         "n_trials_breakdown": acc.breakdown,
         "underreported": acc.underreported,
+        "execution_path": "vectorized",
+        "data_fingerprint": fp,
+        "checks": {
+            "promotion_path": {
+                "execution_path": "vectorized",
+                "data_fingerprint": fp,
+                "promotion_eligible": False,
+                "register_ready": False,
+                "rule": (
+                    "IMP-01: Path B OOS is research vectorized multi-window; "
+                    "paper_replay required for any register/GO narrative"
+                ),
+            }
+        },
         "notes": [
             *list(acc.notes),
             "GO_DISCUSS means research discussion only; never auto-promote",
@@ -342,6 +465,8 @@ def run_path_b_multi_window_oos(
             "median_oos_excess_pct": median_excess,
             "median_oos_max_dd_pct": median_dd,
             "mean_oos_excess_pct": float(np.mean(excesses)),
+            "requested_n_windows": int(n_windows),
+            "mode": mode,
         },
         "windows": [w.to_dict() for w in windows],
         "profile": {
@@ -355,3 +480,8 @@ def run_path_b_multi_window_oos(
         },
         "param_space": {k: list(v) for k, v in space.items()},
     }
+    if cost_attachment is not None:
+        out["cost_attachment"] = cost_attachment
+        out["fee_slip_grid"] = cost_attachment["fee_slip_grid"]
+        out["funding_tca"] = cost_attachment["funding_tca"]
+    return out

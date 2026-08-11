@@ -11,11 +11,18 @@ from quantflow.strategy.research.dual_path_report import (
     CONTRACT_ID,
     assert_no_combined_score,
     build_dual_path_report,
+    dual_path_report_to_promotion_view,
     from_overlay_eval,
     from_tpsl_eval,
     to_json,
     to_markdown,
     write_report,
+)
+from quantflow.strategy.validation.promotion_path import (
+    PromotionPathError,
+    assert_promotion_path_ready,
+    extract_data_fingerprint,
+    extract_execution_path,
 )
 
 
@@ -96,3 +103,31 @@ def test_write_report(tmp_path: Path) -> None:
     assert mp.is_file()
     assert "DUAL-PATH-RESEARCH-OS" in to_json(r)
     assert "Path A" in mp.read_text(encoding="utf-8")
+
+
+def test_imp01_attaches_fingerprint_and_honest_path() -> None:
+    r = build_dual_path_report(
+        path_a={"metrics": {"excess_return_pct": 1.0}},
+        path_b={"metrics": {"excess_return_pct": 2.0}},
+        data_fingerprint={"aggregate": "deadbeef", "bars": 10},
+    )
+    d = r.to_dict()
+    assert d["run_meta"]["execution_path"] == "vectorized"
+    assert d["run_meta"]["data_fingerprint"]["aggregate"] == "deadbeef"
+    promo = d["attachments"]["promotion_path"]
+    assert promo["promotion_eligible"] is False
+    assert promo["register_ready"] is False
+    assert promo["data_fingerprint"]["aggregate"] == "deadbeef"
+
+    view = dual_path_report_to_promotion_view(r)
+    assert extract_execution_path(view) == "vectorized"
+    assert extract_data_fingerprint(view) is not None
+    # Research vectorized path must NOT pass register gate
+    with pytest.raises(PromotionPathError):
+        assert_promotion_path_ready(view)
+
+    # Forced paper view only for attach helper tests — still needs fingerprint
+    paper_view = dual_path_report_to_promotion_view(r, force_paper_path=True)
+    assert extract_execution_path(paper_view) == "paper_replay"
+    ok = assert_promotion_path_ready(paper_view)
+    assert ok["passed"] is True

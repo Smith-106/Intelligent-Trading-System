@@ -134,6 +134,16 @@ def main() -> int:
     overlay_block = _run_path_a(close, pa)
     tpsl_block = _run_path_b(df, pb)
 
+    from quantflow.strategy.research.contract_pin import fingerprint_ohlcv
+
+    data_fp = {
+        "aggregate": fingerprint_ohlcv(df),
+        "symbol": "BTC/USDT",
+        "timeframe": "1h",
+        "start": args.start,
+        "end": args.end,
+        "bars": len(df),
+    }
     report = build_dual_path_report(
         path_a=from_overlay_eval(overlay_block, profile=pa),
         path_b=from_tpsl_eval(tpsl_block, profile=pb),
@@ -142,8 +152,22 @@ def main() -> int:
             "btc_hodl": overlay_block.get("btc_hodl"),
         },
         attachments={
-            "cost": {"fee": pa["fee"], "slip": pa["slip"], "note": "taker both paths"},
+            "cost": {
+                "fee": pa["fee"],
+                "slip": pa["slip"],
+                "note": "taker both paths",
+                "fee_slip_grid": [
+                    {"taker_fee": 0.0, "slippage": 0.0, "label": "zero"},
+                    {
+                        "taker_fee": float(pa["fee"]),
+                        "slippage": float(pa["slip"]),
+                        "label": "profile",
+                    },
+                ],
+            },
         },
+        data_fingerprint=data_fp,
+        execution_path="vectorized",
     )
 
     md_path = args.md

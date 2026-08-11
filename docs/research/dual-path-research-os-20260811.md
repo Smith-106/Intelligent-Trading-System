@@ -112,3 +112,9 @@ python scripts/run_iaf_prune_cpcv.py --out data/paper_replay/dual_path/iaf_prune
 
 Session `20260811-iaf-adversarial-closeout-20260811-080734`: 10/10 candidates promoted (pending=0).
 
+## 6. IMP-01/02 residual landings
+
+- Dual-path reports attach **honest** `execution_path=vectorized` + `data_fingerprint` (not paper_replay GO).
+- Path B OOS default 6 windows + `cost_attachment` (fee_slip_grid + funding_tca assumption).
+- `promotion_eligible` remains false; vectorized path fails `assert_promotion_path_ready` by design.
+

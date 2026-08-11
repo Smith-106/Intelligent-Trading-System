@@ -24,10 +24,21 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--start", default="2021-01-01")
     ap.add_argument("--end", default="2026-08-04")
-    ap.add_argument("--n-windows", type=int, default=4)
+    ap.add_argument(
+        "--n-windows",
+        type=int,
+        default=6,
+        help="IMP-02 default 6 multi-window OOS slices",
+    )
     ap.add_argument("--oos-ratio", type=float, default=0.3)
     ap.add_argument("--mode", choices=["rolling", "anchored"], default="rolling")
     ap.add_argument("--fixed-params", action="store_true")
+    ap.add_argument(
+        "--compare-modes",
+        action="store_true",
+        help="Also run alternate rolling/anchored mode (no combined_score)",
+    )
+    ap.add_argument("--no-cost-attachment", action="store_true")
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     args = ap.parse_args()
 
@@ -42,6 +53,17 @@ def main() -> int:
         return 2
     df = df.sort_values("timestamp").reset_index(drop=True)
 
+    from quantflow.strategy.research.contract_pin import fingerprint_ohlcv
+
+    data_fp = {
+        "aggregate": fingerprint_ohlcv(df),
+        "symbol": "BTC/USDT",
+        "timeframe": "1h",
+        "start": args.start,
+        "end": args.end,
+        "bars": len(df),
+    }
+
     rep = run_path_b_multi_window_oos(
         df,
         profile=path_b_profile(),
@@ -49,9 +71,15 @@ def main() -> int:
         oos_ratio=args.oos_ratio,
         mode=args.mode,
         fixed_params=args.fixed_params,
+        data_fingerprint=data_fp,
+        include_cost_attachment=not args.no_cost_attachment,
+        compare_modes=args.compare_modes,
     )
     assert rep.get("promotion_eligible") is False
     assert "combined_score" not in rep
+    assert rep.get("checks", {}).get("promotion_path", {}).get("data_fingerprint") is not None
+    if not args.no_cost_attachment:
+        assert "cost_attachment" in rep and "fee_slip_grid" in rep
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(rep, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -64,6 +92,17 @@ def main() -> int:
         f"windows={s['n_windows_eval']} frac_beat_btc={s['frac_beat_btc']:.2f} "
         f"median_excess={s['median_oos_excess_pct']:.4f} median_dd={s['median_oos_max_dd_pct']:.4f}"
     )
+    print(
+        f"execution_path={rep.get('execution_path')} "
+        f"fp={((rep.get('data_fingerprint') or {}) if isinstance(rep.get('data_fingerprint'), dict) else {}).get('aggregate', rep.get('data_fingerprint'))}"
+    )
+    if rep.get("cost_attachment"):
+        print(f"cost_attachment fee_slip rows={len(rep['fee_slip_grid'])} funding_mode={rep['funding_tca'].get('mode')}")
+    if rep.get("mode_compare"):
+        print(
+            f"mode_compare alt={rep['mode_compare'].get('alternate_mode')} "
+            f"alt_go={rep['mode_compare'].get('alternate_research_go')}"
+        )
     print(f"promotion_eligible={rep['promotion_eligible']} hard_bind_entry={rep['hard_bind_entry']}")
     print(f"written {args.out}")
     return 0

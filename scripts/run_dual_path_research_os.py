@@ -179,6 +179,34 @@ def main() -> int:
             "execution_models", {"tpsl_simulator": True}
         )
 
+    # IMP-01: pin OHLCV fingerprint (research path remains vectorized)
+    from quantflow.strategy.research.contract_pin import fingerprint_ohlcv
+
+    data_fp = {
+        "aggregate": fingerprint_ohlcv(df),
+        "symbol": "BTC/USDT",
+        "timeframe": "1h",
+        "start": args.start,
+        "end": args.end,
+        "bars": len(df),
+    }
+    # IMP-02-style cost structure on dual-path OS cost attachment
+    attachments["cost"] = {
+        **dict(attachments.get("cost") or {}),
+        "fee_slip_grid": [
+            {"taker_fee": 0.0, "slippage": 0.0, "label": "zero"},
+            {
+                "taker_fee": float(pa["fee"]),
+                "slippage": float(pa["slip"]),
+                "label": "profile",
+            },
+        ],
+        "funding_tca": {
+            "mode": "assumption",
+            "note": "research OS attachment; not register-ready alone",
+        },
+    }
+
     report = build_dual_path_report(
         path_a=from_overlay_eval(overlay_block, profile=pa),
         path_b=path_b,
@@ -197,8 +225,12 @@ def main() -> int:
         },
         attachments=attachments,
         complete=not causal_failed,
+        data_fingerprint=data_fp,
+        execution_path="vectorized",
     )
     assert_no_combined_score(report.to_dict())
+    assert report.run_meta.get("data_fingerprint") is not None
+    assert report.attachments.get("promotion_path", {}).get("promotion_eligible") is False
 
     md_path = args.md if args.md is not None else args.out.with_suffix(".md")
     jp, mp = write_report(report, args.out, out_md=md_path)

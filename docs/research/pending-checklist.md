@@ -219,3 +219,4 @@ git status -sb
 | 2026-08-11 | **Path B multi-window OOS + IAF prune→CPCV**：honest n_trials / GO_DISCUSS only; IAF never hard-bind；knowledge 10/10 promoted |
 | 2026-08-11 | **Team-swarm×OSS 对抗**：需提升点 P0 晋级指纹/PathB OOS/TCA；P1 meta+PIT+Qlib旁路；否决换引擎 — [team-swarm-oss-improve-20260811.md](./team-swarm-oss-improve-20260811.md) |
 | 2026-08-11 | **OSS 对抗改进计划（IMP-01..05 residual-first）**：[oss-adversarial-improvement-plan-20260811.md](./oss-adversarial-improvement-plan-20260811.md) |
+| 2026-08-11 | **IMP-01/02 landed**：dual-path/path_b_oos promotion_path fingerprint + Path B 6-window cost_attachment |

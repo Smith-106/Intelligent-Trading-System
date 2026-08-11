@@ -1071,3 +1071,11 @@ IMP-03 parallelizable with IMP-01
 Produce IMP-* residual improvement plan (plan stage)
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f589ad4d5480b92c" title="no combined_score; no engine rewrite" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-002" source="session:20260811-imp01-02-exec-20260811-091927:KDC-f589ad4d5480b92c">
+
+### no combined_score; no engine rewrite
+
+no combined_score; no engine rewrite
+
+</spec-entry>

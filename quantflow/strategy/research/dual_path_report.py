@@ -23,7 +23,11 @@ DEFAULT_HONESTY = (
     "path_b discrete TPSL is not continuous beta sleeve",
     "pin-window metrics are cost-aware research, not pure OOS claims",
     "promotion_eligible defaults false",
+    "research reports attach data_fingerprint but are not paper_replay GO",
 )
+
+# Research dual-path is vectorized filter — never claim paper_replay alone.
+RESEARCH_EXECUTION_PATH = "vectorized"
 
 
 @dataclass
@@ -67,29 +71,94 @@ def build_dual_path_report(
     attachments: dict[str, Any] | None = None,
     honesty: list[str] | None = None,
     complete: bool = True,
+    data_fingerprint: dict[str, Any] | str | None = None,
+    execution_path: str = RESEARCH_EXECUTION_PATH,
 ) -> DualPathResearchReport:
-    """Assemble dual-path report; forces promotion_eligible false on both paths."""
+    """Assemble dual-path report; forces promotion_eligible false on both paths.
+
+    IMP-01: always records honest ``execution_path`` (default vectorized research)
+    and optional ``data_fingerprint`` under run_meta + attachments.promotion_path.
+    Never claims paper_replay GO; promotion_eligible stays false.
+    """
     a = dict(path_a)
     b = dict(path_b)
     a.setdefault("kind", "continuous_overlay")
     b.setdefault("kind", "discrete_tpsl")
     a["promotion_eligible"] = False
     b["promotion_eligible"] = False
+    path = str(execution_path or RESEARCH_EXECUTION_PATH).strip().lower()
     meta = {
         "generated_at": _utc_now(),
         "python_utf8": True,
+        "execution_path": path,
         **(run_meta or {}),
+    }
+    # Explicit fields win over run_meta overrides for discipline.
+    meta["execution_path"] = path
+    if data_fingerprint is not None:
+        meta["data_fingerprint"] = data_fingerprint
+    atts = dict(attachments or {})
+    atts["promotion_path"] = {
+        "execution_path": path,
+        "data_fingerprint": data_fingerprint if data_fingerprint is not None else meta.get("data_fingerprint"),
+        "promotion_eligible": False,
+        "rule": (
+            "IMP-01/W14: dual-path research is vectorized filter; "
+            "paper_replay fingerprint required only for register/GO, "
+            "not claimed by this report"
+        ),
+        "register_ready": False,
     }
     report = DualPathResearchReport(
         contract=CONTRACT_ID,
         run_meta=meta,
         paths={"path_a": a, "path_b": b},
-        attachments=dict(attachments or {}),
+        attachments=atts,
         honesty=list(honesty) if honesty is not None else list(DEFAULT_HONESTY),
         complete=complete,
     )
     assert_no_combined_score(report.to_dict())
     return report
+
+
+def dual_path_report_to_promotion_view(
+    report: DualPathResearchReport | dict[str, Any],
+    *,
+    force_paper_path: bool = False,
+) -> dict[str, Any]:
+    """Flatten dual-path dict for promotion_path extractors (IMP-01).
+
+    Default keeps research vectorized path. ``force_paper_path`` is only for
+    tests of attach helpers — production dual-path must not claim paper_replay.
+    """
+    d = report.to_dict() if isinstance(report, DualPathResearchReport) else dict(report)
+    meta = dict(d.get("run_meta") or {})
+    atts = dict(d.get("attachments") or {})
+    promo = dict(atts.get("promotion_path") or {})
+    path = str(
+        promo.get("execution_path")
+        or meta.get("execution_path")
+        or RESEARCH_EXECUTION_PATH
+    ).lower()
+    if force_paper_path:
+        path = "paper_replay"
+    fp = promo.get("data_fingerprint") or meta.get("data_fingerprint")
+    out: dict[str, Any] = {
+        "execution_path": path,
+        "data_fingerprint": fp,
+        "promotion_eligible": False,
+        "contract": d.get("contract"),
+        "run_meta": meta,
+        "checks": {
+            "promotion_path": {
+                "execution_path": path,
+                "data_fingerprint": fp,
+                "promotion_eligible": False,
+                "register_ready": bool(force_paper_path and fp is not None),
+            }
+        },
+    }
+    return out
 
 
 def from_overlay_eval(
