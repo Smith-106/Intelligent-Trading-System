@@ -8,6 +8,8 @@
 | Doc | Why |
 |-----|-----|
 | [pending-checklist.md](./pending-checklist.md) | **唯一待办权威**：P0=T023/T024 运营 |
+| [improvement-plan-20260811.md](./improvement-plan-20260811.md) | 完善计划 Wave A–D（执行边界） |
+| [Candidate-Baseline-6-meta.md](./Candidate-Baseline-6-meta.md) | B6-META 数据密度合同草案 |
 | [team-swarm-gaps-vs-oss-20260811.md](./team-swarm-gaps-vs-oss-20260811.md) | OSS 对照残差（swarm） |
 | [performance-metrics-verify-20260811.md](./performance-metrics-verify-20260811.md) | 组合/overlay/PathB 性能面板 |
 | [market-capability-verify-20260811.md](./market-capability-verify-20260811.md) | 研究栈能力冒烟 |

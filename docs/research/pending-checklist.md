@@ -1,7 +1,7 @@
 # QuantFlow 待完成事项清单（Pending Checklist）
 
 **As of**: 2026-08-11（全面盘点刷新）  
-**HEAD**: `963952d` · **版本**: **v0.7.0**  
+**HEAD**: `44ebbaf`+ · **版本**: **v0.7.0**  
 **North star**: cost-aware paper-first research OS — not win-rate  
 **工作树**: 干净（`main` = origin）
 
@@ -13,6 +13,8 @@
 | [oss-adversarial-improvement-plan-20260811.md](./oss-adversarial-improvement-plan-20260811.md) | IMP residual（01–05 **landed**） |
 | [knowledge-maintenance-20260811.md](./knowledge-maintenance-20260811.md) | 知识库/wiki/kg 维护回执 |
 | [docs/release/v0.7.0.md](../release/v0.7.0.md) | 发布说明 |
+| [improvement-plan-20260811.md](./improvement-plan-20260811.md) | **完善计划** Wave A–D |
+| [Candidate-Baseline-6-meta.md](./Candidate-Baseline-6-meta.md) | B6-META 合同草案 |
 
 ---
 
