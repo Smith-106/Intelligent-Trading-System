@@ -1343,3 +1343,27 @@ hard_bind_entry must remain false on research OS surfaces
 Catalog skips *_overlay.yaml and rejects duplicate strategy.name
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-10f46a601a583b33" title="No live promote; no combined_score; no B0 freeze edit" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-002" source="session:20260811-catalog-imp-20260811-130143:KDC-10f46a601a583b33">
+
+### No live promote; no combined_score; no B0 freeze edit
+
+No live promote; no combined_score; no B0 freeze edit
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-12c971c743bb8aad" title="Research overlays must not live as strategies/*_overlay.yaml catalog peers" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001" source="session:20260811-catalog-imp-20260811-130143:KDC-12c971c743bb8aad">
+
+### Research overlays must not live as strategies/*_overlay.yaml catalog peers
+
+Research overlays must not live as strategies/*_overlay.yaml catalog peers
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-47dac3bef01949b5" title="Move funding B4/B5 overlays to quantflow/config/research/overlays/" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001" source="session:20260811-catalog-imp-20260811-130143:KDC-47dac3bef01949b5">
+
+### Move funding B4/B5 overlays to quantflow/config/research/overlays/
+
+Move funding B4/B5 overlays to quantflow/config/research/overlays/
+
+</spec-entry>
