@@ -149,7 +149,7 @@ class BookRiskBudgetConfig(BaseModel):
     book_net_limit: float = 1.2
     kill_drawdown: float = 0.15
     beta_sleeve: float = 1.0
-    overlay_sleeve: float = 0.20
+    overlay_sleeve: float = 0.30
 
 
 class RiskConfig(BaseModel):

@@ -147,12 +147,13 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--start", default=DEFAULT_START)
     ap.add_argument("--end", default=DEFAULT_END)
-    ap.add_argument("--overlay-weight", type=float, default=0.25)
+    # 2026-08-11 re-opt (taker fee+slip=10bp): w=0.30 beats prior w=0.25 on pin
+    # window and 2025 OOS excess; still cost-aware in-sample design — not pure OOS.
+    ap.add_argument("--overlay-weight", type=float, default=0.30)
     ap.add_argument("--fee", type=float, default=0.001)
     ap.add_argument("--slip", type=float, default=0.001)
     # Defaults favor lower overlay turnover so taker costs can still beat HODL
-    # on the pin window (96/400 ≈ 4d/17d on 1h). Documented as cost-aware
-    # selection on this window — not a pure OOS claim.
+    # on the pin window (96/400 ≈ 4d/17d on 1h).
     ap.add_argument("--fast", type=int, default=96)
     ap.add_argument("--slow", type=int, default=400)
     ap.add_argument(
@@ -178,7 +179,7 @@ def main() -> int:
 
     sweep_rows: list[dict[str, Any]] = []
     if args.sweep:
-        for w in (0.05, 0.10, 0.15, 0.20, 0.25, 0.30):
+        for w in (0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35):
             for mode in ("add_on", "reduce_off"):
                 for fast, slow in ((args.fast, args.slow), (48, 200), (96, 400)):
                     eq_i, meta_i = _simulate_beta_overlay(

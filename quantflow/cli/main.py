@@ -1550,7 +1550,9 @@ def freeze_b4(
 def eval_btc_overlay(
     start: str = typer.Option("2021-01-01", "--start"),
     end: str = typer.Option("2026-08-04", "--end"),
-    overlay_weight: float = typer.Option(0.25, "--overlay-weight"),
+    overlay_weight: float = typer.Option(
+        0.30, "--overlay-weight", help="Overlay sleeve weight (2026-08-11 primary default)"
+    ),
     fee: float = typer.Option(
         0.001, "--fee", help="Fee on overlay rebalances (default taker 10bp)"
     ),
