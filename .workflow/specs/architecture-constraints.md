@@ -1367,3 +1367,35 @@ Research overlays must not live as strategies/*_overlay.yaml catalog peers
 Move funding B4/B5 overlays to quantflow/config/research/overlays/
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-8470e14a35f70edc" title="No B0 freeze edit; no live promote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#constraint:C-002" source="session:20260811-cleanup-071-20260811-142743:KDC-8470e14a35f70edc">
+
+### No B0 freeze edit; no live promote
+
+No B0 freeze edit; no live promote
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-8dfbe056db8bf255" title="Did not delete data/ parquet or force-push history" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#constraint:C-001" source="session:20260811-cleanup-071-20260811-142743:KDC-8dfbe056db8bf255">
+
+### Did not delete data/ parquet or force-push history
+
+Did not delete data/ parquet or force-push history
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-9d398681cff7247c" title="Defer rewriting sealed-session broken wiki links" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#decision:D-002" source="session:20260811-cleanup-071-20260811-142743:KDC-9d398681cff7247c">
+
+### Defer rewriting sealed-session broken wiki links
+
+Defer rewriting sealed-session broken wiki links
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-cde7cf710645114a" title="Patch release 0.7.0→0.7.1 for improvement-plan Wave B/C + hygiene" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#decision:D-001" source="session:20260811-cleanup-071-20260811-142743:KDC-cde7cf710645114a">
+
+### Patch release 0.7.0→0.7.1 for improvement-plan Wave B/C + hygiene
+
+Patch release 0.7.0→0.7.1 for improvement-plan Wave B/C + hygiene
+
+</spec-entry>
