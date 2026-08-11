@@ -1095,3 +1095,11 @@ IMP-02 default n_windows=6 with fee_slip_grid+funding_tca assumption
 Research dual-path claims vectorized path honestly rather than fake paper_replay
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-0c5feae00cc4c7d4" title="promotion_eligible=false; vectorized is not register-ready" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001" source="session:20260811-imp01-02-exec-20260811-091927:KDC-0c5feae00cc4c7d4">
+
+### promotion_eligible=false; vectorized is not register-ready
+
+promotion_eligible=false; vectorized is not register-ready
+
+</spec-entry>
