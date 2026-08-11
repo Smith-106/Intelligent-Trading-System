@@ -67,20 +67,87 @@ sources:
 
 Discord：设置 → 高级 → 开发者模式 → 右键频道复制 ID。
 
-### 3.2 离线导入（推荐先跑通）
+### 3.2 你只是付费成员时怎么连？（最重要）
 
-用 [DiscordChatExporter](https://github.com/Tyrrrz/DiscordChatExporter) 导出 JSON：
+| 身份 | 能否用 Bot `poll` | 推荐做法 |
+|------|-------------------|----------|
+| **群主 / 有管理权限** | 可以（邀请自己的 Bot） | `poll` 持续拉历史 |
+| **付费成员 / 普通成员（你的情况）** | **通常不行** | **导出 JSON 再 `export` 导入** |
+| 管理员愿意配合 | 让对方加 **只读 Bot** 或开 **转发 Webhook** | 再上 `poll` / 自定义 webhook |
+
+**原因**: Discord Bot 必须被**邀请进该服务器**。付费群几乎都禁止成员乱拉 Bot；你没有「管理服务器 / 管理 Webhook」时，`DISCORD_BOT_TOKEN` 这条路对你**不可用**。
+
+**不要做的事**:
+
+- 用「用户 Token / 自机器人（self-bot）」挂账号自动爬群 → **违反 Discord ToS**，有封号风险；本项目**不支持、不接**用户 Token 自动化。
+- 把群内容二次公开转卖/外泄 → 可能违群规与版权；仅限**个人研究机本地**使用。
+
+---
+
+### 3.3 成员可行路径 A — 官方客户端可读范围内的导出（推荐）
+
+你的账号**本来就能看到**的频道，可以用桌面导出工具按**你自己的登录会话**导出（不是 Bot）：
+
+1. 安装 [DiscordChatExporter](https://github.com/Tyrrrz/DiscordChatExporter)（GUI 或 CLI）。  
+2. 用**你的 Discord 账号登录导出器**（按工具说明；不要把 Token 写进仓库/聊天）。  
+3. 选中付费群里你有权限的 **信号频道**（可多选 KOL 分频）。  
+4. 格式选 **JSON**；若要 TV 图，打开 **下载附件 / media**。  
+5. 导出到例如 `data/kol_exports/alpha-2026-08-10.json`（该目录可自建，导出物勿提交 Git）。
+
+导入 QuantFlow：
 
 ```bash
 export PYTHONUTF8=1
-python scripts/kol_discord_ingest.py export path/to/channel.json --images --ocr auto
+# 可选：先登记 source（channel_ids 填导出频道的雪花 ID）
+# 编辑 quantflow/config/kol_registry.yaml → enabled: true
+
+python scripts/kol_discord_ingest.py export data/kol_exports/alpha.json --images --ocr auto
+python scripts/kol_discord_ingest.py consensus --window-hours 6 --min-sources 2
 # 或
-quantflow kol-ingest export --path path/to/channel.json --images --ocr auto
+quantflow kol-ingest export --path data/kol_exports/alpha.json --images --ocr auto
+quantflow kol-ingest consensus
 ```
 
-### 3.3 Bot 轮询（持续）
+**节奏建议（成员）**:
 
-1. Discord Developer Portal 建 Bot，邀请进服务器，勾选读消息历史  
+- 每日或每几小时 **手动/计划任务再导出一次**（增量靠我们 JSONL 按 message_id 去重，重复导出安全）。  
+- Windows 可用任务计划程序跑：先调用导出 CLI，再跑上面的 `export` + `consensus`。  
+- 多 KOL 多频道 = **每个频道一个 JSON**（或一次导出多个），`kol_registry.yaml` 里用不同 `source_id` + `weight`。
+
+获取频道 ID：Discord 设置 → 高级 → 开发者模式 → 右键频道 → 复制 ID。
+
+---
+
+### 3.4 成员可行路径 B — 半自动（不破 ToS）
+
+| 做法 | 说明 |
+|------|------|
+| **请求管理员** | 加一个**只读 Bot**（只读消息历史），Token 只放你本机 ENV；或官方 Webhook 转到你自己的服务器再采集 |
+| **你自己的中转服** | 管理员允许的话，用频道关注/转发 Bot（需对方装）转到「你拥有的服务器」，再在你自己的服上跑 `poll` |
+| **手动精选** | 重要单复制到本地 `manual.json`（同 export 结构）再导入 — 噪声低、适合先验证解析 |
+
+手动 JSON 最小形状：
+
+```json
+{
+  "channel_id": "123",
+  "messages": [
+    {
+      "id": "msg1",
+      "content": "LONG BTCUSDT entry 64000 SL 62000 TP 66000",
+      "author": {"username": "kol_x"},
+      "timestamp_ms": 1700000000000,
+      "attachments": []
+    }
+  ]
+}
+```
+
+---
+
+### 3.5 Bot 轮询（仅当你能邀请 Bot 时）
+
+1. Discord Developer Portal 建 Bot，**管理员**邀请进**该**服务器，勾选读消息历史  
 2. `export DISCORD_BOT_TOKEN=...`（Windows: `$env:DISCORD_BOT_TOKEN=...`）  
 3.
 
@@ -88,6 +155,8 @@ quantflow kol-ingest export --path path/to/channel.json --images --ocr auto
 python scripts/kol_discord_ingest.py poll --limit 50 --images --ocr auto
 quantflow kol-ingest poll --channel 1234567890 --images
 ```
+
+付费成员若邀请失败（Missing Permissions）→ **回到 3.3 导出路径**，不要改用用户 Token。
 
 ### 3.4 共识
 
