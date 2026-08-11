@@ -1255,3 +1255,35 @@ No live promote; promotion_eligible remains false
 No combined_score; no live promote
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-3e9e2dedab6bb9d3" title="Reuse locked B0 WFO/gate; re-run full-window confirmed numeric match" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#decision:D-002" source="session:20260811-perf-metrics-20260811-120059:KDC-3e9e2dedab6bb9d3">
+
+### Reuse locked B0 WFO/gate; re-run full-window confirmed numeric match
+
+Reuse locked B0 WFO/gate; re-run full-window confirmed numeric match
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-88b6c209b7cadfd8" title="Silo risk_parity not comparable 1:1 to shared book" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#constraint:C-002" source="session:20260811-perf-metrics-20260811-120059:KDC-88b6c209b7cadfd8">
+
+### Silo risk_parity not comparable 1:1 to shared book
+
+Silo risk_parity not comparable 1:1 to shared book
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-a5fe3e2706e0ef21" title="Parity only paper↔live; vectorized research not promotion-eligible" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#constraint:C-001" source="session:20260811-perf-metrics-20260811-120059:KDC-a5fe3e2706e0ef21">
+
+### Parity only paper↔live; vectorized research not promotion-eligible
+
+Parity only paper↔live; vectorized research not promotion-eligible
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-b48ad559cfc3f47b" title="Use multi_symbol_replay full window as primary portfolio performance panel" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#decision:D-001" source="session:20260811-perf-metrics-20260811-120059:KDC-b48ad559cfc3f47b">
+
+### Use multi_symbol_replay full window as primary portfolio performance panel
+
+Use multi_symbol_replay full window as primary portfolio performance panel
+
+</spec-entry>
