@@ -5,8 +5,8 @@
 **HEAD**: see `main` · **版本**: v0.7.0  
 **Honesty**: 不伪造 7 日；不改 visibility；不把 synthetic promote 当真实 ops  
 **完整待办分层清单**: [pending-checklist.md](./pending-checklist.md)（2026-08-11 全面盘点：P0 仅 T023/T024；IMP-01…05 landed）  
-**P1/P2 hygiene**: [p1-p2-hygiene-status.md](./p1-p2-hygiene-status.md)（seal/ignore；P0 T023 仍 3/7）  
-**Doable-close**: [doable-close-20260810.md](./doable-close-20260810.md)（3 seal DEFER；T023 仍 3/7）  
+**P1/P2 hygiene**: [p1-p2-hygiene-status.md](./p1-p2-hygiene-status.md)（seal/ignore；P0 T023 现 **4/7**（2026-08-11 日课已记））  
+**Doable-close**: [doable-close-20260810.md](./doable-close-20260810.md)（3 seal DEFER；T023 现 4/7）  
 **知识维护**: [knowledge-maintenance-20260811.md](./knowledge-maintenance-20260811.md)  
 
 ---
@@ -15,7 +15,7 @@
 
 | 残留类 | 本轮结果 | 是否仍开放 |
 |--------|----------|------------|
-| **A. 日课 streak** | **3/7**；缺 **08-11…08-14**（未来日）— 见 [t023-wall-clock-calendar.md](./t023-wall-clock-calendar.md) | 🔧 是（**日历绑定**，同日不可压完） |
+| **A. 日课 streak** | **4/7**；缺 **08-12…08-14**（约）（未来日）— 见 [t023-wall-clock-calendar.md](./t023-wall-clock-calendar.md) | 🔧 是（**日历绑定**，同日不可压完） |
 | **B. 可选人审** | `oss_c_gate` 绿；**git 历史 gitleaks = 0**；工作区 2 命中（本地未跟踪路径） | 🔧 人审项 |
 | **C. 真实 promote 证据** | dry-run **rejected**（days=3 &lt; 7；fills=5 &lt; 20） | 🔧 依赖 A |
 
@@ -110,3 +110,9 @@ python scripts/paper_day_streak.py status --min-days 7
 满 7 日后补跑真实 evidence dry-run；人审按 pack 勾选。
 
 *Residual close — honest progress, no fake completion.*
+
+## Update 2026-08-11
+
+- T023: day-session PREFLIGHT OK → streak **4/7** (credited 08-11)
+- T024: `paper_evidence_export dry-run` **rejected** (paper_days=4, fills=0; floors 7/20) — expected
+- Optional download: OKX connect fail (non-blocking; bars age≈23h still OK in preflight)

@@ -20,7 +20,7 @@
 
 | 优先级 | 类别 | 事项 | 状态 | 阻塞？ | 谁做 |
 |--------|------|------|------|--------|------|
-| **P0** | 运营 | **T023** Path A 日课 streak → **7/7** | **3/7** | 日历墙钟 | **人** / 每日脚本 |
+| **P0** | 运营 | **T023** Path A 日课 streak → **7/7** | **4/7** | 日历墙钟 | **人** / 每日脚本 |
 | **P0** | 运营 | **T024** 真实 paper_evidence + promote dry-run | 管道✅ · 未验收 | **等 T023≥7** + fills≥20 | **人** |
 | P1 | 卫生 | 本地敏感面 / gitleaks 复核 | ✅ 2026-08-10 | — | — |
 | P1 | 会话 | 3 个陈旧 `running` session seal | **DEFER** | lifecycle drift | 人/可选 |
@@ -45,11 +45,11 @@
 
 | 字段 | 当前（实测 2026-08-11） |
 |------|------------------------|
-| consecutive | **3 / 7** |
-| credited UTC | 2026-08-08, 08-09, **08-10** |
+| consecutive | **4 / 7** |
+| credited UTC | 2026-08-08, 08-09, 08-10, **08-11** |
 | target_met | **false** |
-| 7d 窗缺失 | 08-05, 08-06, 08-07, **08-11**（今日若未跑则计入） |
-| 尚缺 | 约 **4** 个**未来** UTC 日（不可回填） |
+| 7d 窗缺失 | 08-05, 08-06, 08-07 |
+| 尚缺 | 约 **3** 个**未来** UTC 日（不可回填） |
 | 禁止 | 回填/伪造 08-04…08-07 或未来日 |
 
 **每日 checklist（UTC 日切后执行一次）**
@@ -69,7 +69,7 @@
 | 前置 | 状态 |
 |------|------|
 | T024 管道（export + dry-run） | ✅ 已有 |
-| T023 consecutive≥7 | ❌ **3/7** |
+| T023 consecutive≥7 | ❌ **4/7** |
 | T016 min_fills（默认 ≥20） | 上次真实导出 fills 不足 → reject |
 | live promote | **默认不做**（仅人类明确授权） |
 
@@ -237,8 +237,9 @@ maestro kg sync --json && maestro kg health --json
 | 2026-08-10 | P1/P2 hygiene；doable-close；completeness audit |
 | 2026-08-11 | KOL DEFER；BTC overlay；IAF/TPSL；dual-path OS；team-swarm OSS |
 | 2026-08-11 | IMP-01…05 landed；v0.7.0 release；scratch untrack；kb maintenance |
+| **2026-08-11** | **T023 日课推进**：day-session + ingest → **4/7**；T024 dry-run 诚实 reject（days=4 fills=0）；bar download 网络失败非阻塞 |
 | **2026-08-11** | **全面盘点刷新本清单**：P0 仍仅 T023/T024；P1 敏感面/scratch 关闭；3 session DEFER；IMP-06…09 标可选；知识面健康 |
 
 ---
 
-*本清单描述「还剩什么」，不创造新的 W-number 流水线。唯一硬残留是 **T023 日历 streak（3→7）及其后的 T024 真实样本门**。*
+*本清单描述「还剩什么」，不创造新的 W-number 流水线。唯一硬残留是 **T023 日历 streak（4→7）及其后的 T024 真实样本门**。*

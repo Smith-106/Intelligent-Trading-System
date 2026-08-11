@@ -1,45 +1,42 @@
 # T023 wall-clock status (ops residual — not a wave)
 
-**Updated**: 2026-08-10T11:54Z (UTC)  
-**Task**: Path A paper day-session streak toward promote sample floors (T016/T024)
-
-## Current ledger
+**As of**: 2026-08-11  
+**Task**: Path A paper day-session streak toward promote sample floors (T016/T024)  
+**Honesty**: no backfill; no forged bars; UTC calendar only
 
 | Field | Value |
-|-------|--------|
-| Credited UTC days | **2026-08-08**, **2026-08-09**, **2026-08-10** |
-| consecutive | **3** |
-| min_days target | **7** |
-| target_met | **false** |
-| Forged days | **none** (fail-closed) |
+|-------|-------|
+| consecutive | **4** |
+| credited | **4** |
+| target_met | **false** (min_days=7) |
+| dates | 2026-08-08, 08-09, 08-10, **08-11** |
+| missing in 7d window | 08-05, 08-06, 08-07 |
+| still need | **3** future UTC days (approx 08-12…08-14) |
 
-Missing for a 7-day lookback window ending 2026-08-10: `2026-08-04` … `2026-08-07` (historical; **cannot backfill by forgery**).
-
-Going forward: credit **each new UTC day** with:
+## Latest ops action (2026-08-11)
 
 ```bash
-python scripts/paper_day_session.py          # preflight + summary (Path A)
-# optional live handoff when operator present:
-# python scripts/paper_day_session.py --start-run
-python scripts/paper_day_streak.py ingest
-python scripts/paper_day_streak.py report --min-days 7
-python scripts/paper_day_streak.py status
+python scripts/paper_day_session.py          # PREFLIGHT OK; summary written
+# python scripts/paper_day_session.py --start-run   # not used (operator not hanging live paper)
+python scripts/paper_day_streak.py ingest    # credited 2026-08-11 → 4/7
+python scripts/paper_day_streak.py status --min-days 7
 ```
 
-## Today’s ops action (done)
-
-- Re-ran `paper_day_session.py` (preflight OK; deviation attached).  
-- Re-ingested streak ledger → still **3/7**.  
-- Bars age ~50h warning only — download optional, not a streak blocker.
+- Preflight: quantflow 0.7.0; BTC/ETH/SOL 1h age≈23.4h quality=1.00  
+- Summary: `data/paper_sessions/day_session_20260811T112331Z.json`  
+- Ledger: `data/paper_sessions/streak_ledger.json`
 
 ## Gate to T024
 
-Only when `target_met_consecutive` (or project-accepted distinct rule) is true:
+Only when `target_met_consecutive` is true:
 
 ```bash
-# then paper_evidence export + promote dry-run (T024) — not before
+python scripts/paper_evidence_export.py export
+python scripts/paper_evidence_export.py dry-run
 ```
 
-## Relation to B4-OOS-20260810
+**2026-08-11 probe (honest reject)**: export `paper_days=4 fills=0 meets_floors=False`; dry-run **rejected** (sample floors + cost/path provenance). **Do not lower gates.**
 
-Independent. B4 KEEP_B0 does **not** advance or reset T023. B0 remains PAPER-GO research candidate; promote still needs paper sample floors.
+## Independence
+
+B4 KEEP_B0 does **not** advance or reset T023. B0 remains PAPER-GO research candidate; promote still needs paper sample floors.
