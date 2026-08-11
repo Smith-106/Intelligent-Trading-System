@@ -237,6 +237,7 @@ maestro kg sync --json && maestro kg health --json
 | 2026-08-10 | P1/P2 hygiene；doable-close；completeness audit |
 | 2026-08-11 | KOL DEFER；BTC overlay；IAF/TPSL；dual-path OS；team-swarm OSS |
 | 2026-08-11 | IMP-01…05 landed；v0.7.0 release；scratch untrack；kb maintenance |
+| 2026-08-11 | **市场能力验证**：dual-path/PathB OOS/multi-symbol/demo pack 全绿跑通；Path B validation NO-GO + OOS GO_DISCUSS 诚实结果 — [market-capability-verify-20260811.md](./market-capability-verify-20260811.md) |
 | **2026-08-11** | **T023 日课推进**：day-session + ingest → **4/7**；T024 dry-run 诚实 reject（days=4 fills=0）；bar download 网络失败非阻塞 |
 | **2026-08-11** | **全面盘点刷新本清单**：P0 仍仅 T023/T024；P1 敏感面/scratch 关闭；3 session DEFER；IMP-06…09 标可选；知识面健康 |
 
