@@ -903,3 +903,107 @@ Badge alpha 合成在 gamma sRGB 空间进行
 --warning 与 --status-warn 同步修改（语义耦合）
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-53b4bf5b0c29d5b9" title="Never merge Path A/B scores; promotion_eligible=false" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#constraint:C-001" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-53b4bf5b0c29d5b9">
+
+### Never merge Path A/B scores; promotion_eligible=false
+
+Never merge Path A/B scores; promotion_eligible=false
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-699cb2167395377f" title="Product HODL gate and anti-overfit CPCV are separate axes; Path B may PASS product and FAIL CPCV" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#decision:D-001" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-699cb2167395377f">
+
+### Product HODL gate and anti-overfit CPCV are separate axes; Path B may PASS product and FAIL CPCV
+
+Product HODL gate and anti-overfit CPCV are separate axes; Path B may PASS product and FAIL CPCV
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f3ce4c8040c81aed" title="IAF library-only until CPCV prune; no freeze-contract silent edits" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-002" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-f3ce4c8040c81aed">
+
+### IAF library-only until CPCV prune; no freeze-contract silent edits
+
+IAF library-only until CPCV prune; no freeze-contract silent edits
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-25da2a0ce94a942e" title="Discrete barrier grids must use optimize_method=grid or fixed entries (no Optuna low/high)" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#constraint:C-002" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-25da2a0ce94a942e">
+
+### Discrete barrier grids must use optimize_method=grid or fixed entries (no Optuna low/high)
+
+Discrete barrier grids must use optimize_method=grid or fixed entries (no Optuna low/high)
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-5db58fe97c5f1938" title="Closeout execute = full run_dual_path_research_os without --skip-validation + pytest + docs refresh" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-001" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-5db58fe97c5f1938">
+
+### Closeout execute = full run_dual_path_research_os without --skip-validation + pytest + docs refresh
+
+Closeout execute = full run_dual_path_research_os without --skip-validation + pytest + docs refresh
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-a29a494b650a4826" title="Do not re-implement IAF/TPSL cores already on main 3ebf21f" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-002" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-a29a494b650a4826">
+
+### Do not re-implement IAF/TPSL cores already on main 3ebf21f
+
+Do not re-implement IAF/TPSL cores already on main 3ebf21f
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6cb8b67ab02c521e" title="Never merge continuous overlay and discrete TPSL into one score" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-001" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-6cb8b67ab02c521e">
+
+### Never merge continuous overlay and discrete TPSL into one score
+
+Never merge continuous overlay and discrete TPSL into one score
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-1568e84070eca225" title="promotion_eligible stays false this session" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-003" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-1568e84070eca225">
+
+### promotion_eligible stays false this session
+
+promotion_eligible stays false this session
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c8891798e82a5f4d" title="Closeout keeps dual-path research-only; no live promote" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#decision:D-002" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-c8891798e82a5f4d">
+
+### Closeout keeps dual-path research-only; no live promote
+
+Closeout keeps dual-path research-only; no live promote
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6572e098bf31c619" title="IAF hard_bind_entry=false always" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#constraint:C-002" source="session:20260811-pathb-iaf-followup-20260811-084339:KDC-6572e098bf31c619">
+
+### IAF hard_bind_entry=false always
+
+IAF hard_bind_entry=false always
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-7c1f6c8c1541a795" title="Allow GO discussion for Path B after multi-window OOS with honest n_trials; still no live promote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#decision:D-001" source="session:20260811-pathb-iaf-followup-20260811-084339:KDC-7c1f6c8c1541a795">
+
+### Allow GO discussion for Path B after multi-window OOS with honest n_trials; still no live promote
+
+Allow GO discussion for Path B after multi-window OOS with honest n_trials; still no live promote
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c179d7f26a8cbbd4" title="IAF prune kept factors remain research library after CPCV NO-GO" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#decision:D-002" source="session:20260811-pathb-iaf-followup-20260811-084339:KDC-c179d7f26a8cbbd4">
+
+### IAF prune kept factors remain research library after CPCV NO-GO
+
+IAF prune kept factors remain research library after CPCV NO-GO
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-e17efe1f5095eba7" title="promotion_eligible=false; GO_DISCUSS is research discussion only" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#constraint:C-001" source="session:20260811-pathb-iaf-followup-20260811-084339:KDC-e17efe1f5095eba7">
+
+### promotion_eligible=false; GO_DISCUSS is research discussion only
+
+promotion_eligible=false; GO_DISCUSS is research discussion only
+
+</spec-entry>
