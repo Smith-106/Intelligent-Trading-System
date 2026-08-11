@@ -1247,3 +1247,11 @@ Use full contract window 2021-01-01..2026-08-04 offline parquet as capability pr
 No live promote; promotion_eligible remains false
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f78780b964f3774e" title="No combined_score; no live promote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#constraint:C-003" source="session:20260811-perf-metrics-20260811-120059:KDC-f78780b964f3774e">
+
+### No combined_score; no live promote
+
+No combined_score; no live promote
+
+</spec-entry>
