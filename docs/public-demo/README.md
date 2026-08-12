@@ -1,7 +1,7 @@
 # QuantFlow — public docs & demo pack
 
 **License:** Apache-2.0（见 `LICENSE`）  
-**Engine version (private repo):** v0.7.2 (2026-08-11)  
+**Engine version (private repo):** v0.7.2 (2026-08-12)  
 **Scope:** documentation + synthetic gate examples only.  
 **Not included:** trading engine source, market data, live credentials, private research PnL.
 

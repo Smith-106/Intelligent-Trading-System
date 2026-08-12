@@ -25,7 +25,7 @@
 | B 研究 GO | `python scripts/run_baseline0.py` | 是 | 与 `gate.json` 对齐 |
 
 无密钥可复现入口：[docs/demo/](docs/demo/) · `python scripts/demo_public_pack.py --check`  
-独立公开文档仓（Apache-2.0）：[Smith-106/quantflow-docs-demo](https://github.com/Smith-106/quantflow-docs-demo)
+独立公开文档仓（Apache-2.0）：[Smith-106/quantflow-docs-demo](https://github.com/Smith-106/quantflow-docs-demo) · 本地 Maestro wiki health **100/100**（0 broken / 0 orphans）
 
 ## 特性
 

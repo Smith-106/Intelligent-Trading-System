@@ -8,7 +8,7 @@ status: active
 related:
   - DOC-exchange-health-breaker
   - DOC-engine-recovery-chain
-  - DOC-research-go-panel-export
+  - knowhow-doc-research-go-panel-export
 ---
 # MonitoringSink Protocol 扩展模式
 
