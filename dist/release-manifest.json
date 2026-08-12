@@ -1,9 +1,18 @@
 {
-  "version": "0.7.1",
-  "released_at": "2026-08-11T14:27:42.250854+00:00",
-  "artifacts": [
-    "quantflow-0.7.1-py3-none-any.whl",
-    "quantflow-0.7.1.tar.gz"
+  "schema_version": "release-manifest/1.0",
+  "version": "0.7.2",
+  "tag": "v0.7.2",
+  "generated_at": "2026-08-12T13:51:41.608368+00:00",
+  "commit": "cb44b88",
+  "assets": [
+    {
+      "name": "quantflow-0.7.2.tar.gz",
+      "sha256": "2f70a7be9dd524d05f4c1c431473a6956a77c8a96d6759123f90362f7d7c0f4e"
+    },
+    {
+      "name": "quantflow-0.7.2-py3-none-any.whl",
+      "sha256": "f17a3ce09cdc10469bbed91fea3b9693b5153510a305297b34ee0a9ae83d3f7c"
+    }
   ],
-  "notes": "docs/release/v0.7.1.md"
+  "notes": "docs/release/v0.7.2.md"
 }
