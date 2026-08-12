@@ -108,7 +108,9 @@ def summary_is_credit(summary: dict[str, Any]) -> tuple[bool, str]:
     return False, f"status={status!r}"
 
 
-def load_ledger(path: Path = LEDGER_PATH) -> dict[str, Any]:
+def load_ledger(path: Path | None = None) -> dict[str, Any]:
+    # Late-bind default so tests can monkeypatch LEDGER_PATH after import.
+    path = LEDGER_PATH if path is None else path
     if not path.is_file():
         return {
             "kind": "paper_day_streak",
@@ -138,14 +140,17 @@ def load_ledger(path: Path = LEDGER_PATH) -> dict[str, Any]:
     return raw
 
 
-def save_ledger(ledger: dict[str, Any], path: Path = LEDGER_PATH) -> Path:
+def save_ledger(ledger: dict[str, Any], path: Path | None = None) -> Path:
+    path = LEDGER_PATH if path is None else path
     path.parent.mkdir(parents=True, exist_ok=True)
     ledger["updated_at"] = datetime.now(UTC).isoformat()
     path.write_text(json.dumps(ledger, indent=2, ensure_ascii=False), encoding="utf-8")
     return path
 
 
-def collect_session_files(sessions_dir: Path = SESSIONS_DIR) -> list[Path]:
+def collect_session_files(sessions_dir: Path | None = None) -> list[Path]:
+    # Late-bind default so tests can monkeypatch SESSIONS_DIR after import.
+    sessions_dir = SESSIONS_DIR if sessions_dir is None else sessions_dir
     if not sessions_dir.is_dir():
         return []
     files = list(sessions_dir.glob("day_session_*.json"))

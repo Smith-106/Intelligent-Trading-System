@@ -37,6 +37,7 @@ from quantflow.monitoring.metrics import (
     STRATEGY_PNL,
     start_metrics_server,
     update_portfolio_metrics,
+    update_research_go_panel_metrics,
 )
 
 logger = logging.getLogger(__name__)
@@ -162,6 +163,18 @@ class DefaultMonitoringSink:
         # each rebalance. Best-effort — a sink must never raise.
         for strategy_id, w in weights.items():
             PORTFOLIO_ALLOCATION.labels(strategy_id=strategy_id).set(float(w))
+
+    def record_research_go_panel(self, snapshot: Any) -> None:
+        """Best-effort push of the sealed research GO panel into gauges.
+
+        L6 research GO export (off hot path): delegates to
+        ``update_research_go_panel_metrics`` which no-ops on None. A sink
+        must never raise into callers — any unexpected failure is logged.
+        """
+        try:
+            update_research_go_panel_metrics(snapshot)
+        except Exception:
+            logger.exception("record_research_go_panel failed (fail-soft)")
 
     async def send_alert(
         self,

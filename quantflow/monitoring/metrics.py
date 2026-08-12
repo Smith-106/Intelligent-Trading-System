@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import logging
 import math
+from datetime import UTC, datetime
 from threading import Lock
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from prometheus_client import REGISTRY, Counter, Gauge, Histogram, start_http_server
 
 from quantflow.common.redaction import redact_secrets
+
+if TYPE_CHECKING:
+    from quantflow.monitoring.research_go_panel import ResearchGoPanelSnapshot
 
 logger = logging.getLogger(__name__)
 _METRICS_SERVER_LOCK = Lock()
@@ -146,6 +150,53 @@ PORTFOLIO_ALLOCATION = Gauge(
     "quantflow_portfolio_allocation",
     "Portfolio allocation weight by strategy (rebalanced)",
     ["strategy_id"],
+)
+
+# L6 research GO export (deferred observability gap): sealed panel fields
+# surfaced as gauges for ops dashboards. Fed by
+# update_research_go_panel_metrics / MonitoringSink.record_research_go_panel
+# (off hot path — never called from on_bar). Fingerprint + decision +
+# primary_mode ride as labels on the decision/value gauges; path_semantics
+# narrative keys stay in the JSON snapshot export only (no dedicated gauges).
+RESEARCH_GO_DECISION = Gauge(
+    "quantflow_research_go_decision",
+    "Sealed research GO gate decision (1=PAPER-GO, 0=other)",
+    ["primary_mode", "decision", "fingerprint", "promotion_eligible"],
+)
+
+RESEARCH_GO_RETURN_PCT = Gauge(
+    "quantflow_research_go_return_pct",
+    "Sealed research GO full-window return % (primary mode)",
+    ["primary_mode", "decision", "fingerprint", "promotion_eligible"],
+)
+
+RESEARCH_GO_SHARPE = Gauge(
+    "quantflow_research_go_sharpe",
+    "Sealed research GO full-window Sharpe (primary mode)",
+    ["primary_mode", "decision", "fingerprint", "promotion_eligible"],
+)
+
+RESEARCH_GO_MAX_DD_PCT = Gauge(
+    "quantflow_research_go_max_dd_pct",
+    "Sealed research GO full-window max drawdown % (primary mode)",
+    ["primary_mode", "decision", "fingerprint", "promotion_eligible"],
+)
+
+RESEARCH_GO_ORDERS = Gauge(
+    "quantflow_research_go_orders",
+    "Sealed research GO full-window order count (primary mode)",
+    ["primary_mode", "decision", "fingerprint", "promotion_eligible"],
+)
+
+RESEARCH_GO_PROMOTION_ELIGIBLE = Gauge(
+    "quantflow_research_go_promotion_eligible",
+    "Research GO promotion eligibility (always 0 — export never promotes)",
+    ["primary_mode", "decision", "fingerprint", "promotion_eligible"],
+)
+
+RESEARCH_GO_AS_OF_TS = Gauge(
+    "quantflow_research_go_as_of_timestamp",
+    "Sealed research GO panel as-of timestamp (unix seconds)",
 )
 
 # Histograms
@@ -301,6 +352,43 @@ def metrics_registry_snapshot() -> dict[str, Any]:
             for key, value in values.items()
         },
     }
+
+
+def update_research_go_panel_metrics(
+    snapshot: "ResearchGoPanelSnapshot | None",
+) -> None:
+    """Push sealed research GO panel fields into quantflow_research_go_* gauges.
+
+    Fail-soft: ``None`` is a no-op; malformed as_of is skipped (debug log)
+    rather than raised. ``promotion_eligible`` is forced to 0.0 — research
+    GO export is never a live-promotion signal (locks.no_live_promote).
+    """
+    if snapshot is None:
+        return
+    labels = {
+        "primary_mode": snapshot.primary_mode,
+        "decision": snapshot.decision,
+        "fingerprint": snapshot.data_fingerprint_aggregate,
+        "promotion_eligible": "false",
+    }
+    decision_value = 1.0 if snapshot.decision == "PAPER-GO" else 0.0
+    RESEARCH_GO_DECISION.labels(**labels).set(decision_value)
+    RESEARCH_GO_RETURN_PCT.labels(**labels).set(float(snapshot.full_return_pct))
+    RESEARCH_GO_SHARPE.labels(**labels).set(float(snapshot.full_sharpe))
+    RESEARCH_GO_MAX_DD_PCT.labels(**labels).set(float(snapshot.full_max_dd_pct))
+    RESEARCH_GO_ORDERS.labels(**labels).set(float(snapshot.full_orders))
+    RESEARCH_GO_PROMOTION_ELIGIBLE.labels(**labels).set(0.0)
+    if snapshot.as_of:
+        try:
+            ts = datetime.fromisoformat(snapshot.as_of)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=UTC)
+            RESEARCH_GO_AS_OF_TS.set(ts.timestamp())
+        except ValueError:
+            logger.debug(
+                "research GO panel as_of %r not parseable — gauge skipped",
+                snapshot.as_of,
+            )
 
 
 def update_portfolio_metrics(

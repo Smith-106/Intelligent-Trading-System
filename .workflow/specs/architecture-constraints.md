@@ -1399,3 +1399,211 @@ Defer rewriting sealed-session broken wiki links
 Patch release 0.7.0→0.7.1 for improvement-plan Wave B/C + hygiene
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-0c175365b6cd0c1e" title="fingerprint e4d2797070a49bc0 unchanged -&gt; skip full-window multi_symbol_replay re-run (not re-run; sealed values exporte" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-001" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-0c175365b6cd0c1e">
+
+### fingerprint e4d2797070a49bc0 unchanged -> skip full-window multi_symbol_replay re-run (not re-run; sealed values exporte
+
+fingerprint e4d2797070a49bc0 unchanged -> skip full-window multi_symbol_replay re-run (not re-run; sealed values exported)
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-4804bef935723514" title="SoT = data/paper_replay/perf_verify/performance_panel.json (+ baseline0_gate fields inside panel)" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-003" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-4804bef935723514">
+
+### SoT = data/paper_replay/perf_verify/performance_panel.json (+ baseline0_gate fields inside panel)
+
+SoT = data/paper_replay/perf_verify/performance_panel.json (+ baseline0_gate fields inside panel)
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-0e88755c23ee8523" title="fail-soft missing/invalid file (loader returns None, CLI exit 2, no traceback)" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-005" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-0e88755c23ee8523">
+
+### fail-soft missing/invalid file (loader returns None, CLI exit 2, no traceback)
+
+fail-soft missing/invalid file (loader returns None, CLI exit 2, no traceback)
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-9ea33c5359642e65" title="primary = shared_risk_parity + baseline0_gate; promotion_eligible always false for export snapshot" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-004" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-9ea33c5359642e65">
+
+### primary = shared_risk_parity + baseline0_gate; promotion_eligible always false for export snapshot
+
+primary = shared_risk_parity + baseline0_gate; promotion_eligible always false for export snapshot
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-509c8492fe26f412" title="no invented metrics; no combined_score; no silo as primary; no Grafana redesign" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-007" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-509c8492fe26f412">
+
+### no invented metrics; no combined_score; no silo as primary; no Grafana redesign
+
+no invented metrics; no combined_score; no silo as primary; no Grafana redesign
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-b8473424ce30109f" title="L6-only + common Protocol; L1-L5 no monitoring import (rg guard clean)" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-006" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-b8473424ce30109f">
+
+### L6-only + common Protocol; L1-L5 no monitoring import (rg guard clean)
+
+L6-only + common Protocol; L1-L5 no monitoring import (rg guard clean)
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-5b3ccfeeae97aa14" title="Metric label set = (primary_mode, decision, fingerprint, promotion_eligible='false'); path_semantics stays in JSON expor" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#decision:D-001" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-5b3ccfeeae97aa14">
+
+### Metric label set = (primary_mode, decision, fingerprint, promotion_eligible='false'); path_semantics stays in JSON expor
+
+Metric label set = (primary_mode, decision, fingerprint, promotion_eligible='false'); path_semantics stays in JSON export only (no narrative labels/gauges)
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-b8de264541ac13e7" title="S1 = loader + Prometheus gauges + optional sink.record_research_go_panel + thin CLI" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-002" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-b8de264541ac13e7">
+
+### S1 = loader + Prometheus gauges + optional sink.record_research_go_panel + thin CLI
+
+S1 = loader + Prometheus gauges + optional sink.record_research_go_panel + thin CLI
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-47563b0913e4eecf" title="Add quantflow_research_go_* gauges + Protocol record" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#decision:D-CLI-2" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-47563b0913e4eecf">
+
+### Add quantflow_research_go_* gauges + Protocol record
+
+Add quantflow_research_go_* gauges + Protocol record
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-e29b6070349fcb04" title="S1 L6 loader+gauges+optional sink+CLI" description="Promoted from run:20260812-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-009, report.md#decision:D-CLI-2" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-e29b6070349fcb04">
+
+### S1 L6 loader+gauges+optional sink+CLI
+
+S1 L6 loader+gauges+optional sink+CLI
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-7fb8a3c474def133" title="SoT sealed performance_panel only; promotion_eligible=false" description="Promoted from run:20260812-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-009, report.md#decision:D-CLI-3" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-7fb8a3c474def133">
+
+### SoT sealed performance_panel only; promotion_eligible=false
+
+SoT sealed performance_panel only; promotion_eligible=false
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-b5f4026d14f774bc" title="Skip full-window when fingerprint unchanged" description="Promoted from run:20260812-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-009, report.md#decision:D-CLI-1" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-b5f4026d14f774bc">
+
+### Skip full-window when fingerprint unchanged
+
+Skip full-window when fingerprint unchanged
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-09dc7b9efa49d9bd" title="parity paper↔live only; backtest independent BacktestEngine (S-20260722-pd2y)" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-002" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-09dc7b9efa49d9bd">
+
+### parity paper↔live only; backtest independent BacktestEngine (S-20260722-pd2y)
+
+parity paper↔live only; backtest independent BacktestEngine (S-20260722-pd2y)
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-f20901703a3992df" title="parity paper↔live only; backtest independent (S-20260722-pd2y)" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-002" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-f20901703a3992df">
+
+### parity paper↔live only; backtest independent (S-20260722-pd2y)
+
+parity paper↔live only; backtest independent (S-20260722-pd2y)
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-fffecb57bc72f6c0" title="promotion_eligible remains false (no default true in quantflow)" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-003" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-fffecb57bc72f6c0">
+
+### promotion_eligible remains false (no default true in quantflow)
+
+promotion_eligible remains false (no default true in quantflow)
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-b6809c2c7c33df75" title="gitleaks optional/scheduled only — not required PR gate" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-006" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-b6809c2c7c33df75">
+
+### gitleaks optional/scheduled only — not required PR gate
+
+gitleaks optional/scheduled only — not required PR gate
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-cc00ec4cc4b7735d" title="gitleaks optional/scheduled, not a required PR gate" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-005" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-cc00ec4cc4b7735d">
+
+### gitleaks optional/scheduled, not a required PR gate
+
+gitleaks optional/scheduled, not a required PR gate
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-2eb6fb29147721e0" title="never lower coverage fail_under" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-007" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-2eb6fb29147721e0">
+
+### never lower coverage fail_under
+
+never lower coverage fail_under
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-44c4526bd9012d7e" title="L6 MonitoringSink Protocol only" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-003" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-44c4526bd9012d7e">
+
+### L6 MonitoringSink Protocol only
+
+L6 MonitoringSink Protocol only
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-ac97a05dc44a9f60" title="deterministic mocks for integration" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-005" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-ac97a05dc44a9f60">
+
+### deterministic mocks for integration
+
+deterministic mocks for integration
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-e62fbab5dc98e143" title="deterministic mocks only — no real exchange in integration tests" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-004" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-e62fbab5dc98e143">
+
+### deterministic mocks only — no real exchange in integration tests
+
+deterministic mocks only — no real exchange in integration tests
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-571c91a1b0160cb4" title="FakeGateway injected pre-start must also rebind OrderRouter (set_gateway) — mirrors start() binding for internally built" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#decision:D-002" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-571c91a1b0160cb4">
+
+### FakeGateway injected pre-start must also rebind OrderRouter (set_gateway) — mirrors start() binding for internally built
+
+FakeGateway injected pre-start must also rebind OrderRouter (set_gateway) — mirrors start() binding for internally built gateways
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-f108f7338c214ea9" title="requirements-lock regenerated on Windows/Python 3.14 clean venv (documented in header); aiodns/pycares are Linux/macOS a" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#decision:D-001" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-f108f7338c214ea9">
+
+### requirements-lock regenerated on Windows/Python 3.14 clean venv (documented in header); aiodns/pycares are Linux/macOS a
+
+requirements-lock regenerated on Windows/Python 3.14 clean venv (documented in header); aiodns/pycares are Linux/macOS aiohttp extras resolved transitively
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-b1ad1f485c3337dc" title="W2 uses two NEW integration modules for parallel collision-free writes" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#decision:D-002" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-b1ad1f485c3337dc">
+
+### W2 uses two NEW integration modules for parallel collision-free writes
+
+W2 uses two NEW integration modules for parallel collision-free writes
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-66de9c7f5b15c02e" title="no engine rewrite" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-004" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-66de9c7f5b15c02e">
+
+### no engine rewrite
+
+no engine rewrite
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-8fd6d25b9cb00fe3" title="no live trading / no live promote" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-001" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-8fd6d25b9cb00fe3">
+
+### no live trading / no live promote
+
+no live trading / no live promote
+
+</spec-entry>

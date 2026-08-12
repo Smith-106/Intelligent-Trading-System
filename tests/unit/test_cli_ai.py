@@ -96,6 +96,8 @@ def test_ai_register_go_becomes_paper(tmp_path):
                 "assumed_abs_funding_per_event": 0.0001,
                 "estimated_annual_drag_pct": 10.95,
             },
+            "execution_path": "paper_replay",
+            "data_fingerprint": {"aggregate": "test-cli-ai-gogo"},
         },
         "fee_slip_grid": cost_grid,
         "funding_tca": {
@@ -103,6 +105,8 @@ def test_ai_register_go_becomes_paper(tmp_path):
             "assumed_abs_funding_per_event": 0.0001,
             "estimated_annual_drag_pct": 10.95,
         },
+        "execution_path": "paper_replay",
+        "data_fingerprint": {"aggregate": "test-cli-ai-gogo"},
     }
     (report_dir / "model-gogo.json").write_text(json.dumps(report), encoding="utf-8")
     try:

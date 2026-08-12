@@ -159,6 +159,8 @@ gitleaks-report.json
 
 # Maestro runtime (local only; regenerable)
 .workflow/tmp/
+.workflow/tmp-*
+
 .workflow/archive/
 .workflow/search-daemon-spawning
 .workflow/search-daemon*.json

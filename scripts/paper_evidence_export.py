@@ -147,6 +147,9 @@ def _go_report() -> dict[str, Any]:
             {"taker_fee": 0.001, "slippage": 0.001, "sharpe": 0.55, "return_pct": 10.0},
         ],
         "funding_tca": build_funding_tca(mode="assumption"),
+        # W14: register requires paper_replay provenance + fingerprint pin.
+        "execution_path": "paper_replay",
+        "data_fingerprint": {"aggregate": "t024-dry-run"},
     }
 
 

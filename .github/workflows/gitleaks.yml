@@ -1,0 +1,62 @@
+# Gitleaks full history — optional/scheduled secret scan (ENG-UP-02).
+#
+# NOT a required PR gate: this workflow runs only on workflow_dispatch or a
+# weekly schedule, so it can never block a pull request or a push. It scans
+# the FULL git history (fetch-depth: 0) for leaked secrets and uploads the
+# redacted report as a workflow artifact. Aligns with the deferred
+# full-history secret-scan note in oss-c-gate.yml (path C).
+#
+# Findings surface as a failed scheduled run + the report artifact; they do
+# not fail PRs (no pull_request / push triggers). Raw secret values are
+# redacted in the report (--redact).
+
+name: Gitleaks full history
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1" # weekly Monday 06:00 UTC
+
+permissions:
+  # Least-privilege: scan only needs to read the repository. No security-events
+  # write because we intentionally do not gate code scanning on this job.
+  contents: read
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout (full history)
+        # ISS-009 (SEC-005): SHA-pinned actions prevent a supply-chain
+        # compromise of the action's repo from silently changing what runs
+        # in CI (same pin as ci.yml).
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks full-history detect
+        # Pin image tag (not :latest) for supply-chain hygiene — same spirit as
+        # SHA-pinned GitHub Actions. Bump intentionally when upgrading gitleaks.
+        # --log-opts="--all" scans the entire history; --redact masks secret
+        # values in output/report; findings fail the scheduled job so the
+        # operator notices the artifact (still not a PR gate).
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}":/src \
+            -w /src \
+            zricethezav/gitleaks:v8.24.3 \
+            detect \
+            --source /src \
+            --log-opts="--all" \
+            --redact \
+            --report-format json \
+            --report-path /src/gitleaks-report.json
+
+      - name: Upload gitleaks report
+        if: always()
+        uses: actions/upload-artifact@b4b15b8c7c6ac09ea0886f96269626b20bc4f1fd # v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+          if-no-files-found: ignore

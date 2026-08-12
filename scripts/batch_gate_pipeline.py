@@ -161,7 +161,7 @@ def evaluate_candidate(
         "decision": "NO-GO",
     }
     if dry_run:
-        # Structural dry-run: no backtest; still require funding block present.
+        # Structural dry-run: no backtest; still require funding + W14 path.
         try:
             assert_promotion_cost_ready(
                 {
@@ -176,6 +176,9 @@ def evaluate_candidate(
                         },
                     ],
                     "funding_tca": funding_tca,
+                    # Dry-run schema check still must cite paper path (W14).
+                    "execution_path": "paper_replay",
+                    "data_fingerprint": {"aggregate": "dry-run"},
                 }
             )
             row["status"] = "pass"
@@ -200,6 +203,10 @@ def evaluate_candidate(
     report = attach_cost_fidelity(
         report, fee_slip_grid=grid, funding_tca=funding_tca
     )
+    # W14: batch gate evaluates paper-promotion readiness → stamp event path.
+    # Fingerprint is filled by run_batch pin when available; placeholder ok for cost-only.
+    report.setdefault("execution_path", "paper_replay")
+    report.setdefault("data_fingerprint", {"aggregate": "batch-gate-pending-pin"})
 
     if full_gate:
         try:

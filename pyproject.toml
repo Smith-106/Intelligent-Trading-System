@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quantflow"
-version = "0.7.1"
+version = "0.7.2"
 description = "Personal quantitative trading system for Crypto (OKX)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -146,8 +146,8 @@ markers = [
 
 [tool.coverage.run]
 source = ["quantflow"]
-omit = ["tests/*", "quantflow/cli/*"]
+omit = ["tests/*"]
 
 [tool.coverage.report]
-fail_under = 70
+fail_under = 75
 show_missing = true

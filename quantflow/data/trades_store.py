@@ -110,7 +110,7 @@ def build_cvd_feature_frame(
     Fail-closed: never invent trades. Output always has ``timestamp`` + ``cvd``
     + ``cvd_source`` ∈ {trades, proxy, empty}.
     """
-    from quantflow.indicators.volume import cvd_from_trades, cvd_proxy
+    from quantflow.common.cvd import cvd_from_trades, cvd_proxy
 
     if ohlcv is None or ohlcv.empty:
         return pd.DataFrame(columns=["timestamp", "cvd", "cvd_source"])

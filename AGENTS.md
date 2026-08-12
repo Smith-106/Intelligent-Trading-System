@@ -11,7 +11,7 @@
 - 接口驱动（Protocol/ABC），内部实现可替换
 - 配置外置，策略/风控/API 凭证全部 YAML/ENV
 - 事件解耦，策略不直接调用 Gateway
-- 回测-实盘一致，TradingSession 统一 backtest/paper/live
+- parity 仅 paper↔live（TradingSession 统一 paper/live 执行路径）；backtest 走独立 BacktestEngine（纯向量化），不在 parity 范围（.workflow/specs/architecture-constraints.md S-20260722-pd2y）
 
 ## 技术栈
 - Python 3.11+, CCXT (OKX), VectorBT, Optuna, DuckDB+Parquet, Redis
@@ -19,7 +19,7 @@
 - 防过拟合：CPCV + DSR + PBO + WFO (purgedcv)
 - 风控：半Kelly + VaR/CVaR + 回撤熔断 + Kill Switch
 - 监控：Grafana + Prometheus, 告警 Telegram/LINE
-- 部署：Docker Compose
+- 部署：Docker Compose（Compose 路径：docker/docker-compose.yaml）
 - AI(V3)：Qlib RD-Agent + FinBERT + Meta-Labeling
 
 ## 开发规范
@@ -27,7 +27,7 @@
 ### 代码质量
 - 使用 `ruff` format + lint（配置见 pyproject.toml）
 - 使用 `mypy --strict` 类型检查
-- 测试覆盖率 > 70%（核心模块）
+- 测试覆盖率 fail_under ≥ 75%（核心模块；见 pyproject.toml [tool.coverage.report]）
 - 所有 async 函数使用 `async/await`，不用回调
 - 导入顺序：标准库 → 第三方 → 项目内（ruff isort 管理）
 

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.7.2] — 2026-08-12
+
+### Features
+- L6 research GO export: loader + Prometheus gauges + MonitoringSink + `scripts/export_research_go_panel.py`
+- Engineering uplift: paper session lifecycle / reconcile / kill-switch integration tests
+- Coverage floor fail_under 75; CLI paths measured (omit only tests/*)
+- Optional full-history gitleaks workflow (pinned v8.24.3; not a PR gate)
+
+### Fixes
+- W14 GO fixtures/scripts stamp `execution_path=paper_replay` + data_fingerprint
+- L1 CVD helpers moved to `quantflow.common.cvd` (no data→indicators import)
+- paper_day_streak late-bind SESSIONS_DIR/LEDGER_PATH for test monkeypatch
+
+### Docs / Hygiene
+- AGENTS/CLAUDE parity = paper↔live only; docker/docker-compose.yaml; coverage ≥75
+- requirements-lock refreshed for 0.7.x surface
+- .gitignore: `.workflow/tmp-*`
+- Release notes: docs/release/v0.7.2.md
+
+
 ## [0.7.0] — 2026-08-11
 
 ### Features

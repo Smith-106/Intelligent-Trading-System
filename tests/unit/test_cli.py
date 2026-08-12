@@ -170,6 +170,103 @@ class TestCLIBasics:
         assert result.exit_code != 0
         assert "Missing required environment variables for live mode" in result.output
 
+    def test_run_command_unknown_strategy_prints_error(self) -> None:
+        """Unknown strategy -> early return with an error message (no session)."""
+        result = runner.invoke(
+            app,
+            ["run", "--mode", "paper", "--strategy", "no_such_strategy"],
+        )
+
+        assert result.exit_code == 0
+        assert "Unknown strategy: no_such_strategy" in result.output
+
+    def test_run_command_multi_symbol_resolves_symbol_list(self, monkeypatch) -> None:
+        """--symbols overrides --symbol and is passed to start + data loop."""
+        events: list[tuple[object, ...]] = []
+
+        class FakeSession:
+            def __init__(self, config, strategies, monitoring_sink=None) -> None:
+                self._running = True
+                events.append(("init", [s.name for s in strategies]))
+
+            async def start(self, mode: str = "paper", gateway_config=None, symbols=None) -> None:
+                events.append(("start", mode, symbols))
+
+            async def run_data_loop(
+                self,
+                symbol: str = "",
+                timeframe: str = "1h",
+                interval_seconds: int = 60,
+                symbols=None,
+            ) -> None:
+                events.append(("loop", symbol, symbols))
+                self._running = False
+
+            async def stop(self) -> None:
+                events.append(("stop", None))
+
+        monkeypatch.setattr("quantflow.strategy.engine.TradingSession", FakeSession)
+
+        result = runner.invoke(
+            app,
+            [
+                "run",
+                "--mode",
+                "paper",
+                "--strategy",
+                "trend_following,mean_reversion",
+                "--symbols",
+                "BTC/USDT,ETH/USDT",
+                "--interval",
+                "0",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert any(
+            event[0] == "start" and event[1] == "paper" and event[2] == ["BTC/USDT", "ETH/USDT"]
+            for event in events
+        )
+        assert any(event[0] == "loop" and event[2] == ["BTC/USDT", "ETH/USDT"] for event in events)
+        assert events[0] == ("init", ["trend_following", "mean_reversion"])
+        assert ("stop", None) in events
+
+    def test_run_command_error_is_redacted(self, monkeypatch) -> None:
+        """A session start failure prints a redacted error, never raw secrets."""
+
+        class ExplodingSession:
+            def __init__(self, config, strategies, monitoring_sink=None) -> None:
+                pass
+
+            async def start(self, mode: str = "paper", gateway_config=None, symbols=None) -> None:
+                raise RuntimeError(
+                    "connect failed Authorization: Bearer sk-abcdef1234ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                )
+
+            async def run_data_loop(
+                self,
+                symbol: str = "",
+                timeframe: str = "1h",
+                interval_seconds: int = 60,
+                symbols=None,
+            ) -> None:
+                return
+
+            async def stop(self) -> None:
+                return
+
+        monkeypatch.setattr("quantflow.strategy.engine.TradingSession", ExplodingSession)
+
+        result = runner.invoke(
+            app,
+            ["run", "--mode", "paper", "--strategy", "trend_following", "--interval", "0"],
+        )
+
+        assert result.exit_code == 0  # session errors are caught, not fatal
+        assert "ERR" in result.output
+        assert "sk-abcdef1234ABCDEFGHIJKLMNOPQRSTUVWXYZ" not in result.output
+        assert "***REDACTED***" in result.output
+
     def test_run_command_loads_okx_credentials_for_sandbox_mode(self, monkeypatch) -> None:
         events: list[tuple[object, ...]] = []
 
@@ -329,6 +426,65 @@ class TestCLIBasics:
         assert gate_call["regenerated_entries"].index.equals(dates)
         assert gate_call["regenerated_exits"].index.equals(dates)
         assert calls[-1] == {"closed": True}
+
+    def test_validate_unknown_strategy_prints_error(self) -> None:
+        """Unknown strategy -> early return with an error message (no data load)."""
+        result = runner.invoke(
+            app,
+            ["validate", "--strategy", "no_such_strategy", "--method", "gate"],
+        )
+
+        assert result.exit_code == 0
+        assert "Unknown strategy: no_such_strategy" in result.output
+
+    def test_validate_missing_data_prints_no_data(self, monkeypatch) -> None:
+        """Empty data query -> 'No data' message + store closed."""
+        calls: list[dict[str, object]] = []
+
+        class EmptyStore:
+            def __init__(self, parquet_dir, duckdb_path) -> None:
+                pass
+
+            def query(self, symbol, **kwargs):
+                return pd.DataFrame()
+
+            def close(self) -> None:
+                calls.append({"closed": True})
+
+        monkeypatch.setattr("quantflow.data.store.DataStore", EmptyStore)
+
+        result = runner.invoke(
+            app,
+            [
+                "validate",
+                "--method",
+                "cpcv",
+                "--strategy",
+                "trend_following",
+                "--symbol",
+                "BTC/USDT",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "No data for BTC/USDT" in result.output
+        assert calls == [{"closed": True}]
+
+    def test_validate_lookahead_static_scan(self) -> None:
+        """Static look-ahead scan runs without market data (deterministic)."""
+        result = runner.invoke(
+            app,
+            [
+                "validate",
+                "--method",
+                "lookahead",
+                "--strategy",
+                "trend_following",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "look-ahead" in result.output.lower()
 
 
 class TestAICommand:

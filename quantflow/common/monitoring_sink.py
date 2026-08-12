@@ -167,6 +167,16 @@ class MonitoringSink(Protocol):
         """
         ...
 
+    def record_research_go_panel(self, snapshot: Any) -> None:
+        """Best-effort push of the sealed research GO panel snapshot.
+
+        L6 research GO export (off hot path): ``snapshot`` is a
+        ``ResearchGoPanelSnapshot``-shaped object (kept ``Any`` here so the
+        L3/L4 seam stays free of L6 imports) or None. Implementations no-op
+        on None and never raise — missing/invalid panels are fail-soft.
+        """
+        ...
+
     async def send_alert(
         self,
         message: str,
@@ -245,6 +255,9 @@ class NullMonitoringSink:
 
     def record_portfolio_allocation(self, weights: dict[str, float]) -> None:
         """No-op."""
+
+    def record_research_go_panel(self, snapshot: Any) -> None:
+        """No-op — research GO gauges are not pushed by the null sink."""
 
     async def send_alert(
         self,

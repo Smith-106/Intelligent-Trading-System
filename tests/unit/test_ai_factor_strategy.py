@@ -55,6 +55,9 @@ def _go_with_cost(**extra: object) -> dict:
             {"taker_fee": 0.001, "slippage": 0.001, "sharpe": 0.55, "return_pct": 10.0},
         ],
         "funding_tca": build_funding_tca(mode="assumption"),
+        # W14: paper GO needs production-path provenance (not vectorized-only).
+        "execution_path": "paper_replay",
+        "data_fingerprint": {"aggregate": "test-ai-factor-strategy"},
     }
     report.update(extra)
     return report

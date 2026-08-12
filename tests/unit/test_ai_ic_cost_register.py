@@ -36,10 +36,18 @@ def test_register_rejects_low_ic(tmp_path: Path):
         "features_hash": "h",
         "decision": "GO",
         "validation": attach_cost_fidelity(
-            {"decision": "GO"}, fee_slip_grid=_grid(), funding_tca=_funding()
+            {
+                "decision": "GO",
+                "execution_path": "paper_replay",
+                "data_fingerprint": {"aggregate": "test-ai-ic-low"},
+            },
+            fee_slip_grid=_grid(),
+            funding_tca=_funding(),
         ),
         "fee_slip_grid": _grid(),
         "funding_tca": _funding(),
+        "execution_path": "paper_replay",
+        "data_fingerprint": {"aggregate": "test-ai-ic-low"},
         "ic_metrics": {"mean_ic": 0.01, "threshold": 0.03},
     }
     path = report_dir / f"{mid}.json"
@@ -70,10 +78,18 @@ def test_register_accepts_go_with_cost_and_ic(tmp_path: Path):
         "features_hash": "h",
         "decision": "GO",
         "validation": attach_cost_fidelity(
-            {"decision": "GO"}, fee_slip_grid=_grid(), funding_tca=_funding()
+            {
+                "decision": "GO",
+                "execution_path": "paper_replay",
+                "data_fingerprint": {"aggregate": "test-ai-ic-ok"},
+            },
+            fee_slip_grid=_grid(),
+            funding_tca=_funding(),
         ),
         "fee_slip_grid": _grid(),
         "funding_tca": _funding(),
+        "execution_path": "paper_replay",
+        "data_fingerprint": {"aggregate": "test-ai-ic-ok"},
         "ic_metrics": {"mean_ic": 0.05, "threshold": 0.03},
     }
     path = report_dir / f"{mid}.json"
