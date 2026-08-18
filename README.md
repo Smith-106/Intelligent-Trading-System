@@ -1,8 +1,10 @@
 # QuantFlow
 
-> 当前版本 **v0.7.2** — 详见 [docs/release/v0.7.2.md](docs/release/v0.7.2.md)
+> 当前版本 **v0.8.0** — 详见 [docs/release/v0.8.0.md](docs/release/v0.8.0.md)
 
 个人 Crypto 量化交易系统 — 从策略研究到实盘交易的完整闭环。
+
+> 🏆 **覆盖率 100/100**：`quantflow/**` 行覆盖 100% + 分支覆盖 100%（18568 stmts / 5386 branches 全 0 缺失），3423 tests passed，`fail_under=100` 门禁生效
 
 ## 产品定位（先读）
 
@@ -46,6 +48,7 @@
 - **研究保真**：paper 路径注入 fee/slippage；`research_risk_bypass` 双报研究/生产风控
 - **研究 GO 导出（v0.7.2）**：密封 `performance_panel` → Prometheus `quantflow_research_go_*` + CLI export（`promotion_eligible=false`）
 - **工程门禁（v0.7.2）**：覆盖率 fail_under≥75、可选全历史 gitleaks、paper session 集成测试加厚
+- **覆盖率 100/100（v0.8.0）**：`quantflow/**` 行+分支双 100%（18568 stmts / 5386 branches），`fail_under=100` 门禁，3423 tests
 - **Dual-path 研究 OS（v0.7）**：Path A 超额 / Path B TPSL 分轴；promotion 指纹诚实接线；PIT 审计；多标的并列报告；会话健康指标
 
 ## 架构

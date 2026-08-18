@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.8.0] — 2026-08-18
+
+### Features
+- **覆盖率 100/100 达成**：`quantflow/**` 行覆盖 100% + 分支覆盖 100%（18568 stmts / 5386 branches 全 0 缺失）
+- 新增 35 个覆盖率测试文件（约 1400 用例）：common/indicators/data/signal/strategy/web/cli 全层覆盖
+- `cli/main.py`（1787 行 Typer 应用）行+分支双 100%，含 `_display_*` 辅助、ai/kol 命令全分支
+- 测试套件 3423 passed（基线 2421 → 3423），无回归
+
+### Engineering
+- `pyproject.toml` coverage `fail_under` 75 → **100**（行+分支双维度）
+- pragma 豁免仅用于真正不可达/外部 IO 路径：35 处（21 个文件），全部附理由注释
+- 移除 14 个错误断言测试（10 templates + 4 engine），直接删除而非 @skip 掩盖
+
+### Docs / Hygiene
+- README 版本徽标 v0.8.0 + 覆盖率 100% 数据
+- Release notes: docs/release/v0.8.0.md
+- .gitignore 补充 `data/station_history_test_*/` 运行时产物规则
+- 清理本地临时/缓存/构建产物（.venv_old、no/、coverage.json、__pycache__ 等）
+
+
 ## [0.7.2] — 2026-08-12
 
 ### Features
