@@ -1607,3 +1607,99 @@ no engine rewrite
 no live trading / no live promote
 
 </spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-075744de9d7bba5e" title="pyproject.toml [tool.coverage.report] fail_under = 100（已生效）" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#constraint:C-002" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-075744de9d7bba5e">
+
+### pyproject.toml [tool.coverage.report] fail_under = 100（已生效）
+
+pyproject.toml [tool.coverage.report] fail_under = 100（已生效）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-859df3eb509d9ae5" title="新增测试禁用 vectorbt 导入（.venv 未安装），需要时 monkeypatch sys.modules" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#constraint:C-003" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-859df3eb509d9ae5">
+
+### 新增测试禁用 vectorbt 导入（.venv 未安装），需要时 monkeypatch sys.modules
+
+新增测试禁用 vectorbt 导入（.venv 未安装），需要时 monkeypatch sys.modules
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-3536926f3f8e2b91" title="pragma 仅用于真正不可达/外部 IO 路径（__main__ 守卫、合成数据恒正、循环不变式），禁止掩盖可测分支" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#constraint:C-002" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-3536926f3f8e2b91" supersedes="S-20260817-11a5f3e22ac8480a,S-20260816-95df5f3284575cbd">
+
+### pragma 仅用于真正不可达/外部 IO 路径（__main__ 守卫、合成数据恒正、循环不变式），禁止掩盖可测分支
+
+pragma 仅用于真正不可达/外部 IO 路径（__main__ 守卫、合成数据恒正、循环不变式），禁止掩盖可测分支
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-b768605b876454e7" title="覆盖率验收命令：pytest tests/ --cov=quantflow --cov-branch -m 'not live'，TOTAL 行+分支双 100%，exit 0" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#constraint:C-001, run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-b768605b876454e7">
+
+### 覆盖率验收命令：pytest tests/ --cov=quantflow --cov-branch -m 'not live'，TOTAL 行+分支双 100%，exit 0
+
+覆盖率验收命令：pytest tests/ --cov=quantflow --cov-branch -m 'not live'，TOTAL 行+分支双 100%，exit 0
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-5a22f30e2fb1f2f8" title="root 亲自处理剩余小分支缺口（智能体反复报告完成但未落盘/写错断言），不依赖队友收尾" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#decision:D-002" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-5a22f30e2fb1f2f8">
+
+### root 亲自处理剩余小分支缺口（智能体反复报告完成但未落盘/写错断言），不依赖队友收尾
+
+root 亲自处理剩余小分支缺口（智能体反复报告完成但未落盘/写错断言），不依赖队友收尾
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-8e75489fe8633172" title="35 处 pragma 全部保留（逐一核对理由成立：__main__ 守卫、合成数据恒正、循环不变式、elif 链短路、AST 负数表示）" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#decision:D-001" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-8e75489fe8633172">
+
+### 35 处 pragma 全部保留（逐一核对理由成立：__main__ 守卫、合成数据恒正、循环不变式、elif 链短路、AST 负数表示）
+
+35 处 pragma 全部保留（逐一核对理由成立：__main__ 守卫、合成数据恒正、循环不变式、elif 链短路、AST 负数表示）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-c56157934ca8a515" title="采用顺序单执行器派发，禁止并行子图（并行队友会并发清理共享工作区导致测试文件丢失）" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#decision:D-001" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-c56157934ca8a515" supersedes="S-20260816-fccee94ae23f3db3">
+
+### 采用顺序单执行器派发，禁止并行子图（并行队友会并发清理共享工作区导致测试文件丢失）
+
+采用顺序单执行器派发，禁止并行子图（并行队友会并发清理共享工作区导致测试文件丢失）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-c9c0f9e6243ccbdf" title="错误断言测试直接删除而非 @skip 掩盖（删除 10 个 templates 错误断言 + 4 个 engine 错误测试）" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#decision:D-003" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-c9c0f9e6243ccbdf">
+
+### 错误断言测试直接删除而非 @skip 掩盖（删除 10 个 templates 错误断言 + 4 个 engine 错误测试）
+
+错误断言测试直接删除而非 @skip 掩盖（删除 10 个 templates 错误断言 + 4 个 engine 错误测试）
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-f54dc9d393714772" title="覆盖率测试文件组织按层命名（test_coverage_&lt;layer&gt;_&lt;feature&gt;.py），后续新层沿用" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#decision:D-002" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-f54dc9d393714772">
+
+### 覆盖率测试文件组织按层命名（test_coverage_<layer>_<feature>.py），后续新层沿用
+
+覆盖率测试文件组织按层命名（test_coverage_<layer>_<feature>.py），后续新层沿用
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260816-95df5f3284575cbd" title="line 与 branch coverage 均须达 100%；pragma 仅用于真正不可达/外部 IO 路径" description="Promoted from run:20260816-001-analyze, artifact:ART-001-001, artifact:ART-001-002, report.md#constraint:C-001" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-95df5f3284575cbd" status="deprecated" superseded-by="S-20260817-3536926f3f8e2b91">
+
+### line 与 branch coverage 均须达 100%；pragma 仅用于真正不可达/外部 IO 路径
+
+line 与 branch coverage 均须达 100%；pragma 仅用于真正不可达/外部 IO 路径
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260816-fccee94ae23f3db3" title="采用 6 波分层执行（common/indicators→data/signal→strategy→execution/mon/recon→web/cli），每波可并行 teammate 派发" description="Promoted from run:20260816-001-analyze, artifact:ART-001-001, artifact:ART-001-002, report.md#decision:D-001" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-fccee94ae23f3db3" status="deprecated" superseded-by="S-20260817-c56157934ca8a515">
+
+### 采用 6 波分层执行（common/indicators→data/signal→strategy→execution/mon/recon→web/cli），每波可并行 teammate 派发
+
+采用 6 波分层执行（common/indicators→data/signal→strategy→execution/mon/recon→web/cli），每波可并行 teammate 派发
+
+</spec-entry>
+
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-11a5f3e22ac8480a" title="pragma 仅用于真正不可达/外部 IO 路径，新增 pragma 必须附理由注释" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#constraint:C-003" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-11a5f3e22ac8480a" status="deprecated" superseded-by="S-20260817-3536926f3f8e2b91">
+
+### pragma 仅用于真正不可达/外部 IO 路径，新增 pragma 必须附理由注释
+
+pragma 仅用于真正不可达/外部 IO 路径，新增 pragma 必须附理由注释
+
+</spec-entry>
