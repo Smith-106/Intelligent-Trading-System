@@ -128,6 +128,7 @@ tmpsmart-search-evidence*.json
 # Paper-replay research outputs (large/local)
 # Station local history
 data/station_history/
+data/station_history_test_*/
 # Pytest temp root used on Windows
 # Maestro embedding / wiki runtime indexes (regenerable)
 .workflow/embedding.zvec*
