@@ -190,7 +190,9 @@ class TrendFollowingStrategy(StrategyBase):
             if last_idx < self._pullback_lookback:
                 return False
             window = close_values[last_idx - self._pullback_lookback : last_idx]
-            if not window:
+            if not window:  # pragma: no cover - guard only
+                # Unreachable: last_idx >= _pullback_lookback (checked above),
+                # so the slice is always non-empty.
                 return False
             dipped = min(window) < fast_ma
             near = abs(close_values[last_idx] - fast_ma) / max(fast_ma, 1e-12) <= self._pullback_tol

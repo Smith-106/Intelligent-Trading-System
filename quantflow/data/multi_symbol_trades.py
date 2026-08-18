@@ -94,7 +94,7 @@ def build_multi_symbol_trades_ingest(
 
     def _cb(symbol: str, df: pd.DataFrame) -> None:
         c = coord_holder.get("c")
-        if c is not None:
+        if c is not None:  # pragma: no cover - holder populated (line below) before any loop poll can invoke _cb
             c._on_batch(symbol, df)
 
     loop = TradesIngestLoop(

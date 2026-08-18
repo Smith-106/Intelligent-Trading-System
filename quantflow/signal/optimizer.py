@@ -191,8 +191,8 @@ class MeanVarianceOptimizer:
                 return self.equal_weight(keys)
             w = np.clip(w, 0.0, None)  # no shorting in this system
             total = float(np.sum(w))
-            if total <= 0:
-                return self.equal_weight(keys)
+            if total <= 0:  # pragma: no cover - unreachable: clip() keeps sum >= 0; sum==0 implies pre-clip total <= 0 caught by guard above
+                return self.equal_weight(keys)  # pragma: no cover
             return {k: float(wi) / total for k, wi in zip(usable, w, strict=True)}
         except Exception:  # optimizer must never crash the trading loop
             logger.exception("MeanVarianceOptimizer: unexpected failure — equal weights")

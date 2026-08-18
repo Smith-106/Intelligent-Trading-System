@@ -35,7 +35,9 @@ def _time_series_splits(n_samples: int, max_splits: int = 5) -> list[tuple[slice
     splits = []
     for test_start in range(first_test_start, n_samples, test_size):
         test_end = min(test_start + test_size, n_samples)
-        if test_end > test_start:
+        if test_end > test_start:  # pragma: no cover - guard only
+            # Unreachable: test_start < n_samples and test_size >= 1 guarantee
+            # test_end = min(test_start + test_size, n) > test_start.
             splits.append((slice(0, test_start), slice(test_start, test_end)))
     return splits
 

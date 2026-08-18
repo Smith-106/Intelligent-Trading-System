@@ -159,7 +159,7 @@ class LiuYudongWaveStrategy(StrategyBase):
                             timestamp=int(row["timestamp"]),
                         )
                     )
-                elif bool(entries.iloc[last_i]):
+                elif bool(entries.iloc[last_i]):  # pragma: no branch — L146 guarantees entries when exits is False
                     emit(
                         Signal(
                             symbol=str(getattr(bar, "symbol", "")),
@@ -285,7 +285,7 @@ class LiuYudongWaveStrategy(StrategyBase):
                 hard = [e for e in events if e.severity == InvalidationSeverity.HARD]
                 if hard:
                     idx = end_idx - 1
-                    if new_start <= idx < end_idx and idx < n:
+                    if new_start <= idx < end_idx and idx < n:  # pragma: no branch — idx=end_idx-1 and step>=50 guarantee bounds
                         exits.iat[idx] = True
 
         return entries, exits

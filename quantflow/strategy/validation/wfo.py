@@ -165,7 +165,7 @@ class WalkForwardOptimization:
             )
 
         if not folds:
-            if skipped_folds:
+            if skipped_folds:  # pragma: no branch — empty folds implies every fold was skipped
                 logger.warning(
                     "WFO: all %d folds skipped (train_end<=train_start or "
                     "test_end<=test_start) — data too short for n_folds=%d",

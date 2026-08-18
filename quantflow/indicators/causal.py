@@ -135,7 +135,8 @@ def scan_source_for_negative_shift(source: str, *, where: str = "<module>") -> l
             if isinstance(node.operand, ast.Constant) and isinstance(node.operand.value, int | float):
                 return int(node.operand.value)
         if isinstance(node, ast.Constant) and isinstance(node.value, int | float) and node.value < 0:
-            return int(-node.value)
+            return int(-node.value)  # pragma: no cover - parser represents negatives as UnaryOp
+
         return None
 
     for node in ast.walk(tree):
@@ -158,12 +159,12 @@ def scan_source_for_negative_shift(source: str, *, where: str = "<module>") -> l
             for kw in node.keywords:
                 if kw.arg == "periods":
                     v = kw.value
-                    if isinstance(v, ast.Constant) and isinstance(v.value, int | float) and v.value < 0:
-                        neg = int(-v.value)
+                    if isinstance(v, ast.Constant) and isinstance(v.value, int | float) and v.value < 0:  # pragma: no cover - parsed negative literals are UnaryOp
+                        neg = int(-v.value)  # pragma: no cover - parser represents negatives as UnaryOp
         if node.args and neg is None:
             a0 = node.args[0]
-            if isinstance(a0, ast.Constant) and isinstance(a0.value, int | float) and a0.value < 0:
-                neg = int(-a0.value)
+            if isinstance(a0, ast.Constant) and isinstance(a0.value, int | float) and a0.value < 0:  # pragma: no cover - parsed negative literals are UnaryOp
+                neg = int(-a0.value)  # pragma: no cover - parser represents negatives as UnaryOp
         if neg is not None and neg > 0:
             line = getattr(node, "lineno", 0)
             snip = lines[line - 1].strip() if 0 < line <= len(lines) else ""

@@ -1566,11 +1566,11 @@ class StationService:
         )
 
         if validation_no_go:
-            if health_tone != "danger":
+            if health_tone != "danger":  # pragma: no branch — tone is accent/warning at this point
                 health_tone = "warning"
             health_signals.append(f"{validation_no_go} recent validation runs ended in NO-GO.")
 
-        if prometheus_service:
+        if prometheus_service:  # pragma: no branch — services loop always includes prometheus
             prometheus_kind = str(prometheus_service.get("status_kind", "idle"))
             if prometheus_kind == "attempt_failed":
                 health_tone = "danger"
@@ -1691,7 +1691,7 @@ class StationService:
                 }
             )
 
-        if prometheus_service:
+        if prometheus_service:  # pragma: no branch — services loop always includes prometheus
             prometheus_kind = str(prometheus_service.get("status_kind", "idle"))
             if prometheus_kind == "attempt_failed":
                 alerts.insert(

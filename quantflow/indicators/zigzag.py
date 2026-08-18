@@ -253,7 +253,7 @@ def _zigzag_single(
                 )
                 last_low = low_price
                 last_low_idx = i
-        elif direction == -1:
+        elif direction == -1:  # pragma: no cover - direction is always 0, 1, or -1 here
             if low_price < last_low:
                 last_low = low_price
                 last_low_idx = i
@@ -345,7 +345,7 @@ def _merge_pivot_runs(
                 }
             ]
 
-    if current_group:
+    if current_group:  # pragma: no cover - all_entries creates the first group before this guard
         groups.append(current_group)
 
     # Merge groups into consensus pivots

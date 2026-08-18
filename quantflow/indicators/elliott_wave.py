@@ -116,7 +116,7 @@ def zigzag(
                 )
                 last_low = low.iloc[i]
                 last_low_idx = i
-        elif direction == -1:
+        elif direction == -1:  # pragma: no cover - direction is always 0, 1, or -1 here
             if low.iloc[i] < last_low:
                 last_low = low.iloc[i]
                 last_low_idx = i

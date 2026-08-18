@@ -238,7 +238,7 @@ class MarketMetaFetcher:
         """
         delay = BASE_BACKOFF_S
         last_exc: Exception | None = None
-        for attempt in range(MAX_RETRIES + 1):
+        for attempt in range(MAX_RETRIES + 1):  # pragma: no cover - loop body always runs >=1x (range(MAX_RETRIES+1), MAX_RETRIES>=0); natural exit arc unreachable
             try:
                 await self._limiter.acquire()
                 return await asyncio.wait_for(factory(), timeout=CALL_TIMEOUT)

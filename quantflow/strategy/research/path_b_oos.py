@@ -318,7 +318,7 @@ def run_path_b_multi_window_oos(
         is_end = min(is_end, n_bars)
         oos_end = min(oos_end, n_bars)
         if oos_start >= n_bars or is_end <= is_start:
-            continue
+            continue  # pragma: no cover - unreachable: oos_start=(i+1)*ws-oos_size <= n_bars-oos_size < n_bars, and is_end > is_start whenever the 316 guard (window_size-oos_size>50) passed
 
         df_is = _slice_df(df, is_start, is_end)
         df_oos = _slice_df(df, oos_start, oos_end)

@@ -56,6 +56,8 @@ Auto-generated from project analysis. Update manually as patterns evolve.
 <spec-entry category="test" keywords="测试,单元测试,集成测试,覆盖率,mock" date="2026-05-29" sid="S-legacy-58dc480c">
 ### 测试分层与覆盖率要求
 核心模块（data/indicators/strategy/validation/execution/risk）必须有单元测试，覆盖率 >70%。测试分三层：unit（单模块）、integration（跨模块端到端）、conftest 共享 fixture。集成测试需要真实数据流而非 mock。禁止用 @skip/@ignore 掩盖测试失败，必须修复根因。
+
+> **2026-08-18 v0.8.0 更新（sid S-20260818-cov100）**：覆盖率门禁已提升到 **行+分支双 100%**（`pyproject.toml [tool.coverage.report] fail_under=100`，`--cov-branch` 实测 TOTAL 18568 stmts / 5386 branches 全 0 缺失，3423 tests）。验收命令：`.venv/Scripts/python.exe -m pytest tests/ --cov=quantflow --cov-branch --cov-report=term-missing -m "not live"`。新增 35 个 `tests/unit/test_coverage_*.py` 文件（约 1400 用例）覆盖全层。pragma 豁免规则：`# pragma: no cover`/`# pragma: no branch` 仅用于真正不可达/外部 IO 路径（__main__ 守卫、合成数据恒正、循环不变式、elif 链短路、AST 负数表示），必须附理由注释；禁止掩盖可测分支。错误断言测试直接删除而非 @skip 掩盖。
 </spec-entry>
 
 <spec-entry category="test" keywords="asyncio,装饰器,async,pytest-asyncio,false-negative" date="2026-07-31" sid="S-20260731-a7k2" title="async 测试方法必须添加 @pytest.mark.asyncio 装饰器" description="类中 async def test_* 缺少装饰器会被跳过导致 false negative" source="phase-6-codereview">

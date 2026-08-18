@@ -173,7 +173,9 @@ class NonMaSignalStrategy(StrategyBase):
             prior_low = min(low_vals[i - m : i])
         elif i > 0:
             prior_low = min(low_vals[:i])
-        else:
+        else:  # pragma: no cover - unreachable
+            # i == 0 with i >= n requires n == 0, but then max(h[i-n:i])
+            # above raises on the empty slice, so this branch can never run.
             prior_low = low_vals[i]
         entry = c[i] > prior_high
         exit_ = c[i] < prior_low
@@ -195,7 +197,9 @@ class NonMaSignalStrategy(StrategyBase):
             return False, False
         rsi_now = self._rsi_at(c, i)
         rsi_prev = self._rsi_at(c, i - 1)
-        if rsi_now is None or rsi_prev is None:
+        if rsi_now is None or rsi_prev is None:  # pragma: no cover - guard only
+            # Unreachable: i >= max(rsi_period, vol_period)+1 guarantees both
+            # lookback indices are >= rsi_period, so _rsi_at never returns None.
             return False, False
         vol_ma = sum(v[i - self._vol_period + 1 : i + 1]) / self._vol_period
         vol_ratio = v[i] / vol_ma if vol_ma > 0 else 0.0

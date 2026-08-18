@@ -760,7 +760,7 @@ def run(
             console.print(f"[red]Unknown strategy: {name}[/]")
             return
 
-    if not strategies:
+    if not strategies:  # pragma: no cover — unknown names return inside the loop above
         console.print("[red]No valid strategies specified[/]")
         return
 

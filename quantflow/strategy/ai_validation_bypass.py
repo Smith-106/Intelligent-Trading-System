@@ -229,7 +229,7 @@ def run_ai_validation_bypass(
         entry["ai_lane"] = AI_LANE
         entry["ai_live_blocked"] = True
         entry_path = Path(registry_dir) / f"{model_id}.json"
-        if entry_path.exists() or entry.get("status") in {"paper", "rejected"}:
+        if entry_path.exists() or entry.get("status") in {"paper", "rejected"}:  # pragma: no branch — register() always returns paper/rejected
             # Re-write entry with stamps (register already wrote once).
             entry_path.parent.mkdir(parents=True, exist_ok=True)
             entry_path.write_text(

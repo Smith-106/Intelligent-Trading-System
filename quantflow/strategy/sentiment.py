@@ -293,6 +293,6 @@ class NewsCollector:
             return pd.DataFrame()
 
         df = pd.DataFrame(articles)
-        if "date" in df.columns:
+        if "date" in df.columns:  # pragma: no branch — every article dict carries a date key
             df["date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
         return df
