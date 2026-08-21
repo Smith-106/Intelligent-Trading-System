@@ -118,69 +118,84 @@ def _load_gateway_config_from_env(mode: str, sandbox: bool) -> dict[str, str | b
 
 @app.command()
 def download(
-    symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol (single)"),
+    symbols: str = typer.Option("", help="Comma-separated multi-symbol, e.g. BTC/USDT,ETH/USDT,SOL/USDT (overrides --symbol)"),
     timeframe: str = typer.Option("1d", help="K-line timeframe"),
     start: str = typer.Option("2024-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-01-01", help="End date (YYYY-MM-DD)"),
+    okx_suffix: bool = typer.Option(True, help="Append -OKX suffix for source isolation"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
-    """Download historical data from OKX.
+    """Download historical data from OKX (single or batch symbol).
 
     Examples:
         quantflow download --symbol BTC/USDT --start 2024-01-01
         quantflow download --symbol ETH/USDT --timeframe 4h --start 2023-06-01
+        quantflow download --symbols BTC/USDT,ETH/USDT,SOL/USDT --start 2024-01-01
     """
     from quantflow.data.cleaner import clean_ohlcv
     from quantflow.data.fetcher import DataFetcher
     from quantflow.data.store import DataStore
+
+    symbol_list = [s.strip() for s in symbols.split(",") if s.strip()] or [symbol]
 
     cfg = _load(config)
 
     async def _run() -> None:
         fetcher = DataFetcher(cfg.data)
         store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+        failed: list[str] = []
 
         try:
             with console.status("[bold blue]Connecting to OKX..."):
                 await fetcher.connect()
             console.print("[green]OK[/] Connected to OKX")
 
-            with console.status(
-                f"[bold blue]Downloading {symbol} {timeframe} ({start} → {end})..."
-            ):
-                df = await fetcher.fetch_ohlcv(symbol, timeframe, start, end)
+            # M4-1.2: single shared instance, serial loop over symbols (the
+            # per-instance CCXT rate limiter is authoritative; gather would
+            # only queue up and risk HTTP 429). A failing symbol is isolated
+            # so the whole batch is not aborted.
+            for sym in symbol_list:
+                try:
+                    with console.status(
+                        f"[bold blue]Downloading {sym} {timeframe} ({start} → {end})..."
+                    ):
+                        df = await fetcher.fetch_ohlcv(sym, timeframe, start, end)
+                    if df.empty:
+                        console.print(f"[yellow]SKIP[/] {sym}: no data (check symbol/date)")
+                        failed.append(sym)
+                        continue
+                    console.print(f"[dim]Raw data: {len(df)} bars for {sym}[/]")
+                    with console.status("[bold blue]Cleaning data..."):
+                        df = clean_ohlcv(df)
+                    with console.status("[bold blue]Saving to Parquet..."):
+                        store_symbol = f"{sym}-OKX" if okx_suffix else sym
+                        store.save(df, store_symbol)
+                    date_range = store.get_date_range(store_symbol)
+                    console.print(
+                        f"[green]OK[/] Saved [bold]{len(df)}[/] bars for [bold]{store_symbol}[/] ({timeframe})"
+                    )
+                    if date_range:
+                        from datetime import datetime
 
-            if df.empty:
-                console.print("[red]ERR No data fetched. Check symbol and date range.[/]")
-                console.print("  Hint: valid symbols include BTC/USDT, ETH/USDT, SOL/USDT")
-                return
-
-            console.print(f"[dim]Raw data: {len(df)} bars[/]")
-
-            with console.status("[bold blue]Cleaning data..."):
-                df = clean_ohlcv(df)
-
-            with console.status("[bold blue]Saving to Parquet..."):
-                store.save(df, symbol)
-
-            date_range = store.get_date_range(symbol)
-            console.print(
-                f"[green]OK[/] Saved [bold]{len(df)}[/] bars for [bold]{symbol}[/] ({timeframe})"
-            )
-            if date_range:
-                from datetime import datetime
-
-                s = datetime.fromtimestamp(date_range[0] / 1000).strftime("%Y-%m-%d")
-                e = datetime.fromtimestamp(date_range[1] / 1000).strftime("%Y-%m-%d")
-                console.print(f"  Range: {s} → {e}")
+                        s = datetime.fromtimestamp(date_range[0] / 1000).strftime("%Y-%m-%d")
+                        e = datetime.fromtimestamp(date_range[1] / 1000).strftime("%Y-%m-%d")
+                        console.print(f"  Range: {s} → {e}")
+                except Exception as e:
+                    # odyssey-review RP2 (ISS-037): scrub OKX secrets before print.
+                    console.print(f"[red]ERR[/] {sym}: {redact_secrets(str(e))}")
+                    failed.append(sym)
         except Exception as e:
-            # odyssey-review RP2 (ISS-037): fetcher/gateway exceptions may embed
-            # OKX apiKey/URL — scrub before printing to the operator's terminal.
             console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
             console.print("  Check your internet connection and symbol name.")
         finally:
             await fetcher.disconnect()
             store.close()
+
+        if failed:
+            console.print(
+                f"[yellow]WARNING:[/] {len(failed)}/{len(symbol_list)} symbols failed: {', '.join(failed)}"
+            )
 
     asyncio.run(_run())
 
@@ -196,6 +211,7 @@ _OI_HISTORY_PERIODS = {"1H", "1D"}
 def download_funding(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol (OKX swap)"),
     days: int = typer.Option(90, help="Backfill window in days (OKX max ~90)"),
+    okx_suffix: bool = typer.Option(True, help="Append -OKX suffix for source isolation"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
     """Backfill funding-rate history from OKX (limit=400 pagination).
@@ -207,6 +223,7 @@ def download_funding(
     from quantflow.data.store import DataStore
 
     cfg = _load(config)
+    store_symbol = f"{symbol}-OKX" if okx_suffix else symbol
     effective_days = days
     if days > FUNDING_HISTORY_MAX_DAYS:
         console.print(
@@ -230,10 +247,10 @@ def download_funding(
             if df.empty:
                 console.print("[red]ERR No funding data fetched. Check the symbol.[/]")
                 return
-            store.save_funding_rates(df, symbol)
-            last_ts = store.get_last_meta_timestamp(symbol, "funding_rate")
+            store.save_funding_rates(df, store_symbol)
+            last_ts = store.get_last_meta_timestamp(store_symbol, "funding_rate")
             console.print(
-                f"[green]OK[/] Saved [bold]{len(df)}[/] funding rows for [bold]{symbol}[/]"
+                f"[green]OK[/] Saved [bold]{len(df)}[/] funding rows for [bold]{store_symbol}[/]"
             )
             if last_ts is not None:
                 last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
@@ -253,6 +270,7 @@ def download_oi(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol (OKX swap)"),
     days: int = typer.Option(180, help="Backfill window in days"),
     period: str = typer.Option("1H", help="OI granularity: 1H or 1D"),
+    okx_suffix: bool = typer.Option(True, help="Append -OKX suffix for source isolation"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
     """Backfill open-interest history from OKX (REST, limit=100 pagination).
@@ -267,6 +285,7 @@ def download_oi(
         raise typer.BadParameter(f"period must be one of {sorted(_OI_HISTORY_PERIODS)}")
 
     cfg = _load(config)
+    store_symbol = f"{symbol}-OKX" if okx_suffix else symbol
 
     async def _run() -> None:
         fetcher = MarketMetaFetcher(cfg.data)
@@ -284,16 +303,261 @@ def download_oi(
             if df.empty:
                 console.print("[red]ERR No OI data fetched. Check the symbol.[/]")
                 return
-            store.save_open_interest(df, symbol)
-            last_ts = store.get_last_meta_timestamp(symbol, "open_interest")
+            store.save_open_interest(df, store_symbol)
+            last_ts = store.get_last_meta_timestamp(store_symbol, "open_interest")
             console.print(
-                f"[green]OK[/] Saved [bold]{len(df)}[/] OI rows for [bold]{symbol}[/] ({period})"
+                f"[green]OK[/] Saved [bold]{len(df)}[/] OI rows for [bold]{store_symbol}[/] ({period})"
             )
             if last_ts is not None:
                 last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
                 console.print(f"  Last OI timestamp: {last_date}")
         except Exception as e:
             console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
+            raise typer.Exit(code=1) from e
+        finally:
+            await fetcher.disconnect()
+            store.close()
+
+    asyncio.run(_run())
+
+
+@app.command()
+def download_binance(
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol (e.g. BTC/USDT)"),
+    timeframe: str = typer.Option("1d", help="K-line timeframe (1m/5m/1h/4h/1d/...)"),
+    start: str = typer.Option("2024-01", help="Start month (YYYY-MM)"),
+    end: str = typer.Option("2025-01", help="End month (YYYY-MM)"),
+    market: str = typer.Option("spot", help="Binance market: spot or futures"),
+    binance_suffix: bool = typer.Option(True, help="Append -BINANCE suffix for source isolation"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
+) -> None:
+    """Download historical klines from the Binance public archive (data.binance.vision).
+
+    Free, no-auth, no-rate-limit monthly CSV archives. Ingested through the
+    shared clean_ohlcv → DataStore.save pipeline (identical to OKX data).
+    Stored with a ``-BINANCE`` suffix (e.g. ``BTC/USDT-BINANCE``) for exchange
+    isolation — the symbol validator rejects ``.`` but allows ``-``.
+
+    Examples:
+        quantflow download-binance --symbol BTC/USDT --timeframe 1d --start 2019-01 --end 2026-08
+        quantflow download-binance --symbol ETH/USDT --timeframe 4h --start 2021-01 --end 2024-01
+        quantflow download-binance --symbol BTC/USDT --market futures --timeframe 1d --start 2020-01
+    """
+    from quantflow.data.binance_fetcher import BinanceArchiveFetcher, download_binance_to_store
+    from quantflow.data.store import DataStore
+
+    if market not in ("spot", "futures"):
+        raise typer.BadParameter("market must be 'spot' or 'futures'")
+
+    cfg = _load(config)
+    fetcher = BinanceArchiveFetcher()
+    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+    store_symbol = f"{symbol}-BINANCE" if binance_suffix else symbol
+    try:
+        with console.status(
+            f"[bold blue]Downloading {symbol} {timeframe} ({start} → {end}) from Binance {market} archive..."
+        ):
+            df = download_binance_to_store(
+                fetcher, store, symbol, timeframe, start, end,
+                market=market, exchange_suffix=binance_suffix,
+            )
+        if df.empty:
+            console.print(
+                "[red]ERR No data fetched. Check the symbol, timeframe, and date range.[/]"
+            )
+            console.print(
+                "  Hint: a symbol listed after the requested window returns nothing "
+                "(e.g. a 2021 token has no 2019 archive)."
+            )
+            return
+        console.print(f"[dim]Raw data: {len(df)} bars[/]")
+        date_range = store.get_date_range(store_symbol)
+        console.print(
+            f"[green]OK[/] Saved [bold]{len(df)}[/] bars for [bold]{store_symbol}[/] ({timeframe})"
+        )
+        if date_range:
+            s = datetime.fromtimestamp(date_range[0] / 1000).strftime("%Y-%m-%d")
+            e = datetime.fromtimestamp(date_range[1] / 1000).strftime("%Y-%m-%d")
+            console.print(f"  Range: {s} → {e}")
+    except Exception as e:
+        console.print(f"[red]ERR Error: {e}[/]")
+        raise typer.Exit(code=1) from e
+    finally:
+        store.close()
+
+
+@app.command()
+def download_bybit(
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol (e.g. BTC/USDT)"),
+    timeframe: str = typer.Option("1d", help="K-line timeframe (1m/5m/1h/4h/1d/...)"),
+    start: str = typer.Option("2024-01-01", help="Start date (YYYY-MM-DD)"),
+    end: str = typer.Option("2025-01-01", help="End date (YYYY-MM-DD)"),
+    category: str = typer.Option("spot", help="Bybit market: spot / linear / inverse"),
+    exchange_suffix: bool = typer.Option(True, help="Append -BYBIT suffix for source isolation"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
+) -> None:
+    """Download historical klines from Bybit V5 (via CCXT).
+
+    Stored with a ``-BYBIT`` suffix (e.g. ``BTC/USDT-BYBIT``) for exchange
+    isolation — the symbol validator rejects ``.`` but allows ``-``.
+
+    Examples:
+        quantflow download-bybit --symbol BTC/USDT --timeframe 1d --start 2020-01-01
+        quantflow download-bybit --symbol ETH/USDT --timeframe 4h --start 2021-01-01 --category linear
+    """
+    from quantflow.data.bybit_fetcher import BybitFetcher
+    from quantflow.data.cleaner import clean_ohlcv
+    from quantflow.data.store import DataStore
+
+    if category not in ("spot", "linear", "inverse"):
+        raise typer.BadParameter("category must be 'spot', 'linear', or 'inverse'")
+    if ":" in symbol and category != "linear":
+        raise typer.BadParameter(
+            "Bybit delivery contracts belong to the linear category; use --category linear"
+        )
+
+    from quantflow.data.bybit_common import bybit_store_symbol
+
+    cfg = _load(config)
+    store_symbol = bybit_store_symbol(symbol) if exchange_suffix else symbol
+
+    async def _run() -> None:
+        fetcher = BybitFetcher(cfg.data, category=category)
+        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+        try:
+            with console.status("[bold blue]Connecting to Bybit..."):
+                await fetcher.connect()
+            console.print("[green]OK[/] Connected to Bybit")
+
+            with console.status(
+                f"[bold blue]Downloading {symbol} {timeframe} ({start} → {end}) [{category}]..."
+            ):
+                df = await fetcher.fetch_ohlcv(
+                    symbol, timeframe, start, end, category=category
+                )
+            if df.empty:
+                console.print(
+                    "[red]ERR No data fetched. Check the symbol, timeframe, and date range.[/]"
+                )
+                return
+            console.print(f"[dim]Raw data: {len(df)} bars[/]")
+            with console.status("[bold blue]Cleaning data..."):
+                df = clean_ohlcv(df)
+            with console.status("[bold blue]Saving to Parquet..."):
+                store.save(df, store_symbol)
+            date_range = store.get_date_range(store_symbol)
+            console.print(
+                f"[green]OK[/] Saved [bold]{len(df)}[/] bars for [bold]{store_symbol}[/] ({timeframe})"
+            )
+            if date_range:
+                s = datetime.fromtimestamp(date_range[0] / 1000).strftime("%Y-%m-%d")
+                e = datetime.fromtimestamp(date_range[1] / 1000).strftime("%Y-%m-%d")
+                console.print(f"  Range: {s} → {e}")
+        except Exception as e:
+            console.print(f"[red]ERR Error: {e}[/]")
+            raise typer.Exit(code=1) from e
+        finally:
+            await fetcher.disconnect()
+            store.close()
+
+    asyncio.run(_run())
+
+
+@app.command()
+def download_bybit_funding(
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol (e.g. BTC/USDT)"),
+    days: int = typer.Option(365, help="Backfill window in days"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
+) -> None:
+    """Backfill Bybit funding-rate history (V5, category=linear).
+
+    Stored under meta_funding_rate/<symbol>-BYBIT/ for source isolation.
+
+    Examples:
+        quantflow download-bybit-funding --symbol BTC/USDT --days 365
+    """
+    from quantflow.data.bybit_meta_fetcher import BybitMetaFetcher
+    from quantflow.data.store import DataStore
+
+    cfg = _load(config)
+
+    async def _run() -> None:
+        fetcher = BybitMetaFetcher(cfg.data)
+        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+        try:
+            with console.status("[bold blue]Connecting to Bybit (meta)..."):
+                await fetcher.connect()
+            since_ms = int(time.time() * 1000) - days * 86_400_000
+            with console.status(f"[bold blue]Backfilling Bybit funding for {symbol} ({days}d)..."):
+                df = await fetcher.fetch_funding_rate_history(symbol, since_ms)
+            if df.empty:
+                console.print("[red]ERR No funding data fetched. Check the symbol.[/]")
+                return
+            fetcher.save_funding(store, df, symbol)
+            from quantflow.data.bybit_common import bybit_store_symbol
+
+            last_ts = store.get_last_meta_timestamp(bybit_store_symbol(symbol), "funding_rate")
+            console.print(f"[green]OK[/] Saved [bold]{len(df)}[/] funding rows for [bold]{symbol}-BYBIT[/]")
+            if last_ts is not None:
+                last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
+                console.print(f"  Last funding time: {last_date}")
+        except Exception as e:
+            console.print(f"[red]ERR Error: {e}[/]")
+            raise typer.Exit(code=1) from e
+        finally:
+            await fetcher.disconnect()
+            store.close()
+
+    asyncio.run(_run())
+
+
+@app.command()
+def download_bybit_oi(
+    symbol: str = typer.Option("BTC/USDT", help="Trading symbol (e.g. BTC/USDT)"),
+    period: str = typer.Option("1D", help="OI granularity: 5m/15m/30m/1h/4h/1d"),
+    days: int = typer.Option(365, help="Backfill window in days"),
+    mark_usd: bool = typer.Option(True, help="Compute open_interest_usd via mark-price-kline"),
+    config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
+) -> None:
+    """Backfill Bybit open-interest history (V5, time-series, category=linear).
+
+    Stored under meta_open_interest/<symbol>-BYBIT/ for source isolation.
+
+    Examples:
+        quantflow download-bybit-oi --symbol BTC/USDT --period 1D --days 365
+    """
+    from quantflow.data.bybit_meta_fetcher import BybitMetaFetcher
+    from quantflow.data.store import DataStore
+
+    cfg = _load(config)
+    tf_map = {"5m": "5m", "15m": "15m", "30m": "30m", "1h": "1h", "4h": "4h", "1d": "1d"}
+    if period not in tf_map:
+        raise typer.BadParameter("period must be one of 5m/15m/30m/1h/4h/1d")
+
+    async def _run() -> None:
+        fetcher = BybitMetaFetcher(cfg.data)
+        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+        try:
+            with console.status("[bold blue]Connecting to Bybit (meta)..."):
+                await fetcher.connect()
+            since_ms = int(time.time() * 1000) - days * 86_400_000
+            with console.status(f"[bold blue]Backfilling Bybit OI for {symbol} ({period}, {days}d)..."):
+                df = await fetcher.fetch_open_interest_history(
+                    symbol, tf_map[period], since_ms, mark_usd=mark_usd
+                )
+            if df.empty:
+                console.print("[red]ERR No OI data fetched. Check the symbol/period.[/]")
+                return
+            fetcher.save_open_interest(store, df, symbol)
+            from quantflow.data.bybit_common import bybit_store_symbol
+
+            last_ts = store.get_last_meta_timestamp(bybit_store_symbol(symbol), "open_interest")
+            console.print(f"[green]OK[/] Saved [bold]{len(df)}[/] OI rows for [bold]{symbol}-BYBIT[/] ({period})")
+            if last_ts is not None:
+                last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
+                console.print(f"  Last OI timestamp: {last_date}")
+        except Exception as e:
+            console.print(f"[red]ERR Error: {e}[/]")
             raise typer.Exit(code=1) from e
         finally:
             await fetcher.disconnect()

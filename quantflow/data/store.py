@@ -345,6 +345,38 @@ class DataStore:
                 symbols.append(d.name)
         return sorted(symbols)
 
+    #: Default exchange-suffix preference for :meth:`resolve_symbol` (P4
+    #: three-model consensus): prefer the clean ``-OKX`` partition, then the
+    #: clean ``-BINANCE`` one, and only then the legacy bare (mixed-source)
+    #: partition. Configurable per call site.
+    DEFAULT_SUFFIX_PRIORITY: tuple[str, ...] = ("-OKX", "-BINANCE", "")
+
+    def resolve_symbol(
+        self,
+        symbol: str,
+        *,
+        priority: tuple[str, ...] = DEFAULT_SUFFIX_PRIORITY,
+    ) -> str:
+        """Return the best existing storage key for a logical symbol.
+
+        Walks ``priority`` suffix candidates (e.g. ``BTC/USDT-OKX`` →
+        ``BTC/USDT-BINANCE`` → ``BTC/USDT``) and returns the validated storage
+        name of the first candidate whose partition exists on disk. Falls back
+        to the bare symbol when nothing matches — read behaviour then equals
+        the pre-migration status quo.
+
+        Pure filesystem predicate: no data is read, so callers can use it for
+        provenance reporting as well as for querying. Explicit by design —
+        call sites opt in (P4 consensus rejected transparent fallback inside
+        :meth:`query`, which would silently mix legacy and suffixed sources).
+        """
+        base = _validate_symbol(symbol)
+        for suffix in priority:
+            candidate = _validate_symbol(f"{symbol}{suffix}")
+            if (self._parquet_dir / candidate).is_dir():
+                return candidate
+        return base
+
     def get_date_range(self, symbol: str) -> tuple[int, int] | None:
         """Get the date range of stored data for a symbol."""
         # SECURITY: validate symbol before interpolating into the DuckDB

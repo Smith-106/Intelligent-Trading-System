@@ -611,7 +611,13 @@ def _query_symbol_frame(
     # must not 500 when a single symbol's parquet is corrupt. The error is
     # logged here so the failure is observable, not silently swallowed.
     try:
-        frame = store.query(symbol)
+        # P4 suffix isolation: read from the best existing partition
+        # (-OKX/-BINANCE preferred; falls back to legacy bare when no suffixed
+        # partition exists yet — behaviour then equals the pre-migration quo).
+        store_symbol = store.resolve_symbol(symbol)
+        if store_symbol != validate_symbol(symbol):
+            logger.info("Station symbol resolution: %s -> partition %s", symbol, store_symbol)
+        frame = store.query(store_symbol)
     except DataError as e:
         logger.warning("Station overview query failed for %s: %s — degrading to demo", symbol, e)
         return _build_demo_frame(symbol, start=start, end=end), "demo"
@@ -1224,8 +1230,12 @@ class StationService:
                 )
             cleaned_frame = cleaned_frame.copy()
             cleaned_frame["data_source"] = "okx"
-            store.save(cleaned_frame, request.symbol)
-            date_range = store.get_date_range(request.symbol)
+            # P4 suffix isolation: web downloads are OKX-sourced (DataFetcher
+            # is hardwired to ccxt.okx), so persist under the -OKX partition
+            # instead of growing the legacy mixed bare partition.
+            store_symbol = f"{request.symbol}-OKX"
+            store.save(cleaned_frame, store_symbol)
+            date_range = store.get_date_range(store_symbol)
         finally:
             await fetcher.disconnect()
             store.close()
@@ -1258,26 +1268,28 @@ class StationService:
         # store.get_date_range() calls validate too, but this direct Path
         # construction (line below) runs FIRST and would otherwise traverse
         # the parquet dir on a crafted request.symbol.
-        symbol_name = validate_symbol(request.symbol)
-        symbol_dir = Path(config.data.parquet_dir) / symbol_name
-        parquet_files = sorted(symbol_dir.glob("*/*.parquet"))
-        if not parquet_files:
-            raise ValueError(f"No local parquet files found for {request.symbol}.")
-
-        rows_updated = 0
-        files_updated = 0
-        for parquet_file in parquet_files:
-            frame = pd.read_parquet(parquet_file)
-            updated = frame.copy()
-            updated["data_source"] = normalized_source
-            updated.to_parquet(parquet_file, index=False, compression="zstd")
-            rows_updated += len(updated)
-            files_updated += 1
-
+        # P4 suffix isolation: resolve via the store (validates internally)
+        # so tagging hits the same partition reads do (-OKX preferred).
         store = _open_station_store(config)
         try:
-            date_range = store.get_date_range(request.symbol)
-            tagged_frame = store.query(request.symbol, columns=["timestamp", "data_source"])
+            symbol_name = store.resolve_symbol(request.symbol)
+            symbol_dir = Path(config.data.parquet_dir) / symbol_name
+            parquet_files = sorted(symbol_dir.glob("*/*.parquet"))
+            if not parquet_files:
+                raise ValueError(f"No local parquet files found for {request.symbol}.")
+
+            rows_updated = 0
+            files_updated = 0
+            for parquet_file in parquet_files:
+                frame = pd.read_parquet(parquet_file)
+                updated = frame.copy()
+                updated["data_source"] = normalized_source
+                updated.to_parquet(parquet_file, index=False, compression="zstd")
+                rows_updated += len(updated)
+                files_updated += 1
+
+            date_range = store.get_date_range(symbol_name)
+            tagged_frame = store.query(symbol_name, columns=["timestamp", "data_source"])
             resolved_source, source_breakdown = _resolve_frame_data_source(tagged_frame)
         finally:
             store.close()
