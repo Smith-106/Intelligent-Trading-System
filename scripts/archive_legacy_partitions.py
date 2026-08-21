@@ -49,13 +49,41 @@ META_DIRS = ("meta_funding_rate", "meta_open_interest")
 RELABEL_TARGET = "BTC_USDT"
 
 
+def _covered_months(symbol_dir: Path) -> set[tuple[int, int]]:
+    """(year, month) pairs physically present under a partition directory."""
+    months: set[tuple[int, int]] = set()
+    for year_dir in symbol_dir.iterdir():
+        if not year_dir.is_dir() or not year_dir.name.isdigit():
+            continue
+        for f in year_dir.glob("*.parquet"):
+            if f.stem.isdigit():
+                months.add((int(year_dir.name), int(f.stem)))
+    return months
+
+
 def _replacement_ready(store: DataStore, legacy_dir: str) -> str | None:
-    """Return the suffixed partition name replacing ``legacy_dir``, if any."""
+    """Return the suffixed partition name fully covering ``legacy_dir``.
+
+    ISS-REV007-02: existence alone is not enough — a sparse fresh partition
+    (e.g. a partial re-download) must not green-light archiving a legacy
+    directory holding months the replacement lacks; those months would be
+    unrecoverable. Coverage compares physical (year, month) file sets.
+    """
     base_symbol = legacy_dir.replace("_", "/")
+    legacy_months = _covered_months(PARQUET_DIR / legacy_dir)
     for suffix in ("-BINANCE", "-OKX"):
         candidate = f"{base_symbol}{suffix}"
-        if store.get_date_range(candidate) is not None:
+        cand_dir = PARQUET_DIR / candidate
+        if not cand_dir.is_dir():
+            continue
+        if store.get_date_range(candidate) is None:
+            continue
+        if not legacy_months or _covered_months(cand_dir) >= legacy_months:
             return candidate
+        print(
+            f"  !! {candidate} exists but does not cover all legacy months "
+            f"(missing: {sorted(legacy_months - _covered_months(cand_dir))[:6]}...) — BLOCKED"
+        )
     return None
 
 

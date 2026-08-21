@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
 from aiohttp import web
 
@@ -132,17 +134,22 @@ async def _spa_fallback(request: web.Request) -> web.FileResponse:
 
 async def _overview(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    return web.json_response(_redact_paths(service.overview()))
+    # PERF(P1): parquet scans are CPU/IO bound — keep them off the event loop
+    # so control-plane endpoints (kill switch, session) stay responsive.
+    overview = await asyncio.to_thread(service.overview)
+    return web.json_response(_redact_paths(overview))
 
 
 async def _strategies(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    return web.json_response(service.strategies())
+    strategies = await asyncio.to_thread(service.strategies)
+    return web.json_response(strategies)
 
 
 async def _data_snapshot(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    return web.json_response(_redact_paths(service.data_snapshot()))
+    snapshot = await asyncio.to_thread(service.data_snapshot)
+    return web.json_response(_redact_paths(snapshot))
 
 
 async def _data_download(request: web.Request) -> web.Response:
@@ -158,8 +165,12 @@ async def _data_download(request: web.Request) -> web.Response:
 async def _data_seed_demo(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
     payload = await request.json()
+
+    def _seed() -> Any:
+        return service.seed_demo_data(DataDownloadRequest.model_validate(payload))
+
     try:
-        result = service.seed_demo_data(DataDownloadRequest.model_validate(payload))
+        result = await asyncio.to_thread(_seed)
     except (ValueError, DataError) as exc:
         return _error_response(exc)
     return web.json_response(_redact_paths(result))
@@ -168,8 +179,12 @@ async def _data_seed_demo(request: web.Request) -> web.Response:
 async def _data_tag_source(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
     payload = await request.json()
+
+    def _tag() -> Any:
+        return service.tag_data_source(DataSourceTagRequest.model_validate(payload))
+
     try:
-        result = service.tag_data_source(DataSourceTagRequest.model_validate(payload))
+        result = await asyncio.to_thread(_tag)
     except (ValueError, DataError) as exc:
         return _error_response(exc)
     return web.json_response(_redact_paths(result))
@@ -178,8 +193,12 @@ async def _data_tag_source(request: web.Request) -> web.Response:
 async def _research(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
     payload = await request.json()
+
+    def _run_research() -> Any:
+        return service.research(ResearchRequest.model_validate(payload))
+
     try:
-        result = service.research(ResearchRequest.model_validate(payload))
+        result = await asyncio.to_thread(_run_research)
     except ValueError as exc:
         return _error_response(exc)
     return web.json_response(_redact_paths(result))
@@ -188,14 +207,19 @@ async def _research(request: web.Request) -> web.Response:
 async def _research_history(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
     limit = _parse_limit(request, default=12)
-    return web.json_response({"items": service.research_history(limit=limit)})
+    items = await asyncio.to_thread(service.research_history, limit=limit)
+    return web.json_response({"items": items})
 
 
 async def _validate(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
     payload = await request.json()
+
+    def _run_validate() -> Any:
+        return service.validate(ValidationRequest.model_validate(payload))
+
     try:
-        result = service.validate(ValidationRequest.model_validate(payload))
+        result = await asyncio.to_thread(_run_validate)
     except ValueError as exc:
         return _error_response(exc)
     return web.json_response(result)
@@ -204,18 +228,23 @@ async def _validate(request: web.Request) -> web.Response:
 async def _validation_history(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
     limit = _parse_limit(request, default=12)
-    return web.json_response({"items": service.validation_history(limit=limit)})
+    items = await asyncio.to_thread(service.validation_history, limit=limit)
+    return web.json_response({"items": items})
 
 
 async def _workbench_state(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
     if request.method == "GET":
-        payload = service.workbench_state()
-        return web.json_response({"state": payload})
+        state = await asyncio.to_thread(service.workbench_state)
+        return web.json_response({"state": state})
 
     payload = await request.json()
+
+    def _save() -> Any:
+        return service.save_workbench_state(payload)
+
     try:
-        saved = service.save_workbench_state(payload)
+        saved = await asyncio.to_thread(_save)
     except ValueError as exc:
         return _error_response(exc)
     return web.json_response({"state": saved})

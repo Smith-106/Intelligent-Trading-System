@@ -20,12 +20,6 @@ from quantflow import __version__
 from quantflow.common.config import AppConfig, load_config, resolve_config_path
 from quantflow.common.redaction import redact_secrets
 from quantflow.monitoring.logger import setup_logging
-from quantflow.strategy.catalog import (
-    get_strategy_factories as _catalog_strategy_factories,
-)
-from quantflow.strategy.catalog import (
-    get_strategy_specs as _catalog_strategy_specs,
-)
 
 setup_logging()
 
@@ -43,11 +37,17 @@ ResultDict: TypeAlias = dict[str, Any]
 
 
 def _get_strategy_factories() -> dict[str, StrategyFactory]:
-    return _catalog_strategy_factories()
+    # PERF(P1/A-2): imported lazily — the catalog chain pulls pandas into the
+    # CLI cold path, which download/status/version/--help never need.
+    from quantflow.strategy.catalog import get_strategy_factories
+
+    return get_strategy_factories()
 
 
 def _get_strategy_specs() -> dict[str, tuple[StrategyFactory, ParamSpace]]:
-    return _catalog_strategy_specs()
+    from quantflow.strategy.catalog import get_strategy_specs
+
+    return get_strategy_specs()
 
 
 def _date_to_ms(date_str: str) -> int:
@@ -127,6 +127,12 @@ def download(
     start: str = typer.Option("2024-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-01-01", help="End date (YYYY-MM-DD)"),
     okx_suffix: bool = typer.Option(True, help="Append -OKX suffix for source isolation"),
+    concurrency: int = typer.Option(
+        1,
+        help="Max in-flight symbol downloads (keep 1 until verify_okx_throttler.py passes for N)",
+        min=1,
+        max=8,
+    ),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
     """Download historical data from OKX (single or batch symbol).
@@ -148,26 +154,32 @@ def download(
         fetcher = DataFetcher(cfg.data)
         store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
         failed: list[str] = []
+        # C-2 (PERF): >1 only after verify_okx_throttler.py --concurrency N
+        # proves zero 429s; default keeps the serial M4-1.2 behaviour.
+        sem = asyncio.Semaphore(max(1, concurrency))
 
         try:
             with console.status("[bold blue]Connecting to OKX..."):
                 await fetcher.connect()
             console.print("[green]OK[/] Connected to OKX")
 
-            # M4-1.2: single shared instance, serial loop over symbols (the
-            # per-instance CCXT rate limiter is authoritative; gather would
-            # only queue up and risk HTTP 429). A failing symbol is isolated
-            # so the whole batch is not aborted.
-            for sym in symbol_list:
+            # M4-1.2: single shared instance. The ccxt rate limiter stays
+            # authoritative; --concurrency>1 only bounds how many symbol
+            # pagination chains are in flight (each still throttled), and the
+            # default of 1 preserves the historical serial behaviour exactly.
+            async def _download_one(sym: str) -> None:
                 try:
-                    with console.status(
-                        f"[bold blue]Downloading {sym} {timeframe} ({start} → {end})..."
-                    ):
-                        df = await fetcher.fetch_ohlcv(sym, timeframe, start, end)
+                    async with sem:
+                        with console.status(
+                            f"[bold blue]Downloading {sym} {timeframe} ({start} → {end})..."
+                        ):
+                            df = await fetcher.fetch_ohlcv(sym, timeframe, start, end)
                     if df.empty:
                         console.print(f"[yellow]SKIP[/] {sym}: no data (check symbol/date)")
-                        failed.append(sym)
-                        continue
+                        # SKIP is not a failure: empty history is a legitimate
+                        # outcome (symbol predates range). Only ERR sets the
+                        # P5-F5 exit-code flag.
+                        return
                     console.print(f"[dim]Raw data: {len(df)} bars for {sym}[/]")
                     with console.status("[bold blue]Cleaning data..."):
                         df = clean_ohlcv(df)
@@ -188,6 +200,15 @@ def download(
                     # odyssey-review RP2 (ISS-037): scrub OKX secrets before print.
                     console.print(f"[red]ERR[/] {sym}: {redact_secrets(str(e))}")
                     failed.append(sym)
+
+            if concurrency == 1:
+                for sym in symbol_list:
+                    await _download_one(sym)
+            else:
+                # save-on-complete inside _download_one keeps memory bounded;
+                # distinct symbols write distinct partitions, and cross-process
+                # same-partition races are serialised by the P2 FileLock.
+                await asyncio.gather(*[_download_one(s) for s in symbol_list])
         except Exception as e:
             console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
             # P5-F5: a connect-level failure fails the whole batch — count
@@ -1499,7 +1520,8 @@ def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
     cfg = _load(config)
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
     try:
-        df = store.query(symbol)
+        resolved = store.resolve_symbol(symbol)
+        df = store.query(resolved)
         if df.empty:
             console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
             return
@@ -1580,7 +1602,8 @@ def _ai_train(
 
         store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
         try:
-            df = store.query(symbol)
+            resolved = store.resolve_symbol(symbol)
+            df = store.query(resolved)
             if df.empty:
                 console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
                 return
@@ -1620,7 +1643,8 @@ def _ai_train(
             if features is None:
                 engine = IndicatorEngine()
                 fs = FeatureStore(cfg.data.parquet_dir, indicator_computer=engine)
-                raw = store.query(symbol)
+                resolved_ml = store.resolve_symbol(symbol)
+                raw = store.query(resolved_ml)
                 features = fs.compute_features(symbol, int(raw["timestamp"].max()), [], store)
                 close = raw["close"]
                 console.print(
@@ -1761,7 +1785,8 @@ def _ai_validation_bypass(
     reg_dir = registry_dir or cfg.ai.registry_dir
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
     try:
-        df = store.query(symbol)
+        resolved = store.resolve_symbol(symbol)
+        df = store.query(resolved)
         if df.empty:
             console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
             return

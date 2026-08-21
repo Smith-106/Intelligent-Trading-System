@@ -152,13 +152,11 @@ class BybitFetcher:
         while True:
             pages += 1
             if pages > MAX_PAGINATION_PAGES:
-                logger.warning(
-                    "Pagination exceeded %d pages for %s/%s; stopping",
-                    MAX_PAGINATION_PAGES,
-                    symbol,
-                    timeframe,
+                # RV-012: a silent stop here truncated history while callers
+                # treated the result as complete — raise instead.
+                raise DataError(
+                    f"Pagination exceeded {MAX_PAGINATION_PAGES} pages for {symbol}"
                 )
-                break
             bars = await asyncio.wait_for(
                 self._exchange.fetch_ohlcv(
                     symbol,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import math
 import socket
 import subprocess
@@ -974,14 +975,20 @@ class StationService:
                 # symbol must not 500 the whole overview — skip it (logged) so
                 # the rest of the dashboard still renders.
                 try:
-                    frame = store.query(symbol, columns=["timestamp", "data_source"])
-                    data_source, source_breakdown = _resolve_frame_data_source(frame)
+                    # PERF(P1): one-pass aggregate replaces the query() +
+                    # get_date_range() double full-history scan per symbol.
+                    summary = store.symbol_summary(symbol_name)
+                    if summary is None or not summary["rows"]:
+                        continue
+                    source_breakdown = summary["breakdown"]
+                    categories = [k for k, v in source_breakdown.items() if v > 0]
+                    data_source = (
+                        categories[0]
+                        if len(categories) == 1
+                        else ("hybrid" if len(categories) > 1 else "unknown")
+                    )
                     source_counts[data_source] += 1
-                    date_range = store.get_date_range(symbol)
-                    if date_range is None and not frame.empty and "timestamp" in frame.columns:
-                        timestamps = pd.to_numeric(frame["timestamp"], errors="coerce").dropna()
-                        if not timestamps.empty:
-                            date_range = (int(timestamps.min()), int(timestamps.max()))
+                    date_range = summary["date_range"]
                 except DataError as e:
                     logger.warning("Station overview skipping symbol %s: %s", symbol, e)
                     continue
@@ -1305,7 +1312,14 @@ class StationService:
                 frame = pd.read_parquet(parquet_file)
                 updated = frame.copy()
                 updated["data_source"] = normalized_source
-                updated.to_parquet(parquet_file, index=False, compression="zstd")
+                # RV-007/H5: in-place to_parquet is not atomic — a crash or a
+                # concurrent reader could observe a half-written file.
+                tmp_file = parquet_file.with_name(parquet_file.name + ".tmp")
+                try:
+                    updated.to_parquet(tmp_file, index=False, compression="zstd")
+                    os.replace(tmp_file, parquet_file)
+                finally:
+                    tmp_file.unlink(missing_ok=True)
                 rows_updated += len(updated)
                 files_updated += 1
 

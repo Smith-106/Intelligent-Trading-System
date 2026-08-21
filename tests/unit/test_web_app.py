@@ -1113,11 +1113,14 @@ async def test_station_service_download_data_persists_market_data(
     assert payload["data_source"] == "okx"
     assert payload["date_range"]["start"] == "2025-01-01T00:00:00+00:00"
     assert payload["date_range"]["end"] == "2025-01-01T04:00:00+00:00"
-    assert (tmp_path / "parquet" / "BTC_USDT" / "2025" / "01.parquet").exists()
+    # P4 suffix isolation: web downloads persist under the -OKX partition.
+    assert (tmp_path / "parquet" / "BTC_USDT-OKX" / "2025" / "01.parquet").exists()
 
     store = DataStore(str(tmp_path / "parquet"), str(tmp_path / "verify.duckdb"))
     try:
-        saved = store.query("BTC/USDT", columns=["timestamp", "close", "data_source"])
+        saved = store.query(
+            "BTC/USDT-OKX", columns=["timestamp", "close", "data_source"]
+        )
     finally:
         store.close()
     assert list(saved["data_source"].unique()) == ["okx"]
@@ -1483,8 +1486,13 @@ def test_query_symbol_frame_uses_timestamp_column_as_datetime_index() -> None:
 
     class FakeStore:
         def query(self, symbol: str) -> pd.DataFrame:
-            assert symbol == "BTC/USDT"
+            # P4: _query_symbol_frame resolves first, so query receives the
+            # storage name (underscores), not the raw trading symbol.
+            assert symbol == "BTC_USDT"
             return frame
+
+        def resolve_symbol(self, symbol: str) -> str:
+            return "BTC_USDT"
 
     result_frame, data_source = _query_symbol_frame(FakeStore(), "BTC/USDT")
 

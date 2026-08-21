@@ -530,6 +530,10 @@ class TestAICommand:
             def __init__(self, *args, **kwargs):
                 pass
 
+            def resolve_symbol(self, symbol, **kwargs):
+                # RV-013: bare-query call sites now route through the resolver.
+                return symbol.replace("/", "_")
+
             def query(self, symbol, **kwargs):
                 return fake_df.copy()
 

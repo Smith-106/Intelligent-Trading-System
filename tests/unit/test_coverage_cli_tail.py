@@ -67,7 +67,9 @@ class TestDownloadTail:
         ):
             result = runner.invoke(app, ["download", "--symbol", "BTC/USDT"])
         assert result.exit_code == 0
-        assert "No data fetched" in result.output
+        # SKIP is not a failure (empty history is legitimate) — P5-F5 exit 1
+        # fires only on ERR.
+        assert "SKIP" in result.output
 
     def test_download_exception(self) -> None:
         fake_fetcher = MagicMock()
@@ -80,7 +82,8 @@ class TestDownloadTail:
             patch("quantflow.data.store.DataStore", return_value=fake_store),
         ):
             result = runner.invoke(app, ["download", "--symbol", "BTC/USDT"])
-        assert result.exit_code == 0
+        # P5-F5: a connect-level failure fails the batch with exit code 1.
+        assert result.exit_code == 1
         assert "ERR" in result.output
 
 

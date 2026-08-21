@@ -208,20 +208,15 @@ class TestDataSnapshotSymbolProcessing:
 
             mock_store = MagicMock()
             mock_store.list_symbols.return_value = ["BTC_USDT"]
-            btc_frame = pd.DataFrame(
-                {"timestamp": [1700000000000], "data_source": ["unknown_source"]}
-            )
-            mock_store.query.return_value = btc_frame
-            mock_store.get_date_range.return_value = (1700000000000, 1700003600000)
+            # PERF(P1): overview now consumes store.symbol_summary (single scan).
+            mock_store.symbol_summary.return_value = {
+                "rows": 1,
+                "date_range": (1700000000000, 1700003600000),
+                "breakdown": {"unknown": 1},
+            }
             mock_store.close = MagicMock()
 
-            with (
-                patch("quantflow.web.service._open_station_store", return_value=mock_store),
-                patch(
-                    "quantflow.web.service._resolve_frame_data_source",
-                    return_value=("unknown", {"unknown": 1}),
-                ),
-            ):
+            with patch("quantflow.web.service._open_station_store", return_value=mock_store):
                 service = StationService(history_store=StationHistoryStore())
                 result = service.data_snapshot()
                 # Should have source-unknown mode highlights
@@ -255,18 +250,15 @@ class TestDataSnapshotSymbolProcessing:
 
             mock_store = MagicMock()
             mock_store.list_symbols.return_value = ["BTC_USDT"]
-            btc_frame = pd.DataFrame({"timestamp": [1700000000000], "data_source": ["demo"]})
-            mock_store.query.return_value = btc_frame
-            mock_store.get_date_range.return_value = (1700000000000, 1700003600000)
+            # PERF(P1): overview now consumes store.symbol_summary (single scan).
+            mock_store.symbol_summary.return_value = {
+                "rows": 1,
+                "date_range": (1700000000000, 1700003600000),
+                "breakdown": {"demo": 1},
+            }
             mock_store.close = MagicMock()
 
-            with (
-                patch("quantflow.web.service._open_station_store", return_value=mock_store),
-                patch(
-                    "quantflow.web.service._resolve_frame_data_source",
-                    return_value=("demo", {"demo": 1}),
-                ),
-            ):
+            with patch("quantflow.web.service._open_station_store", return_value=mock_store):
                 service = StationService(history_store=StationHistoryStore())
                 result = service.data_snapshot()
                 assert result["mode"] == "demo-seeded"
@@ -299,17 +291,14 @@ class TestDataSnapshotSymbolProcessing:
 
             mock_store = MagicMock()
             mock_store.list_symbols.return_value = ["BTC_USDT", "ETH_USDT"]
-            btc_frame = pd.DataFrame({"timestamp": [1700000000000], "data_source": ["okx"]})
-            eth_frame = pd.DataFrame({"timestamp": [1700000000000], "data_source": ["demo"]})
-            mock_store.query.side_effect = [btc_frame, eth_frame]
-            mock_store.get_date_range.return_value = (1700000000000, 1700003600000)
+            # PERF(P1): overview now consumes store.symbol_summary (single scan).
+            mock_store.symbol_summary.side_effect = [
+                {"rows": 1, "date_range": (1700000000000, 1700003600000), "breakdown": {"okx": 1}},
+                {"rows": 1, "date_range": (1700000000000, 1700003600000), "breakdown": {"demo": 1}},
+            ]
             mock_store.close = MagicMock()
 
-            with (
-                patch("quantflow.web.service._open_station_store", return_value=mock_store),
-                patch("quantflow.web.service._resolve_frame_data_source") as mock_resolve_src,
-            ):
-                mock_resolve_src.side_effect = [("okx", {"okx": 1}), ("demo", {"demo": 1})]
+            with patch("quantflow.web.service._open_station_store", return_value=mock_store):
                 service = StationService(history_store=StationHistoryStore())
                 result = service.data_snapshot()
                 assert result["mode"] == "hybrid"

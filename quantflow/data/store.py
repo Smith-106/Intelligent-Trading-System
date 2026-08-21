@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import logging
+import os
+import threading
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import pandas as pd
+from filelock import FileLock
 
 from quantflow.common.exceptions import DataError
 from quantflow.common.validators import (
@@ -21,6 +25,11 @@ from quantflow.common.validators import (
 )
 
 logger = logging.getLogger(__name__)
+
+# ISS-REV007-01: partition writes are read-merge-write; the FileLock below is
+# inter-process, this one serialises threads inside the process (web station
+# handlers run via asyncio.to_thread on a shared interpreter).
+_PARQUET_WRITE_LOCK = threading.Lock()
 
 # Public patterns re-exported for back-compat / introspection.
 _SYMBOL_PATTERN = SYMBOL_PATTERN
@@ -114,49 +123,71 @@ class DataStore:
             year_dir = symbol_dir / str(int(year))
             month_path = year_dir / f"{int(month):02d}.parquet"
 
-            existing = self._load_existing(month_path)
-            if existing is not None:
-                existing_group = existing[DataStore.group_cols(existing)]
-                new_group = group[data_cols]
-                # ISS-034: append-only fast path. The common live/incremental
-                # case appends bars whose timestamps are all newer than the
-                # stored max — no overlap, both sides already timestamp-sorted,
-                # so concat is already sorted and dedup is a no-op. Skip the
-                # O(n) drop_duplicates + sort_values + reset_index on the full
-                # month (the prior code rewrote + resorted the entire partition
-                # for every save, even a 1-bar append to a 720-row month).
-                # Fall back to the full merge only when timestamps overlap (a
-                # backfill/replay re-saving existing bars), where keep="last"
-                # (newer wins) must actually run.
-                existing_max = existing_group["timestamp"].max()
-                new_min = new_group["timestamp"].min()
-                if new_min > existing_max:
-                    group_data = pd.concat(
-                        [existing_group, new_group],
-                        ignore_index=True,
-                        sort=False,
-                    )
-                else:
-                    group_data = pd.concat(
-                        [existing_group, new_group],
-                        ignore_index=True,
-                        sort=False,
-                    )
-                    # Multi-TF co-residence: same wall-clock timestamp can hold
-                    # both 1h and 1d (etc.). Dedup only within (timestamp, timeframe).
-                    dedup_cols = ["timestamp"]
-                    if "timeframe" in group_data.columns:
-                        dedup_cols.append("timeframe")
-                    group_data = (
-                        group_data.drop_duplicates(subset=dedup_cols, keep="last")
-                        .sort_values("timestamp")
-                        .reset_index(drop=True)
-                    )
-            else:
-                year_dir.mkdir(parents=True, exist_ok=True)
-                group_data = group[data_cols]
+            # ISS-REV007-01: the read-merge-write below must be serialised per
+            # partition — two concurrent saves used to lose one side's bars.
+            # Thread lock first (in-process), then a cross-process FileLock
+            # keyed on the canonical partition path.
+            with _PARQUET_WRITE_LOCK, FileLock(f"{month_path}.lock"):
+                self._merge_write_partition(month_path, year_dir, group, data_cols)
 
-            group_data.to_parquet(month_path, index=False, compression="zstd")
+    def _merge_write_partition(
+        self,
+        month_path: Path,
+        year_dir: Path,
+        group: pd.DataFrame,
+        data_cols: list[str],
+    ) -> None:
+        """Read-merge-write one YYYY/MM.parquet under external locking."""
+        existing = self._load_existing(month_path)
+        if existing is not None:
+            existing_group = existing[DataStore.group_cols(existing)]
+            new_group = group[data_cols]
+            # ISS-034: append-only fast path. The common live/incremental
+            # case appends bars whose timestamps are all newer than the
+            # stored max — no overlap, both sides already timestamp-sorted,
+            # so concat is already sorted and dedup is a no-op. Skip the
+            # O(n) drop_duplicates + sort_values + reset_index on the full
+            # month (the prior code rewrote + resorted the entire partition
+            # for every save, even a 1-bar append to a 720-row month).
+            # Fall back to the full merge only when timestamps overlap (a
+            # backfill/replay re-saving existing bars), where keep="last"
+            # (newer wins) must actually run.
+            existing_max = existing_group["timestamp"].max()
+            new_min = new_group["timestamp"].min()
+            if new_min > existing_max:
+                group_data = pd.concat(
+                    [existing_group, new_group],
+                    ignore_index=True,
+                    sort=False,
+                )
+            else:
+                group_data = pd.concat(
+                    [existing_group, new_group],
+                    ignore_index=True,
+                    sort=False,
+                )
+                # Multi-TF co-residence: same wall-clock timestamp can hold
+                # both 1h and 1d (etc.). Dedup only within (timestamp, timeframe).
+                dedup_cols = ["timestamp"]
+                if "timeframe" in group_data.columns:
+                    dedup_cols.append("timeframe")
+                group_data = (
+                    group_data.drop_duplicates(subset=dedup_cols, keep="last")
+                    .sort_values("timestamp")
+                    .reset_index(drop=True)
+                )
+        else:
+            year_dir.mkdir(parents=True, exist_ok=True)
+            group_data = group[data_cols]
+
+        # Atomic swap: a reader globbing mid-write must never see a half
+        # written zstd file (to_parquet is not atomic by itself).
+        tmp_path = month_path.with_name(month_path.name + ".tmp")
+        try:
+            group_data.to_parquet(tmp_path, index=False, compression="zstd")
+            os.replace(tmp_path, month_path)
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
     # ------------------------------------------------------------------
     # T-s2-02: market meta data (funding rate / open interest)
@@ -363,7 +394,7 @@ class DataStore:
     #: three-model consensus): prefer the clean ``-OKX`` partition, then the
     #: clean ``-BINANCE`` one, and only then the legacy bare (mixed-source)
     #: partition. Configurable per call site.
-    DEFAULT_SUFFIX_PRIORITY: tuple[str, ...] = ("-OKX", "-BINANCE", "")
+    DEFAULT_SUFFIX_PRIORITY: tuple[str, ...] = ("-OKX", "-BINANCE", "-BYBIT", "")
 
     def resolve_symbol(
         self,
@@ -385,6 +416,7 @@ class DataStore:
         :meth:`query`, which would silently mix legacy and suffixed sources).
         """
         base = _validate_symbol(symbol)
+        hits: list[str] = []
         for suffix in priority:
             # RV-007-002: base symbols already at/near the 20-char limit make
             # suffixed candidates invalid — skip them instead of raising.
@@ -393,8 +425,66 @@ class DataStore:
             except ValueError:
                 continue
             if (self._parquet_dir / candidate).is_dir():
-                return candidate
-        return base
+                hits.append(candidate)
+        if not hits:
+            return base
+        if len(hits) == 1:
+            return hits[0]
+        # RV-010: multiple candidates coexist — prefer the one with the
+        # earliest history start so a sparse fresh partition cannot shadow a
+        # full-history legacy directory. Extra scans only happen here.
+        def _start_ms(name: str) -> int:
+            rng = self.get_date_range(name)
+            return rng[0] if rng else float("inf")
+
+        return min(hits, key=_start_ms)
+
+    def symbol_summary(self, symbol: str) -> dict[str, Any] | None:
+        """One-pass station-overview aggregate for a symbol.
+
+        Returns ``None`` when the symbol has no partition directory;
+        otherwise ``{"rows", "date_range", "breakdown"}`` where breakdown maps
+        data_source (or "unknown" when the column is absent) to row counts.
+        Replaces the query()+get_date_range() double full-history scan in the
+        polling web overview (PERF: N symbols x 2 scans -> x 1).
+        """
+        symbol_name = _validate_symbol(symbol)
+        symbol_dir = self._parquet_dir / symbol_name
+        if not symbol_dir.exists():
+            return None
+        pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/*/*.parquet".replace("'", "''")
+        try:
+            grouped = self._db.query(f"""
+                SELECT COUNT(*) AS n,
+                       MIN(timestamp) AS min_ts,
+                       MAX(timestamp) AS max_ts,
+                       data_source
+                FROM read_parquet('{pattern}', union_by_name=true)
+                GROUP BY data_source
+            """).fetchall()
+        except duckdb.Error:
+            # Legacy partitions without a data_source column: fall back to a
+            # single ungrouped aggregate (still one scan, not two).
+            row = self._db.query(f"""
+                SELECT COUNT(*), MIN(timestamp), MAX(timestamp)
+                FROM read_parquet('{pattern}', union_by_name=true)
+            """).fetchone()
+            if row is None or row[0] == 0:
+                return {"rows": 0, "date_range": None, "breakdown": {}}
+            return {
+                "rows": int(row[0]),
+                "date_range": (int(row[1]), int(row[2])) if row[1] is not None else None,
+                "breakdown": {"unknown": int(row[0])},
+            }
+        rows = sum(int(r[0]) for r in grouped)
+        tmins = [int(r[1]) for r in grouped if r[1] is not None]
+        tmaxs = [int(r[2]) for r in grouped if r[2] is not None]
+        date_range = (min(tmins), max(tmaxs)) if tmins and tmaxs else None
+        return {
+            "rows": rows,
+            "date_range": date_range,
+            "breakdown": {str(r[3]): int(r[0]) for r in grouped},
+        }
 
     def get_date_range(self, symbol: str) -> tuple[int, int] | None:
         """Get the date range of stored data for a symbol."""

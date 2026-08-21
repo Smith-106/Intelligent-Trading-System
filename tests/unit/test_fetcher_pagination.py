@@ -87,15 +87,19 @@ class TestPagination:
         assert mock_call.call_count == 1
 
     def test_page_cap_protects_against_hang(self) -> None:
-        """Runaway pagination stops at MAX_PAGINATION_PAGES."""
+        """RV-012: runaway pagination fails loud instead of silently truncating."""
+        import pytest as _pytest
+
+        from quantflow.common.exceptions import DataError
+
         pages = [
             _page(1_700_000_000_000 + i * OKX_KLINE_PAGE_MAX * 3_600_000, OKX_KLINE_PAGE_MAX)
             for i in range(600)
         ]
         fetcher, mock_call = _make_fetcher(pages)
-        df = asyncio.run(fetcher.fetch_ohlcv("BTC/USDT", "1h"))
+        with _pytest.raises(DataError, match="Pagination exceeded"):
+            asyncio.run(fetcher.fetch_ohlcv("BTC/USDT", "1h"))
         assert mock_call.call_count == MAX_PAGINATION_PAGES
-        assert len(df) == MAX_PAGINATION_PAGES * OKX_KLINE_PAGE_MAX
 
     def test_non_finite_bars_filtered(self) -> None:
         """Non-finite bars are dropped at the parse boundary."""
