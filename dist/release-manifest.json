@@ -1,18 +1,21 @@
 {
-  "schema_version": "release-manifest/1.0",
-  "version": "0.8.0",
-  "tag": "v0.8.0",
-  "generated_at": "2026-08-18T01:16:45.324408+00:00",
-  "commit": "028dc75",
+  "version": "0.9.0",
+  "tag": "v0.9.0",
+  "release_dir": "docs/release/v0.9.0",
+  "notes_file": "docs/release/v0.9.0/release-notes.md",
   "assets": [
     {
-      "name": "quantflow-0.8.0.tar.gz",
-      "sha256": "269c0f355bcee45030b058de4cbdbe9ed3b710ae38f80d5b1077c32554cacfcf"
+      "name": "quantflow-0.9.0.tar.gz",
+      "sha256": "666d01c3aabd9ddac27cbcd55d173cb5351440c668774ae6d914d32171c58174",
+      "path": "dist/quantflow-0.9.0.tar.gz",
+      "checksum_path": "dist/quantflow-0.9.0.tar.gz.sha256"
     },
     {
-      "name": "quantflow-0.8.0-py3-none-any.whl",
-      "sha256": "5e727842dc6fe94b1d01f7ea436a0fa068349921732eaf44bbf17131d9df8d1a"
+      "name": "quantflow-0.9.0-py3-none-any.whl",
+      "sha256": "5c813317de90d1ea65a1d38bd8e872b70ee1757a9655ed0c8f2d63ba26ce2f46",
+      "path": "dist/quantflow-0.9.0-py3-none-any.whl",
+      "checksum_path": "dist/quantflow-0.9.0-py3-none-any.whl.sha256"
     }
   ],
-  "notes": "docs/release/v0.8.0.md"
+  "checksum_bundle": "dist/SHA256SUMS.txt"
 }
