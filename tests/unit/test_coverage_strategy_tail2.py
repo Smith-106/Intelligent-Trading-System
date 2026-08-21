@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from quantflow.strategy.auto_loop import _metric_summary
-from quantflow.strategy.model_registry import ModelRegistry
+from quantflow.strategy.model_registry import ModelRegistry, ModelRegistryError
 from quantflow.strategy.sentiment import SentimentAnalyzer
 from quantflow.strategy.validation.causal_preflight import run_causal_preflight
 from quantflow.strategy.validation.cost_fidelity import extract_cost_grid, extract_funding_tca
@@ -42,12 +42,14 @@ class TestSentimentTail2:
         sa._generative = True
         out = sa._analyze_generative("hello")
         assert isinstance(out, dict)
-        assert np.isnan(list(out.values())[0])
+        assert np.isnan(next(iter(out.values())))
 
 
 # ----------------------------------------------------------------- model_registry
 class TestModelRegistryTail2:
-    def test_constructor_paper_readiness_config_branch(self, tmp_path: pytest.TempPathFactory) -> None:
+    def test_constructor_paper_readiness_config_branch(
+        self, tmp_path: pytest.TempPathFactory
+    ) -> None:
         """L68-71: PaperReadinessConfig instance branch + Mapping branch."""
         cfg = PaperReadinessConfig(min_paper_days=5)
         reg = ModelRegistry(tmp_path / "a", paper_readiness=cfg)
@@ -70,7 +72,7 @@ class TestModelRegistryTail2:
     def test_attach_paper_evidence_missing_raises(self, tmp_path: pytest.TempPathFactory) -> None:
         """L224-225: attach_paper_evidence on missing model → raise."""
         reg = ModelRegistry(tmp_path / "r")
-        with pytest.raises(Exception):
+        with pytest.raises(ModelRegistryError, match="not found"):
             reg.attach_paper_evidence("nope", {"fills": 1})
 
 
@@ -221,7 +223,12 @@ class TestCpcvTail2:
         for i in range(10, n, 20):
             exits.iloc[i] = True
         r = cpcv_backtest(
-            prices, entries, exits, n_groups=4, n_test_groups=2, n_trials=2,
+            prices,
+            entries,
+            exits,
+            n_groups=4,
+            n_test_groups=2,
+            n_trials=2,
             signal_fn=lambda df, **kw: (df.close > 0, df.close < 0),
         )
         assert r is not None

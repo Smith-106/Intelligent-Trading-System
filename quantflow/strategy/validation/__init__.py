@@ -7,18 +7,6 @@ from quantflow.strategy.validation.cost_fidelity import (
     require_cost_grid,
     require_dual_risk_report,
 )
-from quantflow.strategy.validation.promotion_path import (
-    PromotionPathError,
-    assert_promotion_path_ready,
-    attach_promotion_path,
-    check_promotion_path,
-)
-from quantflow.strategy.validation.paper_readiness import (
-    PaperReadinessConfig,
-    PaperReadinessError,
-    assert_paper_readiness,
-    check_paper_readiness,
-)
 from quantflow.strategy.validation.cpcv import cpcv_backtest, split_cpcv
 from quantflow.strategy.validation.dsr import deflated_sharpe_ratio
 from quantflow.strategy.validation.gate import validation_gate
@@ -34,7 +22,19 @@ from quantflow.strategy.validation.monte_carlo import (
     returns_bootstrap_stress,
     trade_shuffle_stress,
 )
+from quantflow.strategy.validation.paper_readiness import (
+    PaperReadinessConfig,
+    PaperReadinessError,
+    assert_paper_readiness,
+    check_paper_readiness,
+)
 from quantflow.strategy.validation.pbo import probability_of_overfitting
+from quantflow.strategy.validation.promotion_path import (
+    PromotionPathError,
+    assert_promotion_path_ready,
+    attach_promotion_path,
+    check_promotion_path,
+)
 from quantflow.strategy.validation.wfo import walk_forward_optimization
 
 __all__ = [
@@ -50,8 +50,8 @@ __all__ = [
     "assert_promotion_path_ready",
     "attach_cost_fidelity",
     "attach_promotion_path",
-    "check_promotion_path",
     "check_paper_readiness",
+    "check_promotion_path",
     "cpcv_backtest",
     "deflated_sharpe_ratio",
     "monte_carlo_stress",

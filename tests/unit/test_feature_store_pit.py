@@ -8,11 +8,8 @@ Guarantees:
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 import pandas as pd
-import pytest
 
 from quantflow.data.feature_store import FeatureStore
 from quantflow.data.store import DataStore
@@ -43,9 +40,7 @@ class _MetaStub:
         out = features.copy()
         out["meta_n_funding"] = len(funding)
         out["meta_n_oi"] = len(open_interest)
-        out["meta_max_funding_ts"] = (
-            int(funding["timestamp"].max()) if not funding.empty else -1
-        )
+        out["meta_max_funding_ts"] = int(funding["timestamp"].max()) if not funding.empty else -1
         return out
 
 
@@ -112,7 +107,7 @@ class TestFeatureStorePIT:
         class _MetaStore:
             def query_funding_rates(self, symbol: str, end: int | None = None) -> pd.DataFrame:
                 # Include a future funding row that must be filtered by FeatureStore/meta_store.
-                all_ts = stamps[:30] + [stamps[-1] + 3_600_000]
+                all_ts = [*stamps[:30], stamps[-1] + 3600000]
                 df = pd.DataFrame(
                     {
                         "timestamp": all_ts,

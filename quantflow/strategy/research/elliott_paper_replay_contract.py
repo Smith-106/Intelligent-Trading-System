@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -101,7 +101,7 @@ async def build_elliott_paper_replay_package(
 
     fp_single = fingerprint_ohlcv(frame)
     fp_block = fingerprint_universe({symbol: frame})
-    created = datetime.now(timezone.utc).isoformat()
+    created = datetime.now(UTC).isoformat()
 
     run_meta: dict[str, Any] = {
         "contract_id": contract_id,

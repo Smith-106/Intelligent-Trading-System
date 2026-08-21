@@ -56,10 +56,11 @@ def main() -> int:
     print(f"kept={rep['prune']['kept']}")
     print(f"dropped={rep['prune']['dropped']}")
     print(
-        f"cpcv={rep['cpcv']['decision']} pbo={rep['cpcv']['pbo']} "
-        f"research_go={rep['research_go']}"
+        f"cpcv={rep['cpcv']['decision']} pbo={rep['cpcv']['pbo']} research_go={rep['research_go']}"
     )
-    print(f"hard_bind_entry={rep['hard_bind_entry']} promotion_eligible={rep['promotion_eligible']}")
+    print(
+        f"hard_bind_entry={rep['hard_bind_entry']} promotion_eligible={rep['promotion_eligible']}"
+    )
     print(f"written {args.out}")
     return 0
 

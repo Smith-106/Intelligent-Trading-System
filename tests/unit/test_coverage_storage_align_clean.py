@@ -17,7 +17,6 @@ from quantflow.data.cleaner import (
 from quantflow.data.feature_store import FeatureStore
 from quantflow.data.mtf_aligner import MTFAligner, _infer_period
 from quantflow.data.multi_symbol_trades import (
-    MultiSymbolTradesCoordinator,
     build_multi_symbol_trades_ingest,
 )
 from quantflow.data.store import DataStore
@@ -26,7 +25,6 @@ from quantflow.data.trades_store import (
     build_cvd_feature_frame,
     save_cvd_features,
 )
-
 
 # ===========================================================================
 # store.py
@@ -148,7 +146,9 @@ def test_build_cvd_feature_frame_paths() -> None:
     odd = build_cvd_feature_frame(pd.DataFrame({"timestamp": [1], "open": [1.0]}))
     assert odd["cvd_source"].tolist() == ["empty"] and pd.isna(odd["cvd"].iloc[0])
 
-    proxy = build_cvd_feature_frame(pd.DataFrame({"timestamp": [1], "close": [1.0], "volume": [2.0]}))
+    proxy = build_cvd_feature_frame(
+        pd.DataFrame({"timestamp": [1], "close": [1.0], "volume": [2.0]})
+    )
     assert proxy["cvd_source"].tolist() == ["proxy"]
 
     trades = pd.DataFrame(
@@ -181,7 +181,9 @@ def test_infer_period_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     assert _infer_period(idx) == pd.Timedelta(hours=1)  # 43-44 declared freq
     idx2 = pd.to_datetime(["2024-01-01 00:00", "2024-01-01 01:00", "2024-01-01 02:00"])
     assert _infer_period(idx2) is not None  # 45-48 infer_freq
-    idx3 = pd.to_datetime(["2024-01-01 00:00", "2024-01-01 01:00", "2024-01-01 02:00", "2024-01-01 04:00"])
+    idx3 = pd.to_datetime(
+        ["2024-01-01 00:00", "2024-01-01 01:00", "2024-01-01 02:00", "2024-01-01 04:00"]
+    )
     assert _infer_period(idx3) == pd.Timedelta(hours=1)  # 51-54 median of diffs (1h,1h,2h)
     assert _infer_period(pd.DatetimeIndex([pd.NaT, pd.NaT, pd.NaT])) is None  # 52-53 empty diffs
 
@@ -244,7 +246,9 @@ def test_multi_symbol_coordinator_mutation_and_stats(tmp_path) -> None:
     async def fetch(symbol: str, limit: int = 100) -> pd.DataFrame:
         return pd.DataFrame({"timestamp": [1], "price": [2.0], "amount": [3.0], "side": ["buy"]})
 
-    coord = build_multi_symbol_trades_ingest(store, fetch_trades=fetch, symbols=["BTC/USDT", "ETH/USDT"])
+    coord = build_multi_symbol_trades_ingest(
+        store, fetch_trades=fetch, symbols=["BTC/USDT", "ETH/USDT"]
+    )
     assert coord.per_symbol_batches == {"BTC/USDT": 0, "ETH/USDT": 0}
     coord.add_symbol("BTC/USDT")  # 48->exit already present
     coord.add_symbol("SOL/USDT")  # 49-52
@@ -300,7 +304,9 @@ def test_clean_ohlcv_edge_columns_and_branches() -> None:
 
     # Unknown fill_method with NaN -> elif False edge (69->71... wait, line 69 branch).
     df4 = pd.DataFrame({"timestamp": [1, 2], "open": [1.0, None], "close": [1.0, 2.0]})
-    out4 = clean_ohlcv(df4, fill_method="weird", validate_no_future_leak=False, remove_outliers=False)
+    out4 = clean_ohlcv(
+        df4, fill_method="weird", validate_no_future_leak=False, remove_outliers=False
+    )
     assert out4["open"].isna().sum() == 1
 
     # Duplicate + NaN fill + outlier + invalid OHLC exercised for good measure.

@@ -85,9 +85,7 @@ def test_promote_to_live_refuses_bypass_entry(tmp_path: Path) -> None:
         "registered_at": "t",
     }
     (tmp_path / "reg").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "reg" / "m-ai.json").write_text(
-        json.dumps(entry), encoding="utf-8"
-    )
+    (tmp_path / "reg" / "m-ai.json").write_text(json.dumps(entry), encoding="utf-8")
     with pytest.raises(ModelRegistryError, match="validation_bypass"):
         reg.promote_to_live(
             "m-ai",

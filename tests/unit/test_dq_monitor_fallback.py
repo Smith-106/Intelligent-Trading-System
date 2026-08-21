@@ -12,12 +12,10 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from unittest.mock import AsyncMock
 
 import pytest
 
 from quantflow.data.dq_monitor import DataQualityMonitor, InMemoryStateStore
-
 
 # ---------------------------------------------------------------------------
 # Test fixtures
@@ -27,6 +25,7 @@ from quantflow.data.dq_monitor import DataQualityMonitor, InMemoryStateStore
 @dataclass
 class MockBar:
     """Mock bar for testing."""
+
     symbol: str = "BTC/USDT"
     timestamp: float = 0.0
     open: float = 50000.0

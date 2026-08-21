@@ -42,7 +42,6 @@ from quantflow.strategy.kol_signals.discord_ingest import (
 from quantflow.strategy.kol_signals.models import AttachmentMeta, SignalSide
 from quantflow.strategy.kol_signals.store import KolSignalStore
 
-
 # ---------------------------------------------------------------------------
 # chart_ocr.is_chart_likely
 # ---------------------------------------------------------------------------
@@ -132,7 +131,7 @@ class TestOcrImage:
         # pytesseract not installed -> ImportError branch returns ("", "none")
         p = tmp_path / "img.png"
         p.write_bytes(b"x")
-        text, used = ocr_image(p, backend="tesseract")
+        _text, used = ocr_image(p, backend="tesseract")
         assert used == "none"
 
     def test_tesseract_success_mocked(self, tmp_path: Path) -> None:

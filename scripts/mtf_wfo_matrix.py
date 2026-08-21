@@ -54,11 +54,11 @@ TF_PARAM_SPACE_1H: dict[str, dict[str, tuple[int, int] | tuple[float, float]]] =
 # Intent: 4h/6h should search similar *calendar* horizons as 1h, not the same
 # bar counts (which would be 4–6× longer in time and over-smooth).
 _WALL_HOURS: dict[str, tuple[float, float]] = {
-    "fast_ma_period": (6.0, 48.0),       # ~0.25–2 days
-    "slow_ma_period": (24.0, 240.0),     # ~1–10 days
-    "atr_period": (12.0, 72.0),          # ~0.5–3 days
+    "fast_ma_period": (6.0, 48.0),  # ~0.25–2 days
+    "slow_ma_period": (24.0, 240.0),  # ~1–10 days
+    "atr_period": (12.0, 72.0),  # ~0.5–3 days
     "volume_period": (12.0, 72.0),
-    "max_holding_bars": (24.0, 240.0),   # hold 1–10 days
+    "max_holding_bars": (24.0, 240.0),  # hold 1–10 days
 }
 
 _TF_HOURS: dict[str, float] = {
@@ -74,7 +74,9 @@ _TF_HOURS: dict[str, float] = {
 }
 
 
-def _clamp_int_range(low: float, high: float, min_low: int = 2, max_high: int = 200) -> tuple[int, int]:
+def _clamp_int_range(
+    low: float, high: float, min_low: int = 2, max_high: int = 200
+) -> tuple[int, int]:
     lo = max(min_low, round(low))
     hi = max(lo + 1, min(max_high, round(high)))
     return int(lo), int(hi)

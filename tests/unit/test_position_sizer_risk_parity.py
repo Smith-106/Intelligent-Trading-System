@@ -7,7 +7,9 @@ from quantflow.signal.position_sizer import PositionSizer
 
 
 def _signal(strength: float = 1.0, strategy: str = "trend") -> Signal:
-    return Signal(symbol="BTC/USDT", direction=Direction.LONG, strength=strength, strategy_id=strategy)
+    return Signal(
+        symbol="BTC/USDT", direction=Direction.LONG, strength=strength, strategy_id=strategy
+    )
 
 
 def _portfolio() -> Portfolio:

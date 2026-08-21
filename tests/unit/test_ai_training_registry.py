@@ -66,7 +66,9 @@ def _make_close(n: int = 200, seed: int = 7) -> pd.Series:
 
 class TestAITrainingPipeline:
     def test_train_returns_report(self):
-        pipe = AITrainingPipeline(validation_kwargs={"cpcv_groups": 4, "cpcv_test_groups": 1, "wfo_windows": 3})
+        pipe = AITrainingPipeline(
+            validation_kwargs={"cpcv_groups": 4, "cpcv_test_groups": 1, "wfo_windows": 3}
+        )
         report = pipe.train(_make_features(), _make_close(), None, n_estimators=30, max_depth=3)
         assert isinstance(report, TrainedModelReport)
         assert report.n_samples >= 60
@@ -81,7 +83,9 @@ class TestAITrainingPipeline:
         assert "insufficient" in report.reason
 
     def test_importance_captured(self):
-        pipe = AITrainingPipeline(validation_kwargs={"cpcv_groups": 4, "cpcv_test_groups": 1, "wfo_windows": 3})
+        pipe = AITrainingPipeline(
+            validation_kwargs={"cpcv_groups": 4, "cpcv_test_groups": 1, "wfo_windows": 3}
+        )
         report = pipe.train(_make_features(), _make_close(), None, n_estimators=30, max_depth=3)
         assert len(report.feature_importance) > 0
         # Importance names must be feature columns.
@@ -140,9 +144,7 @@ class TestModelRegistry:
     def test_promote_paper_to_live(self, tmp_path):
         reg = ModelRegistry(tmp_path)
         reg.register("m5", "X", "h", _go_report_with_cost())
-        entry = reg.promote_to_live(
-            "m5", paper_evidence={"paper_days": 14, "fills": 40}
-        )
+        entry = reg.promote_to_live("m5", paper_evidence={"paper_days": 14, "fills": 40})
         assert entry["status"] == STATUS_LIVE
         assert reg.get("m5")["status"] == STATUS_LIVE
 

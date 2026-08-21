@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from typing import Any
 
 import pandas as pd
 import pytest
 
-from quantflow.common.exceptions import DataError
 from quantflow.data.dq_monitor import (
     DataQualityMonitor,
     DataQualityScore,
@@ -19,7 +17,6 @@ from quantflow.data.pit_audit import (
     PITAuditError,
     audit_compute_features_pit,
     audit_frame_no_future,
-    audit_load_features_pit,
     max_timestamp_ms,
     run_pit_audit_suite,
 )
@@ -29,7 +26,6 @@ from quantflow.data.trades_ingest import (
     make_fetcher_adapter,
 )
 from quantflow.data.trades_store import TradesStore
-
 
 # ===========================================================================
 # dq_monitor.py
@@ -50,8 +46,13 @@ def test_dq_dataclass_helpers() -> None:
     assert d["valid"] is True
     assert d["score"]["overall"] == 1.0
     assert "validated_at" in d
-    assert ValidationResult(valid=False, score=DataQualityScore(0.5, 0.5, 0.5)).score.overall_score == 0.5
-    assert not ValidationResult(valid=True, score=DataQualityScore(0.4, 0.4, 0.4)).score.is_acceptable
+    assert (
+        ValidationResult(valid=False, score=DataQualityScore(0.5, 0.5, 0.5)).score.overall_score
+        == 0.5
+    )
+    assert not ValidationResult(
+        valid=True, score=DataQualityScore(0.4, 0.4, 0.4)
+    ).score.is_acceptable
     store = InMemoryStateStore()
     assert store.key_count == 0
     store.clear()  # 123
@@ -204,7 +205,11 @@ async def test_dq_monitor_violations_without_prometheus() -> None:
     assert fresh.valid
     # Fresh funding snapshot -> age <= max_age (542->552).
     fresh_funding = mon.validate_funding_rate(
-        {"symbol": "X", "fetched_at_ms": time.time() * 1000.0, "settled_interval_ms": 8 * 3600 * 1000}
+        {
+            "symbol": "X",
+            "fetched_at_ms": time.time() * 1000.0,
+            "settled_interval_ms": 8 * 3600 * 1000,
+        }
     )
     assert fresh_funding.valid
     report = await mon.get_quality_report("BTC/USDT")
@@ -320,7 +325,9 @@ def test_audit_compute_features_output_failures() -> None:
     assert any("features_output" in r for r in res.reasons)
     # computed_at != cutoff (144-147).
     bad_computed = _FakeFeatureStore(pd.DataFrame({"timestamp": [500], "computed_at": [999]}))
-    res2 = audit_compute_features_pit(bad_computed, symbol="S", cutoff_ms=1_000, raw_store=honest_raw)
+    res2 = audit_compute_features_pit(
+        bad_computed, symbol="S", cutoff_ms=1_000, raw_store=honest_raw
+    )
     assert not res2.passed
     assert "bad_computed_at" in res2.details
     # meta as-of future (157 True) + in-range column (157 False).
@@ -359,7 +366,9 @@ def test_pit_audit_suite_compute_and_load_failures() -> None:
     honest_raw = _FakeRawStore(pd.DataFrame({"timestamp": [500]}))
 
     leaky_compute = _FakeFeatureStore(pd.DataFrame({"timestamp": [2_000], "computed_at": [2_000]}))
-    r1 = run_pit_audit_suite(leaky_compute, symbol="S", cutoff_ms=1_000, raw_store=honest_raw, also_load=False)
+    r1 = run_pit_audit_suite(
+        leaky_compute, symbol="S", cutoff_ms=1_000, raw_store=honest_raw, also_load=False
+    )
     assert not r1.passed  # 211
 
     class _LeakyLoadFS:
@@ -373,10 +382,14 @@ def test_pit_audit_suite_compute_and_load_failures() -> None:
         ) -> pd.DataFrame:
             return pd.DataFrame({"timestamp": [500], "computed_at": [1_000]})
 
-        def load_features(self, symbol: str, start: int | None = None, end: int | None = None) -> pd.DataFrame:
+        def load_features(
+            self, symbol: str, start: int | None = None, end: int | None = None
+        ) -> pd.DataFrame:
             return pd.DataFrame({"timestamp": [2_000]})
 
-    r2 = run_pit_audit_suite(_LeakyLoadFS(), symbol="S", cutoff_ms=1_000, raw_store=honest_raw, also_load=True)
+    r2 = run_pit_audit_suite(
+        _LeakyLoadFS(), symbol="S", cutoff_ms=1_000, raw_store=honest_raw, also_load=True
+    )
     assert not r2.passed  # 179-185 audit_load_features_pit + 214-219
     assert "load" in r2.details
 
@@ -393,11 +406,16 @@ def test_pit_audit_suite_pass_with_load() -> None:
         ) -> pd.DataFrame:
             return pd.DataFrame({"timestamp": [500], "computed_at": [1_000]})
 
-        def load_features(self, symbol: str, start: int | None = None, end: int | None = None) -> pd.DataFrame:
+        def load_features(
+            self, symbol: str, start: int | None = None, end: int | None = None
+        ) -> pd.DataFrame:
             return pd.DataFrame({"timestamp": [500]})
 
     res = run_pit_audit_suite(
-        _CleanFS(), symbol="S", cutoff_ms=1_000, raw_store=_FakeRawStore(pd.DataFrame({"timestamp": [500]})),
+        _CleanFS(),
+        symbol="S",
+        cutoff_ms=1_000,
+        raw_store=_FakeRawStore(pd.DataFrame({"timestamp": [500]})),
         also_load=True,
     )
     assert res.passed
@@ -455,18 +473,24 @@ async def test_trades_ingest_push_trades(tmp_path) -> None:
         return pd.DataFrame()
 
     loop = TradesIngestLoop(
-        store, fetch_trades=fetch, symbols=["BTC/USDT"], on_batch=lambda s, df: seen.append((s, len(df)))
+        store,
+        fetch_trades=fetch,
+        symbols=["BTC/USDT"],
+        on_batch=lambda s, df: seen.append((s, len(df))),
     )
     assert await loop.push_trades("BTC/USDT", pd.DataFrame()) == 0  # 107
     assert await loop.push_trades("BTC/USDT", None) == 0  # 107
     n = await loop.push_trades(
-        "BTC/USDT", pd.DataFrame({"timestamp": [9], "price": [1.0], "amount": [1.0], "side": ["buy"]})
+        "BTC/USDT",
+        pd.DataFrame({"timestamp": [9], "price": [1.0], "amount": [1.0], "side": ["buy"]}),
     )
     assert n == 1 and loop.batches_written == 1 and seen == [("BTC/USDT", 1)]  # 112
 
 
 @pytest.mark.asyncio
-async def test_trades_ingest_start_stop_lifecycle(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_trades_ingest_start_stop_lifecycle(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import quantflow.data.trades_ingest as ingest_module
 
     async def no_sleep(_: float) -> None:
@@ -527,9 +551,13 @@ async def test_trades_ingest_adapter_and_attach(tmp_path) -> None:
 
         async def fetch_trades(self, symbol: str, limit: int = 100) -> pd.DataFrame:
             self.calls.append(("fetch", symbol, limit))
-            return pd.DataFrame({"timestamp": [1], "price": [2.0], "amount": [3.0], "side": ["buy"]})
+            return pd.DataFrame(
+                {"timestamp": [1], "price": [2.0], "amount": [3.0], "side": ["buy"]}
+            )
 
-        async def watch_trades(self, symbol: str, callback: Any, *, poll_fallback_interval_s: float = 5.0) -> None:
+        async def watch_trades(
+            self, symbol: str, callback: Any, *, poll_fallback_interval_s: float = 5.0
+        ) -> None:
             self.calls.append(("watch", symbol))
             await callback(
                 pd.DataFrame({"timestamp": [2], "price": [4.0], "amount": [5.0], "side": ["sell"]})

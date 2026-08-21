@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
 from quantflow.common.config import DynamicBudgetConfig, RiskConfig
 from quantflow.common.models import Direction, Portfolio, Position, Signal
 from quantflow.signal.book_risk_budget import BookRiskBudget
-from quantflow.signal.position_sizer import PositionSizer
 from quantflow.signal.portfolio import PendingView
+from quantflow.signal.position_sizer import PositionSizer
 from quantflow.signal.risk_engine import RiskEngine
-
 
 # ===========================================================================
 # risk_engine.py
@@ -104,9 +102,7 @@ def test_risk_engine_dynamic_budget_cvar_scale_false_edge() -> None:
     engine = RiskEngine(cfg, strategy_risk_budgets={"trend": 0.2})
     for i in range(30):
         engine.add_return(0.01 if i % 2 else 0.02)  # positive + varied -> cvar > 0
-    engine._check_var(
-        Signal("BTC/USDT", Direction.LONG, 0.8, 50000), Portfolio(cash=100000)
-    )
+    engine._check_var(Signal("BTC/USDT", Direction.LONG, 0.8, 50000), Portfolio(cash=100000))
     assert engine._scale_budget_pct("trend", 0.2) > 0  # 425->428 (cvar < 0 False)
 
 
@@ -176,7 +172,7 @@ def test_book_risk_budget_validation_and_layers() -> None:
         strategy_current_notional=0,
     )
     assert res4["allowed"]  # 144->147 strategy ok + 147->163 no sleeve
-    assert any(l["layer"] == "strategy" for l in res4["layers"])
+    assert any(e["layer"] == "strategy" for e in res4["layers"])
 
     res5 = b.check(
         equity=1000,

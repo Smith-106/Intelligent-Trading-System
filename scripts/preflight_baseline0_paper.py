@@ -19,13 +19,15 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 OVERLAY = REPO_ROOT / "quantflow" / "config" / "paper_baseline0_overlay.yaml"
+
+
 def _baseline_symbols() -> tuple[str, ...]:
     try:
         from quantflow.strategy.research.universe_config import admitted_symbols
 
         syms = admitted_symbols(repo_root=REPO_ROOT, intersect_baseline_default=True)
         return tuple(syms) if syms else ("BTC/USDT", "ETH/USDT", "SOL/USDT")
-    except Exception:  # noqa: BLE001
+    except Exception:
         return ("BTC/USDT", "ETH/USDT", "SOL/USDT")
 
 
@@ -66,7 +68,7 @@ def _check_paper_readiness_config() -> list[str]:
         )
         if not pr.enabled:
             notes.append("WARN: paper_readiness.enabled=false — live promote sample gate OFF")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         notes.append(f"paper_readiness config unreadable: {exc}")
     return notes
 
@@ -172,10 +174,7 @@ def main() -> int:
         if quality_scores:
             avg_q = sum(quality_scores) / len(quality_scores)
             if avg_q < MIN_DATA_QUALITY_SCORE:
-                _fail(
-                    f"portfolio data quality avg={avg_q:.2f} "
-                    f"(< {MIN_DATA_QUALITY_SCORE})"
-                )
+                _fail(f"portfolio data quality avg={avg_q:.2f} (< {MIN_DATA_QUALITY_SCORE})")
                 failures += 1
             else:
                 _ok(f"portfolio data quality avg={avg_q:.2f}")
@@ -188,9 +187,7 @@ def main() -> int:
     print()
     print("Paper readiness (T016 — paper→live sample floors):")
     for note in _check_paper_readiness_config():
-        if note.startswith("WARN"):
-            _warn(note)
-        elif "unreadable" in note:
+        if note.startswith("WARN") or "unreadable" in note:
             _warn(note)
         else:
             _ok(note)
@@ -211,7 +208,7 @@ def main() -> int:
             _warn(f"free disk {free_gb:.2f} GiB (< 1 GiB) — paper JSONL/parquet may fail")
         else:
             _ok(f"free disk {free_gb:.2f} GiB")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         _warn(f"disk check skipped: {exc}")
 
     # --- run command reminder ---

@@ -67,8 +67,7 @@ def _assert_not_baseline3(out_dir: Path) -> None:
     forbidden = FORBIDDEN_OUT.resolve()
     if resolved == forbidden or forbidden in resolved.parents:
         raise SystemExit(
-            f"[b4] REFUSED: out-dir {out_dir} collides with baseline3/ "
-            "(W24a freeze discipline)"
+            f"[b4] REFUSED: out-dir {out_dir} collides with baseline3/ (W24a freeze discipline)"
         )
     if "baseline3" in resolved.parts:
         raise SystemExit(f"[b4] REFUSED: path contains baseline3 segment: {resolved}")
@@ -355,9 +354,7 @@ def _run_meta_window(args: argparse.Namespace, out_dir: Path) -> int:
                 store.close()
             if f is not None and not f.empty and "funding_rate" in f.columns:
                 funding_n = max(funding_n, len(f))
-                funding_max_abs = max(
-                    funding_max_abs, float(f["funding_rate"].abs().max())
-                )
+                funding_max_abs = max(funding_max_abs, float(f["funding_rate"].abs().max()))
                 notes.append(f"funding from {root.as_posix()} n={len(f)}")
         except Exception as e:
             notes.append(f"meta load skip {root}: {e}")
@@ -368,30 +365,26 @@ def _run_meta_window(args: argparse.Namespace, out_dir: Path) -> int:
         status = "BLOCKED"
         block_reasons.append("no OHLCV in pin window")
     if funding_n < 24:
-        status = "BLOCKED" if status != "OK" else "BLOCKED"
+        status = "BLOCKED"
         block_reasons.append(f"funding points {funding_n} < 24")
 
     results: dict[str, Any] = {
         "funding_points": funding_n,
         "funding_max_abs": funding_max_abs,
-        "ohlcv_bars": int(len(raw)) if raw is not None else 0,
+        "ohlcv_bars": len(raw) if raw is not None else 0,
         "block_reasons": block_reasons,
     }
 
     df: pd.DataFrame | None = None
     if status != "BLOCKED" and raw is not None and not raw.empty:
-        df = raw[["timestamp", "open", "high", "low", "close", "volume"]].reset_index(
-            drop=True
-        )
+        df = raw[["timestamp", "open", "high", "low", "close", "volume"]].reset_index(drop=True)
         # Cap bars for smoke-scale replay if huge
         if len(df) > 2000:
             df = df.iloc[-2000:].reset_index(drop=True)
             notes.append("ohlcv truncated to last 2000 bars for scaffold replay")
         try:
             results["classic"] = asyncio.run(
-                _replay_variant(
-                    "trend_following", df, params=None, fee=0.001, slip=0.001
-                )
+                _replay_variant("trend_following", df, params=None, fee=0.001, slip=0.001)
             )
             results["funding_rate_b4"] = asyncio.run(
                 _replay_variant(

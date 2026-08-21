@@ -41,7 +41,7 @@ class MultiSymbolTradesCoordinator:
 
     def _on_batch(self, symbol: str, df: pd.DataFrame) -> None:
         self.per_symbol_batches[symbol] = self.per_symbol_batches.get(symbol, 0) + 1
-        n = 0 if df is None else int(len(df))
+        n = 0 if df is None else len(df)
         self.per_symbol_rows[symbol] = self.per_symbol_rows.get(symbol, 0) + n
 
     def add_symbol(self, symbol: str) -> None:
@@ -94,7 +94,9 @@ def build_multi_symbol_trades_ingest(
 
     def _cb(symbol: str, df: pd.DataFrame) -> None:
         c = coord_holder.get("c")
-        if c is not None:  # pragma: no cover - holder populated (line below) before any loop poll can invoke _cb
+        if (
+            c is not None
+        ):  # pragma: no cover - holder populated (line below) before any loop poll can invoke _cb
             c._on_batch(symbol, df)
 
     loop = TradesIngestLoop(

@@ -16,8 +16,9 @@ import hashlib
 import json
 import logging
 import warnings
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from typing import Any, Mapping
+from typing import Any
 
 import pandas as pd
 
@@ -76,7 +77,7 @@ def fingerprint_ohlcv(df: pd.DataFrame) -> str:
         cols = list(df.columns[:6])
     ordered = df.sort_values("timestamp") if "timestamp" in df.columns else df
     # Round floats so minor storage noise does not thrash the pin across platforms.
-    payload: dict[str, Any] = {"n": int(len(ordered)), "cols": cols}
+    payload: dict[str, Any] = {"n": len(ordered), "cols": cols}
     for c in cols:
         series = ordered[c]
         if c == "timestamp" or series.dtype.kind in "iu":
@@ -96,7 +97,7 @@ def fingerprint_universe(
     for sym in sorted(frames.keys()):
         df = frames[sym]
         fp = fingerprint_ohlcv(df)
-        n = int(len(df)) if df is not None else 0
+        n = len(df) if df is not None else 0
         ts_min = ts_max = None
         if df is not None and n > 0 and "timestamp" in df.columns:
             ts = df["timestamp"].astype("int64")

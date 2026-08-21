@@ -16,14 +16,12 @@ import yaml
 _PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_UNIVERSE_YAML = _PACKAGE_ROOT / "config" / "universe.yaml"
 DEFAULT_ADMITTED_JSON = (
-    Path(__file__).resolve().parents[3]
-    / "data"
-    / "paper_replay"
-    / "universe"
-    / "admitted.json"
+    Path(__file__).resolve().parents[3] / "data" / "paper_replay" / "universe" / "admitted.json"
 )
 # Fallback when package layout differs (editable install vs repo root).
-_REPO_ADMITTED = Path(__file__).resolve().parents[3] / "data" / "paper_replay" / "universe" / "admitted.json"
+_REPO_ADMITTED = (
+    Path(__file__).resolve().parents[3] / "data" / "paper_replay" / "universe" / "admitted.json"
+)
 
 FALLBACK_BASELINE = ("BTC/USDT", "ETH/USDT", "SOL/USDT")
 

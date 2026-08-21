@@ -9,8 +9,6 @@ Pure-logic paths:
 
 from __future__ import annotations
 
-import inspect as _inspect
-
 import pandas as pd
 import pytest
 
@@ -124,7 +122,9 @@ class TestCausalPreflight:
     def test_negative_shift_on_generate_signals(self) -> None:
         rep = run_causal_preflight(_LeakyShiftOnlyStrategy())
         assert rep.passed is False
-        assert all(f["source"] == "negative_shift" for f in rep.findings if f["source"] == "negative_shift")
+        assert all(
+            f["source"] == "negative_shift" for f in rep.findings if f["source"] == "negative_shift"
+        )
         assert rep.severity_counts["high"] >= 1
 
     def test_extra_sources_scan(self) -> None:
@@ -166,7 +166,10 @@ class TestPromotionPath:
             == "production_path"
         )
         assert extract_execution_path({"run_meta": {"execution_path": "foo bar"}}) == "foo_bar"
-        assert extract_execution_path({"artifacts": {"execution_path": "paper_replay"}}) == "paper_replay"
+        assert (
+            extract_execution_path({"artifacts": {"execution_path": "paper_replay"}})
+            == "paper_replay"
+        )
 
     def test_extract_execution_path_empty_candidate_skips(self) -> None:
         # empty string candidate normalizes to ""; next candidate wins
@@ -210,13 +213,9 @@ class TestPromotionPath:
         assert any("data_fingerprint missing" in r for r in out["reasons"])
 
     def test_check_path_ok_and_fingerprint_not_required(self) -> None:
-        out = check_promotion_path(
-            {"execution_path": "paper_replay", "data_fingerprint": "x"}
-        )
+        out = check_promotion_path({"execution_path": "paper_replay", "data_fingerprint": "x"})
         assert out["passed"] is True
-        out2 = check_promotion_path(
-            {"execution_path": "paper_replay"}, require_fingerprint=False
-        )
+        out2 = check_promotion_path({"execution_path": "paper_replay"}, require_fingerprint=False)
         assert out2["passed"] is True
 
     def test_assert_when_default_ok(self) -> None:

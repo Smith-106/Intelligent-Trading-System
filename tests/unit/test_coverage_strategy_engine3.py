@@ -38,7 +38,6 @@ from quantflow.common.models import (
     Signal,
 )
 from quantflow.execution.state_store import SessionSnapshot
-from quantflow.strategy.base import StrategyBase
 from quantflow.strategy.engine import TradingSession
 
 
@@ -109,6 +108,7 @@ class TestBboPollLoopBranches:
             patch("quantflow.data.fetcher.DataFetcher", return_value=fake),
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
+
             async def _stop(*a, **k):
                 session._running = False
 
@@ -132,6 +132,7 @@ class TestBboPollLoopBranches:
         session._bbo_fetcher = fake
         session.push_ticker_bbo = MagicMock()
         with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+
             async def _stop(*a, **k):
                 session._running = False
 
@@ -185,6 +186,7 @@ class TestMetaFeedLoopBranches:
             patch.object(session, "_meta_poll_oi", new_callable=AsyncMock),
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
+
             async def _stop(*a, **k):
                 session._running = False
 
@@ -206,7 +208,9 @@ class TestMetaPollBodies:
         session = TradingSession(AppConfig(), [])
         fake_fetcher = MagicMock()
         snap = _snap()
-        fake_fetcher.fetch_funding_rate = AsyncMock(side_effect=[Exception("fetch fail"), snap, snap])
+        fake_fetcher.fetch_funding_rate = AsyncMock(
+            side_effect=[Exception("fetch fail"), snap, snap]
+        )
         fake_dq = MagicMock()
         dq_invalid = SimpleNamespace(valid=False, violations=["stale"])
         dq_valid = SimpleNamespace(valid=True, violations=[])
@@ -242,7 +246,10 @@ class TestMetaPollBodies:
         fake_fetcher.fetch_open_interest = AsyncMock(side_effect=[Exception("oi down"), snap, snap])
         fake_dq = MagicMock()
         fake_dq.validate_open_interest = MagicMock(
-            side_effect=[SimpleNamespace(valid=False, violations=["stale"]), SimpleNamespace(valid=True, violations=[])]
+            side_effect=[
+                SimpleNamespace(valid=False, violations=["stale"]),
+                SimpleNamespace(valid=True, violations=[]),
+            ]
         )
         session._meta_fetcher = fake_fetcher
         session._dq_monitor = fake_dq

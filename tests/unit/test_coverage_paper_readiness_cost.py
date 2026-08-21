@@ -20,9 +20,9 @@ from datetime import UTC, datetime
 import pytest
 
 from quantflow.strategy.validation.cost_fidelity import (
-    CostFidelityError,
     DEFAULT_SLIPPAGE,
     DEFAULT_TAKER_FEE,
+    CostFidelityError,
     assert_promotion_cost_ready,
     attach_cost_fidelity,
     build_funding_tca,
@@ -56,7 +56,10 @@ def _grid_row(fee: float, slip: float, **extra) -> dict:
 
 
 def _default_grid() -> list[dict]:
-    return [_grid_row(0.0, 0.0, sharpe=1.2, return_pct=20.0), _grid_row(0.001, 0.001, sharpe=0.6, return_pct=8.0)]
+    return [
+        _grid_row(0.0, 0.0, sharpe=1.2, return_pct=20.0),
+        _grid_row(0.001, 0.001, sharpe=0.6, return_pct=8.0),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -69,7 +72,13 @@ class TestPaperReadinessConfig:
 
     def test_from_mapping_overrides(self) -> None:
         cfg = PaperReadinessConfig.from_mapping(
-            {"enabled": False, "min_paper_days": "3.5", "min_fills": "5", "min_orders": "2", "require_evidence": False}
+            {
+                "enabled": False,
+                "min_paper_days": "3.5",
+                "min_fills": "5",
+                "min_orders": "2",
+                "require_evidence": False,
+            }
         )
         assert cfg.enabled is False
         assert cfg.min_paper_days == 3.5
@@ -257,7 +266,9 @@ class TestGridHasFeeSlip:
         assert grid_has_fee_slip(["junk", {}], fee=0.0, slip=0.0) is False
 
     def test_bad_numeric_row_continues(self) -> None:
-        assert grid_has_fee_slip([{"taker_fee": "xx", "slippage": "yy"}], fee=0.0, slip=0.0) is False
+        assert (
+            grid_has_fee_slip([{"taker_fee": "xx", "slippage": "yy"}], fee=0.0, slip=0.0) is False
+        )
 
     def test_no_match(self) -> None:
         assert grid_has_fee_slip([_grid_row(0.002, 0.002)], fee=0.001, slip=0.001) is False
@@ -280,7 +291,9 @@ class TestRequireCostGrid:
             require_cost_grid({"fee_slip_grid": [_grid_row(0.0, 0.0)]})
 
     def test_relaxed_flag(self) -> None:
-        grid = require_cost_grid({"fee_slip_grid": [_grid_row(0.0, 0.0)]}, require_zero_and_default=False)
+        grid = require_cost_grid(
+            {"fee_slip_grid": [_grid_row(0.0, 0.0)]}, require_zero_and_default=False
+        )
         assert len(grid) == 1
 
     def test_ok(self) -> None:
@@ -298,9 +311,7 @@ class TestRejectZeroCostOnlyGo:
 
     def test_zero_cost_only_flag(self) -> None:
         with pytest.raises(CostFidelityError, match="zero_cost_only_go flag"):
-            reject_zero_cost_only_go(
-                {"fee_slip_grid": _default_grid(), "zero_cost_only_go": True}
-            )
+            reject_zero_cost_only_go({"fee_slip_grid": _default_grid(), "zero_cost_only_go": True})
 
     def test_zero_positive_prod_missing(self) -> None:
         # zero cell has strong sharpe, prod cell present but sharpe missing -> refuse
@@ -359,9 +370,7 @@ class TestDualRiskReport:
 
     def test_incomplete_names_and_bools_raise(self) -> None:
         with pytest.raises(CostFidelityError, match="incomplete"):
-            require_dual_risk_report(
-                {"risk_ablation": [{"case": "a"}, {"case": "b"}]}
-            )
+            require_dual_risk_report({"risk_ablation": [{"case": "a"}, {"case": "b"}]})
 
 
 # ---------------------------------------------------------------------------
@@ -436,9 +445,7 @@ class TestFundingTca:
 # ---------------------------------------------------------------------------
 class TestAttachAndGate:
     def test_attach_without_optional_blocks(self) -> None:
-        out = attach_cost_fidelity(  # noqa: SIM115
-            {"decision": "GO"}, fee_slip_grid=_default_grid()
-        )
+        out = attach_cost_fidelity({"decision": "GO"}, fee_slip_grid=_default_grid())
         assert out["checks"]["cost_fidelity"]["passed"] is True
         assert "risk_ablation" not in out
 

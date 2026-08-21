@@ -15,9 +15,10 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from quantflow.strategy.validation.cost_fidelity import (
     CostFidelityError,
@@ -194,9 +195,7 @@ class ModelRegistry:
             evidence = extract_paper_evidence(entry["validation"])
 
         try:
-            readiness = assert_paper_readiness(
-                evidence, config=self._paper_readiness
-            )
+            readiness = assert_paper_readiness(evidence, config=self._paper_readiness)
         except PaperReadinessError as exc:
             reason = f"paper readiness gate: {exc}"
             logger.warning("Promote refused %s: %s (fail-closed)", model_id, reason)
@@ -216,9 +215,7 @@ class ModelRegistry:
         logger.info("Promoted model %s to live", model_id)
         return entry
 
-    def attach_paper_evidence(
-        self, model_id: str, evidence: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def attach_paper_evidence(self, model_id: str, evidence: Mapping[str, Any]) -> dict[str, Any]:
         """Attach/update paper session evidence on a paper model (T016)."""
         entry = self.get(model_id)
         if entry is None:

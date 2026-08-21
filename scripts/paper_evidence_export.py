@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -84,7 +83,7 @@ def evidence_from_streak(
             # Session coverage for readiness = consecutive Path A credits
             if consecutive is not None and consecutive > 0:
                 paper_days = float(consecutive)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
     evidence: dict[str, Any] = {
@@ -130,8 +129,7 @@ def synthetic_full_evidence(*, days: float = 14.0, fills: int = 40) -> dict[str,
         "ended_at": end.isoformat(),
         "exported_at": datetime.now(UTC).isoformat(),
         "notes": (
-            "SYNTHETIC — for dry-run promote pass path only; "
-            "do not treat as real paper sample"
+            "SYNTHETIC — for dry-run promote pass path only; do not treat as real paper sample"
         ),
         "meets_default_floors": True,
     }
@@ -250,9 +248,7 @@ def main() -> int:
             reg_dir = REPO_ROOT / reg_dir
         result = dry_run_promote(ev, registry_dir=reg_dir)
         report_path = SESSIONS_DIR / "promote_dry_run_latest.json"
-        report_path.write_text(
-            json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        report_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
 
         if args.json:
             print(json.dumps(result, indent=2, ensure_ascii=False))

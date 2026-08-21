@@ -26,9 +26,7 @@ def _make_fetcher(pages: list[list[list[float]]]) -> tuple[DataFetcher, AsyncMoc
     """Fetcher whose exchange returns the given page sequence."""
     fetcher = DataFetcher.__new__(DataFetcher)
     exchange = MagicMock()
-    exchange.parse8601.side_effect = lambda s: int(
-        pd.Timestamp(s).timestamp() * 1000
-    )
+    exchange.parse8601.side_effect = lambda s: int(pd.Timestamp(s).timestamp() * 1000)
     mock_call = AsyncMock(side_effect=pages)
     exchange.fetch_ohlcv = mock_call
     fetcher._exchange = exchange
@@ -44,7 +42,9 @@ class TestPagination:
         fetcher, mock_call = _make_fetcher([p1, p2, p3, []])
         # 900 bars from 2023-11-14 → ~2023-12-21; end 2024-01-01 covers all,
         # so the loop keeps paginating until the empty page terminates it.
-        df = asyncio.run(fetcher.fetch_ohlcv("BTC/USDT", "1h", start="2023-11-01", end="2024-01-01"))
+        df = asyncio.run(
+            fetcher.fetch_ohlcv("BTC/USDT", "1h", start="2023-11-01", end="2024-01-01")
+        )
         assert len(df) == 900
         assert df["timestamp"].is_monotonic_increasing
         assert df["timestamp"].nunique() == 900  # no duplicates
@@ -56,7 +56,9 @@ class TestPagination:
         p2 = _page(1_700_000_000_000 + 300 * 3_600_000, 300)
         fetcher, _ = _make_fetcher([p1, p2])
         # end = 2023-12-01 → end_ts = 1701388799000; p2 exceeds it partially.
-        df = asyncio.run(fetcher.fetch_ohlcv("BTC/USDT", "1h", start="2023-11-01", end="2023-11-15"))
+        df = asyncio.run(
+            fetcher.fetch_ohlcv("BTC/USDT", "1h", start="2023-11-01", end="2023-11-15")
+        )
         end_ts = int(pd.Timestamp("2023-11-15T23:59:59Z").timestamp() * 1000)
         assert df["timestamp"].max() <= end_ts
         assert len(df) < 600
@@ -86,7 +88,10 @@ class TestPagination:
 
     def test_page_cap_protects_against_hang(self) -> None:
         """Runaway pagination stops at MAX_PAGINATION_PAGES."""
-        pages = [_page(1_700_000_000_000 + i * OKX_KLINE_PAGE_MAX * 3_600_000, OKX_KLINE_PAGE_MAX) for i in range(600)]
+        pages = [
+            _page(1_700_000_000_000 + i * OKX_KLINE_PAGE_MAX * 3_600_000, OKX_KLINE_PAGE_MAX)
+            for i in range(600)
+        ]
         fetcher, mock_call = _make_fetcher(pages)
         df = asyncio.run(fetcher.fetch_ohlcv("BTC/USDT", "1h"))
         assert mock_call.call_count == MAX_PAGINATION_PAGES

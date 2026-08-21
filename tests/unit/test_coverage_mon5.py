@@ -36,7 +36,6 @@ from quantflow.monitoring.research_go_panel import (
 )
 from quantflow.monitoring.session_health import SessionHealthSnapshot, build_session_health
 
-
 # --------------------------------------------------------------------------- #
 # sink.py
 # --------------------------------------------------------------------------- #
@@ -93,7 +92,9 @@ async def test_sink_send_alert_without_and_with_manager() -> None:
     assert await sink.send_alert("hello") == {}  # 185-186
 
     class _FakeAlertMgr:
-        async def send(self, message: str, level: Any, extra: dict[str, Any] | None) -> dict[str, bool]:
+        async def send(
+            self, message: str, level: Any, extra: dict[str, Any] | None
+        ) -> dict[str, bool]:
             return {"telegram": True}
 
     sink._alert_mgr = _FakeAlertMgr()  # type: ignore[assignment]
@@ -226,16 +227,12 @@ def test_session_health_status_down() -> None:
 
 
 def test_session_health_status_degraded() -> None:
-    snap = SessionHealthSnapshot(
-        mode="paper", strategy_id="s", up=True, gateway_connected=False
-    )
+    snap = SessionHealthSnapshot(mode="paper", strategy_id="s", up=True, gateway_connected=False)
     assert snap.status == "degraded"  # 55
 
 
 def test_build_session_health_no_push_metrics() -> None:
-    snap = build_session_health(
-        mode="paper", strategy_id="s", push_metrics=False, notes=["note"]
-    )
+    snap = build_session_health(mode="paper", strategy_id="s", push_metrics=False, notes=["note"])
     assert snap.notes == ["note"]
     assert snap.generated_at
 

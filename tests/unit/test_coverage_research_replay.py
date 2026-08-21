@@ -236,9 +236,7 @@ def test_direction_gate_wrapper_closed_gate_suppresses() -> None:
     allow = pd.Series([False, True, False])
     wrapper = _DirectionGateWrapper(inner, allow)
     ctx = StrategyContext()
-    bar = Bar(
-        symbol=SYMBOL, timestamp=1, open=1.0, high=1.0, low=1.0, close=1.0, volume=1.0
-    )
+    bar = Bar(symbol=SYMBOL, timestamp=1, open=1.0, high=1.0, low=1.0, close=1.0, volume=1.0)
     wrapper.on_init(ctx)
     wrapper.on_bar(ctx, bar)  # gate closed -> suppressed
     assert inner.on_bar.call_count == 0

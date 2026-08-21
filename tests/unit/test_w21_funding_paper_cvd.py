@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
-import numpy as np
 import pandas as pd
 import pytest
 
 from quantflow.common.config import AppConfig, RiskConfig
-from quantflow.common.models import Direction, Signal
 from quantflow.indicators.volume import cvd_from_trades, cvd_proxy
 from quantflow.signal.funding_risk_gate import REASON, evaluate_funding_risk
 from quantflow.strategy.research.elliott_paper_replay_smoke import (
@@ -99,7 +95,9 @@ class TestW21cTradesCvd:
         assert list(cvd) == pytest.approx([1.0, -1.0, 0.0])
 
     def test_cvd_from_trades_empty(self) -> None:
-        cvd = cvd_from_trades(pd.Series(dtype=float), pd.Series(dtype=float), pd.Series(dtype=float))
+        cvd = cvd_from_trades(
+            pd.Series(dtype=float), pd.Series(dtype=float), pd.Series(dtype=float)
+        )
         assert len(cvd) == 0
 
     def test_proxy_still_available(self) -> None:

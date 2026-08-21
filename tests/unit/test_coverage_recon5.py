@@ -35,7 +35,6 @@ from quantflow.reconciliation.models import (
     PositionSnapshot,
 )
 
-
 # --------------------------------------------------------------------------- #
 # audit_logger.py
 # --------------------------------------------------------------------------- #
@@ -131,15 +130,18 @@ async def test_audit_logger_query_events_full_flow(tmp_path: Any) -> None:
 def json_entry(event_type: str, severity: str, ts: str) -> str:
     import json as _json
 
-    return _json.dumps(
-        {
-            "sequence": 1,
-            "timestamp": ts,
-            "event_type": event_type,
-            "severity": severity,
-            "details": {},
-        }
-    ) + "\n"
+    return (
+        _json.dumps(
+            {
+                "sequence": 1,
+                "timestamp": ts,
+                "event_type": event_type,
+                "severity": severity,
+                "details": {},
+            }
+        )
+        + "\n"
+    )
 
 
 # --------------------------------------------------------------------------- #

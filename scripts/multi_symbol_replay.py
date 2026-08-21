@@ -288,7 +288,6 @@ def main() -> int:
     args = ap.parse_args()
 
     from quantflow.data.store import DataStore
-
     from quantflow.strategy.research.contract_pin import (
         ContractPinError,
         build_window_pin,

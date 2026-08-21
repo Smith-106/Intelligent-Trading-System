@@ -325,9 +325,7 @@ def main() -> int:
     args = ap.parse_args()
 
     try:
-        warn_if_unpinned(
-            args.start, args.end, require_pin=args.require_pin, context="baseline3"
-        )
+        warn_if_unpinned(args.start, args.end, require_pin=args.require_pin, context="baseline3")
         start_ms, end_ms = parse_window_ms(args.start, args.end)
     except ContractPinError as exc:
         print(f"[b3] pin error: {exc}", file=sys.stderr)
@@ -363,9 +361,7 @@ def main() -> int:
     block_reasons: list[str] = []
     if funding.empty or len(funding) < MIN_FUNDING_POINTS:
         data_status = "BLOCKED"
-        block_reasons.append(
-            f"funding points {len(funding)} < min {MIN_FUNDING_POINTS}"
-        )
+        block_reasons.append(f"funding points {len(funding)} < min {MIN_FUNDING_POINTS}")
 
     # Narrow effective window to funding coverage ∩ OHLCV when partial
     eff_start, eff_end = start_ms, end_ms
@@ -383,12 +379,8 @@ def main() -> int:
                 f"{pd.to_datetime(eff_end, unit='ms')}"
             )
 
-    df = raw[["timestamp", "open", "high", "low", "close", "volume"]].reset_index(
-        drop=True
-    )
-    df = df[(df["timestamp"] >= eff_start) & (df["timestamp"] <= eff_end)].reset_index(
-        drop=True
-    )
+    df = raw[["timestamp", "open", "high", "low", "close", "volume"]].reset_index(drop=True)
+    df = df[(df["timestamp"] >= eff_start) & (df["timestamp"] <= eff_end)].reset_index(drop=True)
     if len(df) < MIN_BARS_EFFECTIVE and data_status != "BLOCKED":
         data_status = "BLOCKED"
         block_reasons.append(f"effective bars {len(df)} < {MIN_BARS_EFFECTIVE}")
@@ -398,8 +390,8 @@ def main() -> int:
             "status": "BLOCKED",
             "reasons": block_reasons,
             "meta_notes": meta_notes,
-            "funding_points": int(len(funding)),
-            "oi_points": int(len(oi)),
+            "funding_points": len(funding),
+            "oi_points": len(oi),
             "contract_window": {"start": args.start, "end": args.end},
             "task": "T026",
             "at": datetime.now(UTC).isoformat(),
@@ -440,13 +432,9 @@ def main() -> int:
     segments = _wfo_segments(df, int(df["timestamp"].iloc[-1]))
     # If window too short for 24m/6m, fall back to half-window OOS folds
     if len(segments) < 1:
-        meta_notes.append(
-            "WFO 24m/6m produced 0 segments — using 50/50 single OOS fold"
-        )
+        meta_notes.append("WFO 24m/6m produced 0 segments — using 50/50 single OOS fold")
         mid = int(df["timestamp"].iloc[len(df) // 2])
-        segments = [
-            (int(df["timestamp"].iloc[0]), mid, int(df["timestamp"].iloc[-1]) + 1)
-        ]
+        segments = [(int(df["timestamp"].iloc[0]), mid, int(df["timestamp"].iloc[-1]) + 1)]
 
     print(
         f"[b3] status={data_status} bars={len(df)} funding={len(funding)} "
@@ -502,10 +490,7 @@ def main() -> int:
             sh = _sharpe(oos)
             oos_sharpes.append(sh if sh == sh else -10.0)
             oos_orders += float(oos.get("orders", 0.0))
-            print(
-                f"  seg{i + 1}/{len(segments)} OOS {oos_rets[-1]:+.2f}% "
-                f"sh={oos_sharpes[-1]:.3f}"
-            )
+            print(f"  seg{i + 1}/{len(segments)} OOS {oos_rets[-1]:+.2f}% sh={oos_sharpes[-1]:.3f}")
 
         rows.append(
             {
@@ -557,8 +542,7 @@ def main() -> int:
                 }
                 fee_rows.append(cell)
                 print(
-                    f"  {label} fee={fee} slip={slip} "
-                    f"ret={cell['return_pct']} sh={cell['sharpe']}"
+                    f"  {label} fee={fee} slip={slip} ret={cell['return_pct']} sh={cell['sharpe']}"
                 )
 
     adjudicate = _load_adjudicate()
@@ -569,8 +553,7 @@ def main() -> int:
     adj["meta_notes"] = meta_notes
     if data_status == "NARROWED":
         adj["reason"] = (
-            (adj.get("reason") or "")
-            + " | effective window narrowed to meta funding coverage"
+            (adj.get("reason") or "") + " | effective window narrowed to meta funding coverage"
         ).strip(" |")
 
     # funding_tca from measured series when available

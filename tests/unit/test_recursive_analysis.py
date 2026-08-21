@@ -1,6 +1,5 @@
 """ISS-20260718-002: Recursive indicator dependency analysis tests."""
 
-
 from quantflow.strategy.validation.recursive import (
     RecursiveReport,
     _detect_cycles,

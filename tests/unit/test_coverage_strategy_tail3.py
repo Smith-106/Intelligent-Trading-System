@@ -13,8 +13,8 @@ import pytest
 
 from quantflow.common.config import AppConfig
 from quantflow.common.models import Bar
-from quantflow.strategy.elliott_wave_strategy import LiuYudongWaveStrategy
 from quantflow.strategy.auto_loop import _metric_summary
+from quantflow.strategy.elliott_wave_strategy import LiuYudongWaveStrategy
 from quantflow.strategy.engine import TradingSession
 from quantflow.strategy.model_registry import ModelRegistry
 from quantflow.strategy.rd_agent import RDAgentRunner, load_discovered_factors
@@ -110,9 +110,7 @@ class TestRdAgentTail3:
         )
         monkeypatch.setattr(RDAgentRunner, "check_available", lambda self: (True, "ok"))
         monkeypatch.setattr(RDAgentRunner, "cli_available", lambda self: (True, "ok"))
-        monkeypatch.setattr(
-            RDAgentRunner, "_llm_config_from_env", lambda self: {"api_key": "x"}
-        )
+        monkeypatch.setattr(RDAgentRunner, "_llm_config_from_env", lambda self: {"api_key": "x"})
         monkeypatch.setattr(RDAgentRunner, "_run_rdagent_cli", lambda self, df, schema: [])
         factors = agent.discover_factors(df)
         assert isinstance(factors, list)
@@ -152,8 +150,14 @@ class TestCpcvTail3:
             exits.iloc[i] = True
         data = pd.DataFrame({"open": prices, "high": prices * 1.01}, index=dates)
         r = cpcv_backtest(
-            prices, entries, exits, n_groups=4, n_test_groups=2, n_trials=2,
-            data=data, method="random",
+            prices,
+            entries,
+            exits,
+            n_groups=4,
+            n_test_groups=2,
+            n_trials=2,
+            data=data,
+            method="random",
             param_space={"threshold": (0.5, 2.0)},
             signal_fn=lambda df, **kw: (df.open > 0, df.open < 0),
         )
@@ -164,9 +168,7 @@ class TestCpcvTail3:
 class TestModelRegistryTail3:
     def test_promote_to_live_without_evidence(self, tmp_path: pytest.TempPathFactory) -> None:
         """L213-215: evidence None → no paper_evidence write."""
-        reg = ModelRegistry(
-            tmp_path / "r", paper_readiness=PaperReadinessConfig(enabled=False)
-        )
+        reg = ModelRegistry(tmp_path / "r", paper_readiness=PaperReadinessConfig(enabled=False))
         reg.register("m1", "Cls", "h", {"passed": True, "decision": "GO"})
         e = reg.get("m1")
         e["status"] = "paper"
@@ -181,9 +183,7 @@ class TestPaperReadinessTail3:
     def test_orders_meet_minimum(self) -> None:
         """L199-205: orders >= min_orders → elif False."""
         cfg = PaperReadinessConfig(min_paper_days=0, min_fills=0, min_orders=5)
-        result = assert_paper_readiness(
-            {"paper_days": 10, "fills": 50, "orders": 10}, config=cfg
-        )
+        result = assert_paper_readiness({"paper_days": 10, "fills": 50, "orders": 10}, config=cfg)
         assert result["passed"] is True
 
 
@@ -233,8 +233,10 @@ class TestElliottWaveTail3:
             "generate_signals",
             lambda df: (
                 pd.concat(
-                    [pd.Series(False, index=df.index).iloc[:-1],
-                     pd.Series([True], index=[df.index[-1]])]
+                    [
+                        pd.Series(False, index=df.index).iloc[:-1],
+                        pd.Series([True], index=[df.index[-1]]),
+                    ]
                 ),
                 pd.Series(False, index=df.index),
             ),
@@ -255,8 +257,10 @@ class TestElliottWaveTail3:
             lambda df: (
                 pd.Series(False, index=df.index),
                 pd.concat(
-                    [pd.Series(False, index=df.index).iloc[:-1],
-                     pd.Series([True], index=[df.index[-1]])]
+                    [
+                        pd.Series(False, index=df.index).iloc[:-1],
+                        pd.Series([True], index=[df.index[-1]]),
+                    ]
                 ),
             ),
         )
@@ -291,12 +295,11 @@ class TestEngineTail3:
             patch.object(session, "_periodic_maintenance", new_callable=AsyncMock),
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
+
             async def _stop(*a, **k):
                 session._running = False
 
             mock_sleep.side_effect = _stop
             session._running = True
-            await session.run_data_loop(
-                symbol="BTC/USDT", timeframe="1h", interval_seconds=60
-            )
+            await session.run_data_loop(symbol="BTC/USDT", timeframe="1h", interval_seconds=60)
         fake_store.close.assert_called_once()

@@ -46,9 +46,7 @@ class PruneResult:
     method: str
     pairwise_dropped: list[dict[str, Any]] = field(default_factory=list)
     research_only: bool = True
-    note: str = (
-        "IAF prune is research-only; do not hard-bind into live entry or freeze contracts"
-    )
+    note: str = "IAF prune is research-only; do not hard-bind into live entry or freeze contracts"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -67,7 +65,11 @@ def prune_correlated_factors(
     cfg = config or PruneConfig()
     if frame is None or frame.empty:
         raise ValueError("factor frame is empty (fail-closed)")
-    cols = list(columns) if columns is not None else [c for c in IAF_FACTOR_NAMES if c in frame.columns]
+    cols = (
+        list(columns)
+        if columns is not None
+        else [c for c in IAF_FACTOR_NAMES if c in frame.columns]
+    )
     if not cols:
         # fall back to all numeric columns
         cols = [c for c in frame.columns if pd.api.types.is_numeric_dtype(frame[c])]

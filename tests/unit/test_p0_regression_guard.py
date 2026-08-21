@@ -74,9 +74,7 @@ def _pin_bars(df: pd.DataFrame, baseline: dict) -> pd.DataFrame:
 
     if bar_count is not None and len(out) != int(bar_count):
         # Stable prefix after time filter — matches establish_p0_baseline.pin_bars
-        if start_ms is None and end_ms is None:
-            out = out.iloc[: int(bar_count)].reset_index(drop=True)
-        elif len(out) > int(bar_count):
+        if (start_ms is None and end_ms is None) or len(out) > int(bar_count):
             out = out.iloc[: int(bar_count)].reset_index(drop=True)
     return out
 

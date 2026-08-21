@@ -166,9 +166,7 @@ def build_multi_symbol_dual_path_report(
     per_symbol: dict[str, Any] = {}
     fingerprints: dict[str, Any] = {}
     for sym in symbols:
-        block = run_symbol_dual_path(
-            frames[sym], symbol=sym, path_a=path_a, path_b=path_b
-        )
+        block = run_symbol_dual_path(frames[sym], symbol=sym, path_a=path_a, path_b=path_b)
         per_symbol[sym] = block
         fingerprints[sym] = block["data_fingerprint"]
 
@@ -212,17 +210,14 @@ def build_multi_symbol_dual_path_report(
                     "weighted_path_a_excess_pct": wa,
                     "weighted_path_b_excess_pct": wb,
                     "note": (
-                        "display-only weighted excess; NOT combined_score; "
-                        "NOT promotion decision"
+                        "display-only weighted excess; NOT combined_score; NOT promotion decision"
                     ),
                 },
             }
         },
         data_fingerprint={
             "symbols": fingerprints,
-            "aggregate": "|".join(
-                f"{s}:{fingerprints[s].get('aggregate')}" for s in symbols
-            ),
+            "aggregate": "|".join(f"{s}:{fingerprints[s].get('aggregate')}" for s in symbols),
         },
         execution_path=RESEARCH_EXECUTION_PATH,
         complete=True,

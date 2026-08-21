@@ -19,19 +19,15 @@ import ast
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from quantflow.strategy.base import StrategyBase
-from quantflow.strategy.validation import cpcv as cpcv_mod
 from quantflow.strategy.validation import dsr as dsr_mod
 from quantflow.strategy.validation import lookahead as lookahead_mod
-from quantflow.strategy.validation import monte_carlo as mc_mod
 from quantflow.strategy.validation import pbo as pbo_mod
 from quantflow.strategy.validation import recursive as recursive_mod
 from quantflow.strategy.validation.cpcv import cpcv_backtest, split_cpcv
 from quantflow.strategy.validation.gate import validation_gate
 from quantflow.strategy.validation.lookahead import (
-    LookaheadReport,
     scan_strategies,
     scan_strategy,
 )
@@ -283,7 +279,7 @@ class _AttrChainLeakStrategy(StrategyBase):
     def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
         series = df["close"]
         entries = series > series.mean()
-        exits = series < series.mean()
+        _ = series < series.mean()
         leak = series[entries].mean()  # masked aggregation (attribute value)
         return series > leak, series < leak
 
@@ -404,9 +400,7 @@ def test_lookahead_source_path_failure(monkeypatch) -> None:
     def raise_getsourcefile(obj):
         raise TypeError("no file")
 
-    monkeypatch.setattr(
-        lookahead_mod.inspect, "getsourcefile", raise_getsourcefile
-    )
+    monkeypatch.setattr(lookahead_mod.inspect, "getsourcefile", raise_getsourcefile)
     rep = scan_strategy(_CleanintStrategy())
     assert rep.source_path is None
 
@@ -438,8 +432,8 @@ class _IndicatorProbeStrategy:
 
     def generate_signals(self, df):
         self.rsi.compute()  # Attribute.value is Attribute -> hasattr -> 98
-        engine.compute()  # Attribute.value is Name + compute attr -> 103
-        IndicatorEngine.compute_all()  # Attribute.value is Name + compute_all -> 103
+        engine.compute()  # noqa: F821 — deliberate AST probe, never executed
+        IndicatorEngine.compute_all()  # noqa: F821 — deliberate AST probe
         return df
 
 

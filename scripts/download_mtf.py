@@ -84,9 +84,7 @@ async def _run(args: argparse.Namespace) -> int:
     for r in results:
         print(f"  {r['timeframe']:>4}  bars={r['bars']:<8}  {r['status']}")
     ok = sum(
-        1
-        for r in results
-        if r["status"] == "ok" and isinstance(r["bars"], int) and r["bars"] > 0
+        1 for r in results if r["status"] == "ok" and isinstance(r["bars"], int) and r["bars"] > 0
     )
     print(f"[dl] ok={ok}/{len(results)}")
     return 0 if ok > 0 else 1

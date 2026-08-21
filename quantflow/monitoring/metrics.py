@@ -355,7 +355,7 @@ def metrics_registry_snapshot() -> dict[str, Any]:
 
 
 def update_research_go_panel_metrics(
-    snapshot: "ResearchGoPanelSnapshot | None",
+    snapshot: ResearchGoPanelSnapshot | None,
 ) -> None:
     """Push sealed research GO panel fields into quantflow_research_go_* gauges.
 
@@ -418,7 +418,5 @@ def update_session_health(
     sid = str(strategy_id or "default")
     SESSION_HEALTH_UP.labels(mode=m, strategy_id=sid).set(1.0 if up else 0.0)
     SESSION_BARS_PROCESSED.labels(mode=m, strategy_id=sid).set(float(bars_processed))
-    SESSION_LAST_BAR_AGE_SECONDS.labels(mode=m, strategy_id=sid).set(
-        float(last_bar_age_seconds)
-    )
+    SESSION_LAST_BAR_AGE_SECONDS.labels(mode=m, strategy_id=sid).set(float(last_bar_age_seconds))
     SESSION_OPEN_ORDERS.labels(mode=m, strategy_id=sid).set(float(open_orders))

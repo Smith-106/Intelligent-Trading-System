@@ -173,11 +173,7 @@ def simulate(close: pd.Series, cfg: Cfg) -> tuple[pd.Series, dict[str, Any]]:
             turnover += delta * w
             overlay_pos = target
 
-        exposure = (
-            1.0 + w * overlay_pos
-            if cfg.mode == "add_on"
-            else (1.0 - w) + w * overlay_pos
-        )
+        exposure = 1.0 + w * overlay_pos if cfg.mode == "add_on" else (1.0 - w) + w * overlay_pos
         # when dd throttle fires in reduce_off, also pull beta sleeve slightly
         if cfg.mode == "reduce_off" and risk_scale < 1.0:
             exposure = exposure * (0.55 + 0.45 * risk_scale)
@@ -451,9 +447,11 @@ def main() -> int:
             f"maxDD={best['max_dd_pct']:.2f}% sh={best['sharpe']:.3f} "
             f"cfg={report['best_score_cfg']}"
         )
-        print(f"DELTA     excess={report['delta_vs_baseline']['excess_pp']:+.2f}pp "
-              f"maxDD={report['delta_vs_baseline']['max_dd_pp']:+.2f}pp "
-              f"sharpe={report['delta_vs_baseline']['sharpe_delta']:+.3f}")
+        print(
+            f"DELTA     excess={report['delta_vs_baseline']['excess_pp']:+.2f}pp "
+            f"maxDD={report['delta_vs_baseline']['max_dd_pp']:+.2f}pp "
+            f"sharpe={report['delta_vs_baseline']['sharpe_delta']:+.3f}"
+        )
     if best_dd:
         print(
             f"BEST_DD   ret={best_dd['return_pct']:+.2f}% excess={best_dd['excess_return_pct']:+.2f}pp "

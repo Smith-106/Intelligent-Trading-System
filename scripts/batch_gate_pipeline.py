@@ -33,13 +33,13 @@ if str(REPO_ROOT) not in sys.path:
 
 import pandas as pd  # noqa: E402
 
+from quantflow.strategy.research.backtest import BacktestEngine  # noqa: E402
 from quantflow.strategy.research.contract_pin import (  # noqa: E402
     ContractPinError,
     build_window_pin,
     parse_window_ms,
     warn_if_unpinned,
 )
-from quantflow.strategy.research.backtest import BacktestEngine  # noqa: E402
 from quantflow.strategy.validation.cost_fidelity import (  # noqa: E402
     CostFidelityError,
     assert_promotion_cost_ready,
@@ -71,9 +71,7 @@ def _load_bars(start_ms: int, end_ms: int) -> pd.DataFrame:
         store.close()
     if df.empty:
         raise SystemExit(f"no {SYMBOL} 1h bars in pin window")
-    return df[["timestamp", "open", "high", "low", "close", "volume"]].reset_index(
-        drop=True
-    )
+    return df[["timestamp", "open", "high", "low", "close", "volume"]].reset_index(drop=True)
 
 
 def _funding_block() -> dict[str, Any]:
@@ -96,7 +94,7 @@ def _funding_block() -> dict[str, Any]:
                     start_ms=int(ts.min()),
                     end_ms=int(ts.max()),
                 )
-    except Exception:  # noqa: BLE001 — funding optional at load; assumption fallback
+    except Exception:
         measured = None
     return build_funding_tca(
         mode="hybrid" if measured else "assumption",
@@ -190,7 +188,7 @@ def evaluate_candidate(
 
     try:
         grid = _fee_slip_grid(df, strategy_id)
-    except Exception as exc:  # noqa: BLE001 — isolate candidates
+    except Exception as exc:
         row["reasons"].append(f"signal/backtest failed: {exc}")
         return row
 
@@ -200,9 +198,7 @@ def evaluate_candidate(
         "fee_slip_grid": grid,
         "funding_tca": funding_tca,
     }
-    report = attach_cost_fidelity(
-        report, fee_slip_grid=grid, funding_tca=funding_tca
-    )
+    report = attach_cost_fidelity(report, fee_slip_grid=grid, funding_tca=funding_tca)
     # W14: batch gate evaluates paper-promotion readiness → stamp event path.
     # Fingerprint is filled by run_batch pin when available; placeholder ok for cost-only.
     report.setdefault("execution_path", "paper_replay")
@@ -228,7 +224,7 @@ def evaluate_candidate(
             report["gate_reason"] = gate.get("reason")
             if report["decision"] != "GO":
                 row["reasons"].append(f"validation_gate: {gate.get('reason', 'NO-GO')}")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             row["reasons"].append(f"full_gate failed: {exc}")
             report["decision"] = "NO-GO"
 
@@ -306,18 +302,14 @@ def run_batch(
         }
     else:
         df = _load_bars(start_ms, end_ms)
-        pin = build_window_pin(
-            start=start, end=end, frames={SYMBOL: df}, timeframe="1h"
-        )
+        pin = build_window_pin(start=start, end=end, frames={SYMBOL: df}, timeframe="1h")
         pin_meta = pin.to_dict()
 
     candidates: list[dict[str, Any]] = []
     for sid in strategies:
         print(f"[batch-gate] evaluate {sid} ...", flush=True)
         candidates.append(
-            evaluate_candidate(
-                sid, df, funding_tca=funding, full_gate=full_gate, dry_run=dry_run
-            )
+            evaluate_candidate(sid, df, funding_tca=funding, full_gate=full_gate, dry_run=dry_run)
         )
 
     n_pass = sum(1 for c in candidates if c["status"] == "pass")

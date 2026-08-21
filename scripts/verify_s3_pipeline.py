@@ -81,8 +81,10 @@ def main() -> int:
     idx = pd.to_datetime(ohlcv["timestamp"], unit="ms", utc=True)
     factors = runner.discover_factors(ohlcv.set_index(idx))
     assert len(factors) >= 4, f"expected >=4 baseline factors, got {len(factors)}"
-    print(f"[1] factor discovery OK: {len(factors)} factors "
-          f"({sum(1 for f in factors if f.selected)} selected)")
+    print(
+        f"[1] factor discovery OK: {len(factors)} factors "
+        f"({sum(1 for f in factors if f.selected)} selected)"
+    )
 
     # --- 2. Feature store + meta features ---
     raw_store = DataStore(str(WORK / "raw"))
@@ -93,6 +95,7 @@ def main() -> int:
 
     engine = MetaFeatureEngine()
     fs = FeatureStore(str(WORK / "feat"), indicator_computer=None, meta_computer=engine)
+
     # Use a trivial indicator computer to keep OHLCV-derived features minimal.
     class _PassThrough:
         def compute_all(self, df, indicator_names=None):
@@ -106,21 +109,23 @@ def main() -> int:
     )
     assert "funding_rate_ma_3" in features.columns, "funding feature missing"
     assert "oi_change_1" in features.columns, "OI feature missing"
-    print(f"[2] feature store + meta features OK: {len(features)} rows, "
-          f"{len(features.columns)} cols")
+    print(
+        f"[2] feature store + meta features OK: {len(features)} rows, {len(features.columns)} cols"
+    )
 
     # --- 3. AI training + validation gate ---
     pipe = AITrainingPipeline(
         validation_kwargs={"cpcv_groups": 4, "cpcv_test_groups": 1, "wfo_windows": 3}
     )
     feature_cols = [c for c in features.columns if c not in ("timestamp", "symbol", "computed_at")]
-    close = features["close"] if "close" in features.columns else pd.Series(
-        ohlcv["close"].values, index=features.index
+    close = (
+        features["close"]
+        if "close" in features.columns
+        else pd.Series(ohlcv["close"].values, index=features.index)
     )
     report = pipe.train(features[feature_cols], close, None, n_estimators=30, max_depth=3)
     assert report.decision in ("GO", "NO-GO")
-    print(f"[3] training + gate OK: decision={report.decision} "
-          f"({report.reason[:60]}…)")
+    print(f"[3] training + gate OK: decision={report.decision} ({report.reason[:60]}…)")
 
     # --- 4. Gated registration ---
     reg = ModelRegistry(str(WORK / "registry"))
@@ -128,11 +133,14 @@ def main() -> int:
         model_id=f"verify-{report.features_hash}",
         model_cls=report.model_cls,
         features_hash=report.features_hash,
-        validation_report=report.validation or {"decision": report.decision, "reason": report.reason},
+        validation_report=report.validation
+        or {"decision": report.decision, "reason": report.reason},
     )
     assert entry["status"] in ("paper", "rejected")
-    print(f"[4] registry gate OK: status={entry['status']} (fail-closed: "
-          f"{'passed GO' if entry['status'] == 'paper' else 'correctly refused'})")
+    print(
+        f"[4] registry gate OK: status={entry['status']} (fail-closed: "
+        f"{'passed GO' if entry['status'] == 'paper' else 'correctly refused'})"
+    )
 
     print("\n== s3 pipeline verification PASSED ==")
     return 0

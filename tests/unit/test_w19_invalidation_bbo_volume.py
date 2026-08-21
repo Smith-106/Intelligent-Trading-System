@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -21,7 +19,7 @@ from quantflow.indicators.critical_level import (
 from quantflow.indicators.engine import IndicatorEngine
 from quantflow.indicators.volume import obv_slope, session_vwap
 from quantflow.indicators.wave_models import WaveCount, WavePattern
-from quantflow.signal.wave_signal_generator import InvalidationSeverity, WaveInvalidationChecker
+from quantflow.signal.wave_signal_generator import WaveInvalidationChecker
 from quantflow.strategy.elliott_wave_strategy import LiuYudongWaveStrategy
 
 
@@ -64,7 +62,7 @@ class TestW19aInvalidationAndSave:
         from quantflow.indicators.wave_models import WaveSegment
         from quantflow.indicators.zigzag import PivotDirection, PivotPoint, PivotSequence
 
-        def fake_detect(df):  # noqa: ANN001
+        def fake_detect(df):
             return PivotSequence(
                 pivots=[
                     PivotPoint(0, 100.0, PivotDirection.LOW),
@@ -78,15 +76,29 @@ class TestW19aInvalidationAndSave:
                 thresholds_used=[0.05],
             )
 
-        def fake_identify(pivots, mode=None):  # noqa: ANN001
+        def fake_identify(pivots, mode=None):
             waves = {
-                1: WaveSegment(1, PivotPoint(0, 100.0, PivotDirection.LOW), PivotPoint(5, 120.0, PivotDirection.HIGH)),
-                2: WaveSegment(2, PivotPoint(5, 120.0, PivotDirection.HIGH), PivotPoint(10, 110.0, PivotDirection.LOW)),
-                3: WaveSegment(3, PivotPoint(10, 110.0, PivotDirection.LOW), PivotPoint(15, 140.0, PivotDirection.HIGH)),
+                1: WaveSegment(
+                    1,
+                    PivotPoint(0, 100.0, PivotDirection.LOW),
+                    PivotPoint(5, 120.0, PivotDirection.HIGH),
+                ),
+                2: WaveSegment(
+                    2,
+                    PivotPoint(5, 120.0, PivotDirection.HIGH),
+                    PivotPoint(10, 110.0, PivotDirection.LOW),
+                ),
+                3: WaveSegment(
+                    3,
+                    PivotPoint(10, 110.0, PivotDirection.LOW),
+                    PivotPoint(15, 140.0, PivotDirection.HIGH),
+                ),
             }
-            return WaveCount(pattern=WavePattern.IMPULSE, waves=waves, current_wave=3, confidence=0.8)
+            return WaveCount(
+                pattern=WavePattern.IMPULSE, waves=waves, current_wave=3, confidence=0.8
+            )
 
-        def fake_critical(wc):  # noqa: ANN001
+        def fake_critical(wc):
             return CriticalLevels(
                 levels=[
                     CriticalLevel(
@@ -111,7 +123,7 @@ class TestW19aInvalidationAndSave:
         _entries, exits = strategy.generate_signals(df)
         assert bool(exits.any()), "expected at least one hard-invalidation exit"
 
-    def test_save_features_keep_first_preserves_existing(self, tmp_path) -> None:  # noqa: ANN001
+    def test_save_features_keep_first_preserves_existing(self, tmp_path) -> None:
         fs = FeatureStore(str(tmp_path))
         ts = 1704153600000
         first = pd.DataFrame({"timestamp": [ts], "value": [1.0]})
@@ -129,7 +141,6 @@ class TestW19bTickerBbo:
         eng = ExecutionEngine(gateway=gw)
         # Minimal TradingSession-like holder: use methods via a stub
         from quantflow.strategy.engine import TradingSession
-        from quantflow.common.config import AppConfig
 
         # Build a lightweight session without full start
         session = object.__new__(TradingSession)

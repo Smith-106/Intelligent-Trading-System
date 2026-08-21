@@ -520,9 +520,7 @@ class ExecutionEngine:
         L4 marks unless the gateway's mid_to_last path also updates last price.
         """
         if self._gateway is not None:
-            self._gateway.update_orderbook(
-                symbol, bid, ask, mid_to_last=mid_to_last
-            )
+            self._gateway.update_orderbook(symbol, bid, ask, mid_to_last=mid_to_last)
 
     def _record_order_latency(self, symbol: str, started_at: float) -> None:
         self._sink.record_order_latency(symbol, perf_counter() - started_at)

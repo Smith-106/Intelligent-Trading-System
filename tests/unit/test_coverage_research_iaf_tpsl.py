@@ -13,8 +13,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from quantflow.strategy.research.iaf_prune import PruneConfig, prune_correlated_factors
 from quantflow.strategy.research import iaf_prune_cpcv as iafc
+from quantflow.strategy.research.iaf_prune import PruneConfig, prune_correlated_factors
 from quantflow.strategy.research.tpsl import (
     TPSLConfig,
     TradeRecord,
@@ -93,7 +93,9 @@ def test_prune_column_absent_from_corr(monkeypatch) -> None:
 
 
 def test_prune_high_corr_drops_later_column() -> None:
-    df = pd.DataFrame({"a": list(range(60)), "b": list(range(60)), "c": np.random.default_rng(2).normal(size=60)})
+    df = pd.DataFrame(
+        {"a": list(range(60)), "b": list(range(60)), "c": np.random.default_rng(2).normal(size=60)}
+    )
     r = prune_correlated_factors(df, columns=["a", "b", "c"], config=PruneConfig(min_periods=30))
     assert "b" in r.dropped
     assert r.pairwise_dropped and r.pairwise_dropped[0]["dropped"] == "b"
@@ -187,7 +189,7 @@ def test_resolved_pcts_atr_branch() -> None:
     assert tp == pytest.approx(0.06)  # max(0.06, 0.05)
     # take_profit_pct == 0 -> skip explicit-TP override
     cfg2 = TPSLConfig(atr_sl_mult=1.0, take_profit_pct=0.0, min_rr=2.0)
-    sl2, tp2 = cfg2.resolved_pcts(3.0, 100.0)
+    _sl2, tp2 = cfg2.resolved_pcts(3.0, 100.0)
     assert tp2 == pytest.approx(0.06)
 
 
@@ -198,7 +200,7 @@ def test_resolved_pcts_zero_stop_raises() -> None:
 
 def test_resolved_pcts_auto_lift_tp() -> None:
     cfg = TPSLConfig(stop_loss_pct=0.03, take_profit_pct=0.04, min_rr=2.0)
-    sl, tp = cfg.resolved_pcts(None, 100.0)
+    _sl, tp = cfg.resolved_pcts(None, 100.0)
     assert tp == pytest.approx(0.06)  # lifted to min_rr * sl
 
 
@@ -244,8 +246,15 @@ def test_summarize_trades_zero_sl_trade() -> None:
     """TradeRecord with sl_pct == 0 -> realized_rr skip branch (241->240)."""
     trades = [
         TradeRecord(
-            entry_i=0, exit_i=1, entry_price=100.0, exit_price=101.0,
-            pnl_pct=0.01, reason="tp", sl_pct=0.0, tp_pct=0.05, rr_planned=0.0,
+            entry_i=0,
+            exit_i=1,
+            entry_price=100.0,
+            exit_price=101.0,
+            pnl_pct=0.01,
+            reason="tp",
+            sl_pct=0.0,
+            tp_pct=0.05,
+            rr_planned=0.0,
         )
     ]
     stats = summarize_trades(trades)
@@ -273,9 +282,7 @@ def test_simulate_eod_force_close() -> None:
 
     close = pd.Series([100.0, 100.0, 100.0])
     entries = pd.Series([True, False, False], dtype=bool)
-    _eq, trades, _stats, _meta = simulate_long_flat_tpsl(
-        close, entries, cfg=TPSLConfig()
-    )
+    _eq, trades, _stats, _meta = simulate_long_flat_tpsl(close, entries, cfg=TPSLConfig())
     assert trades and trades[0].reason == "eod"
     assert trades[0].exit_i == 2
 

@@ -60,14 +60,18 @@ def step1_dynamic_budget() -> None:
     assert static._scale_budget_pct("s1", 0.5) == 0.5, "disabled dynamic budget must be static"
 
     cfg = DynamicBudgetConfig(enabled=True, target_vol_pct=0.15, min_scale=0.5, max_scale=1.5)
-    dyn = RiskEngine(RiskConfig(position_limit_pct=1.0, dynamic_budget=cfg), strategy_risk_budgets=budgets)
+    dyn = RiskEngine(
+        RiskConfig(position_limit_pct=1.0, dynamic_budget=cfg), strategy_risk_budgets=budgets
+    )
     for r in _returns(200, 1, 0.05):
         dyn.add_return(float(r))
     scaled = dyn._scale_budget_pct("s1", 0.5)
     assert scaled < 0.5, f"high vol must shrink budget, got {scaled}"
 
     # Short history → fail-safe fallback to static.
-    dyn2 = RiskEngine(RiskConfig(position_limit_pct=1.0, dynamic_budget=cfg), strategy_risk_budgets=budgets)
+    dyn2 = RiskEngine(
+        RiskConfig(position_limit_pct=1.0, dynamic_budget=cfg), strategy_risk_budgets=budgets
+    )
     for r in _returns(10, 2, 0.05):
         dyn2.add_return(float(r))
     assert dyn2._scale_budget_pct("s1", 0.5) == 0.5
@@ -83,7 +87,12 @@ def step2_auto_loop() -> None:
     cfg = AutoLoopConfigModel(
         log_path=str(log),
         training_kwargs={"test_size": 0.3, "random_state": 1},
-        validation_kwargs={"n_trials": 5, "cpcv_groups": 3, "cpcv_test_groups": 1, "wfo_windows": 2},
+        validation_kwargs={
+            "n_trials": 5,
+            "cpcv_groups": 3,
+            "cpcv_test_groups": 1,
+            "wfo_windows": 2,
+        },
     )
     loop = AutoResearchLoop(registry=registry, config=cfg)
     idx = pd.date_range("2026-01-01", periods=300, freq="h")

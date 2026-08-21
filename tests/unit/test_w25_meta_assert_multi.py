@@ -49,9 +49,7 @@ class TestW25bAssertScript:
         import scripts.assert_elliott_cost_package as assert_mod
 
         out = tmp_path / "elliott_assert"
-        rc = assert_mod.main(
-            ["--build", "--dir", str(out), "--n-bars", "60", "--no-reseat"]
-        )
+        rc = assert_mod.main(["--build", "--dir", str(out), "--n-bars", "60", "--no-reseat"])
         assert rc == 0
         assert (out / "cost_report.json").is_file()
 

@@ -17,7 +17,7 @@ from quantflow.indicators.elliott_wave import (
     wave_momentum_divergence,
     zigzag,
 )
-from quantflow.indicators.regime import MarketRegime, MarketRegimeDetector
+from quantflow.indicators.regime import MarketRegimeDetector
 from quantflow.indicators.wave_identifier import WaveIdentifier
 from quantflow.indicators.wave_models import (
     AnalysisMode,
@@ -44,7 +44,11 @@ def wave(label: int, start: tuple[int, float], end: tuple[int, float]) -> WaveSe
     direction = PivotDirection.HIGH if end[1] >= start[1] else PivotDirection.LOW
     return WaveSegment(
         label=label,
-        start=pivot(start[0], start[1], PivotDirection.LOW if direction == PivotDirection.HIGH else PivotDirection.HIGH),
+        start=pivot(
+            start[0],
+            start[1],
+            PivotDirection.LOW if direction == PivotDirection.HIGH else PivotDirection.HIGH,
+        ),
         end=pivot(end[0], end[1], direction),
     )
 
@@ -68,7 +72,12 @@ class TestWaveModelsCoverage:
         )
         assert count.get_wave(1) is seg
         assert count.get_wave(9) is None
-        assert count.critical_levels() == {"w1_start": 100.0, "w1_end": 120.0, "w3_end": 140.0, "w4_end": 130.0}
+        assert count.critical_levels() == {
+            "w1_start": 100.0,
+            "w1_end": 120.0,
+            "w3_end": 140.0,
+            "w4_end": 130.0,
+        }
         assert IronLawResult().is_valid is True
         assert IronLawResult(law1_ok=False).is_valid is False
         assert IronLawResult(law2_mode=AnalysisMode.RETROSPECTIVE, law2_ok=False).is_valid is False
@@ -84,7 +93,7 @@ class TestRegimeCoverage:
         det = MarketRegimeDetector(adx_period=2, bb_period=3, atr_lookback=20)
         monkeypatch.setattr(
             "quantflow.indicators.regime.adx_vectorized",
-            lambda h, l, c, period: pd.Series([np.nan] * len(h), index=h.index),
+            lambda h, lo, c, period: pd.Series([np.nan] * len(h), index=h.index),
         )
         for i in range(4):
             result = det.update(101 + i, 99 + i, 100 + i)
@@ -93,7 +102,7 @@ class TestRegimeCoverage:
         # A second detector exercises the throttled return before recomputation.
         det2 = MarketRegimeDetector(adx_period=4)
         for i in range(8):
-            first = det2.update(101 + i, 99 + i, 100 + i)
+            det2.update(101 + i, 99 + i, 100 + i)
         before = det2._bars_since_recompute
         assert det2.update(110, 90, 105) is det2._last_regime
         assert det2._bars_since_recompute == 0
@@ -103,7 +112,7 @@ class TestRegimeCoverage:
         det = MarketRegimeDetector(adx_period=2, bb_period=20, atr_lookback=100)
         monkeypatch.setattr(
             "quantflow.indicators.regime.adx_vectorized",
-            lambda h, l, c, period: pd.Series([30.0] * len(h), index=h.index),
+            lambda h, lo, c, period: pd.Series([30.0] * len(h), index=h.index),
         )
         for _ in range(4):
             result = det.update(101.0, 99.0, 100.0)
@@ -116,7 +125,7 @@ class TestRegimeCoverage:
         df = pd.DataFrame({"high": [1.0] * 5, "low": [1.0] * 5, "close": [0.0] * 5})
         monkeypatch.setattr(
             "quantflow.indicators.regime.adx_vectorized",
-            lambda h, l, c, period: pd.Series([np.nan] * len(h), index=h.index),
+            lambda h, lo, c, period: pd.Series([np.nan] * len(h), index=h.index),
         )
         # detect has no NaN guard by design, but still exercises its BB/ATR branches.
         result = det.detect(df)
@@ -129,7 +138,10 @@ class TestDivergenceCoverage:
     def test_compute_and_detect_missing_columns_and_bearish_volume(self) -> None:
         detector = DivergenceDetector()
         df = pd.DataFrame(index=range(5))
-        count = WaveCount(pattern=WavePattern.IMPULSE, waves={3: wave(3, (0, 100), (1, 130)), 5: wave(5, (2, 120), (3, 140))})
+        count = WaveCount(
+            pattern=WavePattern.IMPULSE,
+            waves={3: wave(3, (0, 100), (1, 130)), 5: wave(5, (2, 120), (3, 140))},
+        )
         assert detector.compute(df, wave_count=count).eq(0).all()
         result = detector.detect(count, df)
         assert result.divergences == []
@@ -154,9 +166,11 @@ class TestDivergenceCoverage:
                 "rsi_14": [40.0, 50.0],
             }
         )
-        with patch.object(detector, "_check_macd_divergence", return_value=None), patch.object(
-            detector, "_check_volume_divergence", return_value=None
-        ), patch.object(detector, "_check_rsi_divergence", return_value=None):
+        with (
+            patch.object(detector, "_check_macd_divergence", return_value=None),
+            patch.object(detector, "_check_volume_divergence", return_value=None),
+            patch.object(detector, "_check_rsi_divergence", return_value=None),
+        ):
             result = detector.detect(count, frame)
         assert result.divergences == []
         assert result.bearish is False
@@ -170,18 +184,22 @@ class TestDivergenceCoverage:
                 5: wave(5, (2, 120), (3, 140)),
             },
         )
-        with patch.object(
-            detector,
-            "_check_macd_divergence",
-            return_value=SimpleNamespace(divergence_type="macd_other"),
-        ), patch.object(
-            detector,
-            "_check_volume_divergence",
-            return_value=SimpleNamespace(divergence_type="volume_other"),
-        ), patch.object(
-            detector,
-            "_check_rsi_divergence",
-            return_value=SimpleNamespace(divergence_type="rsi_other"),
+        with (
+            patch.object(
+                detector,
+                "_check_macd_divergence",
+                return_value=SimpleNamespace(divergence_type="macd_other"),
+            ),
+            patch.object(
+                detector,
+                "_check_volume_divergence",
+                return_value=SimpleNamespace(divergence_type="volume_other"),
+            ),
+            patch.object(
+                detector,
+                "_check_rsi_divergence",
+                return_value=SimpleNamespace(divergence_type="rsi_other"),
+            ),
         ):
             result = detector.detect(
                 count,
@@ -197,15 +215,28 @@ class TestDivergenceCoverage:
         assert result.bullish is False
         assert len(result.divergences) == 3
 
-
     def test_divergence_edge_guards_and_rsi_zero_amplitude(self) -> None:
         detector = DivergenceDetector()
-        data = pd.DataFrame({"macd_histogram": [1.0] * 3, "volume": [1.0] * 3, "rsi_14": [40.0] * 3})
+        data = pd.DataFrame(
+            {"macd_histogram": [1.0] * 3, "volume": [1.0] * 3, "rsi_14": [40.0] * 3}
+        )
         w3 = wave(3, (0, 100), (1, 90))
         assert detector._check_macd_divergence({3: w3, 5: wave(5, (1, 90), (2, 80))}, data) is None
-        assert detector._check_volume_divergence({3: w3, 5: wave(5, (1, 90), (2, 80))}, data) is None
-        assert detector._check_rsi_divergence({1: wave(1, (0, 100), (1, 100)), 2: wave(2, (1, 100), (2, 90))}, data) is None
-        assert detector._check_rsi_divergence({1: wave(1, (0, 100), (1, 110)), 2: wave(2, (1, 110), (2, 104))}, data) is None
+        assert (
+            detector._check_volume_divergence({3: w3, 5: wave(5, (1, 90), (2, 80))}, data) is None
+        )
+        assert (
+            detector._check_rsi_divergence(
+                {1: wave(1, (0, 100), (1, 100)), 2: wave(2, (1, 100), (2, 90))}, data
+            )
+            is None
+        )
+        assert (
+            detector._check_rsi_divergence(
+                {1: wave(1, (0, 100), (1, 110)), 2: wave(2, (1, 110), (2, 104))}, data
+            )
+            is None
+        )
 
     def test_bearish_rsi_is_not_a_bullish_signal(self) -> None:
         detector = DivergenceDetector()
@@ -229,28 +260,46 @@ class TestLegacyElliottCoverage:
         assert set(result["pivot_type"]).issubset({-1, 1})
 
     def test_classifiers_valid_and_all_rejection_conditions(self) -> None:
-        bullish = pd.DataFrame({"pivot_idx": range(5), "pivot_price": [100, 120, 110, 155, 115], "pivot_type": [-1, 1, -1, 1, -1]})
+        bullish = pd.DataFrame(
+            {
+                "pivot_idx": range(5),
+                "pivot_price": [100, 120, 110, 155, 115],
+                "pivot_type": [-1, 1, -1, 1, -1],
+            }
+        )
         assert classify_impulse(bullish) is not None
-        zero_w1 = bullish.copy(); zero_w1.loc[:, "pivot_price"] = [100, 100, 95, 130, 120]
-        bad_r2 = bullish.copy(); bad_r2.loc[2, "pivot_price"] = 119
-        bad_r3 = bullish.copy(); bad_r3.loc[3, "pivot_price"] = 105
-        overlap = bullish.copy(); overlap.loc[4, "pivot_price"] = 125
+        zero_w1 = bullish.copy()
+        zero_w1.loc[:, "pivot_price"] = [100, 100, 95, 130, 120]
+        bad_r2 = bullish.copy()
+        bad_r2.loc[2, "pivot_price"] = 119
+        bad_r3 = bullish.copy()
+        bad_r3.loc[3, "pivot_price"] = 105
+        overlap = bullish.copy()
+        overlap.loc[4, "pivot_price"] = 125
         assert classify_impulse(zero_w1) is None
         assert classify_impulse(bad_r2) is None
         assert classify_impulse(bad_r3) is None
         assert classify_impulse(overlap) is None
-        corrective = pd.DataFrame({"pivot_idx": [0, 1, 2], "pivot_price": [100, 115, 108], "pivot_type": [-1, 1, -1]})
+        corrective = pd.DataFrame(
+            {"pivot_idx": [0, 1, 2], "pivot_price": [100, 115, 108], "pivot_type": [-1, 1, -1]}
+        )
         assert classify_corrective(corrective) is not None
 
-    def test_elliott_empty_and_mapping_skips_unknown_index(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_elliott_empty_and_mapping_skips_unknown_index(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         df = pd.DataFrame({"high": [100, 101], "low": [99, 100]}, index=[10, 20])
         empty = pd.DataFrame(columns=["pivot_idx", "pivot_price", "pivot_type"])
         monkeypatch.setattr("quantflow.indicators.elliott_wave.zigzag", lambda *a, **k: empty)
         assert (elliott_wave(df)["wave_label"] == 0).all()
         pivots = pd.DataFrame([{"pivot_idx": 0, "pivot_price": 99.0, "pivot_type": -1}])
         monkeypatch.setattr("quantflow.indicators.elliott_wave.zigzag", lambda *a, **k: pivots)
-        monkeypatch.setattr("quantflow.indicators.elliott_wave.classify_impulse", lambda *a, **k: None)
-        monkeypatch.setattr("quantflow.indicators.elliott_wave.classify_corrective", lambda *a, **k: None)
+        monkeypatch.setattr(
+            "quantflow.indicators.elliott_wave.classify_impulse", lambda *a, **k: None
+        )
+        monkeypatch.setattr(
+            "quantflow.indicators.elliott_wave.classify_corrective", lambda *a, **k: None
+        )
         assert (elliott_wave(df)["wave_label"] == 0).all()
 
     def test_elliott_mapping_skips_index_after_dataframe_index_changes(
@@ -260,9 +309,7 @@ class TestLegacyElliottCoverage:
             {"high": [101.0, 102.0, 103.0], "low": [99.0, 100.0, 101.0]},
             index=[0, 1, 2],
         )
-        pivots = pd.DataFrame(
-            [{"pivot_idx": 0, "pivot_price": 100.0, "pivot_type": -1}]
-        )
+        pivots = pd.DataFrame([{"pivot_idx": 0, "pivot_price": 100.0, "pivot_type": -1}])
         mapped = pd.DataFrame(
             {
                 "pivot_idx": [0],
@@ -293,16 +340,13 @@ class TestLegacyElliottCoverage:
         assert result.iloc[3] == 1
         assert result.iloc[4] == -1
         assert result.iloc[5] == 0
-        out = pivots.copy(); out.loc[4, "pivot_idx"] = 99
+        out = pivots.copy()
+        out.loc[4, "pivot_idx"] = 99
         assert wave_momentum_divergence(close, rsi, out, lookback=1).iloc[0] == 0
 
-        non_wave_pivot = pd.DataFrame(
-            {"pivot_idx": [1, 2, 3, 4], "pivot_type": [-1, 1, -1, 0]}
-        )
+        non_wave_pivot = pd.DataFrame({"pivot_idx": [1, 2, 3, 4], "pivot_type": [-1, 1, -1, 0]})
         result = wave_momentum_divergence(close, rsi, non_wave_pivot, lookback=1)
         assert result.iloc[4] == 0
-
-
 
 
 class TestWaveIdentifierCoverage:
@@ -310,48 +354,119 @@ class TestWaveIdentifierCoverage:
         identifier = WaveIdentifier()
         df = pd.DataFrame(index=range(4))
         assert identifier.compute(df).eq(0).all()
-        points = [pivot(0, 130, PivotDirection.HIGH), pivot(1, 100, PivotDirection.LOW), pivot(2, 118, PivotDirection.HIGH), pivot(3, 70, PivotDirection.LOW), pivot(4, 125, PivotDirection.HIGH)]
+        points = [
+            pivot(0, 130, PivotDirection.HIGH),
+            pivot(1, 100, PivotDirection.LOW),
+            pivot(2, 118, PivotDirection.HIGH),
+            pivot(3, 70, PivotDirection.LOW),
+            pivot(4, 125, PivotDirection.HIGH),
+        ]
         result = identifier._try_impulse(points, AnalysisMode.RETROSPECTIVE)
         assert result is not None and result.pattern == WavePattern.IMPULSE
-        points = [pivot(0, 120, PivotDirection.HIGH), pivot(1, 100, PivotDirection.LOW), pivot(2, 110, PivotDirection.HIGH), pivot(3, 90, PivotDirection.LOW)]
+        points = [
+            pivot(0, 120, PivotDirection.HIGH),
+            pivot(1, 100, PivotDirection.LOW),
+            pivot(2, 110, PivotDirection.HIGH),
+            pivot(3, 90, PivotDirection.LOW),
+        ]
         correction = identifier._try_corrective(points, AnalysisMode.PROGRESSIVE)
         assert correction is not None and correction.pattern == WavePattern.CORRECTIVE
 
     def test_iron_laws_valid_and_bearish_diagonal_paths(self) -> None:
         identifier = WaveIdentifier()
-        valid = {1: wave(1, (0, 100), (1, 130)), 2: wave(2, (1, 130), (2, 120)), 3: wave(3, (2, 120), (3, 170)), 4: wave(4, (3, 170), (4, 150)), 5: wave(5, (4, 150), (5, 180))}
+        valid = {
+            1: wave(1, (0, 100), (1, 130)),
+            2: wave(2, (1, 130), (2, 120)),
+            3: wave(3, (2, 120), (3, 170)),
+            4: wave(4, (3, 170), (4, 150)),
+            5: wave(5, (4, 150), (5, 180)),
+        }
         result = identifier._validate_iron_laws(valid, AnalysisMode.RETROSPECTIVE, True)
         assert result.is_valid is True and result.law2_ok is True and result.violations == []
-        identified = identifier.identify(PivotSequence([pivot(0, 100, PivotDirection.LOW), pivot(1, 130, PivotDirection.HIGH), pivot(2, 120, PivotDirection.LOW), pivot(3, 170, PivotDirection.HIGH), pivot(4, 150, PivotDirection.LOW)]), AnalysisMode.PROGRESSIVE)
+        identified = identifier.identify(
+            PivotSequence(
+                [
+                    pivot(0, 100, PivotDirection.LOW),
+                    pivot(1, 130, PivotDirection.HIGH),
+                    pivot(2, 120, PivotDirection.LOW),
+                    pivot(3, 170, PivotDirection.HIGH),
+                    pivot(4, 150, PivotDirection.LOW),
+                ]
+            ),
+            AnalysisMode.PROGRESSIVE,
+        )
         assert identified.pattern == WavePattern.IMPULSE
-        bearish = {1: wave(1, (0, 120), (1, 100)), 2: wave(2, (1, 100), (2, 110)), 3: wave(3, (2, 110), (3, 80)), 4: wave(4, (3, 80), (4, 90)), 5: wave(5, (4, 90), (5, 70))}
+        bearish = {
+            1: wave(1, (0, 120), (1, 100)),
+            2: wave(2, (1, 100), (2, 110)),
+            3: wave(3, (2, 110), (3, 80)),
+            4: wave(4, (3, 80), (4, 90)),
+            5: wave(5, (4, 90), (5, 70)),
+        }
         checked_bearish = identifier._validate_iron_laws(bearish, AnalysisMode.PROGRESSIVE, False)
         assert checked_bearish.law3_ok is True
         no_overlap = {1: wave(1, (0, 100), (1, 120)), 4: wave(4, (3, 140), (4, 130))}
-        assert identifier._validate_iron_laws(no_overlap, AnalysisMode.PROGRESSIVE, True).law3_ok is True
+        assert (
+            identifier._validate_iron_laws(no_overlap, AnalysisMode.PROGRESSIVE, True).law3_ok
+            is True
+        )
 
     def test_partial_impulse_and_diagonal_false(self) -> None:
         identifier = WaveIdentifier()
-        points = [pivot(0, 100, PivotDirection.LOW), pivot(1, 120, PivotDirection.HIGH), pivot(2, 110, PivotDirection.LOW), pivot(3, 150, PivotDirection.HIGH), pivot(4, 130, PivotDirection.LOW)]
+        points = [
+            pivot(0, 100, PivotDirection.LOW),
+            pivot(1, 120, PivotDirection.HIGH),
+            pivot(2, 110, PivotDirection.LOW),
+            pivot(3, 150, PivotDirection.HIGH),
+            pivot(4, 130, PivotDirection.LOW),
+        ]
         partial = identifier._try_impulse(points, AnalysisMode.PROGRESSIVE)
         assert partial is not None and partial.current_wave == 4
-        zero_retrace = [pivot(0, 100, PivotDirection.LOW), pivot(1, 120, PivotDirection.HIGH), pivot(2, 120, PivotDirection.LOW), pivot(3, 150, PivotDirection.HIGH), pivot(4, 140, PivotDirection.LOW)]
+        zero_retrace = [
+            pivot(0, 100, PivotDirection.LOW),
+            pivot(1, 120, PivotDirection.HIGH),
+            pivot(2, 120, PivotDirection.LOW),
+            pivot(3, 150, PivotDirection.HIGH),
+            pivot(4, 140, PivotDirection.LOW),
+        ]
         assert identifier._try_impulse(zero_retrace, AnalysisMode.PROGRESSIVE) is not None
-        assert identifier._check_diagonal({1: wave(1, (0, 100), (1, 120)), 2: wave(2, (1, 120), (2, 110)), 3: wave(3, (2, 110), (3, 140)), 4: wave(4, (3, 140), (4, 100)), 5: wave(5, (4, 100), (5, 150))}, True) is False
+        assert (
+            identifier._check_diagonal(
+                {
+                    1: wave(1, (0, 100), (1, 120)),
+                    2: wave(2, (1, 120), (2, 110)),
+                    3: wave(3, (2, 110), (3, 140)),
+                    4: wave(4, (3, 140), (4, 100)),
+                    5: wave(5, (4, 100), (5, 150)),
+                },
+                True,
+            )
+            is False
+        )
 
 
 class TestZigzagCoverage:
     def test_sequence_helpers_and_compute(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        seq = PivotSequence([pivot(0, 100, PivotDirection.LOW), pivot(2, 120, PivotDirection.HIGH)], overlap_ratio=0.8, thresholds_used=[0.05], degraded=True, consensus_n=1)
+        seq = PivotSequence(
+            [pivot(0, 100, PivotDirection.LOW), pivot(2, 120, PivotDirection.HIGH)],
+            overlap_ratio=0.8,
+            thresholds_used=[0.05],
+            degraded=True,
+            consensus_n=1,
+        )
         assert len(seq.confirmed_pivots()) == 1
         copied = seq.with_confirmed_only()
         assert copied.degraded is True and copied.thresholds_used == [0.05]
         indicator = ZigZagIndicator()
         monkeypatch.setattr(indicator, "compute_pivot_sequence", lambda *a, **k: seq)
-        markers = indicator.compute(pd.DataFrame({"high": [100, 120, 110], "low": [99, 110, 100], "timestamp": [1, 2, 3]}))
+        markers = indicator.compute(
+            pd.DataFrame({"high": [100, 120, 110], "low": [99, 110, 100], "timestamp": [1, 2, 3]})
+        )
         assert markers.iloc[0] == -1 and markers.iloc[2] == 1
 
-    def test_compute_out_of_range_marker_and_merge_consensus(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_compute_out_of_range_marker_and_merge_consensus(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         indicator = ZigZagIndicator()
         seq = PivotSequence([pivot(99, 1, PivotDirection.HIGH)])
         monkeypatch.setattr(indicator, "compute_pivot_sequence", lambda *a, **k: seq)
@@ -363,6 +478,7 @@ class TestZigzagCoverage:
         ]
         merged = _merge_pivot_runs(runs, min_overlap=2, bar_tolerance=2)
         assert len(merged) == 1 and merged.iloc[0]["overlap_count"] == 2
+
 
 def test_divergence_zero_amplitude_guard_is_handled() -> None:
     class InconsistentPrice:
@@ -544,7 +660,6 @@ def test_zigzag_stable_direction_branches() -> None:
     assert up.iloc[-1]["pivot_type"] == 1
     assert down.iloc[-1]["pivot_type"] == -1
 
-
     upward_reversal = _zigzag_single(
         pd.Series([100.0, 110.0, 100.0]),
         pd.Series([99.0, 108.0, 95.0]),
@@ -557,4 +672,3 @@ def test_zigzag_stable_direction_branches() -> None:
     )
     assert upward_reversal.iloc[-1]["pivot_type"] == -1
     assert downward_reversal.iloc[-1]["pivot_type"] == 1
-

@@ -226,9 +226,14 @@ def _oos_metrics(
 
 def run_full_series_smoke(df: pd.DataFrame | None = None, **kwargs: Any) -> dict[str, Any]:
     """Convenience: single-shot ``run_backtest`` + WFO smoke summary."""
-    bt = run_backtest(df=df, **{k: v for k, v in kwargs.items() if k in (
-        "symbol", "n_bars", "initial_capital", "commission", "config"
-    )})
+    bt = run_backtest(
+        df=df,
+        **{
+            k: v
+            for k, v in kwargs.items()
+            if k in ("symbol", "n_bars", "initial_capital", "commission", "config")
+        },
+    )
     smoke = run_elliott_wfo_smoke(df=df, **kwargs)
     return {
         "full_series": {

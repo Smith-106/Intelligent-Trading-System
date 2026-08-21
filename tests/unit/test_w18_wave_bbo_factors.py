@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -46,7 +44,9 @@ def _ohlcv(n: int = 80, seed: int = 0) -> pd.DataFrame:
 
 
 class TestW18aWaveFidelity:
-    def test_pivot_sequence_degraded_flag_on_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_pivot_sequence_degraded_flag_on_fallback(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         indicator = ZigZagIndicator()
         high = pd.Series([100.0] * 20, dtype=float)
         low = pd.Series([99.0] * 20, dtype=float)
@@ -60,7 +60,7 @@ class TestW18aWaveFidelity:
         )
         fake = pd.DataFrame([{"pivot_idx": 5, "pivot_price": 99.5, "pivot_type": -1}])
 
-        def _fake(h, lo, threshold):  # noqa: ANN001
+        def _fake(h, lo, threshold):
             if abs(threshold - 0.08) < 1e-9:
                 return fake.copy()
             return pd.DataFrame(columns=["pivot_idx", "pivot_price", "pivot_type"])
@@ -141,7 +141,7 @@ class TestW18aWaveFidelity:
     def test_degraded_skipped_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         strategy = LiuYudongWaveStrategy({"allow_degraded_consensus": False})
 
-        def _deg(*_a, **_k):  # noqa: ANN001
+        def _deg(*_a, **_k):
             from quantflow.indicators.zigzag import PivotPoint
 
             return PivotSequence(
@@ -216,22 +216,22 @@ class TestW18bBboFeed:
         from quantflow.execution.gateway_base import GatewayBase
 
         class _G(GatewayBase):
-            async def connect(self, config=None):  # noqa: ANN001
+            async def connect(self, config=None):
                 return None
 
-            async def send_order(self, order):  # noqa: ANN001
+            async def send_order(self, order):
                 return "x"
 
-            async def cancel_order(self, order_id, symbol):  # noqa: ANN001
+            async def cancel_order(self, order_id, symbol):
                 return True
 
-            async def query_positions(self):  # noqa: ANN001
+            async def query_positions(self):
                 return []
 
-            async def query_order(self, order_id, symbol):  # noqa: ANN001
+            async def query_order(self, order_id, symbol):
                 return None
 
-            async def query_open_orders(self, symbol=None):  # noqa: ANN001
+            async def query_open_orders(self, symbol=None):
                 return []
 
         g = _G()

@@ -150,7 +150,9 @@ class MonitoringSink(Protocol):
         """
         ...
 
-    def record_strategy_pnl(self, strategy_id: str, pnl: float, budget_utilization: float | None = None) -> None:
+    def record_strategy_pnl(
+        self, strategy_id: str, pnl: float, budget_utilization: float | None = None
+    ) -> None:
         """s4 (T-s4-05): push strategy-level PnL + budget utilization.
 
         Used by L4/TradingSession for the strategy-factory monitoring split
@@ -250,7 +252,9 @@ class NullMonitoringSink:
     def record_order_timed_out(self, symbol: str, side: str) -> None:
         """No-op."""
 
-    def record_strategy_pnl(self, strategy_id: str, pnl: float, budget_utilization: float | None = None) -> None:
+    def record_strategy_pnl(
+        self, strategy_id: str, pnl: float, budget_utilization: float | None = None
+    ) -> None:
         """No-op."""
 
     def record_portfolio_allocation(self, weights: dict[str, float]) -> None:

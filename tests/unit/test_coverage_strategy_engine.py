@@ -78,6 +78,7 @@ class TestModuleHelpers:
         assert base_equity == 101.0
         assert idx == 2
 
+
 class TestBookRiskBudgetConstruction:
     def test_enabled_builds_book_budget(self) -> None:
         """L155-157: config.risk.book_risk_budget.enabled → BookRiskBudget wired."""
@@ -139,7 +140,9 @@ class TestStartCheckpointRestore:
         assert session._recovery_verified is False
 
     @pytest.mark.asyncio
-    async def test_reconciliation_engine_built_when_enabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_reconciliation_engine_built_when_enabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """L393-395 + L1007-1011: reconciliation.enabled → engine constructed."""
         cfg = AppConfig()
         cfg.reconciliation.enabled = True
@@ -160,7 +163,9 @@ class TestStartCheckpointRestore:
 
 class TestStartBackgroundFlags:
     @pytest.mark.asyncio
-    async def test_funding_bbo_trades_flags_spawn_tasks(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_funding_bbo_trades_flags_spawn_tasks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """L447-456: opt-in feed/ingest tasks spawned when enabled (no symbols → idle)."""
         cfg = AppConfig()
         cfg.execution.funding_feed_enabled = True
@@ -267,10 +272,17 @@ class TestOnBarPortfolioOptimization:
         session._portfolio_optimizer.compute = MagicMock(return_value={"a": 0.5, "b": 0.5})
         # Compound strategy id position + a zero-current-price position (skipped).
         session._portfolio.update_position("BTC/USDT", 1.0, 100.0, strategy_id="a,b")
-        session._portfolio.positions["ETH/USDT"] = session._portfolio.positions.pop("ETH/USDT") if "ETH/USDT" in session._portfolio.positions else None
-        session._portfolio.set_position("ETH/USDT", __import__("quantflow.common.models", fromlist=["Position"]).Position(
-            symbol="ETH/USDT", quantity=2.0, entry_price=1.0, current_price=0.0, strategy_id="z"
-        ))
+        session._portfolio.positions["ETH/USDT"] = (
+            session._portfolio.positions.pop("ETH/USDT")
+            if "ETH/USDT" in session._portfolio.positions
+            else None
+        )
+        session._portfolio.set_position(
+            "ETH/USDT",
+            __import__("quantflow.common.models", fromlist=["Position"]).Position(
+                symbol="ETH/USDT", quantity=2.0, entry_price=1.0, current_price=0.0, strategy_id="z"
+            ),
+        )
         with (
             patch.object(session, "_update_portfolio_observability"),
             patch.object(session, "_record_bar_latency"),
@@ -400,9 +412,7 @@ class TestProcessSignalEdgeBranches:
     async def test_flat_signal_no_position_noop(self) -> None:
         """L918: FLAT close with no held position → early return."""
         session = self._ready_session()
-        await session._process_signal_inner(
-            _signal(direction=Direction.FLAT)
-        )
+        await session._process_signal_inner(_signal(direction=Direction.FLAT))
         session._execution.submit_order.assert_not_awaited()
 
 
@@ -416,7 +426,14 @@ class TestCrashRecoveryHelpers:
             cash=90000.0,
             positions=[
                 {"symbol": "", "quantity": 5.0},
-                {"symbol": "BTC/USDT", "quantity": 2.0, "entry_price": 90.0, "current_price": 91.0, "unrealized_pnl": 2.0, "strategy_id": "s1"},
+                {
+                    "symbol": "BTC/USDT",
+                    "quantity": 2.0,
+                    "entry_price": 90.0,
+                    "current_price": 91.0,
+                    "unrealized_pnl": 2.0,
+                    "strategy_id": "s1",
+                },
             ],
             open_orders=[],
             equity=95000.0,
@@ -460,7 +477,11 @@ class TestCrashRecoveryHelpers:
         # non-completed status → False
         engine = MagicMock()
         engine.run_daily_reconciliation = AsyncMock(
-            return_value=SimpleNamespace(status="error", error_message="x", discrepancies=SimpleNamespace(total_discrepancies=0))
+            return_value=SimpleNamespace(
+                status="error",
+                error_message="x",
+                discrepancies=SimpleNamespace(total_discrepancies=0),
+            )
         )
         session._reconciliation_engine = engine
         assert await session._verify_recovery() is False
@@ -468,7 +489,11 @@ class TestCrashRecoveryHelpers:
         # discrepancies → False
         engine = MagicMock()
         engine.run_daily_reconciliation = AsyncMock(
-            return_value=SimpleNamespace(status="completed", error_message="", discrepancies=SimpleNamespace(total_discrepancies=2))
+            return_value=SimpleNamespace(
+                status="completed",
+                error_message="",
+                discrepancies=SimpleNamespace(total_discrepancies=2),
+            )
         )
         session._reconciliation_engine = engine
         assert await session._verify_recovery() is False
@@ -476,7 +501,11 @@ class TestCrashRecoveryHelpers:
         # ok → True
         engine = MagicMock()
         engine.run_daily_reconciliation = AsyncMock(
-            return_value=SimpleNamespace(status="completed", error_message="", discrepancies=SimpleNamespace(total_discrepancies=0))
+            return_value=SimpleNamespace(
+                status="completed",
+                error_message="",
+                discrepancies=SimpleNamespace(total_discrepancies=0),
+            )
         )
         session._reconciliation_engine = engine
         assert await session._verify_recovery() is True
@@ -486,8 +515,14 @@ class TestCrashRecoveryHelpers:
         session = TradingSession(AppConfig(), [])
         session._portfolio.update_position("BTC/USDT", 1.0, 100.0, strategy_id="s1")
         fake_order = Order(
-            order_id="o1", symbol="BTC/USDT", side=OrderSide.BUY, order_type="market",
-            quantity=1.0, price=100.0, status=OrderStatus.SUBMITTED, strategy_id="s1",
+            order_id="o1",
+            symbol="BTC/USDT",
+            side=OrderSide.BUY,
+            order_type="market",
+            quantity=1.0,
+            price=100.0,
+            status=OrderStatus.SUBMITTED,
+            strategy_id="s1",
         )
         session._execution.order_manager.get_open_orders = MagicMock(return_value=[fake_order])
         snap = session._build_snapshot()
@@ -545,8 +580,10 @@ class TestKolReferenceMultiplier:
         cfg = AppConfig()
         cfg.kol_reference.enabled = True
         session = TradingSession(cfg, [])
+
         def _boom(*a, **k):
             raise RuntimeError("no consensus file")
+
         monkeypatch.setattr(
             "quantflow.strategy.kol_signals.reference_weight.reference_multiplier", _boom
         )
@@ -564,14 +601,17 @@ class TestTradesIngest:
         """L1176-1178: no symbols → idle warning."""
         session = TradingSession(AppConfig(), [])
         session._symbols = []
-        with patch("quantflow.data.trades_ingest.TradesIngestLoop"), patch(
-            "quantflow.data.trades_store.TradesStore"
+        with (
+            patch("quantflow.data.trades_ingest.TradesIngestLoop"),
+            patch("quantflow.data.trades_store.TradesStore"),
         ):
             session._start_trades_ingest()
         assert session._trades_ingest is None
 
     @pytest.mark.asyncio
-    async def test_start_trades_ingest_injected_fetcher(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_start_trades_ingest_injected_fetcher(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """L1184-1208: injected fetcher with fetch_trades → loop started."""
         session = TradingSession(AppConfig(), [])
         session._symbols = ["BTC/USDT"]
@@ -581,14 +621,18 @@ class TestTradesIngest:
         with (
             patch("quantflow.data.trades_ingest.TradesIngestLoop", return_value=fake_loop),
             patch("quantflow.data.trades_store.TradesStore", return_value=fake_store),
-            patch("quantflow.data.trades_ingest.make_fetcher_adapter", return_value=lambda sym: None),
+            patch(
+                "quantflow.data.trades_ingest.make_fetcher_adapter", return_value=lambda sym: None
+            ),
         ):
             session._start_trades_ingest()
         fake_loop.start.assert_called_once()
         assert session._trades_ingest is fake_loop
 
     @pytest.mark.asyncio
-    async def test_start_trades_ingest_creates_fetcher(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_start_trades_ingest_creates_fetcher(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """L1187-1197: no injected fetcher → DataFetcher built + connect task."""
         session = TradingSession(AppConfig(), [])
         session._symbols = ["BTC/USDT"]
@@ -650,14 +694,18 @@ class TestMetaFeed:
         fake_fetcher.connect = AsyncMock(side_effect=Exception("connect fail"))
         fake_dq = MagicMock()
         with (
-            patch("quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher),
+            patch(
+                "quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher
+            ),
             patch("quantflow.data.dq_monitor.DataQualityMonitor", return_value=fake_dq),
             patch.object(session, "_meta_poll_funding", new_callable=AsyncMock),
             patch.object(session, "_meta_poll_oi", new_callable=AsyncMock),
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
+
             async def _stop_after_sleep(*a, **k):
                 session._running = False
+
             mock_sleep.side_effect = _stop_after_sleep
             session._running = True
             await session._meta_feed_loop()
@@ -689,6 +737,7 @@ class TestMetaFeed:
             funding_rate=rate,
             open_interest=oi,
         )
+
 
 class TestFundingRiskGate:
     @pytest.mark.asyncio
@@ -741,19 +790,25 @@ class TestMetaFreshness:
         session._meta_fresh["C"] = {"funding": True, "oi": True, "settled_interval_ms": 0}
         assert session._meta_data_fresh("C") is False
         session._meta_fresh["D"] = {
-            "funding": True, "oi": True, "settled_interval_ms": 3600000,
+            "funding": True,
+            "oi": True,
+            "settled_interval_ms": 3600000,
             "funding_at_ms": now_ms - 3 * 3600000,  # stale (>2x interval)
             "oi_at_ms": now_ms - 500000,
         }
         assert session._meta_data_fresh("D") is False
         session._meta_fresh["E"] = {
-            "funding": True, "oi": True, "settled_interval_ms": 3600000,
+            "funding": True,
+            "oi": True,
+            "settled_interval_ms": 3600000,
             "funding_at_ms": now_ms - 3600000,
             "oi_at_ms": now_ms - 700000,  # OI stale >600s
         }
         assert session._meta_data_fresh("E") is False
         session._meta_fresh["F"] = {
-            "funding": True, "oi": True, "settled_interval_ms": 3600000,
+            "funding": True,
+            "oi": True,
+            "settled_interval_ms": 3600000,
             "funding_at_ms": now_ms - 3600000,
             "oi_at_ms": now_ms - 100000,
         }
@@ -803,13 +858,13 @@ class TestRunDataLoop:
             patch.object(session, "_periodic_maintenance", new_callable=AsyncMock),
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
+
             async def _stop_after_sleep(*a, **k):
                 session._running = False
+
             mock_sleep.side_effect = _stop_after_sleep
             session._running = True
-            await session.run_data_loop(
-                symbol="BTC/USDT", timeframe="1h", interval_seconds=60
-            )
+            await session.run_data_loop(symbol="BTC/USDT", timeframe="1h", interval_seconds=60)
         session._sink.send_alert.assert_awaited_once()
 
 

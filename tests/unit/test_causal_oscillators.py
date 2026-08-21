@@ -72,7 +72,9 @@ class TestNegativeShiftScan:
 
         report = scan_strategy(Leaky())
         assert not report.passed
-        assert any("shift" in f.pattern.lower() or "future" in f.pattern.lower() for f in report.findings)
+        assert any(
+            "shift" in f.pattern.lower() or "future" in f.pattern.lower() for f in report.findings
+        )
 
 
 class TestOscillatorsCausal:

@@ -69,9 +69,7 @@ def session_vwap(
         cum_v = volume.cumsum()
         return cum_tp / cum_v.replace(0, 1e-10)
 
-    day = (pd.to_numeric(timestamps, errors="coerce").astype("int64") // 86_400_000).astype(
-        "int64"
-    )
+    day = (pd.to_numeric(timestamps, errors="coerce").astype("int64") // 86_400_000).astype("int64")
     # groupby cumsum is causal within each day (no future leakage across days)
     cum_tp = tp_vol.groupby(day).cumsum()
     cum_v = volume.groupby(day).cumsum()
@@ -92,13 +90,13 @@ def obv_slope(close: pd.Series, volume: pd.Series, period: int = 10) -> pd.Serie
 from quantflow.common.cvd import cvd_from_trades, cvd_proxy  # noqa: E402
 
 __all__ = [
-    "obv",
-    "vwap",
-    "mfi",
-    "volume_sma",
-    "volume_ratio",
-    "session_vwap",
-    "obv_slope",
     "cvd_from_trades",
     "cvd_proxy",
+    "mfi",
+    "obv",
+    "obv_slope",
+    "session_vwap",
+    "volume_ratio",
+    "volume_sma",
+    "vwap",
 ]

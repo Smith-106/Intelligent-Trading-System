@@ -81,14 +81,20 @@ class AIFactorStrategy(StrategyBase):
             if candidate is None:
                 entries = [e for e in registry.list_models() if e.get("status") in _USABLE_STATUSES]
                 if not entries:
-                    logger.warning("ai_factor: no paper/live models in registry %s", self._registry_dir)
+                    logger.warning(
+                        "ai_factor: no paper/live models in registry %s", self._registry_dir
+                    )
                     return
                 # Prefer live models; newest first.
                 entries.sort(key=lambda e: str(e.get("registered_at", "")), reverse=True)
                 candidate = str(entries[0]["model_id"])
             entry = registry.get(candidate)
             if entry is None or entry.get("status") not in _USABLE_STATUSES:
-                logger.warning("ai_factor: model %s not usable (status=%s)", candidate, entry and entry.get("status"))
+                logger.warning(
+                    "ai_factor: model %s not usable (status=%s)",
+                    candidate,
+                    entry and entry.get("status"),
+                )
                 return
             model_cls = entry.get("model_cls", "")
             self._model = _instantiate_model(model_cls)

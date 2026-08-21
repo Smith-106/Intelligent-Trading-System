@@ -39,7 +39,7 @@ ARCHIVE_ROOT = Path("data/parquet_archive")
 
 #: Explicit mapping — no heuristic inference. Keys are legacy directory names.
 #: ``BTC-USDT-SWAP`` is intentionally absent: it is a perpetual dataset with a
-#%% legitimate dash name, not a naming accident (open question O2).
+# %% legitimate dash name, not a naming accident (open question O2).
 LEGACY_TARGETS: tuple[str, ...] = ("BTC_USDT", "ETH_USDT", "SOL_USDT", "XRP_USDT")
 
 META_DIRS = ("meta_funding_rate", "meta_open_interest")
@@ -80,8 +80,12 @@ def build_plan(*, relabel_meta_okx: bool) -> list[dict[str, object]]:
                 dst = PARQUET_DIR / meta / "BTC_USDT-OKX"
                 if src.is_dir() and not dst.exists():
                     plan.append(
-                        {"legacy": f"{meta}/BTC_USDT", "replacement": str(dst),
-                         "moves": [], "relabel": [[str(src), str(dst)]]}
+                        {
+                            "legacy": f"{meta}/BTC_USDT",
+                            "replacement": str(dst),
+                            "moves": [],
+                            "relabel": [[str(src), str(dst)]],
+                        }
                     )
     finally:
         store.close()

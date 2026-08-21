@@ -95,9 +95,7 @@ def test_breakout_no_lookahead_uses_prior_high_only() -> None:
     low = np.full(n, 99.5)
     close[-1] = 110.0
     high[-1] = 110.5
-    df = pd.DataFrame(
-        {"close": close, "high": high, "low": low, "volume": np.full(n, 1000.0)}
-    )
+    df = pd.DataFrame({"close": close, "high": high, "low": low, "volume": np.full(n, 1000.0)})
     s = TrendFollowingStrategy(
         params={
             **_loose_params("breakout"),

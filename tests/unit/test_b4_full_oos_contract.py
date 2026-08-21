@@ -24,23 +24,17 @@ def test_results_doc_and_index_mark_keep_b0() -> None:
     assert "KEEP_BASELINE_0" in results
     assert "B4-OOS-20260810" in results
     assert "0 fills" in results or "orders=0" in results or "**0**" in results
-    idx = (root / "docs" / "research" / "baseline-contract-index.md").read_text(
-        encoding="utf-8"
-    )
+    idx = (root / "docs" / "research" / "baseline-contract-index.md").read_text(encoding="utf-8")
     assert "B4-OOS-20260810" in idx
     assert "KEEP B0" in idx
     # must not claim DRAFT only anymore
-    contract = (root / "docs" / "research" / "Candidate-Baseline-4.md").read_text(
-        encoding="utf-8"
-    )
+    contract = (root / "docs" / "research" / "Candidate-Baseline-4.md").read_text(encoding="utf-8")
     assert "FROZEN KEEP_BASELINE_0" in contract
 
 
 def test_t023_status_doc_honest() -> None:
     root = Path(__file__).resolve().parents[2]
-    text = (root / "docs" / "research" / "t023-wall-clock-status.md").read_text(
-        encoding="utf-8"
-    )
+    text = (root / "docs" / "research" / "t023-wall-clock-status.md").read_text(encoding="utf-8")
     assert "3" in text
     assert "target_met" in text
     assert "false" in text.lower() or "False" in text

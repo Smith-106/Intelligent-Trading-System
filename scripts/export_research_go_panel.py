@@ -58,10 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--panel",
         default=DEFAULT_PANEL_ARG,
-        help=(
-            "Path to the sealed performance panel "
-            f"(default: {DEFAULT_PANEL_ARG})"
-        ),
+        help=(f"Path to the sealed performance panel (default: {DEFAULT_PANEL_ARG})"),
     )
     parser.add_argument(
         "--push-metrics",

@@ -61,6 +61,7 @@ BASE_PARAMS: dict[str, Any] = {
     "rate_ema_period": 8,
 }
 
+
 # classic + 4 ablation cells
 def _cell(ema: bool, oi: bool) -> dict[str, Any]:
     p = dict(BASE_PARAMS)
@@ -224,9 +225,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"→{pd.to_datetime(eff_end, unit='ms', utc=True)}"
             )
 
-    df = raw[["timestamp", "open", "high", "low", "close", "volume"]].reset_index(
-        drop=True
-    )
+    df = raw[["timestamp", "open", "high", "low", "close", "volume"]].reset_index(drop=True)
     if data_status != "BLOCKED":
         df = df[(df["timestamp"] >= eff_start) & (df["timestamp"] <= eff_end)].reset_index(
             drop=True
@@ -277,13 +276,9 @@ def main(argv: list[str] | None = None) -> int:
     if len(segments) < 1:
         meta_notes.append("WFO 24m/6m → 0 segs; 50/50 single OOS fold")
         mid = int(df["timestamp"].iloc[len(df) // 2])
-        segments = [
-            (int(df["timestamp"].iloc[0]), mid, int(df["timestamp"].iloc[-1]) + 1)
-        ]
+        segments = [(int(df["timestamp"].iloc[0]), mid, int(df["timestamp"].iloc[-1]) + 1)]
 
-    funding_max_abs = (
-        float(funding["funding_rate"].abs().max()) if not funding.empty else 0.0
-    )
+    funding_max_abs = float(funding["funding_rate"].abs().max()) if not funding.empty else 0.0
     print(
         f"[b5] {CONTRACT_ID} status={data_status} bars={len(df)} "
         f"funding={len(funding)} max|rate|={funding_max_abs:.6g} segs={len(segments)}"
@@ -389,8 +384,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 if fee == 0.001 and slip == 0.001:
                     print(
-                        f"  {label} @0.1%: ret={rep.get('return_pct')} "
-                        f"orders={rep.get('orders')}"
+                        f"  {label} @0.1%: ret={rep.get('return_pct')} orders={rep.get('orders')}"
                     )
 
     # Adjudicate using B1 helper on all rows (classic + challengers)
@@ -404,21 +398,16 @@ def main(argv: list[str] | None = None) -> int:
     adj["b3_b4_frozen"] = True
     # Never auto-upgrade
     any_challenger_orders = any(
-        float(r.get("full_orders") or 0) > 0
-        for r in rows
-        if r["label"] != "classic"
+        float(r.get("full_orders") or 0) > 0 for r in rows if r["label"] != "classic"
     )
     upgrade = bool(adj.get("upgrade_to_baseline1") or adj.get("upgrade"))
     if not any_challenger_orders:
         upgrade = False
         adj["reason"] = (
-            (adj.get("reason") or "")
-            + " | all B5 ablation cells full_orders=0 → KEEP_BASELINE_0"
+            (adj.get("reason") or "") + " | all B5 ablation cells full_orders=0 → KEEP_BASELINE_0"
         ).strip(" |")
     if data_status == "NARROWED":
-        adj["reason"] = (
-            (adj.get("reason") or "") + " | NARROWED funding window"
-        ).strip(" |")
+        adj["reason"] = ((adj.get("reason") or "") + " | NARROWED funding window").strip(" |")
     adj["upgrade"] = False  # research seal: human only
     adj["keep_baseline0"] = True
     adj["verdict"] = "KEEP_BASELINE_0"
@@ -437,9 +426,7 @@ def main(argv: list[str] | None = None) -> int:
         adj["adjudicate_suggested_upgrade"] = True
         adj["human_required"] = True
 
-    rates = (
-        [float(x) for x in funding["funding_rate"].tolist()] if not funding.empty else []
-    )
+    rates = [float(x) for x in funding["funding_rate"].tolist()] if not funding.empty else []
     measured = (
         summarize_measured_funding(
             rates,
@@ -481,8 +468,7 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     (out_dir / "funding_wfo.json").write_text(
-        json.dumps({"rows": rows, "segments": len(segments)}, indent=2, default=str)
-        + "\n",
+        json.dumps({"rows": rows, "segments": len(segments)}, indent=2, default=str) + "\n",
         encoding="utf-8",
     )
     (out_dir / "fee_slip_grid.json").write_text(

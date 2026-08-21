@@ -131,7 +131,6 @@ class TestFeatureStore:
         assert isinstance(result, pd.DataFrame)
         assert "symbol" in result.columns
 
-
     def test_compute_features_empty_result_for_no_data(self, store_and_raw):
         fs, raw_store = store_and_raw
         result = fs.compute_features("BTC/USDT", 0, [], raw_store)

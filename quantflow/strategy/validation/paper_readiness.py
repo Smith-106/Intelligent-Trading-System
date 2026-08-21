@@ -12,9 +12,10 @@ Defaults are on and fail-closed. Thresholds are overridable via
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import Any, Mapping
+from typing import Any
 
 
 class PaperReadinessError(ValueError):
@@ -186,21 +187,15 @@ def check_paper_readiness(
         )
     elif fills < cfg.min_fills:
         result["passed"] = False
-        result["reasons"].append(
-            f"fills={fills} < min_fills={cfg.min_fills} (T016)"
-        )
+        result["reasons"].append(f"fills={fills} < min_fills={cfg.min_fills} (T016)")
 
     if cfg.min_orders > 0:
         if orders is None:
             result["passed"] = False
-            result["reasons"].append(
-                "orders unmeasurable: provide orders when min_orders>0 (T016)"
-            )
+            result["reasons"].append("orders unmeasurable: provide orders when min_orders>0 (T016)")
         elif orders < cfg.min_orders:
             result["passed"] = False
-            result["reasons"].append(
-                f"orders={orders} < min_orders={cfg.min_orders} (T016)"
-            )
+            result["reasons"].append(f"orders={orders} < min_orders={cfg.min_orders} (T016)")
 
     return result
 

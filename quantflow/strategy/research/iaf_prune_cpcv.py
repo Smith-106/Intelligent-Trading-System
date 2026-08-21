@@ -99,7 +99,9 @@ def run_iaf_prune_cpcv(
         # reindex if factor engine used different index
         entries = entries.reindex(close.index).fillna(False).astype(bool)
         exits = exits.reindex(close.index).fillna(False).astype(bool)
-        if len(entries) != len(close):  # pragma: no cover - reindex always equalizes length to close.index
+        if len(entries) != len(
+            close
+        ):  # pragma: no cover - reindex always equalizes length to close.index
             # positional fallback
             n = min(len(entries), len(close))
             entries = pd.Series(entries.to_numpy()[:n], index=close.index[:n])

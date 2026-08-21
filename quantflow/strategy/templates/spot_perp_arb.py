@@ -85,8 +85,12 @@ class SpotPerpArbStrategy(StrategyBase):
         entries = pd.Series(0, index=df.index, dtype=int)
         exits = pd.Series(0, index=df.index, dtype=int)
 
-        long_mask = (funding < -self._entry_threshold) & (oi_change.abs() > self._oi_change_threshold)
-        short_mask = (funding > self._entry_threshold) & (oi_change.abs() > self._oi_change_threshold)
+        long_mask = (funding < -self._entry_threshold) & (
+            oi_change.abs() > self._oi_change_threshold
+        )
+        short_mask = (funding > self._entry_threshold) & (
+            oi_change.abs() > self._oi_change_threshold
+        )
         entries[long_mask] = 1
         entries[short_mask] = -1
 

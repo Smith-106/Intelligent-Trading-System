@@ -138,10 +138,7 @@ class AuditLogger:
             The signed log entry
         """
         # Convert report to dict if it has to_dict method
-        if hasattr(report, "to_dict"):
-            report_dict = report.to_dict()
-        else:
-            report_dict = {"report": str(report)}
+        report_dict = report.to_dict() if hasattr(report, "to_dict") else {"report": str(report)}
 
         return await self.log_event(
             event_type="RECONCILIATION_REPORT",
@@ -218,7 +215,7 @@ class AuditLogger:
         # Scan all log files
         for log_file in sorted(self._log_dir.glob("audit-*.jsonl"), reverse=True):
             try:
-                with open(log_file, "r", encoding="utf-8") as f:
+                with open(log_file, encoding="utf-8") as f:
                     for line in f:
                         if not line.strip():
                             continue

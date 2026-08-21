@@ -485,9 +485,7 @@ class TestFinGptBackend:
         assert analyzer._generative is False
 
         # Explicit causal override on a finbert-looking name.
-        analyzer2 = SentimentAnalyzer(
-            model_name="org/finbert", architecture="causal"
-        )
+        analyzer2 = SentimentAnalyzer(model_name="org/finbert", architecture="causal")
         analyzer2.load_model()
         assert loaded["cls"] == "causal"
         assert analyzer2._generative is True

@@ -190,9 +190,7 @@ def main() -> int:
         "best_dd_among_beaters": best_dd,
         "sweep_top": sweep_rows[:15],
         "delta_tpsl_vs_overlay": {
-            "excess_pp": round(
-                primary_tpsl["excess_return_pct"] - ov_vs.excess_return_pct, 6
-            ),
+            "excess_pp": round(primary_tpsl["excess_return_pct"] - ov_vs.excess_return_pct, 6),
             "max_dd_pp": round(primary_tpsl["max_dd_pct"] - ov_vs.strategy_max_dd_pct, 6),
             "return_pp": round(primary_tpsl["return_pct"] - ov_vs.strategy_return_pct, 6),
         },
@@ -207,9 +205,7 @@ def main() -> int:
 
     print("=== BTC dual-MA TPSL vs HODL / overlay ===")
     print(f"window {args.start}→{args.end} bars={len(df)}")
-    print(
-        f"BTC_HODL        ret={btc_st['return_pct']:+.2f}% maxDD={btc_st['max_dd_pct']:.2f}%"
-    )
+    print(f"BTC_HODL        ret={btc_st['return_pct']:+.2f}% maxDD={btc_st['max_dd_pct']:.2f}%")
     print(
         f"OVERLAY w={args.overlay_weight} ret={ov_vs.strategy_return_pct:+.2f}% "
         f"ex={ov_vs.excess_return_pct:+.2f}pp maxDD={ov_vs.strategy_max_dd_pct:.2f}%"
@@ -218,14 +214,14 @@ def main() -> int:
     print(
         f"TPSL sl={args.sl} tp={args.tp} rr>={args.min_rr} "
         f"ret={primary_tpsl['return_pct']:+.2f}% ex={primary_tpsl['excess_return_pct']:+.2f}pp "
-        f"maxDD={primary_tpsl['max_dd_pct']:.2f}% wr={ts['winrate']*100:.1f}% "
+        f"maxDD={primary_tpsl['max_dd_pct']:.2f}% wr={ts['winrate'] * 100:.1f}% "
         f"payoff={ts['payoff_ratio']:.2f} n={ts['n_trades']} gate={primary_tpsl['gate']}"
     )
     if args.sweep and sweep_rows:
         b = sweep_rows[0]
         print(
             f"BEST_SWEEP ret={b['return_pct']:+.2f}% ex={b['excess_return_pct']:+.2f}pp "
-            f"maxDD={b['max_dd_pct']:.2f}% wr={b['trade_stats']['winrate']*100:.1f}% "
+            f"maxDD={b['max_dd_pct']:.2f}% wr={b['trade_stats']['winrate'] * 100:.1f}% "
             f"cfg={b['config']}"
         )
     print(f"written {args.out}")

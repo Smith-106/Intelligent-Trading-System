@@ -37,9 +37,7 @@ def test_align_meta_to_bars_forward_fill():
             "volume": [1, 1, 1, 1],
         }
     )
-    funding = pd.DataFrame(
-        {"timestamp": [2000, 4000], "funding_rate": [0.002, -0.003]}
-    )
+    funding = pd.DataFrame({"timestamp": [2000, 4000], "funding_rate": [0.002, -0.003]})
     oi = pd.DataFrame({"timestamp": [1000, 3000], "open_interest": [10.0, 12.0]})
     out = mod.align_meta_to_bars(bars, funding, oi)
     assert "funding_rate" in out.columns

@@ -48,7 +48,7 @@ class TestSentimentTail:
         sa._tokenizer = boom  # type: ignore[assignment]
         out = sa.analyze_text("text")
         assert isinstance(out, dict)
-        assert np.isnan(list(out.values())[0])
+        assert np.isnan(next(iter(out.values())))
 
     def test_generative_exception_logs_error(self) -> None:
         """L163-165: generative decode failure → logger.error → sentinel."""
@@ -66,7 +66,7 @@ class TestSentimentTail:
         sa._tokenizer = BoomTokenizer()
         out = sa._analyze_generative("text")
         assert isinstance(out, dict)
-        assert np.isnan(list(out.values())[0])
+        assert np.isnan(next(iter(out.values())))
 
     def test_weighted_daily_mean_empty_frame(self) -> None:
         """L209: all-NaN scores → empty frame → empty float Series."""
@@ -128,14 +128,14 @@ class TestAITrainerTail:
             def __init__(self, random_state: int = 0, **kw: Any) -> None:
                 self.random_state = random_state
 
-            def fit(self, *a: Any, **k: Any) -> "PlainModel":
+            def fit(self, *a: Any, **k: Any) -> PlainModel:
                 return self
 
             def predict(self, *a: Any, **k: Any) -> np.ndarray:
                 return np.zeros(len(a[0]))
 
-            def predict_proba(self, X: Any) -> np.ndarray:
-                return np.column_stack([np.ones(len(X)) * 0.3, np.ones(len(X)) * 0.7])
+            def predict_proba(self, x: Any) -> np.ndarray:
+                return np.column_stack([np.ones(len(x)) * 0.3, np.ones(len(x)) * 0.7])
 
         pipe = AITrainingPipeline(random_state=0)
         features = pd.DataFrame(
@@ -156,7 +156,7 @@ class TestAiFactorsTail:
         """L43-41 branch: test_end > test_start filter."""
         splits = _expanding_splits(100, max_splits=3)
         assert splits
-        for train, test in splits:
+        for _train, test in splits:
             assert test.stop > test.start
 
 
@@ -198,9 +198,7 @@ class TestPaperReadinessTail:
         """L183-184: fills is None → 'fills unmeasurable'."""
         cfg = PaperReadinessConfig(min_fills=1, min_orders=0)
         with pytest.raises(Exception, match="fills"):
-            assert_paper_readiness(
-                {"paper_days": 10, "fills": None, "orders": 5}, config=cfg
-            )
+            assert_paper_readiness({"paper_days": 10, "fills": None, "orders": 5}, config=cfg)
 
     def test_require_when_missing_skip(self) -> None:
         """L234-242: require_when_missing=False + no evidence → skip (passed)."""
@@ -283,13 +281,11 @@ class TestWfoTail:
         assert result.folds == []
         assert any("all 5 folds skipped" in r.message for r in caplog.records)
 
-    def test_partial_skips_logs_effective_count(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_partial_skips_logs_effective_count(self, caplog: pytest.LogCaptureFixture) -> None:
         """L191-199: some folds skipped → warning with effective count."""
 
         def fake_optimize(train_close: pd.Series):
-            n = len(train_close)
+            len(train_close)
             entries = pd.Series(False, index=train_close.index)
             exits = pd.Series(False, index=train_close.index)
             return entries, exits, {"p": 1}

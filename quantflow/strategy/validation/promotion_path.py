@@ -14,7 +14,7 @@ Attach on the validation report (any of):
 ```json
 {
   "execution_path": "paper_replay",
-  "data_fingerprint": {"aggregate": "…"} 
+  "data_fingerprint": {"aggregate": "…"}
 }
 ```
 
@@ -23,7 +23,8 @@ or under ``checks.execution_path`` / ``run_meta.execution_path``.
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 # Paths that may carry a GO narrative into ModelRegistry.register.
 ALLOWED_EXECUTION_PATHS = frozenset(
@@ -160,16 +161,14 @@ def check_promotion_path(
     if path not in ALLOWED_EXECUTION_PATHS:
         result["passed"] = False
         result["reasons"].append(
-            f"execution_path={path!r} not in allowed "
-            f"{sorted(ALLOWED_EXECUTION_PATHS)} (W14)"
+            f"execution_path={path!r} not in allowed {sorted(ALLOWED_EXECUTION_PATHS)} (W14)"
         )
         return result
 
     if require_fingerprint and fp is None:
         result["passed"] = False
         result["reasons"].append(
-            "data_fingerprint missing: pin OHLCV used for GO "
-            "(contract_pin / run_meta; T011+W14)"
+            "data_fingerprint missing: pin OHLCV used for GO (contract_pin / run_meta; T011+W14)"
         )
         return result
 
@@ -182,9 +181,7 @@ def assert_promotion_path_ready(
     require_fingerprint: bool = True,
 ) -> dict[str, Any]:
     """Fail-closed promotion path gate (W14)."""
-    result = check_promotion_path(
-        report, require_fingerprint=require_fingerprint
-    )
+    result = check_promotion_path(report, require_fingerprint=require_fingerprint)
     if not result.get("passed", False):
         reasons = result.get("reasons") or ["promotion path failed"]
         raise PromotionPathError("; ".join(str(r) for r in reasons))

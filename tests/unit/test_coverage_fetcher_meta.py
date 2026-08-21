@@ -407,10 +407,10 @@ async def test_market_meta_history_invalid_entries_and_oi_warning_boundary() -> 
         def market(self, symbol: str) -> dict[str, Any]:
             raise KeyError(symbol)
 
-        async def fetchFundingRateHistory(self, *args: Any) -> list[dict[str, Any]]:  # noqa: N802
+        async def fetchFundingRateHistory(self, *args: Any) -> list[dict[str, Any]]:
             return [{"timestamp": "invalid"}]
 
-        async def fetchOpenInterestHistory(self, *args: Any) -> list[dict[str, Any]]:  # noqa: N802
+        async def fetchOpenInterestHistory(self, *args: Any) -> list[dict[str, Any]]:
             return [
                 {"timestamp": "invalid"},
                 {"timestamp": 101, "openInterestAmount": 4.0},
@@ -419,9 +419,7 @@ async def test_market_meta_history_invalid_entries_and_oi_warning_boundary() -> 
     fetcher = MarketMetaFetcher(DataConfig(), exchange=_HistoryExchange())
     funding = await fetcher.fetch_funding_rate_history("BTC/USDT", since_ms=100)
     assert funding.empty
-    oi = await fetcher.fetch_open_interest_history(
-        "BTC/USDT", since_ms=100, end_ms=200
-    )
+    oi = await fetcher.fetch_open_interest_history("BTC/USDT", since_ms=100, end_ms=200)
     assert oi["timestamp"].tolist() == [101]
 
     future = OpenInterestSnapshot("BTC/USDT", 1.0, 1.0, 1.0, 1, 10_000)
@@ -472,7 +470,9 @@ async def test_market_meta_funding_history_pagination_exhausts(
         def __init__(self) -> None:
             self.calls = 0
 
-        async def fetchFundingRateHistory(self, symbol: str, since: int, limit: int, params: Any) -> list[dict[str, Any]]:  # noqa: N802
+        async def fetchFundingRateHistory(
+            self, symbol: str, since: int, limit: int, params: Any
+        ) -> list[dict[str, Any]]:
             self.calls += 1
             base = int(since)
             return [

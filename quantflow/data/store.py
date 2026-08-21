@@ -281,9 +281,7 @@ class DataStore:
             if result and result[0] is not None:
                 return int(result[0])
         except Exception as e:
-            logger.warning(
-                "get_last_meta_timestamp failed for %s %s: %s", data_type, symbol, e
-            )
+            logger.warning("get_last_meta_timestamp failed for %s %s: %s", data_type, symbol, e)
             raise DataError(
                 f"get_last_meta_timestamp failed for {data_type!r} {symbol!r}: {e}"
             ) from e

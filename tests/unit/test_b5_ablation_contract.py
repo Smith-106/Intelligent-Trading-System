@@ -81,12 +81,7 @@ class TestB5ContractArtifacts:
         root = Path(__file__).resolve().parents[2]
         assert (root / "docs" / "research" / "Candidate-Baseline-5.md").is_file()
         ov = (
-            root
-            / "quantflow"
-            / "config"
-            / "research"
-            / "overlays"
-            / "funding_rate_b5_overlay.yaml"
+            root / "quantflow" / "config" / "research" / "overlays" / "funding_rate_b5_overlay.yaml"
         )
         text = ov.read_text(encoding="utf-8")
         assert "0.0004" in text
@@ -100,12 +95,7 @@ class TestB5ContractArtifacts:
         )
         assert "entry_threshold: 0.001" in b3
         b4 = (
-            root
-            / "quantflow"
-            / "config"
-            / "research"
-            / "overlays"
-            / "funding_rate_b4_overlay.yaml"
+            root / "quantflow" / "config" / "research" / "overlays" / "funding_rate_b4_overlay.yaml"
         ).read_text(encoding="utf-8")
         assert "0.0004" in b4
         assert "use_rate_ema" not in b4  # B4 never set ablation knobs
@@ -121,8 +111,6 @@ class TestB5ContractArtifacts:
     def test_index_lists_b5_when_results_written(self) -> None:
         root = Path(__file__).resolve().parents[2]
         # results may be written after OOS; contract doc must reference B5-ABL
-        doc = (root / "docs" / "research" / "Candidate-Baseline-5.md").read_text(
-            encoding="utf-8"
-        )
+        doc = (root / "docs" / "research" / "Candidate-Baseline-5.md").read_text(encoding="utf-8")
         assert "B5-ABL-20260810" in doc
         assert "use_rate_ema" in doc

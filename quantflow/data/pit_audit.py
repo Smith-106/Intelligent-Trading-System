@@ -88,8 +88,7 @@ def audit_frame_no_future(
     if max_ts is not None and max_ts > int(cutoff_ms):
         n_future = int((df[column].astype("int64") > int(cutoff_ms)).sum())
         reasons.append(
-            f"{scope}: {n_future} row(s) with {column}>{cutoff_ms} "
-            f"(max={max_ts}) — lookahead"
+            f"{scope}: {n_future} row(s) with {column}>{cutoff_ms} (max={max_ts}) — lookahead"
         )
         details["n_future"] = n_future
     return PITAuditResult(
@@ -116,9 +115,7 @@ def audit_compute_features_pit(
 
     # Probe raw query independently (same end=cutoff contract)
     raw = raw_store.query(symbol, end=cutoff_ms)
-    raw_audit = audit_frame_no_future(
-        raw, cutoff_ms=cutoff_ms, scope="raw_ohlcv"
-    )
+    raw_audit = audit_frame_no_future(raw, cutoff_ms=cutoff_ms, scope="raw_ohlcv")
     details["raw"] = raw_audit.details
     if not raw_audit.passed:
         reasons.extend(raw_audit.reasons)
@@ -130,9 +127,7 @@ def audit_compute_features_pit(
         raw_store=raw_store,
         meta_store=meta_store,
     )
-    feat_audit = audit_frame_no_future(
-        features, cutoff_ms=cutoff_ms, scope="features_output"
-    )
+    feat_audit = audit_frame_no_future(features, cutoff_ms=cutoff_ms, scope="features_output")
     details["features"] = feat_audit.details
     if not feat_audit.passed:
         reasons.extend(feat_audit.reasons)
@@ -141,9 +136,7 @@ def audit_compute_features_pit(
     if features is not None and not features.empty and "computed_at" in features.columns:
         bad = features[features["computed_at"].astype("int64") != int(cutoff_ms)]
         if not bad.empty:
-            reasons.append(
-                f"features_output: {len(bad)} row(s) computed_at != cutoff {cutoff_ms}"
-            )
+            reasons.append(f"features_output: {len(bad)} row(s) computed_at != cutoff {cutoff_ms}")
             details["bad_computed_at"] = len(bad)
 
     # meta columns if present
@@ -155,9 +148,7 @@ def audit_compute_features_pit(
                     mx = int(vals.astype("int64").max())
                     details[col] = mx
                     if mx > int(cutoff_ms) and mx >= 0:
-                        reasons.append(
-                            f"meta as-of {col}={mx} exceeds cutoff {cutoff_ms}"
-                        )
+                        reasons.append(f"meta as-of {col}={mx} exceeds cutoff {cutoff_ms}")
 
     return PITAuditResult(
         passed=len(reasons) == 0,
@@ -177,9 +168,7 @@ def audit_load_features_pit(
 ) -> PITAuditResult:
     """Load features with end cutoff and ensure no future rows."""
     loaded = feature_store.load_features(symbol, start=start_ms, end=end_ms)
-    result = audit_frame_no_future(
-        loaded, cutoff_ms=end_ms, scope="load_features"
-    )
+    result = audit_frame_no_future(loaded, cutoff_ms=end_ms, scope="load_features")
     result.details["symbol"] = symbol
     result.details["start_ms"] = start_ms
     return result
@@ -211,9 +200,7 @@ def run_pit_audit_suite(
         reasons.extend(compute.reasons)
 
     if also_load:
-        load = audit_load_features_pit(
-            feature_store, symbol=symbol, end_ms=cutoff_ms
-        )
+        load = audit_load_features_pit(feature_store, symbol=symbol, end_ms=cutoff_ms)
         details["load"] = load.to_dict()
         if not load.passed:
             reasons.extend(load.reasons)

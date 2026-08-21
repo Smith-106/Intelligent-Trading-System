@@ -5,11 +5,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from quantflow.common.models import Direction, Portfolio, Position, Signal
 from quantflow.signal import optimizer as optimizer_module
 from quantflow.signal.optimizer import MeanVarianceOptimizer, RiskParityOptimizer
 from quantflow.signal.portfolio import PortfolioManager
-
 
 # ===========================================================================
 # optimizer.py

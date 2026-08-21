@@ -78,9 +78,9 @@ def cmf(
     mfm = ((c - lo) - (h - c)) / hl
     mfm = mfm.fillna(0.0)
     mfv = mfm * v
-    return mfv.rolling(period, min_periods=period).sum() / v.rolling(period, min_periods=period).sum().replace(
-        0, np.nan
-    )
+    return mfv.rolling(period, min_periods=period).sum() / v.rolling(
+        period, min_periods=period
+    ).sum().replace(0, np.nan)
 
 
 def realized_vol(close: pd.Series, period: int = 20, bars_per_year: float = 8760.0) -> pd.Series:

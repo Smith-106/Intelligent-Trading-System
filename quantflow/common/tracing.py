@@ -35,7 +35,8 @@ import contextvars
 import functools
 import logging
 import uuid
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -278,7 +279,6 @@ class TracingContext:
 # OpenTelemetry integration (optional - only if opentelemetry is installed)
 try:
     from opentelemetry import trace
-    from opentelemetry.trace import Status, StatusCode
 
     OTEL_AVAILABLE = True
 
@@ -289,9 +289,9 @@ try:
             service_name: Service name for tracing backend
         """
         try:
+            from opentelemetry.exporter.jaeger.thrift import JaegerExporter
             from opentelemetry.sdk.trace import TracerProvider
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
-            from opentelemetry.exporter.jaeger.thrift import JaegerExporter
 
             # Create tracer provider
             provider = TracerProvider()
@@ -339,14 +339,14 @@ except ImportError:
 
 # Export public API
 __all__ = [
-    "get_correlation_id",
-    "set_correlation_id",
-    "get_or_create_correlation_id",
-    "clear_correlation_id",
-    "traced",
+    "OTEL_AVAILABLE",
     "CorrelationIdProcessor",
     "TracingContext",
-    "init_otel_tracer",
+    "clear_correlation_id",
     "create_otel_span",
-    "OTEL_AVAILABLE",
+    "get_correlation_id",
+    "get_or_create_correlation_id",
+    "init_otel_tracer",
+    "set_correlation_id",
+    "traced",
 ]

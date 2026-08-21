@@ -137,12 +137,7 @@ class TestW23cB4Contract:
         root = Path(__file__).resolve().parents[2]
         doc = root / "docs" / "research" / "Candidate-Baseline-4.md"
         overlay = (
-            root
-            / "quantflow"
-            / "config"
-            / "research"
-            / "overlays"
-            / "funding_rate_b4_overlay.yaml"
+            root / "quantflow" / "config" / "research" / "overlays" / "funding_rate_b4_overlay.yaml"
         )
         assert doc.is_file()
         assert overlay.is_file()

@@ -32,9 +32,7 @@ def test_skip_gate_has_breakdown() -> None:
     rng = np.random.default_rng(2)
     close = 100 * np.exp(np.cumsum(rng.normal(0, 0.01, n)))
     df = pd.DataFrame({"close": close})
-    rep = build_tpsl_validation_report(
-        df, fast=15, slow=40, optimize_trials=2, run_gate=False
-    )
+    rep = build_tpsl_validation_report(df, fast=15, slow=40, optimize_trials=2, run_gate=False)
     assert rep["n_trials_accounted"] >= 1
     assert rep["promotion_eligible"] is False
     assert rep["pbo_source"] == "CPCV-embedded"

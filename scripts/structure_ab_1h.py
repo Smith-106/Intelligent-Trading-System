@@ -51,9 +51,7 @@ async def _eval(
     session = build_session("trend_following", 100_000.0, sink, params=params)
     fills: list[dict[str, object]] = []
     risk: list[dict[str, object]] = []
-    curve = await replay(
-        session, bars, symbol, fills, risk, direction_gate=gate, entry_tf="1h"
-    )
+    curve = await replay(session, bars, symbol, fills, risk, direction_gate=gate, entry_tf="1h")
     rep = aggregate(curve, fills, risk, sink.alerts, 100_000.0, entry_tf="1h")
     out: dict[str, float] = {}
     for k, v in rep.items():
@@ -102,7 +100,9 @@ def main() -> int:
     while t_end + step_ms <= min(end_ms, data_end + 1):
         segments.append((t_end - train_ms, t_end, t_end + step_ms))
         t_end += step_ms
-    print(f"[struct] WFO segments={len(segments)} train={args.train_months}m fwd={args.fwd_months}m")
+    print(
+        f"[struct] WFO segments={len(segments)} train={args.train_months}m fwd={args.fwd_months}m"
+    )
 
     rows: list[dict[str, Any]] = []
     for structure in STRUCTURES:

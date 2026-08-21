@@ -61,9 +61,9 @@ def _resolve_strategy_class(strategy_name: str) -> type[StrategyBase]:
 
         return LiuYudongWaveStrategy  # type: ignore[return-value]
     raise ValueError(
-        f"Unknown strategy '{strategy_name}'. Available: "
-        f"{list(STRATEGIES) + ['liu_yudong_wave']}"
+        f"Unknown strategy '{strategy_name}'. Available: {[*list(STRATEGIES), 'liu_yudong_wave']}"
     )
+
 
 BARS_PER_YEAR = 24 * 365  # 1h bars (back-compat default)
 

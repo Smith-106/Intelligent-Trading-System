@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from quantflow.strategy.model_registry import ModelRegistry, ModelRegistryError, STATUS_PAPER
+from quantflow.strategy.model_registry import ModelRegistry, ModelRegistryError
 from quantflow.strategy.validation.cost_fidelity import build_funding_tca
 from quantflow.strategy.validation.paper_readiness import (
     PaperReadinessConfig,
@@ -51,9 +51,7 @@ def test_assert_raises():
 
 
 def test_disabled_skips():
-    r = check_paper_readiness(
-        None, config=PaperReadinessConfig(enabled=False)
-    )
+    r = check_paper_readiness(None, config=PaperReadinessConfig(enabled=False))
     assert r["passed"] is True
     assert r.get("skipped") is True
 

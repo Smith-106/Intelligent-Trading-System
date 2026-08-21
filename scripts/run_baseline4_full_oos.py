@@ -203,17 +203,14 @@ def main(argv: list[str] | None = None) -> int:
     meta_notes = list(meta_notes)
     meta_notes.append(f"contract_id={CONTRACT_ID}")
     meta_notes.append(
-        f"B4 entry_threshold={B4_PARAMS['entry_threshold']} "
-        f"(B3 frozen entry={B3_ENTRY} untouched)"
+        f"B4 entry_threshold={B4_PARAMS['entry_threshold']} (B3 frozen entry={B3_ENTRY} untouched)"
     )
 
     data_status = "ok"
     block_reasons: list[str] = []
     if funding.empty or len(funding) < MIN_FUNDING_POINTS:
         data_status = "BLOCKED"
-        block_reasons.append(
-            f"funding points {len(funding)} < min {MIN_FUNDING_POINTS}"
-        )
+        block_reasons.append(f"funding points {len(funding)} < min {MIN_FUNDING_POINTS}")
 
     eff_start, eff_end = start_ms, end_ms
     if not funding.empty:
@@ -235,9 +232,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"{pd.to_datetime(eff_end, unit='ms', utc=True)}"
             )
 
-    df = raw[["timestamp", "open", "high", "low", "close", "volume"]].reset_index(
-        drop=True
-    )
+    df = raw[["timestamp", "open", "high", "low", "close", "volume"]].reset_index(drop=True)
     if data_status != "BLOCKED":
         df = df[(df["timestamp"] >= eff_start) & (df["timestamp"] <= eff_end)].reset_index(
             drop=True
@@ -252,8 +247,8 @@ def main(argv: list[str] | None = None) -> int:
             "status": "BLOCKED",
             "reasons": block_reasons,
             "meta_notes": meta_notes,
-            "funding_points": int(len(funding)),
-            "oi_points": int(len(oi)),
+            "funding_points": len(funding),
+            "oi_points": len(oi),
             "contract_window": {"start": args.start, "end": args.end},
             "b4_params": B4_PARAMS,
             "at": datetime.now(UTC).isoformat(),
@@ -297,13 +292,9 @@ def main(argv: list[str] | None = None) -> int:
     if len(segments) < 1:
         meta_notes.append("WFO 24m/6m produced 0 segments — using 50/50 single OOS fold")
         mid = int(df["timestamp"].iloc[len(df) // 2])
-        segments = [
-            (int(df["timestamp"].iloc[0]), mid, int(df["timestamp"].iloc[-1]) + 1)
-        ]
+        segments = [(int(df["timestamp"].iloc[0]), mid, int(df["timestamp"].iloc[-1]) + 1)]
 
-    funding_max_abs = (
-        float(funding["funding_rate"].abs().max()) if not funding.empty else 0.0
-    )
+    funding_max_abs = float(funding["funding_rate"].abs().max()) if not funding.empty else 0.0
     print(
         f"[b4-oos] contract={CONTRACT_ID} status={data_status} bars={len(df)} "
         f"funding={len(funding)} max|rate|={funding_max_abs:.6g} "
@@ -435,15 +426,13 @@ def main(argv: list[str] | None = None) -> int:
     if b4_row and float(b4_row.get("full_orders") or 0) <= 0:
         upgrade = False
         adj["reason"] = (
-            (adj.get("reason") or "")
-            + " | B4 full_orders=0 under thr=0.0004 → KEEP_BASELINE_0"
+            (adj.get("reason") or "") + " | B4 full_orders=0 under thr=0.0004 → KEEP_BASELINE_0"
         ).strip(" |")
     if data_status == "NARROWED":
         adj["reason"] = (
-            (adj.get("reason") or "")
-            + " | effective window narrowed to meta funding coverage"
+            (adj.get("reason") or "") + " | effective window narrowed to meta funding coverage"
         ).strip(" |")
-    adj["upgrade"] = False if not upgrade else upgrade
+    adj["upgrade"] = upgrade if upgrade else False
     adj["keep_baseline0"] = not bool(adj["upgrade"])
     adj["verdict"] = "UPGRADE" if adj["upgrade"] else "KEEP_BASELINE_0"
     # Research OS: do not auto-promote even if adjudicate said upgrade
@@ -455,9 +444,7 @@ def main(argv: list[str] | None = None) -> int:
             "and must not overwrite B0 PAPER-GO automatically"
         )
 
-    rates = (
-        [float(x) for x in funding["funding_rate"].tolist()] if not funding.empty else []
-    )
+    rates = [float(x) for x in funding["funding_rate"].tolist()] if not funding.empty else []
     measured = (
         summarize_measured_funding(
             rates,
@@ -498,8 +485,7 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     (out_dir / "funding_wfo.json").write_text(
-        json.dumps({"rows": rows, "segments": len(segments)}, indent=2, default=str)
-        + "\n",
+        json.dumps({"rows": rows, "segments": len(segments)}, indent=2, default=str) + "\n",
         encoding="utf-8",
     )
     (out_dir / "fee_slip_grid.json").write_text(

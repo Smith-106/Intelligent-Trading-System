@@ -127,7 +127,10 @@ class AutoResearchLoop:
         )
         self._append_log(decision)
         logger.info(
-            "auto_loop: model=%s decision=%s (%s)", report.model_id, decision.decision, decision.reason
+            "auto_loop: model=%s decision=%s (%s)",
+            report.model_id,
+            decision.decision,
+            decision.reason,
         )
         return decision
 

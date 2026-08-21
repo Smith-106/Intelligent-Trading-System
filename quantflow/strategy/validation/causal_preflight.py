@@ -140,26 +140,20 @@ def run_causal_preflight(
         ):
             item = _shift_to_dict(hit)
             neg.append(item)
-            findings.append(
-                {"source": "negative_shift", "detail": item, "severity": "high"}
-            )
+            findings.append({"source": "negative_shift", "detail": item, "severity": "high"})
             _bump(severity_counts, "high")
 
         # Also scan full class source when available (catches helpers)
         try:
             cls_src = textwrap.dedent(inspect.getsource(type(inst)))
-            for hit in scan_source_for_negative_shift(
-                cls_src, where=type(inst).__name__
-            ):
+            for hit in scan_source_for_negative_shift(cls_src, where=type(inst).__name__):
                 # Dedup by line+snippet
                 item = _shift_to_dict(hit)
                 key = (item["line"], item["snippet"])
                 if any((n.get("line"), n.get("snippet")) == key for n in neg):
                     continue
                 neg.append(item)
-                findings.append(
-                    {"source": "negative_shift", "detail": item, "severity": "high"}
-                )
+                findings.append({"source": "negative_shift", "detail": item, "severity": "high"})
                 _bump(severity_counts, "high")
         except (OSError, TypeError) as exc:
             notes.append(f"class source scan skipped: {exc}")
@@ -168,9 +162,7 @@ def run_causal_preflight(
         for hit in scan_source_for_negative_shift(source, where=label):
             item = _shift_to_dict(hit)
             neg.append(item)
-            findings.append(
-                {"source": "negative_shift", "detail": item, "severity": "high"}
-            )
+            findings.append({"source": "negative_shift", "detail": item, "severity": "high"})
             _bump(severity_counts, "high")
 
     passed = severity_counts.get("high", 0) == 0

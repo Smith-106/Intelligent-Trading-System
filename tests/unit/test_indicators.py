@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from quantflow.indicators.base import FactorBase, FactorRegistry
-from quantflow.indicators.engine import FACTOR_NAMES, IndicatorEngine
+from quantflow.indicators.engine import IndicatorEngine
 
 
 @pytest.fixture

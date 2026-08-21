@@ -100,7 +100,9 @@ def build_dual_path_report(
     atts = dict(attachments or {})
     atts["promotion_path"] = {
         "execution_path": path,
-        "data_fingerprint": data_fingerprint if data_fingerprint is not None else meta.get("data_fingerprint"),
+        "data_fingerprint": data_fingerprint
+        if data_fingerprint is not None
+        else meta.get("data_fingerprint"),
         "promotion_eligible": False,
         "rule": (
             "IMP-01/W14: dual-path research is vectorized filter; "
@@ -136,9 +138,7 @@ def dual_path_report_to_promotion_view(
     atts = dict(d.get("attachments") or {})
     promo = dict(atts.get("promotion_path") or {})
     path = str(
-        promo.get("execution_path")
-        or meta.get("execution_path")
-        or RESEARCH_EXECUTION_PATH
+        promo.get("execution_path") or meta.get("execution_path") or RESEARCH_EXECUTION_PATH
     ).lower()
     if force_paper_path:
         path = "paper_replay"
@@ -191,12 +191,7 @@ def from_tpsl_eval(
     profile: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Map TPSL eval block (tpsl_default / recommended / flat) to path_b."""
-    block = (
-        tpsl.get("tpsl_default")
-        or tpsl.get("best_score")
-        or tpsl.get("path_b")
-        or tpsl
-    )
+    block = tpsl.get("tpsl_default") or tpsl.get("best_score") or tpsl.get("path_b") or tpsl
     # Never promote research_rank / score into decision
     trade_stats = block.get("trade_stats") or {}
     metrics = {

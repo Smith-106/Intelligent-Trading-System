@@ -16,7 +16,6 @@ Pure logic; no network, no vectorbt.
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 
 from quantflow.common.models import Bar, Direction
 from quantflow.strategy.templates.elliott_wave import ElliottWaveStrategy
@@ -238,17 +237,27 @@ class TestTrendFollowingCoverage:
     def test_structure_ok_latest_pullback(self) -> None:
         s = self._s(entry_structure="pullback", pullback_lookback=3, pullback_tol=0.005)
         # not trend_up -> False
-        assert s._structure_ok_latest([10.0, 11.0, 12.0, 13.0], [11.0] * 4, [9.0] * 4, 3, 12.0, False) is False
+        assert (
+            s._structure_ok_latest([10.0, 11.0, 12.0, 13.0], [11.0] * 4, [9.0] * 4, 3, 12.0, False)
+            is False
+        )
         # too few bars -> False
-        assert s._structure_ok_latest([10.0, 11.0, 12.0], [11.0] * 3, [9.0] * 3, 2, 12.0, True) is False
+        assert (
+            s._structure_ok_latest([10.0, 11.0, 12.0], [11.0] * 3, [9.0] * 3, 2, 12.0, True)
+            is False
+        )
         # dipped + near + reclaim -> True
         assert (
-            s._structure_ok_latest([10.0, 11.0, 12.0, 13.0, 12.0], [11.0] * 5, [9.0] * 5, 4, 12.0, True)
+            s._structure_ok_latest(
+                [10.0, 11.0, 12.0, 13.0, 12.0], [11.0] * 5, [9.0] * 5, 4, 12.0, True
+            )
             is True
         )
         # not dipped -> False
         assert (
-            s._structure_ok_latest([13.0, 14.0, 15.0, 16.0, 16.0], [16.5] * 5, [12.5] * 5, 4, 12.0, True)
+            s._structure_ok_latest(
+                [13.0, 14.0, 15.0, 16.0, 16.0], [16.5] * 5, [12.5] * 5, 4, 12.0, True
+            )
             is False
         )
 
@@ -258,12 +267,16 @@ class TestTrendFollowingCoverage:
         assert s._structure_ok_latest([10.0, 11.0], [11.0] * 2, [9.0] * 2, 1, 10.0, True) is False
         # close > prior high -> True
         assert (
-            s._structure_ok_latest([10.0, 11.0, 12.0, 13.5], [10.5, 11.5, 12.5, 13.8], [9.5] * 4, 3, 11.0, True)
+            s._structure_ok_latest(
+                [10.0, 11.0, 12.0, 13.5], [10.5, 11.5, 12.5, 13.8], [9.5] * 4, 3, 11.0, True
+            )
             is True
         )
         # close <= prior high -> False
         assert (
-            s._structure_ok_latest([10.0, 11.0, 12.0, 12.5], [10.5, 11.5, 12.5, 12.8], [9.5] * 4, 3, 11.0, True)
+            s._structure_ok_latest(
+                [10.0, 11.0, 12.0, 12.5], [10.5, 11.5, 12.5, 12.8], [9.5] * 4, 3, 11.0, True
+            )
             is False
         )
 
@@ -289,6 +302,8 @@ class TestTrendFollowingCoverage:
         assert len(entries) == n
         # profit_target_exit (non-adaptive) path ran
         assert int(exits.sum()) >= 0
+
+
 # ---------------------------------------------------------------------------
 # volatility_breakout
 # ---------------------------------------------------------------------------

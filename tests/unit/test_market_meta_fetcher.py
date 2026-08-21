@@ -12,6 +12,7 @@ Key scenarios (plan test_plan):
 
 from __future__ import annotations
 
+import itertools
 import math
 
 import ccxt.async_support as ccxt_async
@@ -115,7 +116,7 @@ class TestRateLimiter:
         for _ in range(5):
             await limiter.acquire()
             stamps.append(fake_clock.now)
-        for prev, curr in zip(stamps, stamps[1:]):
+        for prev, curr in itertools.pairwise(stamps):
             assert curr - prev >= 0.2
 
     @pytest.mark.asyncio
@@ -147,7 +148,7 @@ class TestRetryBackoff:
 
         backoffs = [s for s in fake_clock.sleeps if s >= 0.9]
         assert len(backoffs) == 3
-        for actual, base in zip(backoffs, (1.0, 2.0, 4.0)):
+        for actual, base in zip(backoffs, (1.0, 2.0, 4.0), strict=False):
             assert base <= actual <= base * 1.11  # jitter tolerance
 
     @pytest.mark.asyncio
@@ -457,7 +458,7 @@ class MarketsMockExchange(MockExchange):
             return self._markets[symbol]
         raise ValueError(f"symbol not found: {symbol}")
 
-    async def fetchFundingRate(self, symbol: str):  # noqa: N802
+    async def fetchFundingRate(self, symbol: str):
         self.funding_called_with.append(symbol)
         return {
             "fundingRate": -0.002,
@@ -465,7 +466,7 @@ class MarketsMockExchange(MockExchange):
             "info": {"nextFundingTime": 1_700_000_000_000 + 8 * 3600_000},
         }
 
-    async def fetchOpenInterest(self, symbol: str):  # noqa: N802
+    async def fetchOpenInterest(self, symbol: str):
         self.oi_called_with.append(symbol)
         return {"openInterest": 100.0, "timestamp": 1_700_000_000_000, "info": {}}
 

@@ -16,7 +16,6 @@ from quantflow.common.monitoring_sink import NullMonitoringSink
 from quantflow.monitoring import metrics
 from quantflow.monitoring.research_go_panel import (
     DEFAULT_RESEARCH_GO_PANEL_PATH,
-    REPO_ROOT,
     ResearchGoPanelSnapshot,
     load_research_go_panel,
 )
@@ -70,8 +69,10 @@ def sealed_panel_file(tmp_path: Path) -> Path:
 
 
 def test_default_path_points_to_sealed_sot() -> None:
-    assert str(DEFAULT_RESEARCH_GO_PANEL_PATH).replace("\\", "/").endswith(
-        "data/paper_replay/perf_verify/performance_panel.json"
+    assert (
+        str(DEFAULT_RESEARCH_GO_PANEL_PATH)
+        .replace("\\", "/")
+        .endswith("data/paper_replay/perf_verify/performance_panel.json")
     )
 
 
@@ -208,12 +209,9 @@ def test_metric_names_exist() -> None:
     assert metrics.RESEARCH_GO_MAX_DD_PCT._name == "quantflow_research_go_max_dd_pct"
     assert metrics.RESEARCH_GO_ORDERS._name == "quantflow_research_go_orders"
     assert (
-        metrics.RESEARCH_GO_PROMOTION_ELIGIBLE._name
-        == "quantflow_research_go_promotion_eligible"
+        metrics.RESEARCH_GO_PROMOTION_ELIGIBLE._name == "quantflow_research_go_promotion_eligible"
     )
-    assert (
-        metrics.RESEARCH_GO_AS_OF_TS._name == "quantflow_research_go_as_of_timestamp"
-    )
+    assert metrics.RESEARCH_GO_AS_OF_TS._name == "quantflow_research_go_as_of_timestamp"
 
 
 def test_update_research_go_panel_metrics_sets_gauges() -> None:
@@ -226,25 +224,13 @@ def test_update_research_go_panel_metrics_sets_gauges() -> None:
         "promotion_eligible": "false",
     }
     assert metrics.RESEARCH_GO_DECISION.labels(**labels)._value.get() == 1.0
-    assert metrics.RESEARCH_GO_RETURN_PCT.labels(**labels)._value.get() == pytest.approx(
-        5.143
-    )
-    assert metrics.RESEARCH_GO_SHARPE.labels(**labels)._value.get() == pytest.approx(
-        0.2437
-    )
-    assert metrics.RESEARCH_GO_MAX_DD_PCT.labels(**labels)._value.get() == pytest.approx(
-        8.504
-    )
-    assert metrics.RESEARCH_GO_ORDERS.labels(**labels)._value.get() == pytest.approx(
-        1547.0
-    )
+    assert metrics.RESEARCH_GO_RETURN_PCT.labels(**labels)._value.get() == pytest.approx(5.143)
+    assert metrics.RESEARCH_GO_SHARPE.labels(**labels)._value.get() == pytest.approx(0.2437)
+    assert metrics.RESEARCH_GO_MAX_DD_PCT.labels(**labels)._value.get() == pytest.approx(8.504)
+    assert metrics.RESEARCH_GO_ORDERS.labels(**labels)._value.get() == pytest.approx(1547.0)
     # promotion_eligible is always 0 — research GO export never promotes
-    assert (
-        metrics.RESEARCH_GO_PROMOTION_ELIGIBLE.labels(**labels)._value.get() == 0.0
-    )
-    assert metrics.RESEARCH_GO_AS_OF_TS._value.get() == pytest.approx(
-        _iso_ts_epoch(snap.as_of)
-    )
+    assert metrics.RESEARCH_GO_PROMOTION_ELIGIBLE.labels(**labels)._value.get() == 0.0
+    assert metrics.RESEARCH_GO_AS_OF_TS._value.get() == pytest.approx(_iso_ts_epoch(snap.as_of))
 
 
 def test_update_research_go_panel_metrics_none_is_noop() -> None:
@@ -282,9 +268,7 @@ def test_default_sink_record_research_go_panel_pushes_gauges() -> None:
         "fingerprint": snap.data_fingerprint_aggregate,
         "promotion_eligible": "false",
     }
-    assert metrics.RESEARCH_GO_RETURN_PCT.labels(**labels)._value.get() == pytest.approx(
-        5.143
-    )
+    assert metrics.RESEARCH_GO_RETURN_PCT.labels(**labels)._value.get() == pytest.approx(5.143)
 
 
 def test_default_sink_record_research_go_panel_none_noop() -> None:

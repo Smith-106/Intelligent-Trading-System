@@ -382,9 +382,7 @@ class TrendFollowingStrategy(StrategyBase):
         exit_count = trend_down.astype(int) + rsi_ok_short.astype(int) + atr_ok.astype(int)
         entries = long_count >= self._min_conditions
         if self._entry_structure != "classic":
-            entries = entries & self._structure_mask_vectorized(
-                close, high, low, fast_ma, trend_up
-            )
+            entries = entries & self._structure_mask_vectorized(close, high, low, fast_ma, trend_up)
         exits = exit_count >= max(self._min_conditions - 1, 2)
 
         # Profit target exit (LONG direction only — trend_following entries are LONG)

@@ -97,13 +97,17 @@ def main() -> int:
         f"fp={((rep.get('data_fingerprint') or {}) if isinstance(rep.get('data_fingerprint'), dict) else {}).get('aggregate', rep.get('data_fingerprint'))}"
     )
     if rep.get("cost_attachment"):
-        print(f"cost_attachment fee_slip rows={len(rep['fee_slip_grid'])} funding_mode={rep['funding_tca'].get('mode')}")
+        print(
+            f"cost_attachment fee_slip rows={len(rep['fee_slip_grid'])} funding_mode={rep['funding_tca'].get('mode')}"
+        )
     if rep.get("mode_compare"):
         print(
             f"mode_compare alt={rep['mode_compare'].get('alternate_mode')} "
             f"alt_go={rep['mode_compare'].get('alternate_research_go')}"
         )
-    print(f"promotion_eligible={rep['promotion_eligible']} hard_bind_entry={rep['hard_bind_entry']}")
+    print(
+        f"promotion_eligible={rep['promotion_eligible']} hard_bind_entry={rep['hard_bind_entry']}"
+    )
     print(f"written {args.out}")
     return 0
 

@@ -26,7 +26,6 @@ from quantflow.monitoring.alerts import (
     resolve_alert_channels,
 )
 
-
 # ---------------------------------------------------------------------------
 # Test: ALERT_ROUTING Resolution
 # ---------------------------------------------------------------------------
@@ -45,32 +44,24 @@ class TestAlertRoutingResolution:
 
     def test_p1_high_routes_correctly(self):
         """P1 high priority orphan order routes to telegram + webhook."""
-        channels = resolve_alert_channels(
-            AlertCategory.ORPHAN_ORDER, AlertPriority.P1_HIGH
-        )
+        channels = resolve_alert_channels(AlertCategory.ORPHAN_ORDER, AlertPriority.P1_HIGH)
         assert "telegram" in channels
         assert "webhook" in channels
 
     def test_p2_medium_routes_to_telegram(self):
         """P2 medium data staleness routes to telegram only."""
-        channels = resolve_alert_channels(
-            AlertCategory.DATA_STALENESS, AlertPriority.P2_MEDIUM
-        )
+        channels = resolve_alert_channels(AlertCategory.DATA_STALENESS, AlertPriority.P2_MEDIUM)
         assert channels == ["telegram"]
 
     def test_p3_low_routes_to_webhook(self):
         """P3 low system health routes to webhook batch."""
-        channels = resolve_alert_channels(
-            AlertCategory.SYSTEM_HEALTH, AlertPriority.P3_LOW
-        )
+        channels = resolve_alert_channels(AlertCategory.SYSTEM_HEALTH, AlertPriority.P3_LOW)
         assert channels == ["webhook"]
 
     def test_unknown_combination_uses_default(self):
         """Unmapped (category, priority) falls back to DEFAULT_ALERT_CHANNELS."""
         # RISK_THRESHOLD + P3_LOW is not in the matrix
-        channels = resolve_alert_channels(
-            AlertCategory.RISK_THRESHOLD, AlertPriority.P3_LOW
-        )
+        channels = resolve_alert_channels(AlertCategory.RISK_THRESHOLD, AlertPriority.P3_LOW)
         assert channels == DEFAULT_ALERT_CHANNELS
 
     def test_all_routing_entries_have_valid_channels(self):

@@ -82,9 +82,7 @@ def assert_series_causal(
         both_fin = np.isfinite(a) & np.isfinite(b)
         if not np.all(both_nan | both_fin):
             bad = int(np.sum(~(both_nan | both_fin)))
-            raise AssertionError(
-                f"{name}: causal fail at prefix={k}: {bad} NaN-pattern mismatches"
-            )
+            raise AssertionError(f"{name}: causal fail at prefix={k}: {bad} NaN-pattern mismatches")
         if both_fin.any() and not np.allclose(a[both_fin], b[both_fin], rtol=rtol, atol=atol):
             diff = np.nanmax(np.abs(a[both_fin] - b[both_fin]))
             raise AssertionError(
@@ -132,9 +130,15 @@ def scan_source_for_negative_shift(source: str, *, where: str = "<module>") -> l
 
     def _neg_const(node: ast.AST) -> int | None:
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
-            if isinstance(node.operand, ast.Constant) and isinstance(node.operand.value, int | float):
+            if isinstance(node.operand, ast.Constant) and isinstance(
+                node.operand.value, int | float
+            ):
                 return int(node.operand.value)
-        if isinstance(node, ast.Constant) and isinstance(node.value, int | float) and node.value < 0:
+        if (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, int | float)
+            and node.value < 0
+        ):
             return int(-node.value)  # pragma: no cover - parser represents negatives as UnaryOp
 
         return None
@@ -159,11 +163,19 @@ def scan_source_for_negative_shift(source: str, *, where: str = "<module>") -> l
             for kw in node.keywords:
                 if kw.arg == "periods":
                     v = kw.value
-                    if isinstance(v, ast.Constant) and isinstance(v.value, int | float) and v.value < 0:  # pragma: no cover - parsed negative literals are UnaryOp
-                        neg = int(-v.value)  # pragma: no cover - parser represents negatives as UnaryOp
+                    if (
+                        isinstance(v, ast.Constant)
+                        and isinstance(v.value, int | float)
+                        and v.value < 0
+                    ):  # pragma: no cover - parsed negative literals are UnaryOp
+                        neg = int(
+                            -v.value
+                        )  # pragma: no cover - parser represents negatives as UnaryOp
         if node.args and neg is None:
             a0 = node.args[0]
-            if isinstance(a0, ast.Constant) and isinstance(a0.value, int | float) and a0.value < 0:  # pragma: no cover - parsed negative literals are UnaryOp
+            if (
+                isinstance(a0, ast.Constant) and isinstance(a0.value, int | float) and a0.value < 0
+            ):  # pragma: no cover - parsed negative literals are UnaryOp
                 neg = int(-a0.value)  # pragma: no cover - parser represents negatives as UnaryOp
         if neg is not None and neg > 0:
             line = getattr(node, "lineno", 0)
@@ -179,7 +191,9 @@ def scan_source_for_negative_shift(source: str, *, where: str = "<module>") -> l
     return findings
 
 
-def scan_callable_for_negative_shift(fn: Callable[..., Any], *, where: str | None = None) -> list[ShiftFinding]:
+def scan_callable_for_negative_shift(
+    fn: Callable[..., Any], *, where: str | None = None
+) -> list[ShiftFinding]:
     """Scan a function/method source for negative shifts."""
     try:
         src = textwrap.dedent(inspect.getsource(fn))

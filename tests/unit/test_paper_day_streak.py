@@ -21,9 +21,7 @@ def _load():
 
 def test_summary_credit_ok():
     mod = _load()
-    ok, _ = mod.summary_is_credit(
-        {"status": "ok", "path": "A", "preflight_rc": 0}
-    )
+    ok, _ = mod.summary_is_credit({"status": "ok", "path": "A", "preflight_rc": 0})
     assert ok is True
 
 
@@ -70,7 +68,7 @@ def test_ingest_and_consecutive(tmp_path: Path, monkeypatch):
 
     today = datetime.now(UTC).date()
     # credit today and yesterday
-    for i, d in enumerate([today - timedelta(days=1), today]):
+    for _i, d in enumerate([today - timedelta(days=1), today]):
         stamp = d.strftime("%Y%m%d") + "T120000Z"
         payload = {
             "kind": "paper_day_session",
@@ -81,9 +79,7 @@ def test_ingest_and_consecutive(tmp_path: Path, monkeypatch):
             "deviation": {"status": "ok", "health_ok": True},
             "baseline_snapshot": {"decision": "PAPER-GO"},
         }
-        (sessions / f"day_session_{stamp}.json").write_text(
-            json.dumps(payload), encoding="utf-8"
-        )
+        (sessions / f"day_session_{stamp}.json").write_text(json.dumps(payload), encoding="utf-8")
 
     ledger = mod.ingest_files(mod.load_ledger())
     stats = mod.streak_stats(ledger, min_days=2)

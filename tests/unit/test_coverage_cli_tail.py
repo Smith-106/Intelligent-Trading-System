@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
 from types import SimpleNamespace
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pandas as pd
@@ -98,7 +96,9 @@ class TestDownloadFundingTail:
         fake_store.get_last_meta_timestamp = MagicMock(return_value=1704067200000)
         fake_store.close = MagicMock()
         with (
-            patch("quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher),
+            patch(
+                "quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher
+            ),
             patch("quantflow.data.store.DataStore", return_value=fake_store),
         ):
             result = runner.invoke(app, ["download-funding", "--symbol", "BTC/USDT"])
@@ -113,7 +113,9 @@ class TestDownloadFundingTail:
         fake_store = MagicMock()
         fake_store.close = MagicMock()
         with (
-            patch("quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher),
+            patch(
+                "quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher
+            ),
             patch("quantflow.data.store.DataStore", return_value=fake_store),
         ):
             result = runner.invoke(
@@ -130,7 +132,9 @@ class TestDownloadFundingTail:
         fake_store = MagicMock()
         fake_store.close = MagicMock()
         with (
-            patch("quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher),
+            patch(
+                "quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher
+            ),
             patch("quantflow.data.store.DataStore", return_value=fake_store),
         ):
             result = runner.invoke(app, ["download-funding", "--symbol", "BTC/USDT"])
@@ -149,7 +153,9 @@ class TestDownloadOiTail:
         fake_store.get_last_meta_timestamp = MagicMock(return_value=1704067200000)
         fake_store.close = MagicMock()
         with (
-            patch("quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher),
+            patch(
+                "quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher
+            ),
             patch("quantflow.data.store.DataStore", return_value=fake_store),
         ):
             result = runner.invoke(app, ["download-oi", "--symbol", "BTC/USDT"])
@@ -168,7 +174,9 @@ class TestDownloadOiTail:
         fake_store = MagicMock()
         fake_store.close = MagicMock()
         with (
-            patch("quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher),
+            patch(
+                "quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher
+            ),
             patch("quantflow.data.store.DataStore", return_value=fake_store),
         ):
             result = runner.invoke(app, ["download-oi", "--symbol", "BTC/USDT"])
@@ -288,11 +296,10 @@ class TestValidateTail:
         fake_report.findings = []
         fake_report.notes = []
         with patch(
-            "quantflow.strategy.validation.causal_preflight.run_causal_preflight", return_value=fake_report
+            "quantflow.strategy.validation.causal_preflight.run_causal_preflight",
+            return_value=fake_report,
         ):
-            result = runner.invoke(
-                app, ["validate", "--method", "causal_preflight"]
-            )
+            result = runner.invoke(app, ["validate", "--method", "causal_preflight"])
         assert result.exit_code == 0
 
     def test_validate_lookahead(self) -> None:
@@ -301,7 +308,9 @@ class TestValidateTail:
         fake_report.scanned_methods = ["generate_signals"]
         fake_report.source_path = None
         fake_report.findings = []
-        with patch("quantflow.strategy.validation.lookahead.scan_strategy", return_value=fake_report):
+        with patch(
+            "quantflow.strategy.validation.lookahead.scan_strategy", return_value=fake_report
+        ):
             result = runner.invoke(app, ["validate", "--method", "lookahead"])
         assert result.exit_code == 0
 
@@ -311,7 +320,9 @@ class TestValidateTail:
         fake_report.source_path = None
         fake_report.indicator_deps = {}
         fake_report.cycles = []
-        with patch("quantflow.strategy.validation.recursive.scan_recursive", return_value=fake_report):
+        with patch(
+            "quantflow.strategy.validation.recursive.scan_recursive", return_value=fake_report
+        ):
             result = runner.invoke(app, ["validate", "--method", "recursive"])
         assert result.exit_code == 0
 
@@ -449,7 +460,10 @@ class TestValidateTail:
         with (
             patch("quantflow.data.store.DataStore", return_value=fake_store),
             patch("quantflow.strategy.research.backtest.BacktestEngine") as bt_cls,
-            patch("quantflow.strategy.validation.monte_carlo.monte_carlo_stress", return_value=[fake_mc]),
+            patch(
+                "quantflow.strategy.validation.monte_carlo.monte_carlo_stress",
+                return_value=[fake_mc],
+            ),
         ):
             bt_cls.return_value.run_backtest = MagicMock(return_value=fake_bt)
             result = runner.invoke(app, ["validate", "--method", "stress"])
@@ -459,7 +473,9 @@ class TestValidateTail:
         fake_store = self._store()
         with (
             patch("quantflow.data.store.DataStore", return_value=fake_store),
-            patch("quantflow.strategy.validation.cpcv.cpcv_backtest", side_effect=RuntimeError("boom")),
+            patch(
+                "quantflow.strategy.validation.cpcv.cpcv_backtest", side_effect=RuntimeError("boom")
+            ),
         ):
             result = runner.invoke(app, ["validate", "--method", "cpcv"])
         assert result.exit_code == 0
@@ -477,9 +493,7 @@ class TestRunTail:
             patch("quantflow.strategy.engine.TradingSession", return_value=fake_session),
             patch("quantflow.monitoring.sink.create_default_sink", return_value=MagicMock()),
         ):
-            result = runner.invoke(
-                app, ["run", "--mode", "paper", "--strategy", "trend_following"]
-            )
+            result = runner.invoke(app, ["run", "--mode", "paper", "--strategy", "trend_following"])
         assert result.exit_code == 0
         assert "Session started" in result.output
 
@@ -496,9 +510,7 @@ class TestRunTail:
             patch("quantflow.strategy.engine.TradingSession", return_value=fake_session),
             patch("quantflow.monitoring.sink.create_default_sink", return_value=MagicMock()),
         ):
-            result = runner.invoke(
-                app, ["run", "--mode", "paper", "--strategy", "trend_following"]
-            )
+            result = runner.invoke(app, ["run", "--mode", "paper", "--strategy", "trend_following"])
         assert result.exit_code == 0
         assert "运行失败" in result.output
 
@@ -644,7 +656,13 @@ class TestDisplayHelpersTail:
     def test_signal_quality_helpers(self) -> None:
         from rich.table import Table
 
-        q = {"precision": 0.5, "recall": 0.4, "hit_rate": 0.6, "brier_score": 0.2, "oos_sharpe": 0.7}
+        q = {
+            "precision": 0.5,
+            "recall": 0.4,
+            "hit_rate": 0.6,
+            "brier_score": 0.2,
+            "oos_sharpe": 0.7,
+        }
         assert cli_main._signal_quality_summary({"signal_quality": q})
         table = Table()
         cli_main._add_signal_quality_rows(table, q)

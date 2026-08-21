@@ -1194,7 +1194,7 @@ class TradingSession:
                 with contextlib.suppress(Exception):
                     await fetcher.connect()
 
-            asyncio.create_task(_ensure_connect())
+            self._trades_connect_task = asyncio.create_task(_ensure_connect())
 
         fetch_fn = make_fetcher_adapter(fetcher) if hasattr(fetcher, "fetch_trades") else fetcher
         self._trades_ingest = TradesIngestLoop(
@@ -1401,7 +1401,9 @@ class TradingSession:
             if bool(getattr(risk, "funding_risk_gate_kill", False)) and self._kill_switch:
                 if not self._kill_switch.is_active:
                     # Fire-and-forget hard stop; failures logged by KillSwitch.
-                    asyncio.create_task(self._kill_switch.activate(decision.reason or REASON))
+                    self._kill_switch_task = asyncio.create_task(
+                        self._kill_switch.activate(decision.reason or REASON)
+                    )
         else:
             self._risk_pauses.remove(REASON)
 

@@ -44,7 +44,6 @@ from quantflow.strategy.validation.cost_fidelity import (
 )
 from quantflow.strategy.validation.promotion_path import check_promotion_path
 
-
 # Minimal required points for cost fidelity (0/0 + production 0.1%/0.1%)
 # plus an extra 0.2%/0.2% stress cell for fee-drag visibility.
 _GRID_POINTS: tuple[tuple[float, float], ...] = (
@@ -182,10 +181,7 @@ async def build_elliott_cost_grid_package(
     # Materialize frame for reseat (same path as smoke)
     from quantflow.strategy.research.elliott_wave_backtest import generate_synthetic_wave_data
 
-    if df is None:
-        frame = generate_synthetic_wave_data(n_bars=n_bars)
-    else:
-        frame = df.copy()
+    frame = generate_synthetic_wave_data(n_bars=n_bars) if df is None else df.copy()
     if "timestamp" not in frame.columns:
         frame["timestamp"] = list(range(len(frame)))
 

@@ -272,7 +272,6 @@ class TestDataStoreHelpers:
             assert merged["close"].tolist() == [100.5, 101.5, 102.5, 103.5, 104.5, 105.5]
             store.close()
 
-
     def test_save_keeps_multiple_timeframes_at_same_timestamp(self):
         # Multi-TF co-residence: 1h and 1d can share a wall-clock open time.
         # Dedup must key on (timestamp, timeframe), not timestamp alone.

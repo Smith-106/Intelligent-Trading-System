@@ -97,9 +97,7 @@ def assert_package_report(report: dict[str, Any]) -> dict[str, Any]:
         "full_error": full_err,
         "promotion_eligible_claim": report.get("promotion_eligible"),
         "decision": report.get("decision"),
-        "note": (
-            "Structure pass ≠ GO. Human adjudication + streak still required."
-        ),
+        "note": ("Structure pass ≠ GO. Human adjudication + streak still required."),
     }
 
 
@@ -123,7 +121,11 @@ def main(argv: list[str] | None = None) -> int:
             build_elliott_cost_grid_package,
         )
 
-        out = Path(args.dir) if args.dir else REPO_ROOT / "data" / "paper_replay" / "elliott_assert_tmp"
+        out = (
+            Path(args.dir)
+            if args.dir
+            else REPO_ROOT / "data" / "paper_replay" / "elliott_assert_tmp"
+        )
         pkg = asyncio.run(
             build_elliott_cost_grid_package(
                 n_bars=args.n_bars,

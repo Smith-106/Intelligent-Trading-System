@@ -159,7 +159,9 @@ class LiuYudongWaveStrategy(StrategyBase):
                             timestamp=int(row["timestamp"]),
                         )
                     )
-                elif bool(entries.iloc[last_i]):  # pragma: no branch — L146 guarantees entries when exits is False
+                elif bool(
+                    entries.iloc[last_i]
+                ):  # pragma: no branch — L146 guarantees entries when exits is False
                     emit(
                         Signal(
                             symbol=str(getattr(bar, "symbol", "")),
@@ -278,14 +280,14 @@ class LiuYudongWaveStrategy(StrategyBase):
                 and isinstance(levels_list, list)
             ):
                 last_close = float(window_df["close"].iloc[-1])
-                events = self.invalidation_checker.check(
-                    wave_count, critical_levels, last_close
-                )
+                events = self.invalidation_checker.check(wave_count, critical_levels, last_close)
                 self._last_invalidation_events = events
                 hard = [e for e in events if e.severity == InvalidationSeverity.HARD]
                 if hard:
                     idx = end_idx - 1
-                    if new_start <= idx < end_idx and idx < n:  # pragma: no branch — idx=end_idx-1 and step>=50 guarantee bounds
+                    if (
+                        new_start <= idx < end_idx and idx < n
+                    ):  # pragma: no branch — idx=end_idx-1 and step>=50 guarantee bounds
                         exits.iat[idx] = True
 
         return entries, exits
@@ -331,10 +333,7 @@ class LiuYudongWaveStrategy(StrategyBase):
         for idx_pos in range(len(pivot_series)):
             val = int(pivot_series.iloc[idx_pos])
             if val != 0:
-                if val == 1:
-                    price = float(high.iloc[idx_pos])
-                else:
-                    price = float(low.iloc[idx_pos])
+                price = float(high.iloc[idx_pos]) if val == 1 else float(low.iloc[idx_pos])
                 pivots_list.append(
                     PivotPoint(
                         index=idx_pos,

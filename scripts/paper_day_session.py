@@ -39,7 +39,7 @@ def _baseline_symbols_csv() -> str:
         from quantflow.strategy.research.universe_config import baseline_symbols_csv
 
         return baseline_symbols_csv(repo_root=REPO_ROOT)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return "BTC/USDT,ETH/USDT,SOL/USDT"
 
 
@@ -93,7 +93,7 @@ def _maybe_alert(summary: dict[str, Any], *, enable: bool) -> None:
             from quantflow.strategy.research.day_deviation import format_alert_message
 
             msg = msg + "\n" + format_alert_message(deviation)
-        except Exception:  # noqa: BLE001
+        except Exception:
             msg = msg + f"\n  deviation_status={deviation.get('status')}"
     print(f"[day-session] ALERT: {msg}", flush=True)
     # Best-effort: reuse monitoring alert channel if configured; never raise.
@@ -101,7 +101,7 @@ def _maybe_alert(summary: dict[str, Any], *, enable: bool) -> None:
         from quantflow.monitoring.alerts import send_alert  # type: ignore
 
         send_alert(msg)  # type: ignore[misc]
-    except Exception as exc:  # noqa: BLE001 — alert path must not break day session
+    except Exception as exc:
         print(f"[day-session] alert hook skipped: {exc}", flush=True)
 
 

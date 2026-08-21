@@ -11,20 +11,21 @@ mocked per the project unit-test convention.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import subprocess
 import sys
 import types
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from quantflow.common.models import Direction
+from quantflow.indicators.wave_models import WavePattern, WaveSegment
+from quantflow.indicators.zigzag import PivotDirection, PivotPoint
 from quantflow.strategy.ai_validation_bypass import AI_LANE, run_ai_validation_bypass
 from quantflow.strategy.elliott_wave_strategy import LiuYudongWaveStrategy
 from quantflow.strategy.rd_agent import (
@@ -34,13 +35,11 @@ from quantflow.strategy.rd_agent import (
     load_discovered_factors,
     materialize_factor_frame,
 )
-from quantflow.indicators.wave_models import WavePattern, WaveSegment
-from quantflow.indicators.zigzag import PivotDirection, PivotPoint
-
 
 # --------------------------------------------------------------------------- #
 # A. ai_validation_bypass.py
 # --------------------------------------------------------------------------- #
+
 
 def _ohlcv(n: int = 60) -> pd.DataFrame:
     rng = np.random.default_rng(1)
@@ -85,7 +84,6 @@ class TestAiValidationBypassBranches:
 
     def test_datetime_column_becomes_index(self, tmp_path, monkeypatch) -> None:
         """L151: ohlcv with 'datetime' column + non-DatetimeIndex → set_index."""
-        import quantflow.strategy.ai_validation_bypass as bypass
 
         _, rd, training_mod = self._install(monkeypatch, tmp_path)
         df = _ohlcv(40).reset_index(drop=True)
@@ -106,34 +104,52 @@ class TestAiValidationBypassBranches:
 
     def test_factors_json_loaded(self, tmp_path, monkeypatch) -> None:
         """L158-160: explicit factors_json exists → loaded."""
-        import quantflow.strategy.ai_validation_bypass as bypass
 
         _, rd, training_mod = self._install(monkeypatch, tmp_path)
         factors_file = tmp_path / "factors.json"
         factors_file.write_text(
             json.dumps(
-                {"factors": [{"name": "momentum_5", "formula": "pandas:momentum_5", "selected": True}]}
+                {
+                    "factors": [
+                        {"name": "momentum_5", "formula": "pandas:momentum_5", "selected": True}
+                    ]
+                }
             ),
             encoding="utf-8",
         )
-        monkeypatch.setattr(rd, "materialize_factor_frame", lambda df, f, *, selected_only: pd.DataFrame({"m": [1.0] * len(df)}, index=df.index))
+        monkeypatch.setattr(
+            rd,
+            "materialize_factor_frame",
+            lambda df, f, *, selected_only: pd.DataFrame({"m": [1.0] * len(df)}, index=df.index),
+        )
         self._stub_pipeline(monkeypatch, training_mod, _trained())
-        res = run_ai_validation_bypass(symbol="BTC/USDT", ohlcv=_ohlcv(), factors_json=str(factors_file))
+        res = run_ai_validation_bypass(
+            symbol="BTC/USDT", ohlcv=_ohlcv(), factors_json=str(factors_file)
+        )
         assert res.n_factors == 1
         assert any("loaded factors" in n for n in res.notes)
 
     def test_skip_discover_latest_exists(self, tmp_path, monkeypatch) -> None:
         """L162-167: skip_discover with latest.json → loaded from disk."""
-        import quantflow.strategy.ai_validation_bypass as bypass
 
         _, rd, training_mod = self._install(monkeypatch, tmp_path)
         latest_dir = tmp_path / "ai_factors" / "BTC_USDT"
         latest_dir.mkdir(parents=True)
         (latest_dir / "latest.json").write_text(
-            json.dumps({"factors": [{"name": "momentum_20", "formula": "pandas:momentum_20", "selected": False}]}),
+            json.dumps(
+                {
+                    "factors": [
+                        {"name": "momentum_20", "formula": "pandas:momentum_20", "selected": False}
+                    ]
+                }
+            ),
             encoding="utf-8",
         )
-        monkeypatch.setattr(rd, "materialize_factor_frame", lambda df, f, *, selected_only: pd.DataFrame({"m": [1.0] * len(df)}, index=df.index))
+        monkeypatch.setattr(
+            rd,
+            "materialize_factor_frame",
+            lambda df, f, *, selected_only: pd.DataFrame({"m": [1.0] * len(df)}, index=df.index),
+        )
         self._stub_pipeline(monkeypatch, training_mod, _trained())
         res = run_ai_validation_bypass(symbol="BTC/USDT", ohlcv=_ohlcv(), skip_discover=True)
         assert res.n_factors == 1
@@ -141,10 +157,13 @@ class TestAiValidationBypassBranches:
 
     def test_skip_discover_no_latest(self, tmp_path, monkeypatch) -> None:
         """L169: skip_discover without latest.json → empty-set note."""
-        import quantflow.strategy.ai_validation_bypass as bypass
 
         _, rd, training_mod = self._install(monkeypatch, tmp_path)
-        monkeypatch.setattr(rd, "materialize_factor_frame", lambda df, f, *, selected_only: pd.DataFrame({"m": [1.0] * len(df)}, index=df.index))
+        monkeypatch.setattr(
+            rd,
+            "materialize_factor_frame",
+            lambda df, f, *, selected_only: pd.DataFrame({"m": [1.0] * len(df)}, index=df.index),
+        )
         self._stub_pipeline(monkeypatch, training_mod, _trained())
         res = run_ai_validation_bypass(symbol="BTC/USDT", ohlcv=_ohlcv(), skip_discover=True)
         assert any("no latest factors" in n for n in res.notes)
@@ -152,21 +171,21 @@ class TestAiValidationBypassBranches:
 
     def test_discover_available_no_baseline_note(self, tmp_path, monkeypatch) -> None:
         """L173-175 (False arc): runner available → no degrade note."""
-        import quantflow.strategy.ai_validation_bypass as bypass
 
         _, rd, training_mod = self._install(monkeypatch, tmp_path)
-        monkeypatch.setattr(
-            rd.RDAgentRunner, "check_available", staticmethod(lambda: (True, ""))
-        )
+        monkeypatch.setattr(rd.RDAgentRunner, "check_available", staticmethod(lambda: (True, "")))
         monkeypatch.setattr(rd.RDAgentRunner, "discover_factors", lambda self, df: [])
-        monkeypatch.setattr(rd, "materialize_factor_frame", lambda df, f, *, selected_only: pd.DataFrame({"m": [1.0] * len(df)}, index=df.index))
+        monkeypatch.setattr(
+            rd,
+            "materialize_factor_frame",
+            lambda df, f, *, selected_only: pd.DataFrame({"m": [1.0] * len(df)}, index=df.index),
+        )
         self._stub_pipeline(monkeypatch, training_mod, _trained())
         res = run_ai_validation_bypass(symbol="BTC/USDT", ohlcv=_ohlcv())
         assert not any("unavailable" in n for n in res.notes)
 
     def test_materialize_fallback_to_all_factors(self, tmp_path, monkeypatch) -> None:
         """L185-186: selected_only empty → fallback to all factors."""
-        import quantflow.strategy.ai_validation_bypass as bypass
 
         _, rd, training_mod = self._install(monkeypatch, tmp_path)
         empty = pd.DataFrame()
@@ -178,10 +197,11 @@ class TestAiValidationBypassBranches:
 
     def test_synthetic_ret1_last_resort(self, tmp_path, monkeypatch) -> None:
         """L189-191: no factor columns at all → synthetic ret1 feature."""
-        import quantflow.strategy.ai_validation_bypass as bypass
 
         _, rd, training_mod = self._install(monkeypatch, tmp_path)
-        monkeypatch.setattr(rd, "materialize_factor_frame", lambda df, f, *, selected_only: pd.DataFrame())
+        monkeypatch.setattr(
+            rd, "materialize_factor_frame", lambda df, f, *, selected_only: pd.DataFrame()
+        )
         pipe = self._stub_pipeline(monkeypatch, training_mod, _trained())
         res = run_ai_validation_bypass(symbol="BTC/USDT", ohlcv=_ohlcv(), skip_discover=True)
         assert any("synthetic ret1" in n for n in res.notes)
@@ -190,14 +210,21 @@ class TestAiValidationBypassBranches:
 
     def test_register_rejected_rewrites_stamped_entry(self, tmp_path, monkeypatch) -> None:
         """L213-239: register=True writes lane stamps back on the registry entry."""
-        import quantflow.strategy.ai_validation_bypass as bypass
         import quantflow.strategy.model_registry as registry_mod
 
         _, rd, training_mod = self._install(monkeypatch, tmp_path)
-        monkeypatch.setattr(rd, "materialize_factor_frame", lambda df, f, *, selected_only: pd.DataFrame({"m": [1.0] * len(df)}, index=df.index))
+        monkeypatch.setattr(
+            rd,
+            "materialize_factor_frame",
+            lambda df, f, *, selected_only: pd.DataFrame({"m": [1.0] * len(df)}, index=df.index),
+        )
         self._stub_pipeline(monkeypatch, training_mod, _trained())
         fake_reg = MagicMock()
-        fake_reg.register.return_value = {"model_id": "model-h1", "status": "rejected", "reason": "w14"}
+        fake_reg.register.return_value = {
+            "model_id": "model-h1",
+            "status": "rejected",
+            "reason": "w14",
+        }
         monkeypatch.setattr(registry_mod, "ModelRegistry", lambda *a, **k: fake_reg)
         registry_dir = tmp_path / "reg"
         res = run_ai_validation_bypass(
@@ -215,6 +242,7 @@ class TestAiValidationBypassBranches:
 # B. catalog.py
 # --------------------------------------------------------------------------- #
 
+
 class TestCatalogEdgeCases:
     @staticmethod
     def _catalog(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
@@ -226,7 +254,9 @@ class TestCatalogEdgeCases:
     def test_overlay_skip_and_load_errors(self, tmp_path, monkeypatch) -> None:
         """L160-161, 164-166, 169-170, 174, 207-212: loader error/fallback paths."""
         catalog = self._catalog(monkeypatch, tmp_path)
-        (tmp_path / "a_overlay.yaml").write_text("strategy: {name: trend_following}\n", encoding="utf-8")
+        (tmp_path / "a_overlay.yaml").write_text(
+            "strategy: {name: trend_following}\n", encoding="utf-8"
+        )
         (tmp_path / "bad.yaml").write_text("strategy: [unclosed\n", encoding="utf-8")
         (tmp_path / "scalar.yaml").write_text("just a string\n", encoding="utf-8")
         (tmp_path / "nostrategy.yaml").write_text("strategy: [1, 2]\n", encoding="utf-8")
@@ -263,6 +293,7 @@ class TestCatalogEdgeCases:
 # C. rd_agent.py
 # --------------------------------------------------------------------------- #
 
+
 class TestRdAgentBranches:
     @staticmethod
     def _df(n: int = 120) -> pd.DataFrame:
@@ -279,7 +310,9 @@ class TestRdAgentBranches:
 
     def test_cli_available_true(self, monkeypatch) -> None:
         """L172: rdagent on PATH → (True, path)."""
-        monkeypatch.setattr("quantflow.strategy.rd_agent.shutil.which", lambda name: "C:/rdagent/rdagent.exe")
+        monkeypatch.setattr(
+            "quantflow.strategy.rd_agent.shutil.which", lambda name: "C:/rdagent/rdagent.exe"
+        )
         ok, path = RDAgentRunner.cli_available()
         assert ok is True
         assert path == "C:/rdagent/rdagent.exe"
@@ -289,11 +322,17 @@ class TestRdAgentBranches:
         runner = RDAgentRunner()
         monkeypatch.setattr(RDAgentRunner, "check_available", staticmethod(lambda: (True, "")))
         monkeypatch.setattr(RDAgentRunner, "cli_available", staticmethod(lambda: (True, "rdagent")))
-        monkeypatch.setattr(RDAgentRunner, "_llm_config_from_env", lambda self: {"backend": "litellm", "model": "m", "api_base": ""})
+        monkeypatch.setattr(
+            RDAgentRunner,
+            "_llm_config_from_env",
+            lambda self: {"backend": "litellm", "model": "m", "api_base": ""},
+        )
         monkeypatch.setattr(
             RDAgentRunner,
             "_run_rdagent_cli",
-            lambda self, df, schema=None: (_ for _ in ()).throw(RDAgentCliUnavailableError("no cli")),
+            lambda self, df, schema=None: (_ for _ in ()).throw(
+                RDAgentCliUnavailableError("no cli")
+            ),
         )
         factors = runner.discover_factors(self._df())
         assert len(factors) == 5  # degraded to built-in baseline
@@ -317,7 +356,9 @@ class TestRdAgentBranches:
     def test_run_rdagent_cli_success_env_and_skip_unnamed(self, monkeypatch, tmp_path) -> None:
         """L333-336 + L373: env vars set; payload rows without a name skipped."""
         runner = RDAgentRunner()
-        monkeypatch.setattr(RDAgentRunner, "cli_available", staticmethod(lambda: (True, "rdagent.exe")))
+        monkeypatch.setattr(
+            RDAgentRunner, "cli_available", staticmethod(lambda: (True, "rdagent.exe"))
+        )
         monkeypatch.setattr(
             RDAgentRunner,
             "_llm_config_from_env",
@@ -346,7 +387,9 @@ class TestRdAgentBranches:
     def test_run_rdagent_cli_unreadable_output(self, monkeypatch, tmp_path) -> None:
         """L366-367: unreadable CLI output → ValueError."""
         runner = RDAgentRunner()
-        monkeypatch.setattr(RDAgentRunner, "cli_available", staticmethod(lambda: (True, "rdagent.exe")))
+        monkeypatch.setattr(
+            RDAgentRunner, "cli_available", staticmethod(lambda: (True, "rdagent.exe"))
+        )
         monkeypatch.setattr(
             RDAgentRunner,
             "_llm_config_from_env",
@@ -356,7 +399,9 @@ class TestRdAgentBranches:
         out = tmp_path / "data" / "rdagent_work" / "factors_output.json"
         out.parent.mkdir(parents=True)
         out.write_text("{not json", encoding="utf-8")
-        monkeypatch.setattr(subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stderr=""))
+        monkeypatch.setattr(
+            subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stderr="")
+        )
         with pytest.raises(ValueError, match="unreadable"):
             runner._run_rdagent_cli(self._df(30))
 
@@ -371,7 +416,9 @@ class TestRdAgentBranches:
         """L501: non-dict payload rows skipped."""
         p = tmp_path / "f.json"
         p.write_text(
-            json.dumps({"factors": [42, {"name": "x", "formula": "pandas:momentum_5", "selected": True}]}),
+            json.dumps(
+                {"factors": [42, {"name": "x", "formula": "pandas:momentum_5", "selected": True}]}
+            ),
             encoding="utf-8",
         )
         out = load_discovered_factors(p)
@@ -386,7 +433,11 @@ class TestRdAgentBranches:
         """L533: factors=None → full built-in catalog."""
         frame = materialize_factor_frame(self._df(40), None)
         assert set(frame.columns) == {
-            "momentum_5", "momentum_20", "volatility_20", "range_20", "return_skew_20",
+            "momentum_5",
+            "momentum_20",
+            "volatility_20",
+            "range_20",
+            "return_skew_20",
         }
 
     def test_materialize_unselected_skipped_and_empty(self) -> None:
@@ -408,6 +459,7 @@ class TestRdAgentBranches:
 # --------------------------------------------------------------------------- #
 # D. elliott_wave_strategy.py
 # --------------------------------------------------------------------------- #
+
 
 def _pp(idx: int, price: float) -> PivotPoint:
     return PivotPoint(index=idx, price=price, direction=PivotDirection.HIGH)
@@ -479,14 +531,21 @@ class TestElliottGenerateSignalsBranches:
             index=idx,
         )
 
-    def _mocked(self, monkeypatch: pytest.MonkeyPatch, waves: dict[int, WaveSegment], pattern=WavePattern.IMPULSE):
+    def _mocked(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        waves: dict[int, WaveSegment],
+        pattern=WavePattern.IMPULSE,
+    ):
         s = LiuYudongWaveStrategy()
         monkeypatch.setattr(s, "_detect_pivots", lambda df: MagicMock())
         wc = SimpleNamespace(pattern=pattern, waves=waves)
         monkeypatch.setattr(s.wave_identifier, "identify", lambda pivots, mode: wc)
         monkeypatch.setattr(s.fibonacci_calc, "calculate", lambda wc: SimpleNamespace(extension={}))
         monkeypatch.setattr(s.critical_level_det, "detect", lambda wc: MagicMock(levels=[]))
-        monkeypatch.setattr(s.wave_channel, "calculate", lambda df, wc: SimpleNamespace(w5_target=None))
+        monkeypatch.setattr(
+            s.wave_channel, "calculate", lambda df, wc: SimpleNamespace(w5_target=None)
+        )
         monkeypatch.setattr(s.divergence_det, "detect", lambda wc, df: None)
         monkeypatch.setattr(s.invalidation_checker, "check", lambda wc, cl, lc: [])
         return s
@@ -556,7 +615,9 @@ class TestElliottGenerateSignalsBranches:
 
     def test_corrective_bwave_check_false(self, monkeypatch) -> None:
         """L267-274: CORRECTIVE pattern with b-wave check False → skip."""
-        s = self._mocked(monkeypatch, {5: _seg(5, _pp(0, 100.0), _pp(6, 140.0))}, pattern=WavePattern.CORRECTIVE)
+        s = self._mocked(
+            monkeypatch, {5: _seg(5, _pp(0, 100.0), _pp(6, 140.0))}, pattern=WavePattern.CORRECTIVE
+        )
         _, exits = s.generate_signals(self._df(120))
         assert exits.sum() == 0
 
@@ -664,7 +725,12 @@ class TestElliottRuleHelpers:
         df = pd.DataFrame({"volume": [1.0] * 20})
         channel = SimpleNamespace(w5_target=100.0)
         fib = SimpleNamespace(extension={1.618: 100.0})
-        assert s._check_w5_exit(df, _w5_waves(), True, divergence=None, channel=channel, fib_levels=fib) is True
+        assert (
+            s._check_w5_exit(
+                df, _w5_waves(), True, divergence=None, channel=channel, fib_levels=fib
+            )
+            is True
+        )
 
     def test_w5_volume_nan(self) -> None:
         """L449-452: NaN volume at wave ends → volume signal skipped."""
@@ -690,7 +756,12 @@ class TestElliottRuleHelpers:
         )
         channel = SimpleNamespace(w5_target=100.0)
         fib = SimpleNamespace(extension={1.618: 100.0})
-        assert s._check_w5_exit(df, _w5_waves(), True, divergence=divergence, channel=channel, fib_levels=fib) is True
+        assert (
+            s._check_w5_exit(
+                df, _w5_waves(), True, divergence=divergence, channel=channel, fib_levels=fib
+            )
+            is True
+        )
 
     def test_w5_fib_extension_missing(self) -> None:
         """L461-466: no 1.618 extension → fib signal skipped."""

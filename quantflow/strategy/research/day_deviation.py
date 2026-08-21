@@ -16,10 +16,10 @@ caller enables alerting.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Mapping
-
+from typing import Any
 
 DEFAULT_GATE_PATH = Path("data/paper_replay/baseline0/gate.json")
 DEFAULT_META_PATH = Path("data/paper_replay/baseline0/run_meta.json")
@@ -231,9 +231,7 @@ def evaluate_day_deviation(
                 }
             )
         if dd_breach:
-            issues.append(
-                f"diagnostic DD delta {dd_delta:+.1f}pp exceeds +{thr.max_dd_band_pp}pp"
-            )
+            issues.append(f"diagnostic DD delta {dd_delta:+.1f}pp exceeds +{thr.max_dd_band_pp}pp")
             alerts.append(
                 {
                     "level": "warning",

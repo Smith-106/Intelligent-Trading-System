@@ -10,8 +10,9 @@ Default-safe: pure function, no network, no side effects.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Mapping
+from typing import Any
 
 from quantflow.common.validators import POSITION_EPSILON
 

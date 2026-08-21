@@ -37,9 +37,7 @@ class TestNewStrategyTail:
         fake_result = SimpleNamespace(
             strategy_id="my_alpha", class_name="MyAlphaStrategy", files_written=["a.py"]
         )
-        with patch(
-            "quantflow.strategy.scaffold.scaffold_strategy", return_value=fake_result
-        ):
+        with patch("quantflow.strategy.scaffold.scaffold_strategy", return_value=fake_result):
             result = runner.invoke(app, ["new-strategy", "my_alpha"])
         assert result.exit_code == 0
         assert "Scaffolded" in result.output
@@ -103,9 +101,7 @@ class TestEvalBtcOverlayTail:
 class TestKolIngestTail:
     def test_kol_export_ok(self) -> None:
         with patch("scripts.kol_discord_ingest.main", return_value=0):
-            result = runner.invoke(
-                app, ["kol-ingest", "export", "--path", "out.json"]
-            )
+            result = runner.invoke(app, ["kol-ingest", "export", "--path", "out.json"])
         assert result.exit_code == 0
         assert "kol-ingest export done" in result.output
 
@@ -116,16 +112,12 @@ class TestKolIngestTail:
 
     def test_kol_export_with_images(self) -> None:
         with patch("scripts.kol_discord_ingest.main", return_value=0):
-            result = runner.invoke(
-                app, ["kol-ingest", "export", "--path", "out.json", "--images"]
-            )
+            result = runner.invoke(app, ["kol-ingest", "export", "--path", "out.json", "--images"])
         assert result.exit_code == 0
 
     def test_kol_poll_ok(self) -> None:
         with patch("scripts.kol_discord_ingest.main", return_value=0):
-            result = runner.invoke(
-                app, ["kol-ingest", "poll", "--channel", "c1", "--images"]
-            )
+            result = runner.invoke(app, ["kol-ingest", "poll", "--channel", "c1", "--images"])
         assert result.exit_code == 0
 
     def test_kol_consensus_ok(self) -> None:
@@ -185,7 +177,9 @@ class TestAiBranchesTail:
         latest_dir = Path("data/ai_factors") / safe
         latest_dir.mkdir(parents=True, exist_ok=True)
         latest = latest_dir / "latest.json"
-        latest.write_text(json.dumps({"factors": [{"name": "f1", "formula": "x"}]}), encoding="utf-8")
+        latest.write_text(
+            json.dumps({"factors": [{"name": "f1", "formula": "x"}]}), encoding="utf-8"
+        )
         fake_store = MagicMock()
         fake_store.query = MagicMock(return_value=_df())
         fake_store.close = MagicMock()
@@ -251,8 +245,12 @@ class TestAiBranchesTail:
             result = runner.invoke(
                 app,
                 [
-                    "ai", "train", "--symbol", "BTC/USDT",
-                    "--factors-json", str(tmp_path / "missing.json"),
+                    "ai",
+                    "train",
+                    "--symbol",
+                    "BTC/USDT",
+                    "--factors-json",
+                    str(tmp_path / "missing.json"),
                 ],
             )
         assert result.exit_code == 0
@@ -304,8 +302,12 @@ class TestAiBranchesTail:
             result = runner.invoke(
                 app,
                 [
-                    "ai", "train", "--symbol", "BTC/USDT",
-                    "--factors-json", str(fj),
+                    "ai",
+                    "train",
+                    "--symbol",
+                    "BTC/USDT",
+                    "--factors-json",
+                    str(fj),
                 ],
             )
         assert result.exit_code == 0
@@ -392,8 +394,12 @@ class TestAiBranchesTail:
             result = runner.invoke(
                 app,
                 [
-                    "ai", "register", "--model-id", "model-abc",
-                    "--registry-dir", str(reg_dir),
+                    "ai",
+                    "register",
+                    "--model-id",
+                    "model-abc",
+                    "--registry-dir",
+                    str(reg_dir),
                 ],
             )
         assert result.exit_code == 0

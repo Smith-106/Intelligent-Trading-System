@@ -103,9 +103,7 @@ async def _eval(
     )
     fills: list[dict[str, object]] = []
     risk: list[dict[str, object]] = []
-    curve = await replay(
-        session, bars, SYMBOL, fills, risk, direction_gate=gate, entry_tf="1h"
-    )
+    curve = await replay(session, bars, SYMBOL, fills, risk, direction_gate=gate, entry_tf="1h")
     rep = aggregate(curve, fills, risk, sink.alerts, 100_000.0, entry_tf="1h")
     out: dict[str, float] = {}
     for k, v in rep.items():
@@ -167,9 +165,7 @@ def main() -> int:
     args = ap.parse_args()
 
     try:
-        warn_if_unpinned(
-            args.start, args.end, require_pin=args.require_pin, context="baseline2"
-        )
+        warn_if_unpinned(args.start, args.end, require_pin=args.require_pin, context="baseline2")
         start_ms, end_ms = parse_window_ms(args.start, args.end)
     except ContractPinError as exc:
         print(f"[b2] pin error: {exc}", file=sys.stderr)
@@ -245,10 +241,7 @@ def main() -> int:
             sh = _sharpe(oos)
             oos_sharpes.append(sh if sh == sh else -10.0)
             oos_orders += float(oos.get("orders", 0.0))
-            print(
-                f"  seg{i + 1}/{len(segments)} OOS {oos_rets[-1]:+.2f}% "
-                f"sh={oos_sharpes[-1]:.3f}"
-            )
+            print(f"  seg{i + 1}/{len(segments)} OOS {oos_rets[-1]:+.2f}% sh={oos_sharpes[-1]:.3f}")
 
         rows.append(
             {
@@ -276,18 +269,18 @@ def main() -> int:
         best_nc = (
             max(
                 non_classic,
-                key=lambda r: r.get("wfo_oos_mean_sharpe")
-                if r.get("wfo_oos_mean_sharpe") is not None
-                else -99,
+                key=lambda r: (
+                    r.get("wfo_oos_mean_sharpe")
+                    if r.get("wfo_oos_mean_sharpe") is not None
+                    else -99
+                ),
             )
             if non_classic
             else None
         )
         grid_targets = [("classic", "trend_following", None)]
         if best_nc is not None:
-            grid_targets.append(
-                (best_nc["label"], best_nc["strategy"], best_nc.get("params"))
-            )
+            grid_targets.append((best_nc["label"], best_nc["strategy"], best_nc.get("params")))
         print("\n=== fee×slip grid ===")
         bars = df.drop(columns="dt")
         for label, strategy, params in grid_targets:
@@ -314,8 +307,7 @@ def main() -> int:
                 }
                 fee_rows.append(cell)
                 print(
-                    f"  {label} fee={fee} slip={slip} "
-                    f"ret={cell['return_pct']} sh={cell['sharpe']}"
+                    f"  {label} fee={fee} slip={slip} ret={cell['return_pct']} sh={cell['sharpe']}"
                 )
 
     adjudicate = _load_adjudicate()
@@ -349,14 +341,12 @@ def main() -> int:
         "rows": rows,
         "winner_by_oos_mean_sharpe": max(
             rows,
-            key=lambda r: r.get("wfo_oos_mean_sharpe")
-            if r.get("wfo_oos_mean_sharpe") is not None
-            else -99,
+            key=lambda r: (
+                r.get("wfo_oos_mean_sharpe") if r.get("wfo_oos_mean_sharpe") is not None else -99
+            ),
         )["label"],
     }
-    wfo_path.write_text(
-        json.dumps(wfo_payload, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    wfo_path.write_text(json.dumps(wfo_payload, indent=2, ensure_ascii=False), encoding="utf-8")
     fee_path.write_text(
         json.dumps(
             {"grid": fee_rows, "cells": FEE_GRID, "note": "Full pin window"},

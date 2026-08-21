@@ -17,9 +17,7 @@ Pure logic; no network, no vectorbt.
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
-import pytest
 
 from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyContext
@@ -43,8 +41,8 @@ def _bar(
     symbol: str = "BTC/USDT",
 ) -> Bar:
     h = high if high is not None else close + 0.5
-    l = low if low is not None else close - 0.5
-    return Bar(symbol=symbol, timestamp=ts, open=close, high=h, low=l, close=close, volume=volume)
+    lo = low if low is not None else close - 0.5
+    return Bar(symbol=symbol, timestamp=ts, open=close, high=h, low=lo, close=close, volume=volume)
 
 
 class _Ctx:
@@ -146,11 +144,11 @@ class TestSimpleStrategy:
 
     def test_generate_signals_none_and_empty(self) -> None:
         s = SimpleStrategy(params={"fast_period": 3, "slow_period": 5})
-        e1, x1 = s.generate_signals(None)
+        e1, _x1 = s.generate_signals(None)
         assert len(e1) == 0
-        e2, x2 = s.generate_signals(pd.DataFrame())
+        e2, _x2 = s.generate_signals(pd.DataFrame())
         assert len(e2) == 0
-        e3, x3 = s.generate_signals(pd.DataFrame({"close": []}))
+        e3, _x3 = s.generate_signals(pd.DataFrame({"close": []}))
         assert len(e3) == 0
 
     def test_generate_signals_without_close_column(self) -> None:
@@ -158,13 +156,13 @@ class TestSimpleStrategy:
         df = pd.DataFrame(
             {0: [100.0] * 8, 1: [100.0] * 8, 2: [100.0] * 8, 3: [101.0 + i for i in range(8)]}
         )
-        entries, exits = s.generate_signals(df)
+        entries, _exits = s.generate_signals(df)
         assert len(entries) == 8
 
     def test_generate_signals_short_variant(self) -> None:
         s = _Shorty(params={"fast_period": 3, "slow_period": 5})
         df = pd.DataFrame({"close": [100.0 + i for i in range(10)]})
-        entries, exits = s.generate_signals(df)
+        entries, _exits = s.generate_signals(df)
         assert int(entries.sum()) >= 1
 
     def test_sma_series_and_list(self) -> None:
@@ -299,7 +297,9 @@ class TestNonMaSignal:
         assert Direction.FLAT in dirs  # cross-down later
 
     def test_donchian_latest_direct(self) -> None:
-        s = NonMaSignalStrategy(params={"signal_family": "donchian", "channel_period": 3, "exit_period": 2})
+        s = NonMaSignalStrategy(
+            params={"signal_family": "donchian", "channel_period": 3, "exit_period": 2}
+        )
         c = [10.0, 11.0, 12.0, 13.0]
         h = [10.5, 11.5, 12.5, 13.5]
         lo = [9.5, 10.5, 11.5, 12.5]
@@ -308,13 +308,17 @@ class TestNonMaSignal:
         # i >= m -> main window branch; breakout entry True
         assert s._donchian_latest(c, h, lo, 3) == (True, False)
         # i in (0, m) with channel_period < exit_period -> partial window
-        s2 = NonMaSignalStrategy(params={"signal_family": "donchian", "channel_period": 3, "exit_period": 5})
+        s2 = NonMaSignalStrategy(
+            params={"signal_family": "donchian", "channel_period": 3, "exit_period": 5}
+        )
         assert s2._donchian_latest([10.0, 11.0, 12.0, 13.0], h, lo, 3) == (True, False)
         # exit: close < prior_low
         assert s._donchian_latest([10.0, 11.0, 12.0, 9.0], h, lo, 3) == (False, True)
 
     def test_volume_roc_latest_direct(self) -> None:
-        s = NonMaSignalStrategy(params={"signal_family": "volume_roc", "roc_period": 2, "vol_period": 2})
+        s = NonMaSignalStrategy(
+            params={"signal_family": "volume_roc", "roc_period": 2, "vol_period": 2}
+        )
         # insufficient index
         assert s._volume_roc_latest([1.0, 2.0], [1.0, 1.0], 1) == (False, False)
         # entry: roc > 0 and vol ratio >= threshold
@@ -327,7 +331,9 @@ class TestNonMaSignal:
         assert s._volume_roc_latest([10.0, 11.0, 12.0], [0.0, 0.0, 0.0], 2) == (False, False)
 
     def test_rsi_thrust_latest_direct(self) -> None:
-        s = NonMaSignalStrategy(params={"signal_family": "rsi_thrust", "rsi_period": 3, "vol_period": 3})
+        s = NonMaSignalStrategy(
+            params={"signal_family": "rsi_thrust", "rsi_period": 3, "vol_period": 3}
+        )
         c = [100.0, 102.0, 101.0, 104.0, 100.0, 108.0]
         v = [10.0, 10.0, 10.0, 10.0, 10.0, 30.0]
         # i too small
@@ -354,7 +360,12 @@ class TestNonMaSignal:
 
     def test_generate_signals_max_holding_overlay(self) -> None:
         s = NonMaSignalStrategy(
-            params={"signal_family": "donchian", "channel_period": 3, "exit_period": 3, "max_holding_bars": 1}
+            params={
+                "signal_family": "donchian",
+                "channel_period": 3,
+                "exit_period": 3,
+                "max_holding_bars": 1,
+            }
         )
         df = pd.DataFrame(
             {
@@ -372,7 +383,7 @@ class TestNonMaSignal:
     def test_generate_signals_missing_volume_column(self) -> None:
         s = NonMaSignalStrategy(params={"signal_family": "volume_roc"})
         df = pd.DataFrame({"close": [10.0, 11.0, 12.0, 13.0, 14.0, 15.0]})
-        entries, exits = s.generate_signals(df)
+        entries, _exits = s.generate_signals(df)
         assert len(entries) == len(df)
 
 
@@ -391,13 +402,13 @@ class TestSpotPerpArb:
     def test_missing_columns(self) -> None:
         s = SpotPerpArbStrategy()
         df = pd.DataFrame({"close": [1.0] * 20})
-        e, x = s.generate_signals(df)
+        e, _x = s.generate_signals(df)
         assert int(e.sum()) == 0
 
     def test_short_history(self) -> None:
         s = SpotPerpArbStrategy()
         df = pd.DataFrame({"funding_rate": [0.0], "open_interest": [1.0]})
-        e, x = s.generate_signals(df)
+        e, _x = s.generate_signals(df)
         assert int(e.sum()) == 0
 
     def test_spot_leg_default_empty(self) -> None:
@@ -406,7 +417,6 @@ class TestSpotPerpArb:
 
     def test_full_signal_and_spot_leg(self) -> None:
         s = SpotPerpArbStrategy()
-        n = 30
         funding = pd.Series([-0.01] * 10 + [0.01] * 10 + [0.0001] * 10, dtype=float)
         # OI jumps of +100% between segments -> |oi_change| > threshold
         oi = pd.Series([100.0] * 5 + [200.0] * 10 + [300.0] * 15, dtype=float)

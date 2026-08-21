@@ -5,16 +5,14 @@ from __future__ import annotations
 import asyncio
 import json
 from types import SimpleNamespace
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-import pandas as pd
 import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 
 from quantflow.web.app import create_app
-from quantflow.web.history import StationHistoryStore, _MAX_JSONL_BYTES
+from quantflow.web.history import _MAX_JSONL_BYTES, StationHistoryStore
 from quantflow.web.rate_limit import RateLimiter, _client_key
 from quantflow.web.security import _is_loopback_host, same_origin_guard
 from quantflow.web.service import (
@@ -51,7 +49,9 @@ class TestHistoryTail:
         store.append_session_event({"session_id": "s1", "event_type": "signal"})
         assert path.stat().st_size <= _MAX_JSONL_BYTES
 
-    def test_append_rotate_oserror(self, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_append_rotate_oserror(
+        self, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """L170-171: path.stat() OSError → pass."""
         store = StationHistoryStore(base_dir=tmp_path / "h")
         monkeypatch.setattr(
@@ -82,7 +82,7 @@ class TestHistoryTail:
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         tail = store._read_tail_lines(path, max_lines=50)
         assert len(tail) == 50
-        non_blank = [l for l in tail if l.strip()]
+        non_blank = [line for line in tail if line.strip()]
         assert json.loads(non_blank[-1])["i"] == 1999
 
 
@@ -186,17 +186,13 @@ class TestServiceTail:
 
 # ------------------------------------------------------------------------ app
 class TestAppTail2:
-    async def test_index_404_when_dist_missing(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_index_404_when_dist_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """L123-125: dist index missing → 404."""
         from quantflow.web import app as app_mod
 
         store = StationHistoryStore(base_dir="data/station_history_test_tail2")
         service = StationService(history_store=store)
-        monkeypatch.setattr(
-            app_mod, "_dist_dir", lambda: app_mod._static_dir() / "no-such-dist"
-        )
+        monkeypatch.setattr(app_mod, "_dist_dir", lambda: app_mod._static_dir() / "no-such-dist")
         client = TestClient(TestServer(create_app(service=service)))
         async with client:
             resp = await client.get("/")
@@ -208,15 +204,15 @@ class TestAppTail2:
 
         store = StationHistoryStore(base_dir="data/station_history_test_tail2")
         service = StationService(history_store=store)
-        monkeypatch.setattr(
-            app_mod, "_dist_dir", lambda: app_mod._static_dir() / "no-such-dist"
-        )
+        monkeypatch.setattr(app_mod, "_dist_dir", lambda: app_mod._static_dir() / "no-such-dist")
         client = TestClient(TestServer(create_app(service=service)))
         async with client:
             resp = await client.get("/some/spa/route")
             assert resp.status == 404
 
-    def test_create_app_with_dist_dir(self, monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory) -> None:
+    def test_create_app_with_dist_dir(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: pytest.TempPathFactory
+    ) -> None:
         """L372-375: dist_dir exists → static route added."""
         from quantflow.web import app as app_mod
 
@@ -245,9 +241,7 @@ class TestSessionManagerTail:
         cfg = AppConfig()
         cfg.execution.mode = "live"
         cfg.risk.kill_switch_enabled = False
-        monkeypatch.setattr(
-            "quantflow.web.session_manager.load_config", lambda *a, **k: cfg
-        )
+        monkeypatch.setattr("quantflow.web.session_manager.load_config", lambda *a, **k: cfg)
         req = SessionStartRequest(mode="live", symbol="BTC/USDT")
         with pytest.raises(ValueError, match="Kill switch"):
             await mgr.start(req)

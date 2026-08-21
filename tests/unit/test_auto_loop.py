@@ -24,7 +24,9 @@ class _FakeRegistry:
     def new_id(self) -> str:
         return f"fake-{len(self.ids)}"
 
-    def register(self, model_id: str, model_cls: str, features_hash: str, validation_report: dict[str, Any]) -> dict[str, Any]:
+    def register(
+        self, model_id: str, model_cls: str, features_hash: str, validation_report: dict[str, Any]
+    ) -> dict[str, Any]:
         self.calls.append(
             {
                 "model_id": model_id,
@@ -47,7 +49,9 @@ class _FakePipeline:
     def __init__(self, report: TrainedModelReport) -> None:
         self._report = report
 
-    def train(self, features: pd.DataFrame, close: pd.Series, model_cls: Any, **kwargs: Any) -> TrainedModelReport:
+    def train(
+        self, features: pd.DataFrame, close: pd.Series, model_cls: Any, **kwargs: Any
+    ) -> TrainedModelReport:
         return self._report
 
 
@@ -57,7 +61,11 @@ def _report(decision: str, reason: str = "gate ran", model_id: str = "") -> Trai
         model_cls="FakeModel",
         features_hash="abc123",
         n_samples=500,
-        validation={"decision": decision, "reason": reason, "checks": {"cpcv": {"passed": decision == "GO"}}},
+        validation={
+            "decision": decision,
+            "reason": reason,
+            "checks": {"cpcv": {"passed": decision == "GO"}},
+        },
         decision=decision,
         reason=reason,
         trained_at="2026-08-04T00:00:00+00:00",
@@ -141,7 +149,12 @@ class TestAutoResearchLoopIntegration:
         cfg = AutoLoopConfigModel(
             log_path=str(log),
             training_kwargs={"test_size": 0.3, "random_state": 1},
-            validation_kwargs={"n_trials": 5, "cpcv_groups": 3, "cpcv_test_groups": 1, "wfo_windows": 2},
+            validation_kwargs={
+                "n_trials": 5,
+                "cpcv_groups": 3,
+                "cpcv_test_groups": 1,
+                "wfo_windows": 2,
+            },
         )
         loop = AutoResearchLoop(registry=registry, config=cfg)
         idx = pd.date_range("2026-01-01", periods=300, freq="h")

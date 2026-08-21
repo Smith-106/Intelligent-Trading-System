@@ -42,9 +42,17 @@ def _close_df(n: int = 800, *, with_timestamp: bool = True) -> pd.DataFrame:
 
 def test_eval_path_b_slice_requires_close() -> None:
     with pytest.raises(ValueError, match="close"):
-        pbo._eval_path_b_slice(pd.DataFrame({"x": [1.0]}), fast=10, slow=20,
-                               stop_loss_pct=0.04, take_profit_pct=0.1,
-                               min_rr=2.5, max_holding_bars=0, fee=0.001, slip=0.001)
+        pbo._eval_path_b_slice(
+            pd.DataFrame({"x": [1.0]}),
+            fast=10,
+            slow=20,
+            stop_loss_pct=0.04,
+            take_profit_pct=0.1,
+            min_rr=2.5,
+            max_holding_bars=0,
+            fee=0.001,
+            slip=0.001,
+        )
 
 
 def test_is_select_params_breaks_at_max_candidates() -> None:
@@ -55,8 +63,9 @@ def test_is_select_params_breaks_at_max_candidates() -> None:
         "min_rr": (2.0, 2.5, 3.0, 3.5),
         "max_holding_bars": (0, 1, 2, 3, 4),
     }
-    best = pbo._is_select_params(df, fast=96, slow=400, space=space,
-                                 fee=0.001, slip=0.001, max_candidates=12)
+    best = pbo._is_select_params(
+        df, fast=96, slow=400, space=space, fee=0.001, slip=0.001, max_candidates=12
+    )
     assert set(best) == {"stop_loss_pct", "min_rr", "take_profit_pct", "max_holding_bars"}
 
 
@@ -71,8 +80,7 @@ def test_is_select_params_skips_failing_candidates(monkeypatch) -> None:
         return {"excess_return_pct": 1.0, "max_dd_pct": 2.0}
 
     monkeypatch.setattr(pbo, "_eval_path_b_slice", flaky)
-    best = pbo._is_select_params(df, fast=96, slow=400, space=space,
-                                 fee=0.001, slip=0.001)
+    best = pbo._is_select_params(df, fast=96, slow=400, space=space, fee=0.001, slip=0.001)
     assert best["stop_loss_pct"] == 0.04
 
 
@@ -121,9 +129,19 @@ def test_run_path_b_oos_fingerprint_fallback(monkeypatch) -> None:
 
 def test_window_oos_result_to_dict() -> None:
     r = pbo.WindowOOSResult(
-        window_id=0, is_start=0, is_end=10, oos_start=10, oos_end=20, oos_bars=10,
-        excess_return_pct=1.0, max_dd_pct=2.0, winrate=0.5, payoff_ratio=1.5,
-        n_trades=4, gate_vs_btc="PASS", best_params={"stop_loss_pct": 0.04},
+        window_id=0,
+        is_start=0,
+        is_end=10,
+        oos_start=10,
+        oos_end=20,
+        oos_bars=10,
+        excess_return_pct=1.0,
+        max_dd_pct=2.0,
+        winrate=0.5,
+        payoff_ratio=1.5,
+        n_trades=4,
+        gate_vs_btc="PASS",
+        best_params={"stop_loss_pct": 0.04},
         notes=["n"],
     )
     d = r.to_dict()
@@ -168,8 +186,7 @@ def test_load_dual_path_profiles_paths_not_mappings(tmp_path) -> None:
 
 
 def test_path_a_profile_unknown_name_passes() -> None:
-    cfg = {"path_a": {"name": "not_registered", "overlay_weight": 0.2},
-           "path_b": {}, "gates": {}}
+    cfg = {"path_a": {"name": "not_registered", "overlay_weight": 0.2}, "path_b": {}, "gates": {}}
     a = dpp.path_a_profile(cfg)
     assert a["kind"] == "continuous_overlay"
     assert a["overlay_weight"] == 0.2
@@ -177,8 +194,7 @@ def test_path_a_profile_unknown_name_passes() -> None:
 
 def test_path_a_profile_partial_registered(monkeypatch) -> None:
     """Registered profile missing keys -> `if k in registered` False branch."""
-    cfg = {"path_a": {"name": "primary_w30", "overlay_weight": 0.2},
-           "path_b": {}, "gates": {}}
+    cfg = {"path_a": {"name": "primary_w30", "overlay_weight": 0.2}, "path_b": {}, "gates": {}}
     monkeypatch.setattr(dpp, "get_profile", lambda name: {"mode": "reduce_off"})
     a = dpp.path_a_profile(cfg)
     # overlay_weight not in the partial registry dict -> keeps own value
@@ -232,9 +248,7 @@ def test_to_markdown_with_attachments() -> None:
 
 def test_to_markdown_without_attachments() -> None:
     """Cover the `if d.get("attachments")` False branch."""
-    bare = dpr.DualPathResearchReport(
-        paths={"path_a": {"return_pct": 1.0}, "path_b": {}}
-    )
+    bare = dpr.DualPathResearchReport(paths={"path_a": {"return_pct": 1.0}, "path_b": {}})
     md = dpr.to_markdown(bare)
     assert "## Attachments" not in md
 
@@ -247,9 +261,7 @@ def test_write_report_without_markdown(tmp_path) -> None:
 
 
 def test_write_report_with_markdown(tmp_path) -> None:
-    jp, mp = dpr.write_report(
-        _sample_report(), tmp_path / "r.json", out_md=tmp_path / "r.md"
-    )
+    jp, mp = dpr.write_report(_sample_report(), tmp_path / "r.json", out_md=tmp_path / "r.md")
     assert jp.is_file() and mp is not None and mp.is_file()
 
 
@@ -273,9 +285,17 @@ def test_simulate_path_a_inserts_repo_root(monkeypatch) -> None:
     monkeypatch.setattr(sys, "path", [p for p in sys.path if p != root])
     rng = np.random.default_rng(3)
     close = pd.Series(100 * np.exp(np.cumsum(rng.normal(0.0002, 0.005, 500))))
-    out = msdp._simulate_path_a(close, {"overlay_weight": 0.3, "fee": 0.001,
-                                        "slip": 0.001, "fast": 96, "slow": 400,
-                                        "mode": "reduce_off"})
+    out = msdp._simulate_path_a(
+        close,
+        {
+            "overlay_weight": 0.3,
+            "fee": 0.001,
+            "slip": 0.001,
+            "fast": 96,
+            "slow": 400,
+            "mode": "reduce_off",
+        },
+    )
     assert "primary_overlay_reduce_off" in out
     assert "hodl" in out
 
@@ -292,15 +312,20 @@ def test_multi_symbol_book_weighted_excess_skips_missing(monkeypatch) -> None:
         return {
             "symbol": symbol,
             "bars": len(df),
-            "data_fingerprint": {"aggregate": f"fp-{symbol}", "symbol": symbol,
-                                 "bars": len(df)},
+            "data_fingerprint": {"aggregate": f"fp-{symbol}", "symbol": symbol, "bars": len(df)},
             "path_a": {
                 "kind": "continuous_overlay",
                 "profile": {},
                 "metrics": (
-                    {} if symbol == "B"
-                    else {"excess_return_pct": 3.0, "return_pct": 2.0,
-                          "max_dd_pct": 1.0, "gate_vs_btc": "PASS", "beats_btc": True}
+                    {}
+                    if symbol == "B"
+                    else {
+                        "excess_return_pct": 3.0,
+                        "return_pct": 2.0,
+                        "max_dd_pct": 1.0,
+                        "gate_vs_btc": "PASS",
+                        "beats_btc": True,
+                    }
                 ),
                 "promotion_eligible": False,
             },

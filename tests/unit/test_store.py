@@ -120,9 +120,7 @@ class TestGetLastMetaTimestamp:
     def test_returns_max_timestamp_after_save(self, store: DataStore):
         df = _funding_df(12)
         store.save_funding_rates(df, SYMBOL)
-        assert store.get_last_meta_timestamp(SYMBOL, "funding_rate") == int(
-            df["timestamp"].max()
-        )
+        assert store.get_last_meta_timestamp(SYMBOL, "funding_rate") == int(df["timestamp"].max())
 
     def test_invalid_data_type_rejected(self, store: DataStore):
         with pytest.raises(ValueError):

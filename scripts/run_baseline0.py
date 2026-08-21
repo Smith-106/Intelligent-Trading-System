@@ -26,6 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+
 # Locked contract values (must match Candidate-Baseline-0.md)
 # T019: prefer admitted ∩ baseline_default from universe.yaml / admitted.json
 def _baseline_symbols() -> str:
@@ -33,7 +34,7 @@ def _baseline_symbols() -> str:
         from quantflow.strategy.research.universe_config import baseline_symbols_csv
 
         return baseline_symbols_csv(repo_root=REPO_ROOT)
-    except Exception:  # noqa: BLE001 — cold start fallback
+    except Exception:
         return "BTC/USDT,ETH/USDT,SOL/USDT"
 
 

@@ -119,7 +119,10 @@ def _load_gateway_config_from_env(mode: str, sandbox: bool) -> dict[str, str | b
 @app.command()
 def download(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol (single)"),
-    symbols: str = typer.Option("", help="Comma-separated multi-symbol, e.g. BTC/USDT,ETH/USDT,SOL/USDT (overrides --symbol)"),
+    symbols: str = typer.Option(
+        "",
+        help="Comma-separated multi-symbol, e.g. BTC/USDT,ETH/USDT,SOL/USDT (overrides --symbol)",
+    ),
     timeframe: str = typer.Option("1d", help="K-line timeframe"),
     start: str = typer.Option("2024-01-01", help="Start date (YYYY-MM-DD)"),
     end: str = typer.Option("2025-01-01", help="End date (YYYY-MM-DD)"),
@@ -358,8 +361,14 @@ def download_binance(
             f"[bold blue]Downloading {symbol} {timeframe} ({start} → {end}) from Binance {market} archive..."
         ):
             df = download_binance_to_store(
-                fetcher, store, symbol, timeframe, start, end,
-                market=market, exchange_suffix=binance_suffix,
+                fetcher,
+                store,
+                symbol,
+                timeframe,
+                start,
+                end,
+                market=market,
+                exchange_suffix=binance_suffix,
             )
         if df.empty:
             console.print(
@@ -432,9 +441,7 @@ def download_bybit(
             with console.status(
                 f"[bold blue]Downloading {symbol} {timeframe} ({start} → {end}) [{category}]..."
             ):
-                df = await fetcher.fetch_ohlcv(
-                    symbol, timeframe, start, end, category=category
-                )
+                df = await fetcher.fetch_ohlcv(symbol, timeframe, start, end, category=category)
             if df.empty:
                 console.print(
                     "[red]ERR No data fetched. Check the symbol, timeframe, and date range.[/]"
@@ -497,7 +504,9 @@ def download_bybit_funding(
             from quantflow.data.bybit_common import bybit_store_symbol
 
             last_ts = store.get_last_meta_timestamp(bybit_store_symbol(symbol), "funding_rate")
-            console.print(f"[green]OK[/] Saved [bold]{len(df)}[/] funding rows for [bold]{symbol}-BYBIT[/]")
+            console.print(
+                f"[green]OK[/] Saved [bold]{len(df)}[/] funding rows for [bold]{symbol}-BYBIT[/]"
+            )
             if last_ts is not None:
                 last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
                 console.print(f"  Last funding time: {last_date}")
@@ -541,7 +550,9 @@ def download_bybit_oi(
             with console.status("[bold blue]Connecting to Bybit (meta)..."):
                 await fetcher.connect()
             since_ms = int(time.time() * 1000) - days * 86_400_000
-            with console.status(f"[bold blue]Backfilling Bybit OI for {symbol} ({period}, {days}d)..."):
+            with console.status(
+                f"[bold blue]Backfilling Bybit OI for {symbol} ({period}, {days}d)..."
+            ):
                 df = await fetcher.fetch_open_interest_history(
                     symbol, tf_map[period], since_ms, mark_usd=mark_usd
                 )
@@ -552,7 +563,9 @@ def download_bybit_oi(
             from quantflow.data.bybit_common import bybit_store_symbol
 
             last_ts = store.get_last_meta_timestamp(bybit_store_symbol(symbol), "open_interest")
-            console.print(f"[green]OK[/] Saved [bold]{len(df)}[/] OI rows for [bold]{symbol}-BYBIT[/] ({period})")
+            console.print(
+                f"[green]OK[/] Saved [bold]{len(df)}[/] OI rows for [bold]{symbol}-BYBIT[/] ({period})"
+            )
             if last_ts is not None:
                 last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
                 console.print(f"  Last OI timestamp: {last_date}")
@@ -1198,9 +1211,7 @@ def _display_causal_preflight(report: Any) -> None:
     if report.passed:
         console.print("[green]No high-severity causal leaks detected.[/]")
     else:
-        console.print(
-            "[yellow]Fix high findings before dual-path gate / promotion research.[/]"
-        )
+        console.print("[yellow]Fix high findings before dual-path gate / promotion research.[/]")
     for note in report.notes or []:
         console.print(f"[dim]note: {note}[/]")
     console.print()

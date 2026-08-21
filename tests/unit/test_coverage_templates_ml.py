@@ -124,7 +124,9 @@ class TestAIFactorStrategy:
 
     def test_load_model_no_usable_entries(self) -> None:
         s = AIFactorStrategy(params={"registry_dir": "/x"})
-        with patch("quantflow.strategy.model_registry.ModelRegistry", return_value=_fake_registry()):
+        with patch(
+            "quantflow.strategy.model_registry.ModelRegistry", return_value=_fake_registry()
+        ):
             s._load_model()
         assert s._model is None
 
@@ -210,7 +212,7 @@ class TestAIFactorStrategy:
     def test_generate_signals_short_history(self) -> None:
         s = AIFactorStrategy(params={"fast_ma_period": 3, "slow_ma_period": 5})
         df = _df(5)
-        entries, exits = s.generate_signals(df)
+        entries, _exits = s.generate_signals(df)
         assert len(entries) == 5
         assert int(entries.sum()) == 0
 
@@ -219,7 +221,7 @@ class TestAIFactorStrategy:
         s._model = MagicMock()
         s._model.predict_proba.side_effect = RuntimeError("boom")
         df = _df(30)
-        entries, exits = s.generate_signals(df)
+        entries, _exits = s.generate_signals(df)
         assert int(entries.sum()) >= 0  # degraded to momentum, no raise
 
     def test_predict_up_empty_features(self) -> None:

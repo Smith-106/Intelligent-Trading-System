@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -45,7 +45,7 @@ class TestHistoryTail2:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("\n" + json.dumps({"i": 1}) + "\n", encoding="utf-8", newline="\n")
         tail = store._read_tail_lines(path, max_lines=10)
-        non_blank = [l for l in tail if l.strip()]
+        non_blank = [line for line in tail if line.strip()]
         assert json.loads(non_blank[-1])["i"] == 1
 
 
@@ -65,6 +65,7 @@ class TestSecurityTail2:
                 headers={"Origin": "http://localhost:8080", "Host": "localhost:8080"},
                 app={},
             )
+
             async def handler(r: Any) -> web.Response:
                 return web.Response(text="ok")
 
@@ -150,9 +151,7 @@ class TestServiceTail2:
         store = StationHistoryStore(base_dir=tmp_path / "h")
         path = tmp_path / "h" / "validation_runs.jsonl"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            _json.dumps({"payload": "not-a-dict"}) + "\n", encoding="utf-8"
-        )
+        path.write_text(_json.dumps({"payload": "not-a-dict"}) + "\n", encoding="utf-8")
         service = StationService(history_store=store)
         items = service.validation_history(limit=5)
         assert isinstance(items, list)
@@ -222,16 +221,13 @@ class TestOverviewTail2:
         self, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """L963-968: timestamps all NaN → no date_range."""
-        from quantflow.web import service as svc
 
         store = StationHistoryStore(base_dir=tmp_path / "h")
         service = StationService(history_store=store)
         fake_store = MagicMock()
         fake_store.list_symbols = MagicMock(return_value=["BTC_USDT"])
         fake_store.query = MagicMock(
-            return_value=pd.DataFrame(
-                {"timestamp": [None, None], "data_source": ["okx", "okx"]}
-            )
+            return_value=pd.DataFrame({"timestamp": [None, None], "data_source": ["okx", "okx"]})
         )
         fake_store.get_date_range = MagicMock(return_value=None)
         fake_store.close = MagicMock()
@@ -256,7 +252,6 @@ class TestDataSnapshotTail2:
         self, tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """L1049-1062: source_breakdown not dict."""
-        from quantflow.web import service as svc
 
         service = self._service(tmp_path)
         overview = {
@@ -390,12 +385,16 @@ class TestMonitoringSnapshotTail2:
         service = self._service(tmp_path)
         monkeypatch.setattr(service, "overview", lambda: self._overview())
         monkeypatch.setattr(service, "research_history", lambda limit=6: [])
-        monkeypatch.setattr(
-            service, "validation_history", lambda limit=6: [{"summary": {}}]
-        )
+        monkeypatch.setattr(service, "validation_history", lambda limit=6: [{"summary": {}}])
         with (
-            patch("quantflow.web.service.metrics_registry_snapshot", return_value={"values": {}, "available": False}),
-            patch("quantflow.web.service.metrics_server_status", return_value={"attempted": False, "started": False}),
+            patch(
+                "quantflow.web.service.metrics_registry_snapshot",
+                return_value={"values": {}, "available": False},
+            ),
+            patch(
+                "quantflow.web.service.metrics_server_status",
+                return_value={"attempted": False, "started": False},
+            ),
             patch("quantflow.web.service._port_reachable", return_value=True),
         ):
             result = service.monitoring_snapshot(
@@ -418,7 +417,10 @@ class TestMonitoringSnapshotTail2:
             lambda limit=6: [{"summary": {"outcome_label": "NO-GO"}}],
         )
         with (
-            patch("quantflow.web.service.metrics_registry_snapshot", return_value={"values": {}, "available": False}),
+            patch(
+                "quantflow.web.service.metrics_registry_snapshot",
+                return_value={"values": {}, "available": False},
+            ),
             patch(
                 "quantflow.web.service.metrics_server_status",
                 return_value={"attempted": True, "started": False, "last_error": "boom"},
@@ -441,8 +443,14 @@ class TestMonitoringSnapshotTail2:
         monkeypatch.setattr(service, "research_history", lambda limit=6: [])
         monkeypatch.setattr(service, "validation_history", lambda limit=6: [])
         with (
-            patch("quantflow.web.service.metrics_registry_snapshot", return_value={"values": {}, "available": False}),
-            patch("quantflow.web.service.metrics_server_status", return_value={"attempted": False, "started": False}),
+            patch(
+                "quantflow.web.service.metrics_registry_snapshot",
+                return_value={"values": {}, "available": False},
+            ),
+            patch(
+                "quantflow.web.service.metrics_server_status",
+                return_value={"attempted": False, "started": False},
+            ),
             patch("quantflow.web.service._port_reachable", return_value=True),
         ):
             result = service.monitoring_snapshot(
@@ -461,8 +469,14 @@ class TestMonitoringSnapshotTail2:
         monkeypatch.setattr(service, "research_history", lambda limit=6: [])
         monkeypatch.setattr(service, "validation_history", lambda limit=6: [])
         with (
-            patch("quantflow.web.service.metrics_registry_snapshot", return_value={"values": {}, "available": False}),
-            patch("quantflow.web.service.metrics_server_status", return_value={"attempted": False, "started": False}),
+            patch(
+                "quantflow.web.service.metrics_registry_snapshot",
+                return_value={"values": {}, "available": False},
+            ),
+            patch(
+                "quantflow.web.service.metrics_server_status",
+                return_value={"attempted": False, "started": False},
+            ),
             patch("quantflow.web.service._port_reachable", return_value=True),
         ):
             result = service.monitoring_snapshot(

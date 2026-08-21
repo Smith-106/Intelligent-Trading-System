@@ -126,6 +126,8 @@ def build_tpsl_validation_report(
     report["promotion_eligible"] = False
     # unreachable: acc.underreported is False here (early return above) and no
     # code path can flip report["underreported"] afterwards.
-    if report.get("underreported"):  # pragma: no cover - defensive guard, impossible after line 87 early return
+    if report.get(
+        "underreported"
+    ):  # pragma: no cover - defensive guard, impossible after line 87 early return
         report["decision"] = "NO-GO"
     return report

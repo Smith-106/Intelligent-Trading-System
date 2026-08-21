@@ -35,7 +35,11 @@ def _wave(label: int, start_price: float, end_price: float) -> WaveSegment:
     direction = PivotDirection.HIGH if end_price >= start_price else PivotDirection.LOW
     return WaveSegment(
         label=label,
-        start=_pivot(0, start_price, PivotDirection.LOW if direction == PivotDirection.HIGH else PivotDirection.HIGH),
+        start=_pivot(
+            0,
+            start_price,
+            PivotDirection.LOW if direction == PivotDirection.HIGH else PivotDirection.HIGH,
+        ),
         end=_pivot(1, end_price, direction),
     )
 
@@ -78,7 +82,6 @@ class TestCausalCoverage:
             assert_series_causal(lambda _: pd.DataFrame(), frame, min_prefix=50)
         assert_frame_causal(lambda value: value, frame, ["x", "y"], min_prefix=50)
 
-
     def test_causal_nan_pattern_and_value_failures(self) -> None:
         frame = pd.DataFrame({"x": np.arange(70, dtype=float)})
 
@@ -116,7 +119,10 @@ class TestCausalCoverage:
         ]
         assert scan_source_for_negative_shift("def broken(:") == []
         assert scan_source_for_negative_shift("s.shift(periods=n)") == []
-        assert scan_source_for_negative_shift("def f(s):\n    return s.shift(periods=n, foo=1)\n") == []
+        assert (
+            scan_source_for_negative_shift("def f(s):\n    return s.shift(periods=n, foo=1)\n")
+            == []
+        )
         assert scan_source_for_negative_shift("def f(s):\n    return s.shift(-n)\n") == []
 
     def test_callable_source_fallback_and_clean_callable(self) -> None:
@@ -199,7 +205,6 @@ class TestCriticalLevelCoverage:
         assert corrective.levels[0].severity == "hard"
         assert corrective.levels[1].severity == "soft"
 
-
     def test_scenario_false_branches_for_missing_wave_and_zero_amplitude(self) -> None:
         detector = CriticalLevelDetector()
 
@@ -252,7 +257,6 @@ class TestIndicatorEngineCoverage:
         result = engine.batch_calculate(frame)
 
         assert result.equals(frame)
-
 
     def test_batch_defaults_for_missing_ohlcv_columns(self) -> None:
         engine = IndicatorEngine()

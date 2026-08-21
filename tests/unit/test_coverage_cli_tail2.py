@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pandas as pd
@@ -42,7 +41,7 @@ class TestOptimizeTail2:
         fake_opt = MagicMock()
 
         def _fake_optimize(close, signal_fn, param_space, **kw):
-            out = signal_fn(close)
+            signal_fn(close)
             return {
                 "method": "bayesian",
                 "objective": "sharpe",
@@ -68,8 +67,16 @@ class TestBenchmarkTail2:
         result = runner.invoke(
             app,
             [
-                "benchmark", "--bars", "80", "--trials", "1", "--wfo-windows", "1",
-                "--skip-subprocess", "--min-bars-per-sec", "1000000000",
+                "benchmark",
+                "--bars",
+                "80",
+                "--trials",
+                "1",
+                "--wfo-windows",
+                "1",
+                "--skip-subprocess",
+                "--min-bars-per-sec",
+                "1000000000",
             ],
         )
         assert result.exit_code == 1
@@ -87,7 +94,7 @@ class TestCliInit:
         import quantflow.cli as cli_pkg
 
         with pytest.raises(AttributeError, match="has no attribute"):
-            getattr(cli_pkg, "nope")
+            _ = cli_pkg.nope
 
 
 # ------------------------------------------------------------------ download_oi
@@ -99,7 +106,9 @@ class TestDownloadOiTail2:
         fake_store = MagicMock()
         fake_store.close = MagicMock()
         with (
-            patch("quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher),
+            patch(
+                "quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher
+            ),
             patch("quantflow.data.store.DataStore", return_value=fake_store),
         ):
             result = runner.invoke(app, ["download-oi", "--symbol", "BTC/USDT"])
@@ -138,9 +147,7 @@ class TestRunTail2:
             patch("quantflow.strategy.engine.TradingSession", return_value=fake_session),
             patch("quantflow.monitoring.sink.create_default_sink", return_value=MagicMock()),
         ):
-            result = runner.invoke(
-                app, ["run", "--mode", "paper", "--strategy", "trend_following"]
-            )
+            result = runner.invoke(app, ["run", "--mode", "paper", "--strategy", "trend_following"])
         assert result.exit_code == 0
         assert "Stopping session" in result.output
 
@@ -162,9 +169,7 @@ class TestDisplayHelpersTail2:
         fake.strategy = "s"
         fake.scanned_methods = ["generate_signals"]
         fake.source_path = "src.py"
-        fake.findings = [
-            SimpleNamespace(severity="high", line=1, pattern="p", snippet="sn")
-        ]
+        fake.findings = [SimpleNamespace(severity="high", line=1, pattern="p", snippet="sn")]
         cli_main._display_lookahead(fake)
 
     def test_display_recursive_cycles(self) -> None:
@@ -261,8 +266,14 @@ class TestAiActionsTail:
             result = runner.invoke(
                 app,
                 [
-                    "ai", "train", "--symbol", "BTC/USDT",
-                    "--features-csv", str(feat), "--close-csv", str(close),
+                    "ai",
+                    "train",
+                    "--symbol",
+                    "BTC/USDT",
+                    "--features-csv",
+                    str(feat),
+                    "--close-csv",
+                    str(close),
                 ],
             )
         assert result.exit_code == 0
@@ -302,8 +313,12 @@ class TestAiActionsTail:
             result = runner.invoke(
                 app,
                 [
-                    "ai", "train", "--symbol", "BTC/USDT",
-                    "--factors-json", str(fj),
+                    "ai",
+                    "train",
+                    "--symbol",
+                    "BTC/USDT",
+                    "--factors-json",
+                    str(fj),
                 ],
             )
         assert result.exit_code == 0
@@ -352,8 +367,12 @@ class TestAiActionsTail:
             result = runner.invoke(
                 app,
                 [
-                    "ai", "train", "--symbol", "BTC/USDT",
-                    "--factors-json", str(fj),
+                    "ai",
+                    "train",
+                    "--symbol",
+                    "BTC/USDT",
+                    "--factors-json",
+                    str(fj),
                 ],
             )
         assert result.exit_code == 0
@@ -388,9 +407,7 @@ class TestAiActionsTail:
             encoding="utf-8",
         )
         fake_reg = MagicMock()
-        fake_reg.register = MagicMock(
-            return_value={"status": "paper", "reason": "ok"}
-        )
+        fake_reg.register = MagicMock(return_value={"status": "paper", "reason": "ok"})
         monkeypatch.chdir(tmp_path)
         with patch("quantflow.strategy.model_registry.ModelRegistry", return_value=fake_reg):
             result = runner.invoke(app, ["ai", "register", "--model-id", "model-abc"])

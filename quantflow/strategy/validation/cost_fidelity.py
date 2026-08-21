@@ -96,9 +96,7 @@ def require_cost_grid(
             raise CostFidelityError(
                 "cost fidelity incomplete: grid must include zero-cost cell (fee=0, slip=0)"
             )
-        if not grid_has_fee_slip(
-            grid, fee=DEFAULT_TAKER_FEE, slip=DEFAULT_SLIPPAGE
-        ):
+        if not grid_has_fee_slip(grid, fee=DEFAULT_TAKER_FEE, slip=DEFAULT_SLIPPAGE):
             raise CostFidelityError(
                 "cost fidelity incomplete: grid must include production cell "
                 f"(fee={DEFAULT_TAKER_FEE}, slip={DEFAULT_SLIPPAGE})"
@@ -182,11 +180,7 @@ def require_dual_risk_report(report: dict[str, Any] | None) -> list[dict[str, An
         raise CostFidelityError(
             "dual risk report missing: need risk_ablation with research_bypass and prod_risk"
         )
-    names = {
-        str(r.get("case", r.get("name", ""))).lower()
-        for r in rows
-        if isinstance(r, dict)
-    }
+    names = {str(r.get("case", r.get("name", ""))).lower() for r in rows if isinstance(r, dict)}
     has_research = any("research" in n or "bypass" in n for n in names)
     has_prod = any("prod" in n or "production" in n for n in names)
     if not (has_research and has_prod):
@@ -326,9 +320,7 @@ def require_funding_tca(report: dict[str, Any] | None) -> dict[str, Any]:
         )
     )
     if not has_qty and not isinstance(block.get("measured"), dict):
-        raise CostFidelityError(
-            "funding_tca incomplete: need estimated drag or measured rates"
-        )
+        raise CostFidelityError("funding_tca incomplete: need estimated drag or measured rates")
     return block
 
 

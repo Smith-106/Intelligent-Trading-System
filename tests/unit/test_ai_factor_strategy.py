@@ -63,7 +63,9 @@ def _go_with_cost(**extra: object) -> dict:
     return report
 
 
-def _seed_registry(tmp_path: Path, model_cls: str = "RandomForestClassifier", status: str = "paper") -> str:
+def _seed_registry(
+    tmp_path: Path, model_cls: str = "RandomForestClassifier", status: str = "paper"
+) -> str:
     reg = ModelRegistry(str(tmp_path))
     model_id = "m-test-1"
     reg.register(
@@ -73,9 +75,7 @@ def _seed_registry(tmp_path: Path, model_cls: str = "RandomForestClassifier", st
         validation_report=_go_with_cost(),
     )
     if status == "live":
-        reg.promote_to_live(
-            model_id, paper_evidence={"paper_days": 14, "fills": 40}
-        )
+        reg.promote_to_live(model_id, paper_evidence={"paper_days": 14, "fills": 40})
     return model_id
 
 
@@ -105,7 +105,9 @@ class TestAIFactorStrategyRegistry:
 
     def test_missing_model_id_degrades_to_momentum(self, tmp_path: Path) -> None:
         _seed_registry(tmp_path)
-        strat = AIFactorStrategy(params={"registry_dir": str(tmp_path), "model_id": "m-does-not-exist"})
+        strat = AIFactorStrategy(
+            params={"registry_dir": str(tmp_path), "model_id": "m-does-not-exist"}
+        )
         strat._load_model()
         assert strat._model is None
         entries, _ = strat.generate_signals(_df())
@@ -115,9 +117,7 @@ class TestAIFactorStrategyRegistry:
         reg = ModelRegistry(str(tmp_path))
         reg.register("m-paper", "RandomForestClassifier", "h1", _go_with_cost())
         reg.register("m-live", "RandomForestClassifier", "h2", _go_with_cost())
-        reg.promote_to_live(
-            "m-live", paper_evidence={"paper_days": 14, "fills": 40}
-        )
+        reg.promote_to_live("m-live", paper_evidence={"paper_days": 14, "fills": 40})
         strat = AIFactorStrategy(params={"registry_dir": str(tmp_path)})
         strat._load_model()
         assert strat._model_id == "m-live"

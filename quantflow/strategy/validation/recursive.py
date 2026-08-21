@@ -95,7 +95,9 @@ def _extract_indicator_deps(strategy_class: type) -> dict[str, list[str]]:
                 if isinstance(child, ast.Attribute):
                     # Look for patterns like: self.rsi.compute(), self.macd.compute()
                     if isinstance(child.value, ast.Attribute):
-                        if hasattr(child.value, "attr"):  # pragma: no branch — Attribute nodes always carry .attr
+                        if hasattr(
+                            child.value, "attr"
+                        ):  # pragma: no branch — Attribute nodes always carry .attr
                             indicator_calls.append(child.value.attr)
                     # Look for: IndicatorEngine.compute_all, engine.compute()
                     elif isinstance(child.value, ast.Name):

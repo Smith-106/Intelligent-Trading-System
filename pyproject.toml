@@ -95,7 +95,13 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
-ignore = ["E501", "B027", "N806", "SIM102", "SIM116", "SIM117", "RUF001", "RUF003", "RUF012"]
+ignore = ["E501", "B027", "N806", "SIM102", "SIM116", "SIM117", "RUF001", "RUF002", "RUF003", "RUF012"]
+
+# Mock classes mirror external SDK method names (ccxt camelCase), so the
+# lowercase rule does not apply there.
+[tool.ruff.lint.per-file-ignores]
+"tests/unit/test_market_meta_fetcher.py" = ["N802"]
+"tests/unit/test_coverage_fetcher_meta.py" = ["N802"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["quantflow"]

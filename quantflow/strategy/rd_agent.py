@@ -481,9 +481,7 @@ def save_discovered_factors(
 
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     path = dest_dir / f"factors_{stamp}.json"
-    payload = factors_to_payload(
-        factors, symbol=symbol, source=source, train_rows=train_rows
-    )
+    payload = factors_to_payload(factors, symbol=symbol, source=source, train_rows=train_rows)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     latest = dest_dir / "latest.json"
     latest.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

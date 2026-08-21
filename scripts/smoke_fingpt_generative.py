@@ -46,7 +46,11 @@ def main() -> int:
         scores = analyzer.analyze_text(text)
         finite = sum(1 for v in scores.values() if v == v)  # NaN-safe count
         print(f"[smoke] {text!r}\n        -> {scores} finite={finite}")
-    print("[smoke] PASS (end-to-end generative path; NaN = fail-closed sentinel)" if ok else "[smoke] FAIL")
+    print(
+        "[smoke] PASS (end-to-end generative path; NaN = fail-closed sentinel)"
+        if ok
+        else "[smoke] FAIL"
+    )
     return 0 if ok else 1
 
 

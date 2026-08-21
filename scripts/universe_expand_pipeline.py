@@ -47,7 +47,7 @@ def _load_sla_thresholds() -> tuple[int, float, float]:
             float(sla.get("max_bar_age_hours", MAX_BAR_AGE_HOURS)),
             float(sla.get("min_quality", MIN_QUALITY)),
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         return MIN_BARS, MAX_BAR_AGE_HOURS, MIN_QUALITY
 
 
@@ -112,7 +112,7 @@ def evaluate_symbol_sla(
     finally:
         store.close()
 
-    n = int(len(df)) if df is not None else 0
+    n = len(df) if df is not None else 0
     if n == 0:
         return {
             "symbol": symbol,
@@ -272,7 +272,7 @@ def rebalance_cost_sensitivity(
     for taker, slippage in cells:
         try:
             rows.append(asyncio.run(_one(taker, slippage)))
-        except Exception as exc:  # noqa: BLE001 — report cell failure, don't invent metrics
+        except Exception as exc:
             rows.append(
                 {
                     "taker_fee": taker,
@@ -283,7 +283,11 @@ def rebalance_cost_sensitivity(
 
     zero = next((r for r in rows if r.get("taker_fee") == 0.0 and "error" not in r), None)
     base = next(
-        (r for r in rows if r.get("taker_fee") == fee and r.get("slippage") == slip and "error" not in r),
+        (
+            r
+            for r in rows
+            if r.get("taker_fee") == fee and r.get("slippage") == slip and "error" not in r
+        ),
         None,
     )
     drag = None
@@ -363,7 +367,7 @@ def main() -> int:
                     repo_root=REPO_ROOT,
                 )
                 print(f"[universe] from-config {default_universe_path(REPO_ROOT)} → {symbols}")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"[universe] config load failed: {exc}; using defaults", flush=True)
             symbols = list(DEFAULT_SYMBOLS)
 
@@ -466,9 +470,7 @@ def main() -> int:
             "sla": sla_rows,
             "baseline_default": baseline_default_symbols(repo_root=REPO_ROOT),
             "baseline_book": [
-                s
-                for s in admitted
-                if s in set(baseline_default_symbols(repo_root=REPO_ROOT))
+                s for s in admitted if s in set(baseline_default_symbols(repo_root=REPO_ROOT))
             ],
             "rule": "Only sla_pass symbols; baseline runners use admitted ∩ baseline_default",
             "source_report": str(out_path.relative_to(REPO_ROOT)).replace("\\", "/"),

@@ -70,7 +70,9 @@ def _predict(model: Any, tok: Any, text: str, neutral_floor: float = 0.0) -> str
         logits = model(**ids).logits
     probs = torch.softmax(logits, dim=-1)[0]
     id2label = model.config.id2label
-    labels = {i: str(id2label.get(i) or id2label.get(str(i), str(i))) for i in range(probs.shape[0])}
+    labels = {
+        i: str(id2label.get(i) or id2label.get(str(i), str(i))) for i in range(probs.shape[0])
+    }
     neutral_idx = next((i for i, lbl in labels.items() if lbl == "neutral"), None)
     if neutral_floor > 0.0 and neutral_idx is not None:
         pn = float(probs[neutral_idx])
@@ -83,7 +85,9 @@ def _predict(model: Any, tok: Any, text: str, neutral_floor: float = 0.0) -> str
     return labels[idx]
 
 
-def _evaluate(model_id: str, neutral_floor: float = 0.0) -> tuple[float, list[tuple[str, str, str]]]:
+def _evaluate(
+    model_id: str, neutral_floor: float = 0.0
+) -> tuple[float, list[tuple[str, str, str]]]:
     tok: Any = AutoTokenizer.from_pretrained(model_id)
     model: Any = AutoModelForSequenceClassification.from_pretrained(model_id)
     model.eval()

@@ -49,7 +49,7 @@ def test_generate_signals_sma_default() -> None:
             "volume": [b.volume for b in bars],
         }
     )
-    entries, exits = s.generate_signals(df)
+    entries, _exits = s.generate_signals(df)
     assert len(entries) == len(df)
     assert entries.dtype == bool or str(entries.dtype) == "bool"
     # uptrend early → at least one entry expected

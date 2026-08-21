@@ -67,7 +67,7 @@ class TradesStore:
             written += len(combined) - (before - len(group))
             # simpler accounting: count group rows after merge
         logger.info("TradesStore saved trades for %s (%d input rows)", symbol, len(df))
-        return int(len(df))
+        return len(df)
 
     def load_trades(
         self,

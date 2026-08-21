@@ -169,12 +169,8 @@ def main() -> int:
             "pbo_source": attachments["tpsl_validation"].get("pbo_source"),
             "promotion_eligible": False,
         }
-        path_b["n_trials_accounted"] = attachments["tpsl_validation"].get(
-            "n_trials_accounted"
-        )
-        path_b["n_trials_breakdown"] = attachments["tpsl_validation"].get(
-            "n_trials_breakdown"
-        )
+        path_b["n_trials_accounted"] = attachments["tpsl_validation"].get("n_trials_accounted")
+        path_b["n_trials_breakdown"] = attachments["tpsl_validation"].get("n_trials_breakdown")
         path_b["execution_models"] = attachments["tpsl_validation"].get(
             "execution_models", {"tpsl_simulator": True}
         )

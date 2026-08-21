@@ -9,17 +9,16 @@
 from __future__ import annotations
 
 import json
-import math
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from quantflow.strategy.research import benchmark_excess as be
 from quantflow.strategy.research import contract_pin as cp
-from quantflow.strategy.research import universe_config as uc
 from quantflow.strategy.research import day_deviation as dd
 from quantflow.strategy.research import spot_perp_sim as sps
-from quantflow.strategy.research import benchmark_excess as be
+from quantflow.strategy.research import universe_config as uc
 from quantflow.strategy.research.n_trials_budget import (
     TrialsAccount,
     TrialsBreakdown,
@@ -104,8 +103,11 @@ def test_load_and_fingerprint_symbols_skips_empty() -> None:
             return {"none": None, "empty": pd.DataFrame(), "good": good, "bare": bare}[sym]
 
     frames, block = cp.load_and_fingerprint_symbols(
-        MockStore(), ["none", "empty", "good", "bare"],
-        start_ms=1, end_ms=10, timeframe="1h",
+        MockStore(),
+        ["none", "empty", "good", "bare"],
+        start_ms=1,
+        end_ms=10,
+        timeframe="1h",
     )
     assert set(frames) == {"good", "bare"}
     assert block["symbol_count"] == 2
@@ -326,11 +328,11 @@ def test_load_json_corrupt(tmp_path) -> None:
 
 
 def test_load_baseline_snapshot_relative_paths(tmp_path) -> None:
-    (tmp_path / "g.json").write_text(json.dumps({"decision": "GO", "metrics": {"sharpe": 1}}),
-                                     encoding="utf-8")
+    (tmp_path / "g.json").write_text(
+        json.dumps({"decision": "GO", "metrics": {"sharpe": 1}}), encoding="utf-8"
+    )
     (tmp_path / "m.json").write_text(json.dumps({"start": "2024"}), encoding="utf-8")
-    (tmp_path / "f.json").write_text(json.dumps({"metrics": {"return_pct": 5.0}}),
-                                     encoding="utf-8")
+    (tmp_path / "f.json").write_text(json.dumps({"metrics": {"return_pct": 5.0}}), encoding="utf-8")
     snap = dd.load_baseline_snapshot(
         repo_root=tmp_path, gate_path="g.json", meta_path="m.json", full_path="f.json"
     )
@@ -572,13 +574,14 @@ def test_optimizer_evaluate_params_non_finite(monkeypatch) -> None:
     from quantflow.strategy.research.optimizer import StrategyOptimizer
 
     close = pd.Series([1.0, 2.0, 3.0])
-    sig = lambda c, **p: (pd.Series(False, index=c.index), pd.Series(False, index=c.index))
+
+    def sig(c, **p):
+        return (pd.Series(False, index=c.index), pd.Series(False, index=c.index))
+
     monkeypatch.setattr(
         StrategyOptimizer, "_objective_value", staticmethod(lambda r, o: float("nan"))
     )
-    v = StrategyOptimizer()._evaluate_params(
-        close, sig, {}, 10000.0, 0.001, "sharpe", "test"
-    )
+    v = StrategyOptimizer()._evaluate_params(close, sig, {}, 10000.0, 0.001, "sharpe", "test")
     assert v == -10.0
 
 

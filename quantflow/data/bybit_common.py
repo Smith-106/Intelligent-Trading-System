@@ -18,8 +18,18 @@ STORE_SYMBOL_MAX_LEN = 20
 
 #: Month abbreviations used in Bybit's native delivery ids (``28AUG26``).
 _MONTH_ABBR = (
-    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
 )
 
 

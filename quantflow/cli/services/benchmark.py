@@ -391,9 +391,15 @@ class BenchmarkService:
 
             def on_bar(self, ctx: StrategyContext, bar: Bar) -> None:
                 if bar.close < 0:  # pragma: no cover — synthetic frame prices are always positive
-                    ctx.emit_signal(bar.symbol, Direction.LONG, 1.0, bar.close, self.name)  # pragma: no cover
+                    ctx.emit_signal(
+                        bar.symbol, Direction.LONG, 1.0, bar.close, self.name
+                    )  # pragma: no cover
 
-            def generate_signals(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:  # pragma: no cover — not invoked by the runtime benchmark
+            def generate_signals(
+                self, df: pd.DataFrame
+            ) -> tuple[
+                pd.Series, pd.Series
+            ]:  # pragma: no cover — not invoked by the runtime benchmark
                 empty = pd.Series(False, index=df.index)
                 return empty, empty
 

@@ -25,7 +25,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from quantflow.common.config import AppConfig
-from quantflow.common.models import Bar, Direction, Signal
+from quantflow.common.models import Bar, Direction
 from quantflow.strategy.base import StrategyBase, StrategyContext
 from quantflow.strategy.engine import TradingSession
 
@@ -134,7 +134,9 @@ async def run_replay(days: int) -> dict:
                 )
                 await session.on_bar(bar)
             report = session._portfolio.budget_utilization()
-            utilization_log.append({"ts": ts, **{k: v["utilization_pct"] for k, v in report.items()}})
+            utilization_log.append(
+                {"ts": ts, **{k: v["utilization_pct"] for k, v in report.items()}}
+            )
             for k, v in report.items():
                 max_util[k] = max(max_util.get(k, 0.0), v["utilization_pct"])
     finally:
@@ -151,7 +153,9 @@ def main() -> None:
     result = asyncio.run(run_replay(args.days))
 
     print("\n=== BUDGET UTILIZATION VERIFICATION ===")
-    print(f"window: {result['bars']} bars ({args.days} days), 3 assets, risk-parity + dynamic budget")
+    print(
+        f"window: {result['bars']} bars ({args.days} days), 3 assets, risk-parity + dynamic budget"
+    )
     all_pass = True
     for sid, util in sorted(result["max_util"].items()):
         status = "PASS" if util <= 1.0 else "FAIL"

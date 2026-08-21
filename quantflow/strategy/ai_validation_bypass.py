@@ -105,9 +105,7 @@ def assert_ai_live_not_wired(entry_or_report: dict[str, Any] | None) -> None:
         or validation.get("ai_lane") == AI_LANE
         or validation.get("ai_live_blocked") is True
     ):
-        raise AILiveWireError(
-            "AI validation_bypass lane cannot promote_to_live (T036 fail-closed)"
-        )
+        raise AILiveWireError("AI validation_bypass lane cannot promote_to_live (T036 fail-closed)")
 
 
 def run_ai_validation_bypass(
@@ -171,7 +169,9 @@ def run_ai_validation_bypass(
         runner = RDAgentRunner()
         available, msg = runner.check_available()
         if not available:
-            notes.append(f"qlib/rdagent unavailable — baseline degrade ({msg.splitlines()[0] if msg else ''})")
+            notes.append(
+                f"qlib/rdagent unavailable — baseline degrade ({msg.splitlines()[0] if msg else ''})"
+            )
         factors = runner.discover_factors(df)
         saved = save_discovered_factors(
             factors, symbol=symbol, source="ai_validation_bypass", train_rows=len(df)
@@ -204,9 +204,7 @@ def run_ai_validation_bypass(
 
     BYPASS_REPORT_DIR.mkdir(parents=True, exist_ok=True)
     report_path = BYPASS_REPORT_DIR / f"{model_id}.json"
-    report_path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    report_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     registered_status = "skipped"
     if register:
@@ -229,12 +227,13 @@ def run_ai_validation_bypass(
         entry["ai_lane"] = AI_LANE
         entry["ai_live_blocked"] = True
         entry_path = Path(registry_dir) / f"{model_id}.json"
-        if entry_path.exists() or entry.get("status") in {"paper", "rejected"}:  # pragma: no branch — register() always returns paper/rejected
+        if entry_path.exists() or entry.get("status") in {
+            "paper",
+            "rejected",
+        }:  # pragma: no branch — register() always returns paper/rejected
             # Re-write entry with stamps (register already wrote once).
             entry_path.parent.mkdir(parents=True, exist_ok=True)
-            entry_path.write_text(
-                json.dumps(entry, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            entry_path.write_text(json.dumps(entry, ensure_ascii=False, indent=2), encoding="utf-8")
         registered_status = str(entry.get("status", "rejected"))
         notes.append(f"register → {registered_status}: {entry.get('reason', '')}")
 

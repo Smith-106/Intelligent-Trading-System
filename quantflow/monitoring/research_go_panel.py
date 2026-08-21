@@ -155,22 +155,21 @@ def load_research_go_panel(
         )
         return None
     if not isinstance(raw, dict):
-        logger.warning(
-            "research GO panel %s is not a JSON object — fail-soft None", panel_path
-        )
+        logger.warning("research GO panel %s is not a JSON object — fail-soft None", panel_path)
         return None
 
     gate = raw.get("baseline0_gate")
     if not isinstance(gate, dict):
-        logger.warning(
-            "research GO panel %s missing baseline0_gate — fail-soft None", panel_path
-        )
+        logger.warning("research GO panel %s missing baseline0_gate — fail-soft None", panel_path)
         return None
     decision = gate.get("decision")
     primary_mode = gate.get("primary_mode")
-    if not isinstance(decision, str) or not decision or not isinstance(
-        primary_mode, str
-    ) or not primary_mode:
+    if (
+        not isinstance(decision, str)
+        or not decision
+        or not isinstance(primary_mode, str)
+        or not primary_mode
+    ):
         logger.warning(
             "research GO panel %s missing decision/primary_mode — fail-soft None",
             panel_path,

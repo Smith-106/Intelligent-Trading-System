@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pandas as pd
@@ -42,6 +40,7 @@ def _df_no_datetime(n: int = 100) -> pd.DataFrame:
 class TestMakeConsoleTail:
     def test_make_console_no_reconfigure(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """L81: stream without reconfigure → skip."""
+
         class NoReconfig:
             pass
 
@@ -83,7 +82,9 @@ class TestDownloadFundingTail4:
         fake_store.get_last_meta_timestamp = MagicMock(return_value=None)
         fake_store.close = MagicMock()
         with (
-            patch("quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher),
+            patch(
+                "quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher
+            ),
             patch("quantflow.data.store.DataStore", return_value=fake_store),
         ):
             result = runner.invoke(app, ["download-funding", "--symbol", "BTC/USDT"])
@@ -102,7 +103,9 @@ class TestDownloadOiTail4:
         fake_store.get_last_meta_timestamp = MagicMock(return_value=None)
         fake_store.close = MagicMock()
         with (
-            patch("quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher),
+            patch(
+                "quantflow.data.market_meta_fetcher.MarketMetaFetcher", return_value=fake_fetcher
+            ),
             patch("quantflow.data.store.DataStore", return_value=fake_store),
         ):
             result = runner.invoke(app, ["download-oi", "--symbol", "BTC/USDT"])
@@ -278,8 +281,12 @@ class TestAiTrainTail4:
             result = runner.invoke(
                 app,
                 [
-                    "ai", "train", "--symbol", "BTC/USDT",
-                    "--factors-json", str(fj),
+                    "ai",
+                    "train",
+                    "--symbol",
+                    "BTC/USDT",
+                    "--factors-json",
+                    str(fj),
                 ],
             )
         assert result.exit_code == 0

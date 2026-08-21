@@ -40,7 +40,6 @@ from quantflow.execution.order_manager import MAX_TRACKED_ORDERS, OrderManager
 from quantflow.execution.order_router import OrderRouter
 from quantflow.execution.paper_gateway import PaperGateway
 
-
 # --------------------------------------------------------------------------- #
 # engine.py
 # --------------------------------------------------------------------------- #
@@ -220,7 +219,12 @@ class _FakeExchange:
         self.markets: dict[str, object] = {"BTC/USDT": {}}
         self.sandbox_mode = False
         self.closed = False
-        self.create_result: dict[str, Any] = {"id": "oid-1", "filled": "0", "average": None, "fee": None}
+        self.create_result: dict[str, Any] = {
+            "id": "oid-1",
+            "filled": "0",
+            "average": None,
+            "fee": None,
+        }
         self.create_raises: BaseException | None = None
         self.cancel_raises: BaseException | None = None
         self.cancel_all_raises: BaseException | None = None
@@ -502,7 +506,7 @@ async def test_okx_health_record_error_rate_limit_and_generic() -> None:
     monitor = _HealthMonitor()
     gw = _gw(_FakeExchange(), monitor)
 
-    class _NamedErr(Exception):
+    class _NamedError(Exception):
         def __init__(self, name: str) -> None:
             super().__init__("boom")
             self.name = name
@@ -514,10 +518,10 @@ async def test_okx_health_record_error_rate_limit_and_generic() -> None:
     gw._health_record_error(e=RuntimeError("50011 Too Many Requests"))
     assert monitor.rate_limited == 1
     # ccxt-style name → rate limited
-    gw._health_record_error(e=_NamedErr("RateLimitExceeded"))
+    gw._health_record_error(e=_NamedError("RateLimitExceeded"))
     assert monitor.rate_limited == 2
     # auth error name → generic api error with label
-    gw._health_record_error(e=_NamedErr("AuthenticationError"))
+    gw._health_record_error(e=_NamedError("AuthenticationError"))
     assert monitor.api_errors[-1] == "AuthenticationError"
     # code override on generic path
     gw._health_record_error(code="foo")
@@ -545,9 +549,27 @@ async def test_okx_swap_positions_timeout_malformed_nonfinite() -> None:
 
     fake2 = _FakeExchange()
     fake2.positions_payload = [
-        {"symbol": "BTC/USDT", "contracts": "bad", "entryPrice": "1", "markPrice": "1", "unrealizedPnl": "1"},
-        {"symbol": "ETH/USDT", "contracts": "nan", "entryPrice": "1", "markPrice": "1", "unrealizedPnl": "1"},
-        {"symbol": "SOL/USDT", "contracts": "2", "entryPrice": "10", "markPrice": "11", "unrealizedPnl": "2"},
+        {
+            "symbol": "BTC/USDT",
+            "contracts": "bad",
+            "entryPrice": "1",
+            "markPrice": "1",
+            "unrealizedPnl": "1",
+        },
+        {
+            "symbol": "ETH/USDT",
+            "contracts": "nan",
+            "entryPrice": "1",
+            "markPrice": "1",
+            "unrealizedPnl": "1",
+        },
+        {
+            "symbol": "SOL/USDT",
+            "contracts": "2",
+            "entryPrice": "10",
+            "markPrice": "11",
+            "unrealizedPnl": "2",
+        },
     ]
     gw2 = _gw(fake2)
     gw2._market_type = "swap"
@@ -864,9 +886,7 @@ async def test_paper_reduce_only_same_direction_leaves_quantity() -> None:
 
 @pytest.mark.asyncio
 async def test_paper_orderbook_extra_slippage_applied() -> None:
-    gw = PaperGateway(
-        {"orderbook_fill_enabled": True, "orderbook_extra_slippage": 0.01}
-    )
+    gw = PaperGateway({"orderbook_fill_enabled": True, "orderbook_extra_slippage": 0.01})
     gw.update_orderbook("BTC/USDT", 100.0, 101.0)
     order = _buy_order(price=100.0)
     await gw.send_order(order)

@@ -40,7 +40,9 @@ def _expanding_splits(n_samples: int, max_splits: int = 5) -> list[tuple[slice, 
     splits = []
     for test_start in range(first_test_start, n_samples, test_size):
         test_end = min(test_start + test_size, n_samples)
-        if test_end > test_start:  # pragma: no branch — test_size>=5 and test_start<n_samples guarantee this
+        if (
+            test_end > test_start
+        ):  # pragma: no branch — test_size>=5 and test_start<n_samples guarantee this
             splits.append((slice(0, test_start), slice(test_start, test_end)))
     return splits
 

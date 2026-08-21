@@ -36,7 +36,10 @@ SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("okx_secret_assign", re.compile(r"OKX_(?:SECRET|PASSPHRASE)\s*=\s*['\"][^'\"]{8,}")),
     ("aws_key", re.compile(r"AKIA[0-9A-Z]{16}")),
     ("private_key_pem", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
-    ("generic_api_key_assign", re.compile(r"(?i)(?:api[_-]?key|secret[_-]?key)\s*=\s*['\"][A-Za-z0-9_\-]{20,}")),
+    (
+        "generic_api_key_assign",
+        re.compile(r"(?i)(?:api[_-]?key|secret[_-]?key)\s*=\s*['\"][A-Za-z0-9_\-]{20,}"),
+    ),
     ("sk_live", re.compile(r"sk-live-[A-Za-z0-9]{10,}")),
     ("telegram_bot", re.compile(r"\d{8,12}:[A-Za-z0-9_-]{30,}")),
 ]

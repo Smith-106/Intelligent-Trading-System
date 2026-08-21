@@ -201,8 +201,18 @@ class TestRDAgentCliWiring:
         df = _make_ohlcv()
 
         payload = [
-            {"name": "llm_alpha_1", "formula": "close.rolling(7).mean()", "ic": 0.051, "rank_ic": 0.047},
-            {"name": "llm_alpha_2", "formula": "volume.pct_change(3)", "ic": 0.012, "rank_ic": 0.010},
+            {
+                "name": "llm_alpha_1",
+                "formula": "close.rolling(7).mean()",
+                "ic": 0.051,
+                "rank_ic": 0.047,
+            },
+            {
+                "name": "llm_alpha_2",
+                "formula": "volume.pct_change(3)",
+                "ic": 0.012,
+                "rank_ic": 0.010,
+            },
         ]
         runner = RDAgentRunner(RDAgentConfig(ic_threshold=0.03))
 
@@ -293,9 +303,7 @@ class TestFactorPersistence:
             save_discovered_factors,
         )
 
-        path = save_discovered_factors(
-            factors, symbol="BTC/USDT", out_dir=tmp_path, source="test"
-        )
+        path = save_discovered_factors(factors, symbol="BTC/USDT", out_dir=tmp_path, source="test")
         assert path.exists()
         payload = json.loads(path.read_text(encoding="utf-8"))
         # No OHLCV leakage

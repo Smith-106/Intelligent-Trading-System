@@ -15,9 +15,7 @@ from quantflow.strategy.validation.promotion_path import (
 
 def test_extract_path_from_checks():
     assert (
-        extract_execution_path(
-            {"checks": {"execution_path": "Trading-Session"}}
-        )
+        extract_execution_path({"checks": {"execution_path": "Trading-Session"}})
         == "trading_session"
     )
 

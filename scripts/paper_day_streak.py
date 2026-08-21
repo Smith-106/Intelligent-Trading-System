@@ -233,7 +233,7 @@ def streak_stats(ledger: dict[str, Any], *, min_days: int = DEFAULT_MIN_DAYS) ->
     present = [d.isoformat() for d in window_days if d in credited_set]
     missing = [d.isoformat() for d in window_days if d not in credited_set]
 
-    met = len(credited_dates) >= min_days and consecutive >= min_days
+    len(credited_dates) >= min_days and consecutive >= min_days
     # T023 also accepts "≥ min_days distinct UTC days" even if not consecutive,
     # but roadmap says continuous — report both.
     met_distinct = len(credited_dates) >= min_days

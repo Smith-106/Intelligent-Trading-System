@@ -120,15 +120,12 @@ def simulate_long_flat_tpsl(
     ent = entries.astype(bool).to_numpy()
     sig = signal_on.astype(bool).to_numpy() if signal_on is not None else np.ones(n, dtype=bool)
 
-    atr = (
-        atr_series(
-            high if high is not None else close,
-            low if low is not None else close,
-            close,
-            cfg.atr_period,
-        )
-        .to_numpy(dtype=float)
-    )
+    atr = atr_series(
+        high if high is not None else close,
+        low if low is not None else close,
+        close,
+        cfg.atr_period,
+    ).to_numpy(dtype=float)
 
     eq = np.ones(n, dtype=float)
     pos = 0.0

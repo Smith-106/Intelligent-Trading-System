@@ -146,8 +146,7 @@ def write_pack() -> list[Path]:
     written: list[Path] = []
     files = {
         "sample_gate.json": json.dumps(SAMPLE_GATE, indent=2, ensure_ascii=False) + "\n",
-        "sample_fee_slip_grid.json": json.dumps(SAMPLE_GRID, indent=2, ensure_ascii=False)
-        + "\n",
+        "sample_fee_slip_grid.json": json.dumps(SAMPLE_GRID, indent=2, ensure_ascii=False) + "\n",
         "POSITIONING.md": POSITIONING,
         "README.md": README,
     }

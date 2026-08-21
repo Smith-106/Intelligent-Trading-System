@@ -71,9 +71,7 @@ def test_missing_gate_alerts(tmp_path: Path):
 
 def test_non_go_decision_alerts(tmp_path: Path):
     gate = tmp_path / "gate.json"
-    gate.write_text(
-        json.dumps({"decision": "NO-GO", "metrics": {}}), encoding="utf-8"
-    )
+    gate.write_text(json.dumps({"decision": "NO-GO", "metrics": {}}), encoding="utf-8")
     meta = tmp_path / "run_meta.json"
     meta.write_text("{}", encoding="utf-8")
     snap = load_baseline_snapshot(
