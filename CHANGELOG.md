@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.9.0] — 2026-08-21
+
+### Features
+- **多交易所历史数据接入**：Binance 公共归档（`download-binance`，月度 CSV 免鉴权）+ Bybit V5（`download-bybit`，CCXT，spot/linear/inverse 含交割合约）
+- **OKX 多标的批量**：`download --symbols BTC/USDT,ETH/USDT,SOL/USDT`（共享单实例串行限速 + 逐 symbol 失败隔离，M4-1.2 不变量）
+- **元数据扩展**：Bybit funding/OI 历史（`download-bybit-funding/-oi`，原生 V5 端点 + mark-price-kline 折算 `open_interest_usd`，偏差 0.51% 实测验证）
+- **交易所后缀分区隔离**：`BTC_USDT-OKX` / `-BINANCE` / `-BYBIT` 物理隔离；交割合约确定性映射 `BTC/USDT:USDT-260904` → 原生 id `BTCUSDT-04SEP26`（validator 零改动）
+
+### Engineering
+- **读侧解析层**：`DataStore.resolve_symbol()` 显式优先级链 `(-OKX, -BINANCE, bare)`——web 读路径自动优先干净源、无后缀时零行为变化；否决透明 fallback（防混源静默污染回测）
+- **web 写侧对齐**：station 下载落 `-OKX` 分区；tag/查询复用同一 resolver
+- **时间戳单位自适应**：修复 Binance archive 近期月份 `openTime` 毫秒→微秒变更导致的未来泄漏误报（`_normalize_epoch_ms` 幅值判别）
+- **生产数据迁移**：Binance 存量全量重跑至 `-BINANCE` 分区（5 组：BTC 1d+1h / ETH/SOL/XRP 1h，重叠率 100%、close 中位偏差 ≤0.013%）
+- **迁移工具**：`scripts/archive_legacy_partitions.py`（dry-run 默认、显式映射表、归档目的地在 parquet_dir 外、meta relabel 保住不可再生 OKX 元数据历史）
+
+### Docs
+- README 数据源章节重写（三所命令矩阵）；知识库沉淀 Binance 时间戳陷阱与后缀隔离架构决策
+
 ## [0.8.0] — 2026-08-18
 
 ### Features

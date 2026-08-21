@@ -41,7 +41,7 @@
 - **对账引擎**：持仓漂移检测 + 孤儿订单发现 + 审计日志 + 会话崩溃恢复（Checkpoint 状态存储）
 - **数据质量**：实时数据流健康监控 + Redis 降级 fallback
 - **交易所健康**：单交易所熔断器（滑窗错误率 + 限频检测 + 滞后恢复）
-- **多源数据**：Funding Rate / Open Interest 元数据采集（自限频 + 指数退避）
+- **多源数据**：OKX + Binance Archive + Bybit V5 三所接入；Funding Rate / Open Interest 元数据采集（自限频 + 指数退避）；交易所后缀分区隔离（`BTC_USDT-OKX` / `-BINANCE` / `-BYBIT`）+ 读侧解析层自动优先干净源
 - **智能告警**：ALERT_ROUTING 矩阵（15 类别 x 4 优先级）+ 滑动窗口去重
 - **配置驱动**：策略参数、风控规则、交易对全部 YAML 管理，零硬编码
 - **多 Symbol 组合**：共享账本 multi-symbol 回放 + **symbol-level 周期再平衡 Risk Parity**（WFO OOS 验证）
@@ -124,8 +124,25 @@ QUANTFLOW_HOST_PORT=8008 docker compose up -d
 ## 使用
 
 ```bash
-# 下载数据
+# 下载数据（OKX，默认写入 -OKX 后缀分区实现来源隔离）
 quantflow download --symbol BTC/USDT --start 2024-01-01
+
+# OKX 多标的批量（串行共享单实例，失败隔离）
+quantflow download --symbols BTC/USDT,ETH/USDT,SOL/USDT --timeframe 1h --start 2019-01-01
+
+# Binance 公共归档（免费无鉴权，月度 CSV → -BINANCE 分区）
+quantflow download-binance --symbol BTC/USDT --timeframe 1d --start 2019-01 --end 2026-07
+
+# Bybit V5 K 线（CCXT，spot/linear/inverse，交割合约用 BTC/USDT:USDT-260904 形式）
+quantflow download-bybit --symbol BTC/USDT --timeframe 1d --start 2020-01-01
+
+# Bybit 资金费率 / 持仓量历史（含 mark-price 折算 USD 列）
+quantflow download-bybit-funding --symbol BTC/USDT --days 365
+quantflow download-bybit-oi --symbol BTC/USDT --period 1D --days 365
+
+# OKX 元数据（funding ~90 天窗口滚动回补；OI 1H/1D）
+quantflow download-funding --symbol BTC/USDT --days 90
+quantflow download-oi --symbol BTC/USDT --days 180 --period 1H
 
 # 策略回测
 quantflow research --strategy trend_following --symbol BTC/USDT
