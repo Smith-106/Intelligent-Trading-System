@@ -228,6 +228,22 @@ class DataStore:
         symbol_name = _validate_symbol(symbol)  # SQL-glob injection guard
         meta_dir = self._parquet_dir / META_DATA_TYPES[data_type] / symbol_name
         if not meta_dir.exists() or not any(meta_dir.glob("*/*.parquet")):
+            # P5-F2 fix (meta suffix fallback): funding/OI writers now land on
+            # suffixed partitions (meta_funding_rate/BTC_USDT-OKX), but legacy
+            # callers still query the bare key — probe suffixed candidates
+            # before returning empty, otherwise features silently lose their
+            # funding/OI columns (fail-silent, ISS-20260723-013 family).
+            for suffix in ("-OKX", "-BINANCE", "-BYBIT"):
+                candidate = _validate_symbol(f"{symbol}{suffix}")
+                cand_dir = self._parquet_dir / META_DATA_TYPES[data_type] / candidate
+                if cand_dir.exists() and any(cand_dir.glob("*/*.parquet")):
+                    logger.warning(
+                        "Meta %s for %s: bare partition missing — resolved to %s",
+                        data_type,
+                        symbol,
+                        candidate,
+                    )
+                    return self._query_meta(data_type, candidate, start, end)
             return pd.DataFrame(columns=list(META_REQUIRED_COLUMNS[data_type]))
         # Escape single quotes so a parquet_dir containing a quote cannot
         # break the glob literal (mirrors _read_parquet_source / get_date_range).

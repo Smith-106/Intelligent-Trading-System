@@ -190,6 +190,10 @@ def download(
                     failed.append(sym)
         except Exception as e:
             console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
+            # P5-F5: a connect-level failure fails the whole batch — count
+            # every requested symbol so the exit-code guard below fires.
+            if not failed:
+                failed.extend(symbol_list)
             console.print("  Check your internet connection and symbol name.")
         finally:
             await fetcher.disconnect()
@@ -199,6 +203,9 @@ def download(
             console.print(
                 f"[yellow]WARNING:[/] {len(failed)}/{len(symbol_list)} symbols failed: {', '.join(failed)}"
             )
+            # P5-F5 fix: a partially-failed batch must not report success to
+            # automation — exit 1 so shell retry wrappers / CI can react.
+            raise typer.Exit(1)
 
     asyncio.run(_run())
 

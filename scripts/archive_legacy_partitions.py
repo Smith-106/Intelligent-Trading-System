@@ -44,6 +44,10 @@ LEGACY_TARGETS: tuple[str, ...] = ("BTC_USDT", "ETH_USDT", "SOL_USDT", "XRP_USDT
 
 META_DIRS = ("meta_funding_rate", "meta_open_interest")
 
+#: The only legacy dir with relabel-able (pure-OKX, non-redownloadable) meta
+#: history today. Kept explicit — extend deliberately if others appear.
+RELABEL_TARGET = "BTC_USDT"
+
 
 def _replacement_ready(store: DataStore, legacy_dir: str) -> str | None:
     """Return the suffixed partition name replacing ``legacy_dir``, if any."""
@@ -68,6 +72,10 @@ def build_plan(*, relabel_meta_okx: bool) -> list[dict[str, object]]:
                 "moves": [str(PARQUET_DIR / target)],
             }
             for meta in META_DIRS:
+                # F1 fix: when relabel owns this meta path it must NOT also be
+                # archived — a path may appear in at most one operation list.
+                if relabel_meta_okx and target == RELABEL_TARGET:
+                    continue
                 src = PARQUET_DIR / meta / target
                 if src.is_dir():
                     entry["moves"].append(str(src))  # type: ignore[union-attr]
@@ -76,8 +84,8 @@ def build_plan(*, relabel_meta_okx: bool) -> list[dict[str, object]]:
         # Pure-OKX meta history: relabel in place instead of archiving.
         if relabel_meta_okx:
             for meta in META_DIRS:
-                src = PARQUET_DIR / meta / "BTC_USDT"
-                dst = PARQUET_DIR / meta / "BTC_USDT-OKX"
+                src = PARQUET_DIR / meta / RELABEL_TARGET
+                dst = PARQUET_DIR / meta / f"{RELABEL_TARGET}-OKX"
                 if src.is_dir() and not dst.exists():
                     plan.append(
                         {
@@ -106,10 +114,15 @@ def main() -> int:
     plan = build_plan(relabel_meta_okx=args.relabel_meta_okx)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     problems: list[str] = []
+    moves: list[dict[str, str]] = []
+    relabels: list[dict[str, str]] = []
 
     print(f"== Legacy partition archive plan ({stamp}) {'APPLY' if args.apply else 'DRY-RUN'} ==")
-    manifest: dict[str, object] = {"stamp": stamp, "moves": [], "relabels": []}
 
+    # ---- Phase 1: full pre-check, no mutations ----------------------------
+    # F3 fix: validate EVERYTHING first; a single blocked entry must not
+    # leave earlier entries half-applied with no rollback manifest.
+    dest_dir = ARCHIVE_ROOT / stamp
     for entry in plan:
         replacement = entry["replacement"]
         if not replacement:
@@ -118,39 +131,65 @@ def main() -> int:
                 "Binance/OKX re-download first (order iron rule: rerun -> verify -> switch -> archive)."
             )
             continue
-        dest_dir = ARCHIVE_ROOT / stamp
         for src_str in entry["moves"]:  # type: ignore[union-attr]
             src = Path(str(src_str))
             dst = dest_dir / src.relative_to(PARQUET_DIR)
+            if not src.is_dir():
+                problems.append(f"{src}: source missing (already moved?)")
+                continue
             if dst.exists():
                 problems.append(f"{src}: destination {dst} already exists.")
                 continue
-            print(f"  move {src} -> {dst}   (replaced by {replacement})")
-            manifest["moves"].append({"src": str(src), "dst": str(dst)})  # type: ignore[union-attr]
-            if args.apply:
-                dst.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(src), str(dst))
+            moves.append({"src": str(src), "dst": str(dst)})
         for relabel in entry.get("relabel", []):  # type: ignore[union-attr]
             src, dst = Path(relabel[0]), Path(relabel[1])
-            print(f"  relabel {src} -> {dst}")
-            manifest["relabels"].append({"src": str(src), "dst": str(dst)})  # type: ignore[union-attr]
-            if args.apply:
-                src.rename(dst)
+            if not src.is_dir():
+                problems.append(f"{src}: relabel source missing (already renamed?)")
+                continue
+            if dst.exists():
+                problems.append(f"{src}: relabel destination {dst} already exists.")
+                continue
+            relabels.append({"src": str(src), "dst": str(dst)})
 
     if problems:
-        print("\nBLOCKED — resolve before applying:")
+        print("\nBLOCKED — nothing was moved. Resolve before applying:")
         for p in problems:
             print(f"  !! {p}")
         return 1
 
-    if args.apply:
-        manifest_path = ARCHIVE_ROOT / f"manifest_{stamp}.json"
-        ARCHIVE_ROOT.mkdir(parents=True, exist_ok=True)
-        manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-        # Rollback = move each manifest entry back (nothing was deleted).
-        print(f"\nApplied. Manifest (rollback reference): {manifest_path}")
-    else:
+    for m in moves:
+        print(f"  move {m['src']} -> {m['dst']}")
+    for r in relabels:
+        print(f"  relabel {r['src']} -> {r['dst']}")
+
+    if not args.apply:
         print("\nDry-run only. Re-run with --apply to execute.")
+        return 0
+
+    # ---- Phase 2: write-ahead manifest, then execute ----------------------
+    # The plan is persisted BEFORE any filesystem change so a mid-run crash
+    # still leaves a complete rollback reference.
+    ARCHIVE_ROOT.mkdir(parents=True, exist_ok=True)
+    manifest_path = ARCHIVE_ROOT / f"manifest_{stamp}.json"
+    manifest_path.write_text(
+        json.dumps(
+            {"stamp": stamp, "status": "planned", "moves": moves, "relabels": relabels}, indent=2
+        ),
+        encoding="utf-8",
+    )
+    for m in moves:
+        Path(m["dst"]).parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(m["src"], m["dst"])
+    for r in relabels:
+        Path(r["src"]).rename(r["dst"])
+    manifest_path.write_text(
+        json.dumps(
+            {"stamp": stamp, "status": "applied", "moves": moves, "relabels": relabels}, indent=2
+        ),
+        encoding="utf-8",
+    )
+    # Rollback = move each manifest entry back (nothing was deleted).
+    print(f"\nApplied. Manifest (rollback reference): {manifest_path}")
     return 0
 
 
