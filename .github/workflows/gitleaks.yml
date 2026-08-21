@@ -55,7 +55,7 @@ jobs:
 
       - name: Upload gitleaks report
         if: always()
-        uses: actions/upload-artifact@b4b15b8c7c6ac09ea0886f96269626b20bc4f1fd # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: gitleaks-report
           path: gitleaks-report.json
