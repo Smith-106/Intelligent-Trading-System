@@ -1,0 +1,217 @@
+=== trend_following BTC/USDT-BINANCE 1h 2021-01-01 ===
+Running backtest: trend_following on BTC/USDT-BINANCE
+## Backtest: trend_following / BTC/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2021-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 2,086 |
+| Total Return | -79.14% |
+| Annual Return | -24.82% |
+| Sharpe | -0.822 |
+| Sortino | -0.223 |
+| Calmar | 0.301 |
+| Max Drawdown | -82.46% |
+| Win Rate | 35.75% |
+| Profit Factor | 0.839 |
+| Trades | 1021 |
+
+=== trend_following ETH/USDT-BINANCE 1h 2019-01-01 ===
+Running backtest: trend_following on ETH/USDT-BINANCE
+## Backtest: trend_following / ETH/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2019-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 3,104 |
+| Total Return | -68.96% |
+| Annual Return | -14.46% |
+| Sharpe | -0.202 |
+| Sortino | -0.056 |
+| Calmar | 0.168 |
+| Max Drawdown | -85.97% |
+| Win Rate | 37.67% |
+| Profit Factor | 0.958 |
+| Trades | 1354 |
+
+=== trend_following SOL/USDT-BINANCE 1h 2021-01-01 ===
+Running backtest: trend_following on SOL/USDT-BINANCE
+## Backtest: trend_following / SOL/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2021-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 2,364 |
+| Total Return | -76.36% |
+| Annual Return | -23.09% |
+| Sharpe | -0.185 |
+| Sortino | -0.054 |
+| Calmar | 0.254 |
+| Max Drawdown | -91.02% |
+| Win Rate | 40.08% |
+| Profit Factor | 0.964 |
+| Trades | 1038 |
+
+=== mean_reversion BTC/USDT-BINANCE 1h 2021-01-01 ===
+Running backtest: mean_reversion on BTC/USDT-BINANCE
+## Backtest: mean_reversion / BTC/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2021-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 2 |
+| Total Return | -99.98% |
+| Annual Return | -79.06% |
+| Sharpe | -5.729 |
+| Sortino | -2.370 |
+| Calmar | 0.791 |
+| Max Drawdown | -99.98% |
+| Win Rate | 33.03% |
+| Profit Factor | 0.501 |
+| Trades | 4433 |
+
+=== mean_reversion ETH/USDT-BINANCE 1h 2019-01-01 ===
+Running backtest: mean_reversion on ETH/USDT-BINANCE
+## Backtest: mean_reversion / ETH/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2019-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 0 |
+| Total Return | -100.00% |
+| Annual Return | -78.37% |
+| Sharpe | -4.017 |
+| Sortino | -1.534 |
+| Calmar | 0.784 |
+| Max Drawdown | -100.00% |
+| Win Rate | 36.86% |
+| Profit Factor | 0.609 |
+| Trades | 6080 |
+
+=== mean_reversion SOL/USDT-BINANCE 1h 2021-01-01 ===
+Running backtest: mean_reversion on SOL/USDT-BINANCE
+## Backtest: mean_reversion / SOL/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2021-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 3 |
+| Total Return | -99.97% |
+| Annual Return | -77.36% |
+| Sharpe | -2.618 |
+| Sortino | -1.040 |
+| Calmar | 0.774 |
+| Max Drawdown | -99.99% |
+| Win Rate | 41.25% |
+| Profit Factor | 0.735 |
+| Trades | 4422 |
+
+=== trend_following BTC/USDT-BINANCE 1d 2019-01-01 ===
+Running backtest: trend_following on BTC/USDT-BINANCE
+## Backtest: trend_following / BTC/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2019-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 6,084 |
+| Total Return | -39.16% |
+| Annual Return | -6.41% |
+| Sharpe | -0.071 |
+| Sortino | -0.016 |
+| Calmar | 0.089 |
+| Max Drawdown | -71.92% |
+| Win Rate | 47.69% |
+| Profit Factor | 0.939 |
+| Trades | 65 |
+
+=== trend_following ETH/USDT-BINANCE 1d 2019-01-01 ===
+Running backtest: trend_following on ETH/USDT-BINANCE
+## Backtest: trend_following / ETH/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2019-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 44,383 |
+| Total Return | 343.83% |
+| Annual Return | 21.98% |
+| Sharpe | 0.662 |
+| Sortino | 0.252 |
+| Calmar | 0.290 |
+| Max Drawdown | -75.81% |
+| Win Rate | 52.05% |
+| Profit Factor | 1.719 |
+| Trades | 73 |
+
+=== mean_reversion BTC/USDT-BINANCE 1d 2019-01-01 ===
+Running backtest: mean_reversion on BTC/USDT-BINANCE
+## Backtest: mean_reversion / BTC/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2019-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 3,950 |
+| Total Return | -60.50% |
+| Annual Return | -11.65% |
+| Sharpe | -0.282 |
+| Sortino | -0.096 |
+| Calmar | 0.163 |
+| Max Drawdown | -71.36% |
+| Win Rate | 47.77% |
+| Profit Factor | 0.859 |
+| Trades | 247 |
+
+=== mean_reversion ETH/USDT-BINANCE 1d 2019-01-01 ===
+Running backtest: mean_reversion on ETH/USDT-BINANCE
+## Backtest: mean_reversion / ETH/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2019-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 5,118 |
+| Total Return | -48.82% |
+| Annual Return | -8.54% |
+| Sharpe | 0.037 |
+| Sortino | 0.013 |
+| Calmar | 0.128 |
+| Max Drawdown | -66.59% |
+| Win Rate | 50.66% |
+| Profit Factor | 1.021 |
+| Trades | 227 |
+
+=== trend_following XRP/USDT-BINANCE 1h 2024-01-01 ===
+Running backtest: trend_following on XRP/USDT-BINANCE
+## Backtest: trend_following / XRP/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2024-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 12,089 |
+| Total Return | 20.89% |
+| Annual Return | 7.90% |
+| Sharpe | 0.384 |
+| Sortino | 0.135 |
+| Calmar | 0.158 |
+| Max Drawdown | -50.13% |
+| Win Rate | 36.48% |
+| Profit Factor | 1.095 |
+| Trades | 455 |
+
+=== mean_reversion XRP/USDT-BINANCE 1h 2024-01-01 ===
+Running backtest: mean_reversion on XRP/USDT-BINANCE
+## Backtest: mean_reversion / XRP/USDT-BINANCE
+
+| Metric | Value |
+|--------|-------|
+| Period | 2024-01-01 08:00:00+08:00 → 2026-06-30 08:00:00+08:00 |
+| Capital | 10,000 → 241 |
+| Total Return | -97.59% |
+| Annual Return | -77.52% |
+| Sharpe | -3.661 |
+| Sortino | -1.492 |
+| Calmar | 0.794 |
+| Max Drawdown | -97.61% |
+| Win Rate | 38.45% |
+| Profit Factor | 0.639 |
+| Trades | 1992 |
+
+ALL CELLS DONE

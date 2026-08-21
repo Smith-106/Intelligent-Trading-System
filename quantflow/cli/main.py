@@ -592,6 +592,9 @@ def research(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
     start: str = typer.Option("2024-01-01", help="Start date"),
     end: str = typer.Option("2025-01-01", help="End date"),
+    timeframe: str = typer.Option(
+        "1h", help="Bar timeframe filter (partitions may hold multiple TFs; mixing them invalidates results)"
+    ),
     capital: float = typer.Option(10000.0, help="Initial capital"),
     fee: float = typer.Option(0.001, help="Trading fee rate"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
@@ -612,7 +615,7 @@ def research(
     # Load data
     start_ts = _date_to_ms(start)
     end_ts = _date_to_ms(end)
-    df = store.query(symbol, start=start_ts, end=end_ts)
+    df = store.query(symbol, start=start_ts, end=end_ts, timeframe=timeframe)
     if df.empty:
         console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
         return
@@ -660,6 +663,9 @@ def optimize(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
     start: str = typer.Option("2024-01-01", help="Start date"),
     end: str = typer.Option("2025-01-01", help="End date"),
+    timeframe: str = typer.Option(
+        "1h", help="Bar timeframe filter (partitions may hold multiple TFs; mixing them invalidates results)"
+    ),
     method: str = typer.Option("bayesian", help="Optimization method: bayesian | cmaes"),
     trials: int = typer.Option(200, help="Number of optimization trials"),
     capital: float = typer.Option(10000.0, help="Initial capital"),
@@ -679,7 +685,7 @@ def optimize(
 
     start_ts = _date_to_ms(start)
     end_ts = _date_to_ms(end)
-    df = store.query(symbol, start=start_ts, end=end_ts)
+    df = store.query(symbol, start=start_ts, end=end_ts, timeframe=timeframe)
     if df.empty:
         console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
         return
@@ -748,6 +754,9 @@ def validate(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol"),
     start: str = typer.Option("2024-01-01", help="Start date"),
     end: str = typer.Option("2025-01-01", help="End date"),
+    timeframe: str = typer.Option(
+        "1h", help="Bar timeframe filter (partitions may hold multiple TFs; mixing them invalidates results)"
+    ),
     method: str = typer.Option(
         "full",
         help=(
@@ -825,7 +834,7 @@ def validate(
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
     start_ts = _date_to_ms(start)
     end_ts = _date_to_ms(end)
-    df = store.query(symbol, start=start_ts, end=end_ts)
+    df = store.query(symbol, start=start_ts, end=end_ts, timeframe=timeframe)
     if df.empty:
         console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
         store.close()
