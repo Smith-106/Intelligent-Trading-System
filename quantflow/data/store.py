@@ -386,7 +386,12 @@ class DataStore:
         """
         base = _validate_symbol(symbol)
         for suffix in priority:
-            candidate = _validate_symbol(f"{symbol}{suffix}")
+            # RV-007-002: base symbols already at/near the 20-char limit make
+            # suffixed candidates invalid — skip them instead of raising.
+            try:
+                candidate = _validate_symbol(f"{symbol}{suffix}")
+            except ValueError:
+                continue
             if (self._parquet_dir / candidate).is_dir():
                 return candidate
         return base
@@ -502,7 +507,9 @@ class DataStore:
             if not any(symbol_dir.glob("*/*.parquet")):
                 return None
             pattern = f"{symbol_dir.as_posix()}/**/*.parquet"
-            return f"'{pattern}'"
+            # Escape single quotes like every other glob site (parquet_dir
+            # config may contain quotes; user input is gated by SYMBOL_PATTERN).
+            return "'" + pattern.replace(chr(39), chr(39) * 2) + "'"
 
         paths = self._candidate_paths(symbol_dir, start, end)
         if not paths:

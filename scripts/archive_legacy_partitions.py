@@ -33,9 +33,9 @@ if str(REPO_ROOT) not in sys.path:
 
 from quantflow.data.store import DataStore  # noqa: E402 — after REPO_ROOT setup
 
-PARQUET_DIR = Path("data/parquet")
+PARQUET_DIR = REPO_ROOT / "data" / "parquet"
 #: Outside ``parquet_dir`` so list_symbols()/web overview never see it.
-ARCHIVE_ROOT = Path("data/parquet_archive")
+ARCHIVE_ROOT = REPO_ROOT / "data" / "parquet_archive"
 
 #: Explicit mapping — no heuristic inference. Keys are legacy directory names.
 #: ``BTC-USDT-SWAP`` is intentionally absent: it is a perpetual dataset with a

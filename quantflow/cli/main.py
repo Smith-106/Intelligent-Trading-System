@@ -396,7 +396,7 @@ def download_binance(
             e = datetime.fromtimestamp(date_range[1] / 1000).strftime("%Y-%m-%d")
             console.print(f"  Range: {s} → {e}")
     except Exception as e:
-        console.print(f"[red]ERR Error: {e}[/]")
+        console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
         raise typer.Exit(code=1) from e
     finally:
         store.close()
@@ -468,7 +468,7 @@ def download_bybit(
                 e = datetime.fromtimestamp(date_range[1] / 1000).strftime("%Y-%m-%d")
                 console.print(f"  Range: {s} → {e}")
         except Exception as e:
-            console.print(f"[red]ERR Error: {e}[/]")
+            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
             raise typer.Exit(code=1) from e
         finally:
             await fetcher.disconnect()
@@ -518,7 +518,7 @@ def download_bybit_funding(
                 last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
                 console.print(f"  Last funding time: {last_date}")
         except Exception as e:
-            console.print(f"[red]ERR Error: {e}[/]")
+            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
             raise typer.Exit(code=1) from e
         finally:
             await fetcher.disconnect()
@@ -530,7 +530,7 @@ def download_bybit_funding(
 @app.command()
 def download_bybit_oi(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol (e.g. BTC/USDT)"),
-    period: str = typer.Option("1D", help="OI granularity: 5m/15m/30m/1h/4h/1d"),
+    period: str = typer.Option("1d", help="OI granularity: 5m/15m/30m/1h/4h/1d"),
     days: int = typer.Option(365, help="Backfill window in days"),
     mark_usd: bool = typer.Option(True, help="Compute open_interest_usd via mark-price-kline"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
@@ -540,12 +540,14 @@ def download_bybit_oi(
     Stored under meta_open_interest/<symbol>-BYBIT/ for source isolation.
 
     Examples:
-        quantflow download-bybit-oi --symbol BTC/USDT --period 1D --days 365
+        quantflow download-bybit-oi --symbol BTC/USDT --period 1d --days 365
     """
     from quantflow.data.bybit_meta_fetcher import BybitMetaFetcher
     from quantflow.data.store import DataStore
 
     cfg = _load(config)
+    # RV-007-003 fix: default '1D' failed our own whitelist; normalize case.
+    period = period.lower()
     tf_map = {"5m": "5m", "15m": "15m", "30m": "30m", "1h": "1h", "4h": "4h", "1d": "1d"}
     if period not in tf_map:
         raise typer.BadParameter("period must be one of 5m/15m/30m/1h/4h/1d")
@@ -577,7 +579,7 @@ def download_bybit_oi(
                 last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
                 console.print(f"  Last OI timestamp: {last_date}")
         except Exception as e:
-            console.print(f"[red]ERR Error: {e}[/]")
+            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
             raise typer.Exit(code=1) from e
         finally:
             await fetcher.disconnect()
@@ -593,7 +595,8 @@ def research(
     start: str = typer.Option("2024-01-01", help="Start date"),
     end: str = typer.Option("2025-01-01", help="End date"),
     timeframe: str = typer.Option(
-        "1h", help="Bar timeframe filter (partitions may hold multiple TFs; mixing them invalidates results)"
+        "1h",
+        help="Bar timeframe filter (partitions may hold multiple TFs; mixing them invalidates results)",
     ),
     capital: float = typer.Option(10000.0, help="Initial capital"),
     fee: float = typer.Option(0.001, help="Trading fee rate"),
@@ -612,48 +615,52 @@ def research(
     cfg = _load(config)
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
 
-    # Load data
-    start_ts = _date_to_ms(start)
-    end_ts = _date_to_ms(end)
-    df = store.query(symbol, start=start_ts, end=end_ts, timeframe=timeframe)
-    if df.empty:
-        console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
-        return
+    try:
+        # Load data
+        start_ts = _date_to_ms(start)
+        end_ts = _date_to_ms(end)
+        df = store.query(symbol, start=start_ts, end=end_ts, timeframe=timeframe)
+        if df.empty:
+            console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+            return
 
-    # Set datetime index
-    if "datetime" in df.columns:
-        df = df.set_index("datetime")
+        # Set datetime index
+        if "datetime" in df.columns:
+            df = df.set_index("datetime")
 
-    close = df["close"]
+        close = df["close"]
 
-    # Select strategy
-    strategy_factories = _get_strategy_factories()
-    strategy_factory = strategy_factories.get(strategy)
-    if not strategy_factory:
-        console.print(
-            f"[red]Unknown strategy: {strategy}. Available: {list(strategy_factories.keys())}[/]"
+        # Select strategy
+        strategy_factories = _get_strategy_factories()
+        strategy_factory = strategy_factories.get(strategy)
+        if not strategy_factory:
+            console.print(
+                f"[red]Unknown strategy: {strategy}. Available: {list(strategy_factories.keys())}[/]"
+            )
+            return
+
+        console.print(f"[bold blue]Running backtest: {strategy} on {symbol}[/]")
+
+        # Generate signals and run backtest
+        strategy_instance = strategy_factory(None)
+        entries, exits = strategy_instance.generate_signals(df)
+        engine = BacktestEngine()
+        result = engine.run_backtest(
+            close,
+            entries,
+            exits,
+            initial_capital=capital,
+            fee=fee,
+            strategy_id=strategy,
+            symbol=symbol,
         )
-        return
 
-    console.print(f"[bold blue]Running backtest: {strategy} on {symbol}[/]")
+        # Display report
+        console.print(generate_report(result, format="markdown"))
 
-    # Generate signals and run backtest
-    strategy_instance = strategy_factory(None)
-    entries, exits = strategy_instance.generate_signals(df)
-    engine = BacktestEngine()
-    result = engine.run_backtest(
-        close,
-        entries,
-        exits,
-        initial_capital=capital,
-        fee=fee,
-        strategy_id=strategy,
-        symbol=symbol,
-    )
-
-    # Display report
-    console.print(generate_report(result, format="markdown"))
-
+    finally:
+        # RV-007/M10: early returns above leaked the DuckDB connection.
+        store.close()
     store.close()
 
 
@@ -664,7 +671,8 @@ def optimize(
     start: str = typer.Option("2024-01-01", help="Start date"),
     end: str = typer.Option("2025-01-01", help="End date"),
     timeframe: str = typer.Option(
-        "1h", help="Bar timeframe filter (partitions may hold multiple TFs; mixing them invalidates results)"
+        "1h",
+        help="Bar timeframe filter (partitions may hold multiple TFs; mixing them invalidates results)",
     ),
     method: str = typer.Option("bayesian", help="Optimization method: bayesian | cmaes"),
     trials: int = typer.Option(200, help="Number of optimization trials"),
@@ -755,7 +763,8 @@ def validate(
     start: str = typer.Option("2024-01-01", help="Start date"),
     end: str = typer.Option("2025-01-01", help="End date"),
     timeframe: str = typer.Option(
-        "1h", help="Bar timeframe filter (partitions may hold multiple TFs; mixing them invalidates results)"
+        "1h",
+        help="Bar timeframe filter (partitions may hold multiple TFs; mixing them invalidates results)",
     ),
     method: str = typer.Option(
         "full",

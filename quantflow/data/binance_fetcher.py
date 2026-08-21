@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 import logging
+import urllib.error
 import urllib.request
 import zipfile
 from typing import Any
@@ -240,9 +241,17 @@ class BinanceArchiveFetcher:
         try:
             with urllib.request.urlopen(url, timeout=self._timeout) as resp:
                 payload = resp.read()
-        except Exception:
-            logger.info("Binance archive miss: %s", url)
-            return None
+        except urllib.error.HTTPError as e:
+            if e.code in (403, 404):
+                # Genuine miss: symbol/timeframe/month predates the listing.
+                logger.info("Binance archive miss: %s", url)
+                return None
+            raise DataError(f"Binance archive HTTP {e.code}: {url}") from e
+        except Exception as e:
+            # RV-007-005/H3: DNS/timeout/SSL/5xx are infrastructure failures,
+            # not archive misses — swallowing them produced silent truncated
+            # history that looked complete on disk.
+            raise DataError(f"Binance archive download failed: {url}: {e}") from e
         try:
             with zipfile.ZipFile(io.BytesIO(payload)) as zf:
                 members = [n for n in zf.namelist() if n.endswith(".csv")]

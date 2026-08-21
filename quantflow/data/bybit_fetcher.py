@@ -136,9 +136,10 @@ class BybitFetcher:
             raise DataError(f"Invalid timeframe: {timeframe}.")
 
         cat = category or self._category
-        # Bybit V5 needs the category passed through options for kline routing.
-        if cat != self._category:
-            self._exchange.options["defaultType"] = cat
+        # RV-007-004: set unconditionally — a conditional write left the shared
+        # exchange stuck on the last non-default category (silent cross-market
+        # data), and concurrent multi-category calls would race on this dict.
+        self._exchange.options["defaultType"] = cat
 
         since = None
         if start:

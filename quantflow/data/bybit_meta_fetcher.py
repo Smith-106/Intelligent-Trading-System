@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import time
 from collections.abc import Callable
 from typing import Any
@@ -55,6 +56,17 @@ BYBIT_MARK_INTERVAL_MAP = {
     "1h": "60",
     "4h": "240",
     "1d": "D",
+}
+
+# RV-007-007 fix: the OI endpoint's ``intervalTime`` enum uses ``5min``-style
+# tokens below 1h (unlike kline intervals) — passing '5m' is rejected by the API.
+BYBIT_OI_INTERVAL_MAP = {
+    "5m": "5min",
+    "15m": "15min",
+    "30m": "30min",
+    "1h": "1h",
+    "4h": "4h",
+    "1d": "1d",
 }
 
 
@@ -102,6 +114,8 @@ class BybitMetaFetcher:
         if self._exchange is not None:
             return
         try:
+            # RV-007-020/M1: pre-bind so a constructor failure can be cleaned up.
+            exchange: ccxt.bybit | None = None
             exchange = ccxt.bybit({"options": {"defaultType": self._category}})
             # Bybit load_markets probes all categories and the option probe can
             # 400 in some regions; fetch_* resolves symbols lazily and does not
@@ -113,10 +127,13 @@ class BybitMetaFetcher:
                 logger.warning("BybitMetaFetcher load_markets skipped: %s", e)
             self._exchange = exchange
         except Exception as e:
-            try:
-                await exchange.close()
-            except Exception:
-                logger.debug("BybitMetaFetcher close after connect failure", exc_info=True)
+            # RV-007-020/M1: construction itself may have failed — exchange is
+            # then unbound; guard the cleanup instead of masking with NameError.
+            if exchange is not None:
+                try:
+                    await exchange.close()
+                except Exception:
+                    logger.debug("BybitMetaFetcher close after connect failure", exc_info=True)
             raise GatewayConnectionError(f"Failed to connect Bybit meta fetcher: {e}") from e
 
     async def disconnect(self) -> None:
@@ -153,18 +170,25 @@ class BybitMetaFetcher:
         bsym = bybit_market_id(symbol)
         effective_limit = min(limit, BYBIT_FUNDING_PAGE_MAX)
         all_rows: list[dict[str, Any]] = []
+        # RV-007-001 fix: advance by hard time windows instead of relying on a
+        # full-page signal. The endpoint returns newest-first, so at ~90 8h
+        # settlements per 30d window a full page never materialises and the
+        # old len(page) < limit check silently stopped after the first window.
+        now_ms = int(time.time() * 1000)
+        window_ms = 30 * 86_400_000
         since = int(since_ms)
         pages = 0
-        while True:
+        while since < now_ms:
             pages += 1
             if pages > 500:
                 logger.warning("Bybit funding pagination exceeded 500 pages for %s", symbol)
                 break
 
-            def _call(s: int = since) -> Any:
-                # Bybit funding/history requires both startTime AND endTime
-                # (window <= ~90 days; 30d covers ~90 8h settlements = 1 page).
-                e = min(int(time.time() * 1000), s + 30 * 86_400_000)
+            window_start = since
+
+            def _call(s: int = window_start) -> Any:
+                # Bybit funding/history requires both startTime AND endTime.
+                e = min(now_ms, s + window_ms)
                 return exchange.request(
                     "/v5/market/funding/history",
                     "public",
@@ -181,15 +205,13 @@ class BybitMetaFetcher:
             resp = await _retry_call(self._limiter, _call, f"bybit.funding_history:{symbol}")
             result = resp.get("result", {}) if isinstance(resp, dict) else {}
             page = result.get("list", []) if isinstance(result, dict) else []
-            if not page:
-                break
-            for entry in page:
+            for entry in page or []:
                 # entry: [fundingRate, fundingRateTimestamp] (list form)
                 if isinstance(entry, list):
-                    rate = _to_float(entry[0])
+                    rate = _to_float(entry[0], default=math.nan)
                     ts = int(entry[1])
                 else:
-                    rate = _to_float(entry.get("fundingRate"))
+                    rate = _to_float(entry.get("fundingRate"), default=math.nan)
                     ts = int(entry.get("fundingRateTimestamp", entry.get("timestamp", 0)))
                 all_rows.append(
                     {
@@ -201,10 +223,8 @@ class BybitMetaFetcher:
                         "funding_time": ts,
                     }
                 )
-            last_ts = all_rows[-1]["timestamp"]
-            if len(page) < effective_limit:
-                break
-            since = last_ts + 1
+            # Advance unconditionally — empty windows must not stall the walk.
+            since += window_ms
 
         if not all_rows:
             return pd.DataFrame(
@@ -277,7 +297,11 @@ class BybitMetaFetcher:
             # V5 kline list form: [startTime, open, high, low, close] (strings).
             for entry in records:
                 ts = int(entry[0])
-                all_rows.append({"timestamp": ts, "mark_price": _to_float(entry[1])})
+                all_rows.append(
+                    {"timestamp": ts, "mark_price": _to_float(entry[1], default=math.nan)}
+                )
+                # RV-007-014: 0.0 is a legal mark/OI value — parse failures must
+                # surface as NaN, not masquerade as legitimate zeros.
             last_ts = max(int(e[0]) for e in records)
             if len(records) < effective_limit:
                 break
@@ -338,7 +362,8 @@ class BybitMetaFetcher:
                 params: dict[str, Any] = {
                     "category": self._category,
                     "symbol": bybit_market_id(symbol),
-                    "intervalTime": timeframe,
+                    # RV-007-007: V5 intervalTime enum is '5min'-style below 1h.
+                    "intervalTime": BYBIT_OI_INTERVAL_MAP[timeframe],
                     "limit": effective_limit,
                 }
                 # Bybit open-interest requires startTime AND endTime. Use a

@@ -53,6 +53,10 @@ def bybit_market_id(symbol: str) -> str:
     if len(expiry) != 6 or not expiry.isdigit():
         raise DataError(f"Invalid Bybit delivery symbol (bad expiry): {symbol!r}")
     yy, mm, dd = expiry[:2], expiry[2:4], expiry[4:]
+    # RV-007-008/M4: '00' month hit the negative index and silently mapped to
+    # DEC; '13'+ raised a bare IndexError. Validate before indexing.
+    if not 1 <= int(mm) <= 12 or not 1 <= int(dd) <= 31:
+        raise DataError(f"Invalid Bybit delivery symbol (bad expiry): {symbol!r}")
     native_expiry = f"{dd}{_MONTH_ABBR[int(mm) - 1]}{yy}"
     return f"{base}{quote}-{native_expiry}".upper()
 

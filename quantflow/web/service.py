@@ -148,11 +148,25 @@ class DataDownloadRequest(BaseModel):
     end: str = "2025-12-31"
     config_path: str = DEFAULT_CONFIG_PATH
 
+    @field_validator("symbol")
+    @classmethod
+    def _validate_symbol(cls, v: str) -> str:
+        # RV-007/H2: write paths previously skipped validation, letting bad
+        # symbols surface as 500s deep in the store instead of 422 here.
+        validate_symbol(v)
+        return v
+
 
 class DataSourceTagRequest(BaseModel):
     symbol: str = "BTC/USDT"
     data_source: str = "okx"
     config_path: str = DEFAULT_CONFIG_PATH
+
+    @field_validator("symbol")
+    @classmethod
+    def _validate_symbol(cls, v: str) -> str:
+        validate_symbol(v)
+        return v
 
 
 def _demo_freq_for_timeframe(timeframe: str) -> str:
@@ -1233,7 +1247,14 @@ class StationService:
             # P4 suffix isolation: web downloads are OKX-sourced (DataFetcher
             # is hardwired to ccxt.okx), so persist under the -OKX partition
             # instead of growing the legacy mixed bare partition.
-            store_symbol = f"{request.symbol}-OKX"
+            # RV-007/H2: a client passing an already-suffixed symbol used to
+            # mint double-suffix orphan partitions nothing could resolve.
+            base_symbol = request.symbol
+            for suffix in ("-OKX", "-BINANCE", "-BYBIT"):
+                if base_symbol.endswith(suffix):
+                    base_symbol = base_symbol[: -len(suffix)]
+                    break
+            store_symbol = f"{base_symbol}-OKX"
             store.save(cleaned_frame, store_symbol)
             date_range = store.get_date_range(store_symbol)
         finally:
