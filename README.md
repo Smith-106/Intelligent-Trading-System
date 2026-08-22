@@ -130,6 +130,9 @@ quantflow download --symbol BTC/USDT --start 2024-01-01
 # OKX 多标的批量（串行共享单实例，失败隔离）
 quantflow download --symbols BTC/USDT,ETH/USDT,SOL/USDT --timeframe 1h --start 2019-01-01
 
+# 可选并发（默认 1；>1 前先跑 scripts/verify_okx_throttler.py 确认零 429）
+# quantflow download --symbols ... --concurrency 4
+
 # Binance 公共归档（免费无鉴权，月度 CSV → -BINANCE 分区）
 quantflow download-binance --symbol BTC/USDT --timeframe 1d --start 2019-01 --end 2026-07
 

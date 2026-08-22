@@ -35,9 +35,9 @@ def _df(n: int = 100) -> pd.DataFrame:
 class _RecordingStore:
     """DataStore double that records close() calls in order."""
 
-    instances: list["_RecordingStore"] = []
+    instances: list[_RecordingStore] = []
 
-    def __init__(self, parquet_dir, duckdb_path) -> None:  # noqa: ANN001
+    def __init__(self, parquet_dir, duckdb_path) -> None:
         self.query = MagicMock(return_value=_df())
         self.resolve_symbol = MagicMock(side_effect=lambda s, **k: s.replace("/", "_"))
         self.close_calls = 0
@@ -47,7 +47,7 @@ class _RecordingStore:
         self.close_calls += 1
 
     @classmethod
-    def last(cls) -> "_RecordingStore":
+    def last(cls) -> _RecordingStore:
         return cls.instances[-1]
 
 

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [0.10.0] — 2026-08-22
+
+### Features
+- **web station 异步化**：全部同步 handler 经 `asyncio.to_thread` 下放（含 download 落盘段与 monitoring/execution 快照），kill-switch/session 控制面不再被 parquet 扫描阻塞；overview 单次聚合 SQL 替代每符号双全史扫描（约 2x）
+- **下载并发骨架**：OKX `download --concurrency N`（默认 1 零行为变化，>1 待限频门禁验证）；`DataFetcher.fetch_ohlcv_multi` 与 Bybit 对齐
+- **CLI 冷启动优化**：策略目录懒加载导入，1.90s → 0.59s
+
+### Fixed
+- **并发写丢行**（ISS-REV007-01）：分区写改为 per-partition 线程锁 + 跨进程 FileLock + tmp 原子替换；tag_data_source 与 save 共用同一锁协议
+- **resolver 补齐**：`-BYBIT` 入链；多候选时按后缀优先级决策并告警共存（回退 RV-010 earliest-start 方案——其会永久遮蔽干净分区）
+- **分页硬顶 fail-loud**：OKX/Bybit K线、funding/mark/OI 分页达上限改抛 `DataError`（不再静默截断入库）
+- **裸 query 收口**：rdagent/ml-train 等 4 处接入 resolver；空目录/坏分区不再使 overview 500（probe + fallback 保护 + COALESCE unknown）
+- **archive 迁移工具修复**：候选分区按规范化存储名探测（原斜杠路径永不命中致 `--apply` 永久 BLOCKED）；补 `-BYBIT` 候选
+- **私有符号解耦**（ISS-REV007-05）：重试/限频原语上收 `quantflow/common/netretry.py`
+
+### Engineering
+- **结构拆分第一批**：`cli/render.py`（12 渲染辅助）、`common/netretry.py`、`indicators compute_all` 表驱动化（21 重 if → 声明式 spec 表）、`data/store.store_scope` 生命周期上下文管理器（幂等 close）
+- **安全网先行**：CLI 20 命令注册顺序 golden + validate 契约测试冻结，为 commands/ 分包铺路
+- **三模型共识审查两轮**（REV-008 性能改动对抗审查 / REV-009 结构设计），TOP 缺陷全部闭环
+
 ## [0.9.0] — 2026-08-21
 
 ### Features
