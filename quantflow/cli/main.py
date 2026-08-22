@@ -372,52 +372,51 @@ def download_binance(
         quantflow download-binance --symbol BTC/USDT --market futures --timeframe 1d --start 2020-01
     """
     from quantflow.data.binance_fetcher import BinanceArchiveFetcher, download_binance_to_store
-    from quantflow.data.store import DataStore
 
     if market not in ("spot", "futures"):
         raise typer.BadParameter("market must be 'spot' or 'futures'")
 
     cfg = _load(config)
     fetcher = BinanceArchiveFetcher()
-    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+    from quantflow.data.store import store_scope
+
     store_symbol = f"{symbol}-BINANCE" if binance_suffix else symbol
-    try:
-        with console.status(
-            f"[bold blue]Downloading {symbol} {timeframe} ({start} → {end}) from Binance {market} archive..."
-        ):
-            df = download_binance_to_store(
-                fetcher,
-                store,
-                symbol,
-                timeframe,
-                start,
-                end,
-                market=market,
-                exchange_suffix=binance_suffix,
-            )
-        if df.empty:
+    with store_scope(cfg.data.parquet_dir, cfg.data.duckdb_path) as store:
+        try:
+            with console.status(
+                f"[bold blue]Downloading {symbol} {timeframe} ({start} → {end}) from Binance {market} archive..."
+            ):
+                df = download_binance_to_store(
+                    fetcher,
+                    store,
+                    symbol,
+                    timeframe,
+                    start,
+                    end,
+                    market=market,
+                    exchange_suffix=binance_suffix,
+                )
+            if df.empty:
+                console.print(
+                    "[red]ERR No data fetched. Check the symbol, timeframe, and date range.[/]"
+                )
+                console.print(
+                    "  Hint: a symbol listed after the requested window returns nothing "
+                    "(e.g. a 2021 token has no 2019 archive)."
+                )
+                return
+            console.print(f"[dim]Raw data: {len(df)} bars[/]")
+            date_range = store.get_date_range(store_symbol)
             console.print(
-                "[red]ERR No data fetched. Check the symbol, timeframe, and date range.[/]"
+                f"[green]OK[/] Saved [bold]{len(df)}[/] bars for [bold]{store_symbol}[/] ({timeframe})"
             )
-            console.print(
-                "  Hint: a symbol listed after the requested window returns nothing "
-                "(e.g. a 2021 token has no 2019 archive)."
-            )
-            return
-        console.print(f"[dim]Raw data: {len(df)} bars[/]")
-        date_range = store.get_date_range(store_symbol)
-        console.print(
-            f"[green]OK[/] Saved [bold]{len(df)}[/] bars for [bold]{store_symbol}[/] ({timeframe})"
-        )
-        if date_range:
-            s = datetime.fromtimestamp(date_range[0] / 1000).strftime("%Y-%m-%d")
-            e = datetime.fromtimestamp(date_range[1] / 1000).strftime("%Y-%m-%d")
-            console.print(f"  Range: {s} → {e}")
-    except Exception as e:
-        console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
-        raise typer.Exit(code=1) from e
-    finally:
-        store.close()
+            if date_range:
+                s = datetime.fromtimestamp(date_range[0] / 1000).strftime("%Y-%m-%d")
+                e = datetime.fromtimestamp(date_range[1] / 1000).strftime("%Y-%m-%d")
+                console.print(f"  Range: {s} → {e}")
+        except Exception as e:
+            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
+            raise typer.Exit(code=1) from e
 
 
 @app.command()
@@ -1294,7 +1293,6 @@ def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
     Always persists results under data/ai_factors/{symbol}/ (names/IC only).
     Degrades to pandas baseline when qlib/rdagent/LLM are unavailable.
     """
-    from quantflow.data.store import DataStore
     from quantflow.strategy.rd_agent import RDAgentRunner, save_discovered_factors
 
     runner = RDAgentRunner()
@@ -1304,8 +1302,9 @@ def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
         console.print(f"[dim]{msg.splitlines()[0] if msg else ''}[/]")
 
     cfg = _load(config)
-    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
-    try:
+    from quantflow.data.store import store_scope
+
+    with store_scope(cfg.data.parquet_dir, cfg.data.duckdb_path) as store:
         resolved = store.resolve_symbol(symbol)
         df = store.query(resolved)
         if df.empty:
@@ -1347,8 +1346,6 @@ def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
             f"[dim]Train next: quantflow ai train --symbol {symbol} "
             f"--factors-json {saved.as_posix()}[/]"
         )
-    finally:
-        store.close()
 
 
 def _ai_train(
@@ -1383,11 +1380,10 @@ def _ai_train(
         console.print(f"[bold blue]Training from CSVs ({len(features)} rows)[/]")
     else:
         from quantflow.data.feature_store import FeatureStore
-        from quantflow.data.store import DataStore
+        from quantflow.data.store import store_scope
         from quantflow.indicators.engine import IndicatorEngine
 
-        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
-        try:
+        with store_scope(cfg.data.parquet_dir, cfg.data.duckdb_path) as store:
             resolved = store.resolve_symbol(symbol)
             df = store.query(resolved)
             if df.empty:
@@ -1437,8 +1433,6 @@ def _ai_train(
                     f"[bold blue]Training on IndicatorEngine features for {symbol} "
                     f"({len(features)} rows) — explicit fallback path[/]"
                 )
-        finally:
-            store.close()
 
     if "timestamp" in features.columns and "close" not in features.columns:
         features = features.drop(columns=["timestamp", "symbol", "computed_at"], errors="ignore")
@@ -1564,13 +1558,13 @@ def _ai_validation_bypass(
     factors_json: str = "",
 ) -> None:
     """T036: RD-Agent → validation only (never live)."""
-    from quantflow.data.store import DataStore
     from quantflow.strategy.ai_validation_bypass import run_ai_validation_bypass
 
     cfg = _load(config)
     reg_dir = registry_dir or cfg.ai.registry_dir
-    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
-    try:
+    from quantflow.data.store import store_scope
+
+    with store_scope(cfg.data.parquet_dir, cfg.data.duckdb_path) as store:
         resolved = store.resolve_symbol(symbol)
         df = store.query(resolved)
         if df.empty:
@@ -1603,8 +1597,6 @@ def _ai_validation_bypass(
             "[yellow]No promote_to_live from this path. "
             "Paper GO still needs fee×slip + funding_tca + paper_replay (W14).[/]"
         )
-    finally:
-        store.close()
 
 
 @app.command(name="new-strategy")
