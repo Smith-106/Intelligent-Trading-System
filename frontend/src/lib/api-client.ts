@@ -256,12 +256,12 @@ export interface SessionSnapshot {
     entry_price: number;
     current_price: number;
     unrealized_pnl: number;
-    return_pct: number;
+    pnl_pct: number;
   }>;
   open_orders: Array<{
     order_id: string;
     symbol: string;
-    type: string;
+    order_type: string;
     side: string;
     quantity: number;
     price: number;
@@ -433,13 +433,13 @@ export interface ExecutionSnapshot {
     current_price: number;
     market_value: number;
     unrealized_pnl: number;
-    return_pct: number;
+    pnl_pct: number;
   }>;
   orders: Array<{
     order_id: string;
     symbol: string;
     side: string;
-    type: string;
+    order_type: string;
     quantity: number;
     price: number;
     status: string;

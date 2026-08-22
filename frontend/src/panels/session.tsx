@@ -313,7 +313,7 @@ export function SessionPanel() {
                         pos.unrealized_pnl >= 0 ? "text-status-go" : "text-status-danger"
                       }`}
                     >
-                      PnL: {pos.unrealized_pnl.toFixed(2)} ({(pos.return_pct * 100).toFixed(2)}%)
+                      PnL: {pos.unrealized_pnl.toFixed(2)} ({(pos.pnl_pct * 100).toFixed(2)}%)
                     </p>
                   </div>
                 </div>
@@ -338,7 +338,7 @@ export function SessionPanel() {
                       {order.side}
                     </Badge>
                     <span className="text-sm">{order.symbol}</span>
-                    <Badge variant="outline" className="text-xs">{order.type}</Badge>
+                    <Badge variant="outline" className="text-xs">{order.order_type}</Badge>
                   </div>
                   <div className="text-right">
                     <p className="text-sm">{order.quantity} @ {order.price}</p>

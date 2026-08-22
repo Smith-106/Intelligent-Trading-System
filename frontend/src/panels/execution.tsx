@@ -235,8 +235,8 @@ function ExecutionContent({
                       <td className={`py-2 pr-4 ${pos.unrealized_pnl >= 0 ? "text-status-go" : "text-status-danger"}`}>
                         {pos.unrealized_pnl.toFixed(2)}
                       </td>
-                      <td className={`py-2 ${pos.return_pct >= 0 ? "text-status-go" : "text-status-danger"}`}>
-                        {(pos.return_pct * 100).toFixed(2)}%
+                      <td className={`py-2 ${pos.pnl_pct >= 0 ? "text-status-go" : "text-status-danger"}`}>
+                        {(pos.pnl_pct * 100).toFixed(2)}%
                       </td>
                     </tr>
                   ))}
@@ -262,7 +262,7 @@ function ExecutionContent({
                       {order.side}
                     </Badge>
                     <span className="text-sm">{order.symbol}</span>
-                    <Badge variant="outline" className="text-xs">{order.type}</Badge>
+                    <Badge variant="outline" className="text-xs">{order.order_type}</Badge>
                   </div>
                   <div className="text-right">
                     <p className="text-sm">{order.quantity} @ {order.price}</p>
