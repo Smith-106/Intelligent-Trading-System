@@ -224,7 +224,7 @@ async def _validate(request: web.Request) -> web.Response:
         result = await asyncio.to_thread(_run_validate)
     except ValueError as exc:
         return _error_response(exc)
-    return web.json_response(result)
+    return web.json_response(_redact_paths(result))
 
 
 async def _validation_history(request: web.Request) -> web.Response:
@@ -289,7 +289,7 @@ async def _execution(request: web.Request) -> web.Response:
 
     # REV-008: execution_snapshot internally re-scans parquet via overview().
     payload = await asyncio.to_thread(_snapshot)
-    return web.json_response(payload)
+    return web.json_response(_redact_paths(payload))
 
 
 async def _session_snapshot(request: web.Request) -> web.Response:

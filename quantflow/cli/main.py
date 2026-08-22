@@ -48,8 +48,17 @@ def _get_strategy_specs() -> dict[str, tuple[StrategyFactory, ParamSpace]]:
 
 
 def _date_to_ms(date_str: str) -> int:
-    """Convert a YYYY-MM-DD date string to UTC millisecond timestamp."""
-    dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=UTC)
+    """Convert a YYYY-MM-DD date string to UTC millisecond timestamp.
+
+    DEF-REV011-F: malformed dates become a clean usage error instead of a raw
+    ValueError traceback (validate called this outside its try block).
+    """
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=UTC)
+    except ValueError as e:
+        raise typer.BadParameter(
+            f"日期格式须为 YYYY-MM-DD: {date_str!r}"
+        ) from e
     return int(dt.timestamp() * 1000)
 
 
@@ -238,7 +247,7 @@ _OI_HISTORY_PERIODS = {"1H", "1D"}
 @app.command()
 def download_funding(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol (OKX swap)"),
-    days: int = typer.Option(90, help="Backfill window in days (OKX max ~90)"),
+    days: int = typer.Option(90, min=1, help="Backfill window in days (OKX max ~90)"),
     okx_suffix: bool = typer.Option(True, help="Append -OKX suffix for source isolation"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
@@ -296,7 +305,7 @@ def download_funding(
 @app.command()
 def download_oi(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol (OKX swap)"),
-    days: int = typer.Option(180, help="Backfill window in days"),
+    days: int = typer.Option(180, min=1, help="Backfill window in days"),
     period: str = typer.Option("1H", help="OI granularity: 1H or 1D"),
     okx_suffix: bool = typer.Option(True, help="Append -OKX suffix for source isolation"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
@@ -497,7 +506,7 @@ def download_bybit(
 @app.command()
 def download_bybit_funding(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol (e.g. BTC/USDT)"),
-    days: int = typer.Option(365, help="Backfill window in days"),
+    days: int = typer.Option(365, min=1, help="Backfill window in days"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
     """Backfill Bybit funding-rate history (V5, category=linear).
@@ -548,7 +557,7 @@ def download_bybit_funding(
 def download_bybit_oi(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol (e.g. BTC/USDT)"),
     period: str = typer.Option("1d", help="OI granularity: 5m/15m/30m/1h/4h/1d"),
-    days: int = typer.Option(365, help="Backfill window in days"),
+    days: int = typer.Option(365, min=1, help="Backfill window in days"),
     mark_usd: bool = typer.Option(True, help="Compute open_interest_usd via mark-price-kline"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:
@@ -750,7 +759,8 @@ def optimize(
     except Exception as e:
         console.print(f"[red]ERR 优化失败：{redact_secrets(str(e))}[/]")
         console.print("  请检查参数空间、数据范围与策略 generate_signals 实现。")
-        return
+        # DEF-REV011-C: a real failure must not report success to CI/cron.
+        raise typer.Exit(code=1) from e
     finally:
         store.close()
 
@@ -1028,7 +1038,8 @@ def validate(
     except Exception as e:
         console.print(f"[red]ERR 验证失败：{redact_secrets(str(e))}[/]")
         console.print("  请检查 CPCV 分组数、WFO 窗口、数据长度与策略 generate_signals 实现。")
-        return
+        # DEF-REV011-C: align with download's exit-1-on-failure contract.
+        raise typer.Exit(code=1) from e
     finally:
         store.close()
 
@@ -1044,7 +1055,8 @@ def run(
         "", help="Trading symbols, comma-separated (e.g. BTC/USDT,ETH/USDT). Overrides --symbol."
     ),
     timeframe: str = typer.Option("1h", help="Market data timeframe"),
-    interval: int = typer.Option(60, min=0, help="Polling interval in seconds"),
+    # DEF-REV011-D: >=1 — sleep(0) would spin the poll loop hot.
+    interval: int = typer.Option(60, min=1, help="Polling interval in seconds"),
     capital: float = typer.Option(100000.0, help="Initial capital"),
     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
 ) -> None:

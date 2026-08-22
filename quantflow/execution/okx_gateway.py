@@ -84,6 +84,11 @@ class OKXGateway(GatewayBase):
         self._health_monitor: Any | None = health_monitor
         self._exchange: Any = None
         self._connected = False
+        # DEF-REV011-A: last config passed to connect(); reused by
+        # ensure_connected() so a mid-session reconnect keeps credentials
+        # instead of building an anonymous ccxt instance (401 loop that left
+        # a live session unable to place even closing orders).
+        self._last_connect_config: dict[str, Any] | None = None
         self._reconnect_interval = RECONNECT_INTERVAL
         self._max_reconnect_attempts = MAX_RECONNECT_ATTEMPTS
         # ISS-003: WebSocket subscription state. _ws_tasks holds active watch
@@ -95,7 +100,9 @@ class OKXGateway(GatewayBase):
     async def connect(self, config: dict[str, Any] | None = None) -> None:
         import ccxt.async_support as ccxt
 
-        cfg = config or {}
+        if config is not None:
+            self._last_connect_config = dict(config)
+        cfg = config if config is not None else (self._last_connect_config or {})
         # ISS-20260723-005: defaultType is now driven by market_type so connect()
         # and query_positions() agree on the account scope (the prior hardcode
         # of "spot" while query_positions read the derivatives "contracts"
@@ -160,7 +167,7 @@ class OKXGateway(GatewayBase):
         last_err: BaseException | None = None
         for attempt in range(1, self._max_reconnect_attempts + 1):
             try:
-                await self.connect()
+                await self.connect(self._last_connect_config)
                 logger.info("Reconnected on attempt %d", attempt)
                 # ISS-20260723-011 (OBS-M): successful reconnect.
                 self._sink.record_gateway_reconnect(self._exchange_obj_label, True)

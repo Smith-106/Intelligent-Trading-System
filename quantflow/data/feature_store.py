@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
 import duckdb
 import pandas as pd
+from filelock import FileLock
 
 from quantflow.common.exceptions import DataError
 from quantflow.common.indicator_protocol import IndicatorComputer, NullIndicatorComputer
 from quantflow.common.validators import validate_symbol
-from quantflow.data.store import DataStore
+from quantflow.data.store import DataStore, partition_lock
 
 logger = logging.getLogger(__name__)
 
@@ -135,24 +138,38 @@ class FeatureStore:
             year_dir.mkdir(parents=True, exist_ok=True)
             month_path = year_dir / f"{int(month):02d}.parquet"
 
-            existing = pd.read_parquet(month_path) if month_path.exists() else pd.DataFrame()
-            combined = pd.concat([existing, group], ignore_index=True)
-            # W19a: explicit keep="first" — existing / earlier rows win. Prevents a
-            # later backfill from silently overwriting a PIT feature row at the
-            # same timestamp (anti-lookahead write path). Conflicts are logged.
-            before = len(combined)
-            combined = combined.drop_duplicates(subset=["timestamp"], keep="first").sort_values(
-                "timestamp"
-            )
-            dropped = before - len(combined)
-            if dropped > 0:
-                logger.warning(
-                    "FeatureStore.save_features: dropped %d duplicate timestamp row(s) "
-                    "for %s (keep=first / existing wins)",
-                    dropped,
-                    symbol,
+            # DEF-REV011-K: same write protocol as store._merge_write_partition
+            # (thread lock + FileLock + tmp atomic replace). The read-merge-
+            # write was previously unlocked: concurrent writers raced and the
+            # stale-existing winner silently dropped fresh feature rows — a
+            # direct anti-lookahead-contract hazard.
+            with partition_lock(month_path), FileLock(f"{month_path}.lock", timeout=300):
+                existing = (
+                    pd.read_parquet(month_path) if month_path.exists() else pd.DataFrame()
                 )
-            combined.to_parquet(month_path, index=False, compression="zstd")
+                combined = pd.concat([existing, group], ignore_index=True)
+                # W19a: explicit keep="first" — existing / earlier rows win. Prevents a
+                # later backfill from silently overwriting a PIT feature row at the
+                # same timestamp (anti-lookahead write path). Conflicts are logged.
+                before = len(combined)
+                combined = combined.drop_duplicates(subset=["timestamp"], keep="first").sort_values(
+                    "timestamp"
+                )
+                dropped = before - len(combined)
+                if dropped > 0:
+                    logger.warning(
+                        "FeatureStore.save_features: dropped %d duplicate timestamp row(s) "
+                        "for %s (keep=first / existing wins)",
+                        dropped,
+                        symbol,
+                    )
+                tmp_path = month_path.with_name(month_path.name + f".tmp{os.getpid()}")
+                try:
+                    combined.to_parquet(tmp_path, index=False, compression="zstd")
+                    os.replace(tmp_path, month_path)
+                finally:
+                    with contextlib.suppress(OSError):
+                        Path(tmp_path).unlink(missing_ok=True)
 
         logger.info("Saved %d feature rows for %s", len(features), symbol)
 

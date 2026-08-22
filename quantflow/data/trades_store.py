@@ -12,14 +12,18 @@ dumps stay local (gitignore data/trades/ if large).
 
 from __future__ import annotations
 
+import contextlib
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from filelock import FileLock
 
 from quantflow.common.exceptions import DataError
 from quantflow.common.validators import validate_symbol
+from quantflow.data.store import partition_lock
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +46,15 @@ class TradesStore:
         for col in TRADE_COLS:
             if col not in df.columns:
                 raise DataError(f"trades missing column {col!r}")
-        df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce").astype("int64")
+        # DEF-REV011-J: coerce -> dropna -> THEN cast; casting before dropna
+        # turns one bad timestamp into ValueError for the whole batch.
+        df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
         df["price"] = pd.to_numeric(df["price"], errors="coerce").astype(float)
         df["amount"] = pd.to_numeric(df["amount"], errors="coerce").astype(float)
         df["side"] = df["side"].astype(str)
         df = df.dropna(subset=["timestamp", "price", "amount"])
+        if not df.empty:
+            df["timestamp"] = df["timestamp"].astype("int64")
         if df.empty:
             return 0
         dt = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
@@ -57,15 +65,25 @@ class TradesStore:
             year_dir = self._base / sym / f"year={int(year)}"
             year_dir.mkdir(parents=True, exist_ok=True)
             path = year_dir / f"month={int(month):02d}.parquet"
-            existing = pd.read_parquet(path) if path.exists() else pd.DataFrame()
-            combined = pd.concat([existing, group[list(TRADE_COLS)]], ignore_index=True)
-            before = len(combined)
-            combined = combined.drop_duplicates(
-                subset=["timestamp", "price", "amount", "side"], keep="first"
-            ).sort_values("timestamp")
-            combined.to_parquet(path, index=False, compression="zstd")
-            written += len(combined) - (before - len(group))
-            # simpler accounting: count group rows after merge
+            # DEF-REV011-K: same write protocol as store._merge_write_partition
+            # — in-process thread lock + cross-process FileLock + tmp atomic
+            # replace. Concurrent writers previously raced read-merge-write and
+            # silently dropped each other's batches; readers could see halves.
+            with partition_lock(path), FileLock(f"{path}.lock", timeout=300):
+                existing = pd.read_parquet(path) if path.exists() else pd.DataFrame()
+                combined = pd.concat(
+                    [existing, group[list(TRADE_COLS)]], ignore_index=True
+                )
+                combined = combined.drop_duplicates(
+                    subset=["timestamp", "price", "amount", "side"], keep="first"
+                ).sort_values("timestamp")
+                tmp_path = path.with_name(path.name + f".tmp{os.getpid()}")
+                try:
+                    combined.to_parquet(tmp_path, index=False, compression="zstd")
+                    os.replace(tmp_path, path)
+                finally:
+                    with contextlib.suppress(OSError):
+                        Path(tmp_path).unlink(missing_ok=True)
         logger.info("TradesStore saved trades for %s (%d input rows)", symbol, len(df))
         return len(df)
 

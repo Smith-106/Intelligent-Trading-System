@@ -503,7 +503,19 @@ class TestTradingSessionExtra:
     def test_on_risk_event_and_check_health_cover_remaining_branches(self) -> None:
         session = TradingSession(AppConfig(), [_Strategy()])
         session._kill_switch = _FakeKillSwitch(active=False)
-        session._on_risk_event(Event(EVENT_RISK, {"severity": "emergency"}))
+
+        # DEF-REV011-B: emergency arms the kill switch via a fire-and-forget
+        # task; run inside a loop and drain before asserting side effects.
+        import asyncio as _aio
+
+        async def _fire():
+            session._on_risk_event(Event(EVENT_RISK, {"severity": "emergency"}))
+            pending = [t for t in session._background_tasks if not t.done()]
+            if pending:
+                await _aio.gather(*pending, return_exceptions=True)
+
+        _aio.run(_fire())
+        assert session.kill_switch is not None and session.kill_switch.calls
         session._on_risk_event(Event(EVENT_RISK, {"severity": "warn"}))
 
         session._running = True

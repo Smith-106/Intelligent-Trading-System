@@ -423,14 +423,27 @@ class TestTradingSessionOnRiskEvent:
         session = TradingSession(config, [])
         mock_kill = MagicMock()
         mock_kill.is_active = False
+        # DEF-REV011-B: activate() is awaited in a fire-and-forget task —
+        # must be an AsyncMock so create_task gets a coroutine.
+        mock_kill.activate = AsyncMock(return_value={"status": "activated"})
         session._kill_switch = mock_kill
 
         from quantflow.common.event_bus import Event
 
         event = Event(type="risk", data={"severity": "emergency"})
-        session._on_risk_event(event)
-        # Emergency detected but kill switch not yet activated (logged only)
-        # The method just logs; verify no crash
+
+        # DEF-REV011-B: emergency now arms the kill switch via a fire-and-
+        # forget task; run inside a loop so create_task works, then drain.
+        import asyncio as _aio
+
+        async def _drive():
+            session._on_risk_event(event)
+            pending = [t for t in session._background_tasks if not t.done()]
+            if pending:
+                await _aio.gather(*pending, return_exceptions=True)
+
+        _aio.run(_drive())
+        mock_kill.activate.assert_called_once()
 
     def test_on_risk_event_non_emergency(self):
         config = AppConfig()

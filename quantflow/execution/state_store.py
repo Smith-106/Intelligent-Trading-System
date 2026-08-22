@@ -70,13 +70,21 @@ class StateStore:
         self._dir.mkdir(parents=True, exist_ok=True)
         target = self._checkpoint_path()
         tmp = target.with_name(target.name + ".tmp")
-        tmp.write_text(
-            json.dumps(asdict(snapshot), indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
-        # os.replace is atomic on POSIX and Windows: readers see either the
-        # previous complete file or the new complete file, never a fragment.
-        os.replace(tmp, target)
+        try:
+            tmp.write_text(
+                json.dumps(asdict(snapshot), indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+            # os.replace is atomic on POSIX and Windows: readers see either the
+            # previous complete file or the new complete file, never a fragment.
+            os.replace(tmp, target)
+        finally:
+            # DEF-REV011-H: Windows PermissionError on replace (target held by
+            # a reader/AV scan) would otherwise leave the .tmp behind forever.
+            import contextlib as _cl
+
+            with _cl.suppress(OSError):
+                tmp.unlink(missing_ok=True)
         logger.info(
             "Checkpoint saved: mode=%s cash=%.2f positions=%d orders=%d",
             snapshot.mode,

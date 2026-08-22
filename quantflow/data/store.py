@@ -14,6 +14,7 @@ from typing import Any
 import duckdb
 import pandas as pd
 from filelock import FileLock
+from filelock import Timeout as FileLockTimeout
 
 from quantflow.common.exceptions import DataError
 from quantflow.common.validators import (
@@ -145,8 +146,17 @@ class DataStore:
             # In-process per-partition thread lock first, then the cross-process
             # FileLock on the canonical partition path (bounded wait so a stuck
             # writer surfaces as an error instead of hanging the caller forever).
-            with partition_lock(month_path), FileLock(f"{month_path}.lock", timeout=300):
-                self._merge_write_partition(month_path, year_dir, group, data_cols)
+            try:
+                with partition_lock(month_path), FileLock(
+                    f"{month_path}.lock", timeout=300
+                ):
+                    self._merge_write_partition(month_path, year_dir, group, data_cols)
+            except FileLockTimeout as exc:
+                # DEF-REV011-I: contention surfaces as the storage error type,
+                # not a bare filelock.Timeout (fail-closed preserved).
+                raise DataError(
+                    f"partition lock timeout: {month_path}"
+                ) from exc
 
     def _merge_write_partition(
         self,
@@ -664,7 +674,11 @@ class DataStore:
     def _timestamp_period(timestamp: int | None, *, lower_bound: bool) -> tuple[int, int]:
         if timestamp is None:
             return (0, 1) if lower_bound else (9999, 12)
-        dt = pd.to_datetime(timestamp, unit="ms", utc=True)
+        try:
+            dt = pd.to_datetime(timestamp, unit="ms", utc=True)
+        except (pd.errors.OutOfBoundsDatetime, OverflowError, ValueError) as exc:
+            # DEF-REV011-I: absurd bounds become a usage error, not a 500.
+            raise DataError(f"timestamp out of range: {timestamp}") from exc
         return int(dt.year), int(dt.month)
 
     @staticmethod

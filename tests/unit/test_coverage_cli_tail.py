@@ -276,7 +276,8 @@ class TestOptimizeTail:
             patch("quantflow.strategy.research.optimizer.StrategyOptimizer", return_value=fake_opt),
         ):
             result = runner.invoke(app, ["optimize", "--strategy", "trend_following"])
-        assert result.exit_code == 0
+        # DEF-REV011-C: real failures exit non-zero (CI safety net).
+        assert result.exit_code == 1
         assert "优化失败" in result.output
 
 
@@ -481,7 +482,8 @@ class TestValidateTail:
             ),
         ):
             result = runner.invoke(app, ["validate", "--method", "cpcv"])
-        assert result.exit_code == 0
+        # DEF-REV011-C: real failures exit non-zero.
+        assert result.exit_code == 1
         assert "验证失败" in result.output
 
 

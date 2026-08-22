@@ -298,6 +298,8 @@ class TradingSession:
         # _meta_fetcher is injectable so tests can feed scripted snapshots
         # without touching the network.
         self._meta_feed_task: asyncio.Task[None] | None = None
+        # DEF-REV011-B/L3: fire-and-forget task registry drained by stop().
+        self._background_tasks: set[asyncio.Task[Any]] = set()
         self._meta_fetcher: Any | None = None
         self._dq_monitor: Any | None = None
         self._meta_fresh: dict[str, dict[str, Any]] = {}
@@ -1158,10 +1160,20 @@ class TradingSession:
             return 1.0
 
     def _on_risk_event(self, event: Event) -> None:
-        """Handle risk events — trigger kill switch on emergencies."""
+        """Handle risk events — trigger kill switch on emergencies.
+
+        DEF-REV011-B: the previous implementation only logged "will activate
+        on next cycle" but never activated anything (the promised consumer
+        contract with exchange_health did not exist). Emergencies now arm the
+        switch for real; the idempotent activate() path already dedupes.
+        """
         severity = event.data.get("severity", "warn")
         if severity == "emergency" and self._kill_switch and not self._kill_switch.is_active:
-            logger.critical("Emergency risk event — will activate kill switch on next cycle")
+            reason = str(event.data.get("type", "emergency"))
+            logger.critical("Emergency risk event — activating kill switch: %s", reason)
+            task = asyncio.create_task(self._kill_switch.activate(reason))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
 
     # ------------------------------------------------------------------ #
     # T-s2-04: funding-rate / open-interest meta feed.
@@ -1577,7 +1589,7 @@ class TradingSession:
                         await fetcher.disconnect()
                         self.check_health()
                         self._execution.check_timeouts()
-                        await asyncio.sleep(interval_seconds)
+                        await asyncio.sleep(max(interval_seconds, 1))
                         continue
 
                 # M4-4.2: single poller rotates over all symbols each cycle.
@@ -1660,7 +1672,7 @@ class TradingSession:
                         level="critical",
                     )
 
-                await asyncio.sleep(interval_seconds)
+                await asyncio.sleep(max(interval_seconds, 1))
 
         except asyncio.CancelledError:
             logger.info("Data loop cancelled")
@@ -1724,7 +1736,7 @@ class TradingSession:
                 # T-s1-03: periodic reconciliation + checkpoint (both opt-in).
                 await self._periodic_maintenance()
                 self._execution.check_timeouts()
-                await asyncio.sleep(interval_seconds)
+                await asyncio.sleep(max(interval_seconds, 1))
 
         except asyncio.CancelledError:
             logger.info("Data loop cancelled")
@@ -1775,6 +1787,13 @@ class TradingSession:
             with contextlib.suppress(Exception):
                 await self._trades_ingest.stop()
             self._trades_ingest = None
+        # DEF-REV011-B/L3: drain fire-and-forget tasks (kill-switch activation,
+        # trades connect) so stop() leaves no zombie coroutines.
+        if self._background_tasks:
+            for task in list(self._background_tasks):
+                task.cancel()
+            await asyncio.gather(*self._background_tasks, return_exceptions=True)
+            self._background_tasks.clear()
         await self._execution.stop()
         logger.info("Trading session stopped")
 

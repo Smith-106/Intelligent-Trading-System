@@ -218,7 +218,7 @@ class TestCLIBasics:
                 "--symbols",
                 "BTC/USDT,ETH/USDT",
                 "--interval",
-                "0",
+                "1",
             ],
         )
 
@@ -259,7 +259,7 @@ class TestCLIBasics:
 
         result = runner.invoke(
             app,
-            ["run", "--mode", "paper", "--strategy", "trend_following", "--interval", "0"],
+            ["run", "--mode", "paper", "--strategy", "trend_following", "--interval", "1"],
         )
 
         assert result.exit_code == 0  # session errors are caught, not fatal
@@ -305,7 +305,7 @@ class TestCLIBasics:
                 "--strategy",
                 "trend_following",
                 "--interval",
-                "0",
+                "1",
             ],
         )
 

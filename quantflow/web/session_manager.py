@@ -60,7 +60,8 @@ class SessionStartRequest(BaseModel):
     strategies: list[str] = Field(default_factory=lambda: ["trend_following"])
     symbol: str = "BTC/USDT"
     timeframe: str = "1h"
-    interval_seconds: int = 60
+    # DEF-REV011-D: gt=0 — a zero interval would busy-loop the data loop.
+    interval_seconds: int = Field(60, gt=0)
     capital: float = 100000.0
     config_path: str = DEFAULT_CONFIG_PATH
 
