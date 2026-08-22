@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
 import ccxt.async_support as ccxt
 import pandas as pd
@@ -29,23 +28,9 @@ logger = logging.getLogger(__name__)
 # Bybit V5 kline cap is 1000 bars per request (OKX is 300).
 BYBIT_KLINE_PAGE_MAX = 1000
 
-# Safety cap on pagination loops (mirrors OKX fetcher).
-MAX_PAGINATION_PAGES = 500
-
 # Per-call timeout for every CCXT network call (odyssey-improve GP2).
 CALL_TIMEOUT = 30.0
 
-
-def _bar_is_finite(bar: list[Any]) -> bool:
-    """Return True if every numeric OHLCV field of a CCXT bar is finite."""
-    try:
-        for v in bar[:6]:
-            f = float(v)
-            if not __import__("math").isfinite(f):
-                return False
-        return True
-    except (TypeError, ValueError):
-        return False
 
 
 class BybitFetcher:
@@ -140,56 +125,16 @@ class BybitFetcher:
         # data), and concurrent multi-category calls would race on this dict.
         self._exchange.options["defaultType"] = cat
 
-        since = None
-        if start:
-            since = self._exchange.parse8601(f"{start}T00:00:00Z")
-        end_ts = self._exchange.parse8601(f"{end}T23:59:59Z") if end else None
-        effective_limit = min(limit, BYBIT_KLINE_PAGE_MAX)
+        from quantflow.data.fetcher import fetch_ohlcv_paginated
 
-        all_bars: list[list[Any]] = []
-        pages = 0
-        while True:
-            pages += 1
-            if pages > MAX_PAGINATION_PAGES:
-                # RV-012: a silent stop here truncated history while callers
-                # treated the result as complete — raise instead.
-                raise DataError(f"Pagination exceeded {MAX_PAGINATION_PAGES} pages for {symbol}")
-            bars = await asyncio.wait_for(
-                self._exchange.fetch_ohlcv(
-                    symbol,
-                    timeframe,
-                    since=since,
-                    limit=effective_limit,
-                ),
-                timeout=CALL_TIMEOUT,
-            )
-            if not bars:
-                break
-            bars = [b for b in bars if _bar_is_finite(b)]
-            if not bars:
-                logger.warning(
-                    "All fetched bars for %s/%s were non-finite; skipped", symbol, timeframe
-                )
-                break
-            all_bars.extend(bars)
-            last_ts = bars[-1][0]
-            if end_ts is not None:
-                if last_ts >= end_ts:
-                    all_bars = [b for b in all_bars if b[0] <= end_ts]
-                    break
-                since = last_ts + 1
-                continue
-            since = last_ts + 1
-            if len(bars) < effective_limit:
-                break
-
-        df = pd.DataFrame(all_bars, columns=["timestamp", "open", "high", "low", "close", "volume"])
-        df["symbol"] = symbol
-        df["timeframe"] = timeframe
-        df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
-        df = (
-            df.drop_duplicates(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
+        return await fetch_ohlcv_paginated(
+            self._exchange,
+            symbol,
+            timeframe,
+            start,
+            end,
+            limit,
+            page_max=BYBIT_KLINE_PAGE_MAX,
+            log_prefix="Bybit fetched",
         )
-        logger.info("Bybit fetched %d bars for %s/%s", len(df), symbol, timeframe)
-        return df
 

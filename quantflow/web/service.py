@@ -1432,25 +1432,10 @@ class StationService:
             raise ValueError(f"Workbench state payload exceeds {_MAX_WORKBENCH_STATE_BYTES} bytes.")
         return self.history_store.save_workbench_state(payload)
 
-    def monitoring_snapshot(
-        self,
-        *,
-        session_snapshot: dict[str, Any] | None = None,
-        session_history: list[dict[str, Any]] | None = None,
-        session_events: list[dict[str, Any]] | None = None,
-    ) -> dict[str, Any]:
-        overview = self.overview()
-        research_items = self.research_history(limit=6)
-        validation_items = self.validation_history(limit=6)
-        session_history = session_history or []
-        session_events = session_events or []
-        live_session = session_snapshot if isinstance(session_snapshot, dict) else {}
-        latest_session = (
-            live_session
-            if live_session.get("session_id")
-            else (session_history[0] if session_history else live_session)
-        )
-
+    @staticmethod
+    def _monitoring_internal_metrics() -> dict[str, Any]:
+        """IMP-REV014-D: registry → UI metric mapping, split out of the
+        413-line monitoring_snapshot orchestrator."""
         metrics_registry = metrics_registry_snapshot()
         registry_values = (
             metrics_registry.get("values", {})
@@ -1458,7 +1443,7 @@ class StationService:
             and isinstance(metrics_registry.get("values", {}), dict)
             else {}
         )
-        internal_metrics = {
+        return {
             "available": bool(metrics_registry.get("available")),
             "portfolio_value": registry_values.get("portfolio_value"),
             "portfolio_cash": registry_values.get("portfolio_cash"),
@@ -1485,6 +1470,14 @@ class StationService:
             ),
         }
 
+
+    def _monitoring_services(
+        self,
+        overview: dict[str, Any],
+        internal_metrics: dict[str, Any],
+    ) -> tuple[list[dict[str, Any]], int]:
+        """IMP-REV014-D: operator-endpoint probing, split out of the
+        monitoring_snapshot orchestrator. Returns (services, reachable_total)."""
         monitoring_cfg = overview.get("monitoring", {})
         services: list[dict[str, Any]] = []
         reachable_total = 0
@@ -1577,11 +1570,20 @@ class StationService:
 
             services.append(service_payload)
 
-        prometheus_service = next(
-            (service for service in services if service.get("service_id") == "prometheus"),
-            None,
-        )
+        return services, reachable_total
 
+    def _monitoring_health(
+        self,
+        overview: dict[str, Any],
+        validation_items: list[dict[str, Any]],
+        session_events: list[dict[str, Any]],
+        live_session: dict[str, Any],
+        services: list[dict[str, Any]],
+        reachable_total: int,
+        prometheus_service: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """IMP-REV014-D: health-tone / signal / alert derivation split out
+        of the monitoring_snapshot orchestrator."""
         validation_outcomes: Counter[str] = Counter()
         validation_no_go = 0
         validation_go = 0
@@ -1686,6 +1688,82 @@ class StationService:
             "muted": "No recent platform activity available yet.",
         }[health_tone]
 
+        return {
+            "validation_no_go": validation_no_go,
+            "validation_go": validation_go,
+            "warning_events": warning_events,
+            "error_events": error_events,
+            "health_tone": health_tone,
+            "health_signals": health_signals,
+            "summary_text": summary_text,
+            "data_mode": data_mode,
+            "data_context": data_context,
+            "health_label": health_label_map[health_tone],
+            "active_session": active_session,
+            "event_levels": event_levels,
+            "event_types": event_types,
+            "validation_outcomes": validation_outcomes,
+        }
+
+    def monitoring_snapshot(
+        self,
+        *,
+        session_snapshot: dict[str, Any] | None = None,
+        session_history: list[dict[str, Any]] | None = None,
+        session_events: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        overview = self.overview()
+        research_items = self.research_history(limit=6)
+        validation_items = self.validation_history(limit=6)
+        session_history = session_history or []
+        session_events = session_events or []
+        live_session = session_snapshot if isinstance(session_snapshot, dict) else {}
+        latest_session = (
+            live_session
+            if live_session.get("session_id")
+            else (session_history[0] if session_history else live_session)
+        )
+
+        metrics_registry = metrics_registry_snapshot()
+        registry_values = (
+            metrics_registry.get("values", {})
+            if isinstance(metrics_registry, dict)
+            and isinstance(metrics_registry.get("values", {}), dict)
+            else {}
+        )
+        internal_metrics = self._monitoring_internal_metrics()
+
+        services, reachable_total = self._monitoring_services(overview, internal_metrics)
+
+        prometheus_service = next(
+            (service for service in services if service.get("service_id") == "prometheus"),
+            None,
+        )
+
+        health = self._monitoring_health(
+            overview,
+            validation_items,
+            session_events,
+            live_session,
+            services,
+            reachable_total,
+            prometheus_service,
+        )
+        validation_no_go = health["validation_no_go"]
+        validation_go = health["validation_go"]
+        warning_events = health["warning_events"]
+        error_events = health["error_events"]
+        health_tone = health["health_tone"]
+        health_signals = health["health_signals"]
+        summary_text = health["summary_text"]
+        data_mode = health["data_mode"]
+        data_context = health["data_context"]
+        health_label = health["health_label"]
+        active_session = health["active_session"]
+        event_levels = health["event_levels"]
+        event_types = health["event_types"]
+        validation_outcomes = health["validation_outcomes"]
+
         latest_research = research_items[0] if research_items else None
         latest_validation = validation_items[0] if validation_items else None
 
@@ -1787,7 +1865,7 @@ class StationService:
         return {
             "captured_at": datetime.now(UTC).isoformat(),
             "health": {
-                "overall_label": health_label_map[health_tone],
+                "overall_label": health_label,
                 "overall_tone": health_tone,
                 "summary": summary_text,
                 "signals": health_signals[:6],

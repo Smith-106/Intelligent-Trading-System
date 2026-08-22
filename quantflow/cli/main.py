@@ -7,7 +7,7 @@ import json
 import os
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -244,6 +244,57 @@ FUNDING_HISTORY_MAX_DAYS = 90
 _OI_HISTORY_PERIODS = {"1H", "1D"}
 
 
+
+
+def _run_meta_backfill(
+    *,
+    fetcher: Any,
+    store: Any,
+    connect_status: str,
+    backfill_status: str,
+    since_ms: int,
+    fetch: Callable[[int], Awaitable[Any]],
+    save: Callable[[Any], None],
+    empty_msg: str,
+    ok_msg: str,
+    last_label: str,
+    meta_kind: str,
+    store_symbol: str,
+) -> None:
+    """Shared body for the four meta-backfill commands (funding/OI x OKX/Bybit).
+
+    IMP-REV014-B: these commands previously repeated the same
+    connect → fetch → empty-check → save → last-timestamp print → cleanup
+    skeleton; only labels and callables differed. ``ok_msg`` may contain a
+    ``{rows}`` placeholder filled with the fetched row count.
+    """
+
+    async def _run() -> None:
+        try:
+            with console.status(connect_status):
+                await fetcher.connect()
+            with console.status(backfill_status):
+                df = await fetch(since_ms)
+            if df.empty:
+                console.print(f"[red]ERR {empty_msg}[/]")
+                return
+            save(df)
+            last_ts = store.get_last_meta_timestamp(store_symbol, meta_kind)
+            console.print("[green]OK[/] " + ok_msg.format(rows=len(df)))
+            if last_ts is not None:
+                last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
+                console.print(f"  {last_label}: {last_date}")
+        except Exception as e:
+            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
+            raise typer.Exit(code=1) from e
+        finally:
+            await fetcher.disconnect()
+            store.close()
+
+    asyncio.run(_run())
+
+
+
 @app.command()
 def download_funding(
     symbol: str = typer.Option("BTC/USDT", help="Trading symbol (OKX swap)"),
@@ -270,36 +321,25 @@ def download_funding(
         )
         effective_days = FUNDING_HISTORY_MAX_DAYS
 
-    async def _run() -> None:
-        fetcher = MarketMetaFetcher(cfg.data)
-        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
-        try:
-            with console.status("[bold blue]Connecting to OKX (meta endpoints)..."):
-                await fetcher.connect()
-            since_ms = int(time.time() * 1000) - effective_days * 86_400_000
-            with console.status(
-                f"[bold blue]Backfilling funding history for {symbol} ({effective_days}d)..."
-            ):
-                df = await fetcher.fetch_funding_rate_history(symbol, since_ms)
-            if df.empty:
-                console.print("[red]ERR No funding data fetched. Check the symbol.[/]")
-                return
-            store.save_funding_rates(df, store_symbol)
-            last_ts = store.get_last_meta_timestamp(store_symbol, "funding_rate")
-            console.print(
-                f"[green]OK[/] Saved [bold]{len(df)}[/] funding rows for [bold]{store_symbol}[/]"
-            )
-            if last_ts is not None:
-                last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
-                console.print(f"  Last funding time: {last_date}")
-        except Exception as e:
-            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
-            raise typer.Exit(code=1) from e
-        finally:
-            await fetcher.disconnect()
-            store.close()
-
-    asyncio.run(_run())
+    fetcher = MarketMetaFetcher(cfg.data)
+    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+    since_ms = int(time.time() * 1000) - effective_days * 86_400_000
+    _run_meta_backfill(
+        fetcher=fetcher,
+        store=store,
+        connect_status="[bold blue]Connecting to OKX (meta endpoints)...",
+        backfill_status=(
+            f"[bold blue]Backfilling funding history for {symbol} ({effective_days}d)..."
+        ),
+        since_ms=since_ms,
+        fetch=lambda since: fetcher.fetch_funding_rate_history(symbol, since),
+        save=lambda df: store.save_funding_rates(df, store_symbol),
+        empty_msg="No funding data fetched. Check the symbol.",
+        ok_msg=f"Saved [bold]{{rows}}[/] funding rows for [bold]{store_symbol}[/]",
+        last_label="Last funding time",
+        meta_kind="funding_rate",
+        store_symbol=store_symbol,
+    )
 
 
 @app.command()
@@ -324,38 +364,27 @@ def download_oi(
     cfg = _load(config)
     store_symbol = f"{symbol}-OKX" if okx_suffix else symbol
 
-    async def _run() -> None:
-        fetcher = MarketMetaFetcher(cfg.data)
-        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
-        try:
-            with console.status("[bold blue]Connecting to OKX (meta endpoints)..."):
-                await fetcher.connect()
-            since_ms = int(time.time() * 1000) - days * 86_400_000
-            with console.status(
-                f"[bold blue]Backfilling OI history for {symbol} ({days}d, {period})..."
-            ):
-                df = await fetcher.fetch_open_interest_history(
-                    symbol, period=period, since_ms=since_ms
-                )
-            if df.empty:
-                console.print("[red]ERR No OI data fetched. Check the symbol.[/]")
-                return
-            store.save_open_interest(df, store_symbol)
-            last_ts = store.get_last_meta_timestamp(store_symbol, "open_interest")
-            console.print(
-                f"[green]OK[/] Saved [bold]{len(df)}[/] OI rows for [bold]{store_symbol}[/] ({period})"
-            )
-            if last_ts is not None:
-                last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
-                console.print(f"  Last OI timestamp: {last_date}")
-        except Exception as e:
-            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
-            raise typer.Exit(code=1) from e
-        finally:
-            await fetcher.disconnect()
-            store.close()
-
-    asyncio.run(_run())
+    fetcher = MarketMetaFetcher(cfg.data)
+    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+    since_ms = int(time.time() * 1000) - days * 86_400_000
+    _run_meta_backfill(
+        fetcher=fetcher,
+        store=store,
+        connect_status="[bold blue]Connecting to OKX (meta endpoints)...",
+        backfill_status=f"[bold blue]Backfilling OI history for {symbol} ({days}d, {period})...",
+        since_ms=since_ms,
+        fetch=lambda since: fetcher.fetch_open_interest_history(
+            symbol, period=period, since_ms=since
+        ),
+        save=lambda df: store.save_open_interest(df, store_symbol),
+        empty_msg="No OI data fetched. Check the symbol.",
+        ok_msg=(
+            f"Saved [bold]{{rows}}[/] OI rows for [bold]{store_symbol}[/] ({period})"
+        ),
+        last_label="Last OI timestamp",
+        meta_kind="open_interest",
+        store_symbol=store_symbol,
+    )
 
 
 @app.command()
@@ -521,36 +550,25 @@ def download_bybit_funding(
 
     cfg = _load(config)
 
-    async def _run() -> None:
-        fetcher = BybitMetaFetcher(cfg.data)
-        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
-        try:
-            with console.status("[bold blue]Connecting to Bybit (meta)..."):
-                await fetcher.connect()
-            since_ms = int(time.time() * 1000) - days * 86_400_000
-            with console.status(f"[bold blue]Backfilling Bybit funding for {symbol} ({days}d)..."):
-                df = await fetcher.fetch_funding_rate_history(symbol, since_ms)
-            if df.empty:
-                console.print("[red]ERR No funding data fetched. Check the symbol.[/]")
-                return
-            fetcher.save_funding(store, df, symbol)
-            from quantflow.data.bybit_common import bybit_store_symbol
+    from quantflow.data.bybit_common import bybit_store_symbol
 
-            last_ts = store.get_last_meta_timestamp(bybit_store_symbol(symbol), "funding_rate")
-            console.print(
-                f"[green]OK[/] Saved [bold]{len(df)}[/] funding rows for [bold]{symbol}-BYBIT[/]"
-            )
-            if last_ts is not None:
-                last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
-                console.print(f"  Last funding time: {last_date}")
-        except Exception as e:
-            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
-            raise typer.Exit(code=1) from e
-        finally:
-            await fetcher.disconnect()
-            store.close()
-
-    asyncio.run(_run())
+    fetcher = BybitMetaFetcher(cfg.data)
+    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+    since_ms = int(time.time() * 1000) - days * 86_400_000
+    _run_meta_backfill(
+        fetcher=fetcher,
+        store=store,
+        connect_status="[bold blue]Connecting to Bybit (meta)...",
+        backfill_status=f"[bold blue]Backfilling Bybit funding for {symbol} ({days}d)...",
+        since_ms=since_ms,
+        fetch=lambda since: fetcher.fetch_funding_rate_history(symbol, since),
+        save=lambda df: fetcher.save_funding(store, df, symbol),
+        empty_msg="No funding data fetched. Check the symbol.",
+        ok_msg=f"Saved [bold]{{rows}}[/] funding rows for [bold]{symbol}-BYBIT[/]",
+        last_label="Last funding time",
+        meta_kind="funding_rate",
+        store_symbol=bybit_store_symbol(symbol),
+    )
 
 
 @app.command()
@@ -578,40 +596,29 @@ def download_bybit_oi(
     if period not in tf_map:
         raise typer.BadParameter("period must be one of 5m/15m/30m/1h/4h/1d")
 
-    async def _run() -> None:
-        fetcher = BybitMetaFetcher(cfg.data)
-        store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
-        try:
-            with console.status("[bold blue]Connecting to Bybit (meta)..."):
-                await fetcher.connect()
-            since_ms = int(time.time() * 1000) - days * 86_400_000
-            with console.status(
-                f"[bold blue]Backfilling Bybit OI for {symbol} ({period}, {days}d)..."
-            ):
-                df = await fetcher.fetch_open_interest_history(
-                    symbol, tf_map[period], since_ms, mark_usd=mark_usd
-                )
-            if df.empty:
-                console.print("[red]ERR No OI data fetched. Check the symbol/period.[/]")
-                return
-            fetcher.save_open_interest(store, df, symbol)
-            from quantflow.data.bybit_common import bybit_store_symbol
+    from quantflow.data.bybit_common import bybit_store_symbol
 
-            last_ts = store.get_last_meta_timestamp(bybit_store_symbol(symbol), "open_interest")
-            console.print(
-                f"[green]OK[/] Saved [bold]{len(df)}[/] OI rows for [bold]{symbol}-BYBIT[/] ({period})"
-            )
-            if last_ts is not None:
-                last_date = datetime.fromtimestamp(last_ts / 1000, UTC).strftime("%Y-%m-%d")
-                console.print(f"  Last OI timestamp: {last_date}")
-        except Exception as e:
-            console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
-            raise typer.Exit(code=1) from e
-        finally:
-            await fetcher.disconnect()
-            store.close()
-
-    asyncio.run(_run())
+    fetcher = BybitMetaFetcher(cfg.data)
+    store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+    since_ms = int(time.time() * 1000) - days * 86_400_000
+    _run_meta_backfill(
+        fetcher=fetcher,
+        store=store,
+        connect_status="[bold blue]Connecting to Bybit (meta)...",
+        backfill_status=f"[bold blue]Backfilling Bybit OI for {symbol} ({period}, {days}d)...",
+        since_ms=since_ms,
+        fetch=lambda since: fetcher.fetch_open_interest_history(
+            symbol, tf_map[period], since, mark_usd=mark_usd
+        ),
+        save=lambda df: fetcher.save_open_interest(store, df, symbol),
+        empty_msg="No OI data fetched. Check the symbol/period.",
+        ok_msg=(
+            f"Saved [bold]{{rows}}[/] OI rows for [bold]{symbol}-BYBIT[/] ({period})"
+        ),
+        last_label="Last OI timestamp",
+        meta_kind="open_interest",
+        store_symbol=bybit_store_symbol(symbol),
+    )
 
 
 @app.command()
