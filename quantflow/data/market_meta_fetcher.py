@@ -39,6 +39,24 @@ import pandas as pd
 
 from quantflow.common.config import DataConfig
 from quantflow.common.exceptions import DataError, GatewayConnectionError
+from quantflow.common.netretry import (
+    BASE_BACKOFF_S,
+    CALL_TIMEOUT,
+    MAX_RETRIES,
+    MIN_ENDPOINT_INTERVAL_S,
+)
+from quantflow.common.netretry import (
+    RetryableLimiter as RateLimiter,
+)
+from quantflow.common.netretry import (
+    is_retryable_error as _is_retryable,
+)
+from quantflow.common.netretry import (
+    to_float as _to_float,
+)
+from quantflow.common.netretry import (
+    to_int as _to_int,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,20 +69,11 @@ FUNDING_POLL_INTERVAL_S = 60.0
 #: Minimum interval between open-interest polls (OI 20 req/2 s; 30 s keeps
 #: the loop cheap while staying inside ``OI_MAX_AGE_S``).
 OI_POLL_INTERVAL_S = 30.0
-#: Minimum spacing between ANY two endpoint requests (IP-level serial).
-MIN_ENDPOINT_INTERVAL_S = 0.2
+
 #: Funding staleness threshold = factor x settlement interval (runtime).
 FUNDING_MAX_AGE_FACTOR = 2
 #: OI staleness threshold in seconds (REST-only feed, no WS available).
 OI_MAX_AGE_S = 600.0
-#: OKX rate-limit error code (HTTP 50011) treated as retryable.
-RATE_LIMIT_ERROR_CODE = "50011"
-#: Max retry attempts after the initial call (backoff 1s/2s/4s + jitter).
-MAX_RETRIES = 3
-#: Base backoff delay in seconds (doubles each retry).
-BASE_BACKOFF_S = 1.0
-#: Per-call network timeout (mirrors DataFetcher.CALL_TIMEOUT).
-CALL_TIMEOUT = 30.0
 #: Safety cap for history pagination loops (guards against endless paging).
 MAX_HISTORY_PAGES = 100
 #: OKX funding-rate-history single-page cap (endpoint max is 100; a larger
@@ -78,32 +87,6 @@ OI_HISTORY_PAGE_MAX = 1000
 
 FUNDING_HISTORY_COLUMNS = ["timestamp", "funding_rate", "realized_rate", "funding_time"]
 OI_HISTORY_COLUMNS = ["timestamp", "open_interest", "open_interest_ccy", "open_interest_usd"]
-
-
-class RateLimiter:
-    """IP-level serial rate limiter (analyze locked decision: self-throttle).
-
-    Guarantees at least ``min_interval`` seconds between the START of
-    consecutive requests, independent of ccxt's internal throttling. One
-    limiter instance is shared across all meta endpoints of a session.
-    """
-
-    def __init__(self, min_interval: float = MIN_ENDPOINT_INTERVAL_S) -> None:
-        self._min_interval = min_interval
-        self._lock = asyncio.Lock()
-        self._last_request = 0.0  # monotonic timestamp of last granted slot
-
-    @property
-    def min_interval(self) -> float:
-        return self._min_interval
-
-    async def acquire(self) -> None:
-        """Wait until the next request slot is available, then claim it."""
-        async with self._lock:
-            wait = self._last_request + self._min_interval - time.monotonic()
-            if wait > 0:
-                await asyncio.sleep(wait)
-            self._last_request = time.monotonic()
 
 
 @dataclass(frozen=True)
@@ -134,36 +117,6 @@ class OpenInterestSnapshot:
     open_interest_usd: float
     timestamp: int
     fetched_at_ms: int
-
-
-def _to_float(value: Any, default: float = 0.0) -> float:
-    """Coerce an exchange payload field to a finite float (fail to default)."""
-    if value is None:
-        return default
-    try:
-        result = float(value)
-    except (TypeError, ValueError):
-        return default
-    return result if math.isfinite(result) else default
-
-
-def _to_int(value: Any, default: int = 0) -> int:
-    """Coerce an exchange payload field to int milliseconds."""
-    if value is None:
-        return default
-    try:
-        return int(float(value))
-    except (TypeError, ValueError):
-        return default
-
-
-def _is_retryable(exc: Exception) -> bool:
-    """True for OKX 50011 rate-limit responses and network-class errors."""
-    if RATE_LIMIT_ERROR_CODE in str(exc):
-        return True
-    if isinstance(exc, (asyncio.TimeoutError, ConnectionError, OSError)):
-        return True
-    return isinstance(exc, (ccxt.RateLimitExceeded, ccxt.DDoSProtection, ccxt.NetworkError))
 
 
 class MarketMetaFetcher:

@@ -11,6 +11,7 @@ Factor surface (names in FACTOR_NAMES):
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 import pandas as pd
 
@@ -236,114 +237,113 @@ class IndicatorEngine:
         low = result.get("low", close)
         vol = result.get("volume", pd.Series(1.0, index=result.index))
 
-        if "sma_20" in requested:
-            result["sma_20"] = trend.sma(close, 20)
-        if "sma_50" in requested:
-            result["sma_50"] = trend.sma(close, 50)
-        if "ema_12" in requested:
-            result["ema_12"] = trend.ema(close, 12)
-        if "ema_26" in requested:
-            result["ema_26"] = trend.ema(close, 26)
-
-        macd_columns = {"macd", "macd_signal", "macd_histogram"}
-        if requested & macd_columns:
-            macd_df = trend.macd(close)
-            for col in macd_columns & requested:
-                result[col] = macd_df[col]
-
-        if "rsi_14" in requested:
-            result["rsi_14"] = momentum.rsi(close, 14)
-
-        stoch_columns = {"stoch_k", "stoch_d"}
-        if requested & stoch_columns:
-            stoch_df = momentum.stochastic(high, low, close)
-            for col in stoch_columns & requested:
-                result[col] = stoch_df[col]
-
-        if "williams_r_14" in requested:
-            result["williams_r_14"] = momentum.williams_r(high, low, close, 14)
-        if "atr_14" in requested:
-            result["atr_14"] = volatility.atr(high, low, close, 14)
-
-        bb_columns = {"bb_upper", "bb_middle", "bb_lower"}
-        if requested & bb_columns:
-            bb_df = volatility.bollinger_bands(close, 20, 2.0)
-            for col in bb_columns & requested:
-                result[col] = bb_df[col]
-
-        if "adx_14" in requested:
-            result["adx_14"] = trend.adx(high, low, close, 14)
-        if "obv" in requested:
-            result["obv"] = volume.obv(close, vol)
-        if "vwap" in requested:
-            result["vwap"] = volume.vwap(high, low, close, vol)
-        if "mfi_14" in requested:
-            result["mfi_14"] = volume.mfi(high, low, close, vol, 14)
-        if "volume_sma_20" in requested:
-            result["volume_sma_20"] = volume.volume_sma(vol, 20)
-        if "volume_ratio" in requested:
-            result["volume_ratio"] = volume.volume_ratio(vol, 20)
-
-        # W18c extended classical
-        if "dema_20" in requested:
-            result["dema_20"] = trend.dema(close, 20)
-
-        st_columns = {"supertrend", "supertrend_direction"}
-        if requested & st_columns:
-            st_df = trend.supertrend(high, low, close)
-            for col in st_columns & requested:
-                result[col] = st_df[col]
-
-        srsi_columns = {"stochrsi_k", "stochrsi_d"}
-        if requested & srsi_columns:
-            srsi_df = momentum.stochastic_rsi(close)
-            for col in srsi_columns & requested:
-                result[col] = srsi_df[col]
-
-        kc_columns = {"kc_upper", "kc_middle", "kc_lower"}
-        if requested & kc_columns:
-            kc_df = volatility.keltner_channel(high, low, close)
-            for col in kc_columns & requested:
-                result[col] = kc_df[col]
-
-        dc_columns = {"dc_upper", "dc_middle", "dc_lower"}
-        if requested & dc_columns:
-            dc_df = volatility.donchian_channel(high, low)
-            for col in dc_columns & requested:
-                result[col] = dc_df[col]
-
-        if "session_vwap" in requested:
-            ts = result["timestamp"] if "timestamp" in result.columns else None
-            result["session_vwap"] = volume.session_vwap(high, low, close, vol, ts)
-        if "obv_slope" in requested:
-            result["obv_slope"] = volume.obv_slope(close, vol, 10)
-        if "cvd_proxy" in requested:
-            result["cvd_proxy"] = volume.cvd_proxy(close, vol)
-
-        # IAF orthogonal oscillators
-        if "cci_20" in requested:
-            result["cci_20"] = oscillators.cci(high, low, close, 20)
-        if "roc_12" in requested:
-            result["roc_12"] = oscillators.roc(close, 12)
-        if "mom_10" in requested:
-            result["mom_10"] = oscillators.momentum(close, 10)
-        aroon_cols = {"aroon_up", "aroon_down", "aroon_osc"}
-        if requested & aroon_cols:
-            aroon_df = oscillators.aroon(high, low, 25)
-            for col in aroon_cols & requested:
-                result[col] = aroon_df[col]
-        if "cmf_20" in requested:
-            result["cmf_20"] = oscillators.cmf(high, low, close, vol, 20)
-        if "realized_vol_20" in requested:
-            result["realized_vol_20"] = oscillators.realized_vol(close, 20)
-        if "bb_width_20" in requested:
-            result["bb_width_20"] = oscillators.bb_width(close, 20)
-        if "percent_b_20" in requested:
-            result["percent_b_20"] = oscillators.percent_b(close, 20)
-        if "trix_15" in requested:
-            result["trix_15"] = oscillators.trix(close, 15)
-        if "tsi" in requested:
-            result["tsi"] = oscillators.tsi(close)
+        # REV-009/S3: declarative spec table — (columns, builder). Each entry
+        # computes its source frame once when any of its columns is requested.
+        specs: tuple[tuple[frozenset[str], Callable[[], dict[str, pd.Series]]], ...] = (
+            (frozenset({"sma_20"}), lambda: {"sma_20": trend.sma(close, 20)}),
+            (frozenset({"sma_50"}), lambda: {"sma_50": trend.sma(close, 50)}),
+            (frozenset({"ema_12"}), lambda: {"ema_12": trend.ema(close, 12)}),
+            (frozenset({"ema_26"}), lambda: {"ema_26": trend.ema(close, 26)}),
+            (
+                frozenset({"macd", "macd_signal", "macd_histogram"}),
+                lambda: {c: v for c, v in trend.macd(close).items()},
+            ),
+            (frozenset({"rsi_14"}), lambda: {"rsi_14": momentum.rsi(close, 14)}),
+            (
+                frozenset({"stoch_k", "stoch_d"}),
+                lambda: {c: v for c, v in momentum.stochastic(high, low, close).items()},
+            ),
+            (
+                frozenset({"williams_r_14"}),
+                lambda: {"williams_r_14": momentum.williams_r(high, low, close, 14)},
+            ),
+            (frozenset({"atr_14"}), lambda: {"atr_14": volatility.atr(high, low, close, 14)}),
+            (
+                frozenset({"bb_upper", "bb_middle", "bb_lower"}),
+                lambda: {c: v for c, v in volatility.bollinger_bands(close, 20, 2.0).items()},
+            ),
+            (frozenset({"adx_14"}), lambda: {"adx_14": trend.adx(high, low, close, 14)}),
+            (frozenset({"obv"}), lambda: {"obv": volume.obv(close, vol)}),
+            (frozenset({"vwap"}), lambda: {"vwap": volume.vwap(high, low, close, vol)}),
+            (
+                frozenset({"mfi_14"}),
+                lambda: {"mfi_14": volume.mfi(high, low, close, vol, 14)},
+            ),
+            (
+                frozenset({"volume_sma_20"}),
+                lambda: {"volume_sma_20": volume.volume_sma(vol, 20)},
+            ),
+            (
+                frozenset({"volume_ratio"}),
+                lambda: {"volume_ratio": volume.volume_ratio(vol, 20)},
+            ),
+            (frozenset({"dema_20"}), lambda: {"dema_20": trend.dema(close, 20)}),
+            (
+                frozenset({"supertrend", "supertrend_direction"}),
+                lambda: {c: v for c, v in trend.supertrend(high, low, close).items()},
+            ),
+            (
+                frozenset({"stochrsi_k", "stochrsi_d"}),
+                lambda: {c: v for c, v in momentum.stochastic_rsi(close).items()},
+            ),
+            (
+                frozenset({"kc_upper", "kc_middle", "kc_lower"}),
+                lambda: {c: v for c, v in volatility.keltner_channel(high, low, close).items()},
+            ),
+            (
+                frozenset({"dc_upper", "dc_middle", "dc_lower"}),
+                lambda: {c: v for c, v in volatility.donchian_channel(high, low).items()},
+            ),
+            (
+                frozenset({"session_vwap"}),
+                lambda: {
+                    "session_vwap": volume.session_vwap(
+                        high,
+                        low,
+                        close,
+                        vol,
+                        result["timestamp"] if "timestamp" in result.columns else None,
+                    )
+                },
+            ),
+            (
+                frozenset({"obv_slope"}),
+                lambda: {"obv_slope": volume.obv_slope(close, vol, 10)},
+            ),
+            (frozenset({"cvd_proxy"}), lambda: {"cvd_proxy": volume.cvd_proxy(close, vol)}),
+            (frozenset({"cci_20"}), lambda: {"cci_20": oscillators.cci(high, low, close, 20)}),
+            (frozenset({"roc_12"}), lambda: {"roc_12": oscillators.roc(close, 12)}),
+            (frozenset({"mom_10"}), lambda: {"mom_10": oscillators.momentum(close, 10)}),
+            (
+                frozenset({"aroon_up", "aroon_down", "aroon_osc"}),
+                lambda: {c: v for c, v in oscillators.aroon(high, low, 25).items()},
+            ),
+            (
+                frozenset({"cmf_20"}),
+                lambda: {"cmf_20": oscillators.cmf(high, low, close, vol, 20)},
+            ),
+            (
+                frozenset({"realized_vol_20"}),
+                lambda: {"realized_vol_20": oscillators.realized_vol(close, 20)},
+            ),
+            (
+                frozenset({"bb_width_20"}),
+                lambda: {"bb_width_20": oscillators.bb_width(close, 20)},
+            ),
+            (
+                frozenset({"percent_b_20"}),
+                lambda: {"percent_b_20": oscillators.percent_b(close, 20)},
+            ),
+            (frozenset({"trix_15"}), lambda: {"trix_15": oscillators.trix(close, 15)}),
+            (frozenset({"tsi"}), lambda: {"tsi": oscillators.tsi(close)}),
+        )
+        for columns, build in specs:
+            hit = columns & requested
+            if not hit:
+                continue
+            for col, series_or_df_val in build().items():
+                if col in hit:
+                    result[col] = series_or_df_val
 
         return result
 

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -602,7 +605,11 @@ class DataStore:
         return None
 
     def close(self) -> None:
-        self._db.close()
+        # Idempotent by duckdb semantics; the double-close in legacy CLI paths
+        # never raised. Guarded here so store_scope + legacy finally coexist.
+        if self._db is not None:
+            with contextlib.suppress(RuntimeError):
+                self._db.close()
 
     def _load_existing(self, path: Path) -> pd.DataFrame | None:
         if path.exists():
@@ -667,3 +674,20 @@ class DataStore:
     @staticmethod
     def group_cols(df: pd.DataFrame) -> list[str]:
         return [c for c in df.columns if c not in {"year", "month"}]
+
+
+@contextmanager
+def store_scope(
+    parquet_dir: str | Path, duckdb_path: str | Path = ":memory:"
+) -> Iterator[DataStore]:
+    """Open a DataStore for a block, closing it on every exit path.
+
+    REV-009/S1: replaces 13 CLI + 6 web hand-rolled try/finally lifecycles.
+    Late-bound attribute access keeps ``patch("quantflow.data.store.DataStore")``
+    effective inside the CM body.
+    """
+    store = DataStore(parquet_dir, str(duckdb_path))
+    try:
+        yield store
+    finally:
+        store.close()
