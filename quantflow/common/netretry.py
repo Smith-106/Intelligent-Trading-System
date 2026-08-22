@@ -12,8 +12,10 @@ Import-light by design: only stdlib + ccxt, no pandas.
 from __future__ import annotations
 
 import asyncio
+import logging
 import math
 import time
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import ccxt
@@ -26,6 +28,7 @@ __all__ = [
     "RATE_LIMIT_ERROR_CODE",
     "RetryableLimiter",
     "is_retryable_error",
+    "retry_call",
     "to_float",
     "to_int",
 ]
@@ -65,6 +68,49 @@ class RetryableLimiter:
             if wait > 0:
                 await asyncio.sleep(wait)
             self._last_request = time.monotonic()
+
+
+async def retry_call(
+    limiter: RetryableLimiter,
+    factory: Callable[[], Awaitable[Any]],
+    op: str,
+    *,
+    logger_: logging.Logger | None = None,
+) -> Any:
+    """Run one endpoint call under ``limiter`` with bounded exponential retry.
+
+    IMP-REV013-4: single implementation replacing the two drifting copies
+    (MarketMetaFetcher._retry_call method + bybit_meta_fetcher module
+    function). Retryable failures back off BASE_BACKOFF_S -> x2 (capped at
+    4s) with jitter; non-retryable errors raise DataError immediately;
+    exhaustion raises DataError (fail-closed).
+    """
+    import asyncio
+    import random
+
+    from quantflow.common.exceptions import DataError
+
+    delay = BASE_BACKOFF_S
+    last_exc: Exception | None = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            await limiter.acquire()
+            return await asyncio.wait_for(factory(), timeout=CALL_TIMEOUT)
+        except Exception as e:
+            if not is_retryable_error(e):
+                raise DataError(f"{op} failed: {e}") from e
+            last_exc = e
+            if attempt >= MAX_RETRIES:
+                break
+            jitter = random.uniform(0.0, 0.1 * delay)
+            if logger_ is not None:
+                logger_.warning(
+                    "%s retryable failure (%s); backoff %.2fs (attempt %d/%d)",
+                    op, e, delay + jitter, attempt + 1, MAX_RETRIES,
+                )
+            await asyncio.sleep(delay + jitter)
+            delay *= 2
+    raise DataError(f"{op} failed after {MAX_RETRIES} retries: {last_exc}") from last_exc
 
 
 def to_float(value: Any, default: float = 0.0) -> float:

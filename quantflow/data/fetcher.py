@@ -201,46 +201,6 @@ class DataFetcher:
         logger.info("Fetched %d bars for %s/%s", len(df), symbol, timeframe)
         return df
 
-    async def fetch_ohlcv_multi(
-        self,
-        symbols: list[str],
-        timeframe: str = "1d",
-        start: str | None = None,
-        end: str | None = None,
-        *,
-        max_concurrency: int = 1,
-        on_symbol_error: Callable[[str, Exception], None] | None = None,
-    ) -> dict[str, pd.DataFrame]:
-        """Fetch many symbols over the shared single ccxt instance.
-
-        ``max_concurrency=1`` keeps the per-instance rate limiter authoritative
-        (M4-1.2 invariant) and is the default — values >1 are gated on
-        ``scripts/verify_okx_throttler.py --concurrency N`` returning zero 429s.
-        A failing symbol is reported via ``on_symbol_error`` and omitted from
-        the result rather than aborting the batch (P5-F5 exit-code contract).
-        """
-        # REV-008-B3: Semaphore(0) would deadlock the gather forever.
-        if max_concurrency < 1:
-            raise ValueError("max_concurrency must be >= 1")
-        sem = asyncio.Semaphore(max_concurrency)
-
-        async def _one(sym: str) -> pd.DataFrame | None:
-            async with sem:
-                try:
-                    return await self.fetch_ohlcv(sym, timeframe, start, end)
-                except Exception as e:
-                    logger.warning("OKX fetch failed for %s: %s", sym, e)
-                    if on_symbol_error:
-                        on_symbol_error(sym, e)
-                    return None
-
-        results = await asyncio.gather(*[_one(s) for s in symbols])
-        return {
-            sym: df
-            for sym, df in zip(symbols, results, strict=True)
-            if df is not None and not df.empty
-        }
-
     async def fetch_ticker(self, symbol: str) -> dict[str, Any]:
         """Fetch current ticker for a symbol."""
         if not self._exchange:

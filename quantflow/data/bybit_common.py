@@ -46,7 +46,13 @@ def bybit_market_id(symbol: str) -> str:
     if not sep:
         raise DataError(f"Invalid Bybit symbol: {symbol!r}")
     quote, _, tail = rest.partition(":")
-    if not tail:  # spot / perpetual
+    if not tail or "-" not in tail:
+        # IMP-REV013-bugfix: linear perps arrive as "BTC/USDT:USDT" (settle
+        # currency, no delivery date). Previously only the bare spot form hit
+        # this branch — a perp symbol fell into the delivery parser and died
+        # on the empty expiry, rejecting the documented download path for
+        # every Bybit linear contract. Spot and perp share the same native
+        # V5 market id.
         return f"{base}{quote}".upper()
     # Delivery: unified expiry token '260904' (YYMMDD) -> native '04SEP26'.
     expiry = tail.partition("-")[2]
@@ -66,18 +72,19 @@ def bybit_store_symbol(symbol: str, *, suffix: str = "-BYBIT") -> str:
 
     Perpetual/spot keeps the unified form: ``BTC/USDT`` -> ``BTC/USDT-BYBIT``
     (dir ``BTC_USDT-BYBIT``, unchanged from P2 behaviour).
-    Delivery maps to the native id: ``BTC/USDT:USDT-260904`` ->
-    ``BTCUSDT260904-BYBIT`` (19 chars — the ``:`` is validator-illegal).
-    Falls back to the bare market id when the suffixed form would exceed the
-    20-char validator cap.
+    Delivery maps to the native id; because that id already carries a dash
+    (``BTCUSDT-04SEP26``, 15 chars), appending ``-BYBIT`` would exceed the
+    20-char validator cap, so the bare market id is returned (the ``:``
+    never survives into storage either way).
     """
-    if ":" not in symbol:
-        store = f"{symbol}{suffix}"
-        if len(store) <= STORE_SYMBOL_MAX_LEN:
-            return store
-        return bybit_market_id(symbol)
     mid = bybit_market_id(symbol)
-    store = f"{mid}{suffix}"
-    if len(store) <= STORE_SYMBOL_MAX_LEN:
-        return store
-    return mid
+    # Prefer the suffixed unified form, fall back to the bare native id; if
+    # even the id exceeds the validator cap the symbol simply cannot be
+    # stored safely — raise instead of silently emitting an invalid key
+    # (IMP-REV013: the old fallback returned over-cap ids verbatim).
+    for candidate in (f"{symbol}{suffix}", mid) if ":" not in symbol else (f"{mid}{suffix}", mid):
+        if len(candidate) <= STORE_SYMBOL_MAX_LEN:
+            return candidate
+    raise DataError(
+        f"Bybit store symbol exceeds {STORE_SYMBOL_MAX_LEN}-char cap: {symbol!r}"
+    )

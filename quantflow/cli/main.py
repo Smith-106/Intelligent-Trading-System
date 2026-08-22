@@ -687,7 +687,6 @@ def research(
     finally:
         # RV-007/M10: early returns above leaked the DuckDB connection.
         store.close()
-    store.close()
 
 
 @app.command()

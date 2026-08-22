@@ -30,14 +30,12 @@ import pandas as pd
 
 from quantflow.common.config import DataConfig
 from quantflow.common.exceptions import DataError, GatewayConnectionError
+from quantflow.common.netretry import retry_call
 from quantflow.data.bybit_common import bybit_market_id, bybit_store_symbol
 from quantflow.data.market_meta_fetcher import (
-    BASE_BACKOFF_S,
     CALL_TIMEOUT,
-    MAX_RETRIES,
     MIN_ENDPOINT_INTERVAL_S,
     RateLimiter,
-    _is_retryable,
     _to_float,
 )
 from quantflow.data.store import DataStore
@@ -97,27 +95,9 @@ BYBIT_OI_INTERVAL_MAP = {
 
 
 async def _retry_call(limiter: RateLimiter, factory: Callable[[], Any], op: str) -> Any:
-    """Run an endpoint call with IP-level rate limiting and bounded retry.
+    """Delegate to the shared netretry.retry_call (IMP-REV013-4)."""
+    return await retry_call(limiter, factory, op)
 
-    Mirrors ``MarketMetaFetcher._retry_call`` (shared decision: self-throttle,
-    do NOT rely on ccxt built-in limiting). Retryable failures back off
-    1s -> 2s -> 4s with jitter, then raise ``DataError`` (fail-closed).
-    """
-    delay = BASE_BACKOFF_S
-    last_exc: Exception | None = None
-    for attempt in range(MAX_RETRIES + 1):
-        try:
-            await limiter.acquire()
-            return await asyncio.wait_for(factory(), timeout=CALL_TIMEOUT)
-        except Exception as e:
-            if not _is_retryable(e):
-                raise DataError(f"{op} failed: {e}") from e
-            last_exc = e
-            if attempt >= MAX_RETRIES:
-                break
-            await asyncio.sleep(delay)
-            delay = min(delay * 2, 4.0)
-    raise DataError(f"{op} failed after {MAX_RETRIES} retries: {last_exc}") from last_exc
 
 
 class BybitMetaFetcher:

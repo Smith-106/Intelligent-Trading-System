@@ -28,7 +28,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
-import random
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -38,18 +37,14 @@ import ccxt.async_support as ccxt
 import pandas as pd
 
 from quantflow.common.config import DataConfig
-from quantflow.common.exceptions import DataError, GatewayConnectionError
+from quantflow.common.exceptions import GatewayConnectionError
 from quantflow.common.netretry import (
-    BASE_BACKOFF_S,
     CALL_TIMEOUT,
-    MAX_RETRIES,
     MIN_ENDPOINT_INTERVAL_S,
+    retry_call,
 )
 from quantflow.common.netretry import (
     RetryableLimiter as RateLimiter,
-)
-from quantflow.common.netretry import (
-    is_retryable_error as _is_retryable,
 )
 from quantflow.common.netretry import (
     to_float as _to_float,
@@ -182,39 +177,8 @@ class MarketMetaFetcher:
     # ------------------------------------------------------------------
 
     async def _retry_call(self, factory: Callable[[], Awaitable[Any]], op: str) -> Any:
-        """Run an endpoint call with rate limiting and bounded retry.
-
-        Retryable failures (50011 / network) back off 1 s -> 2 s -> 4 s with
-        jitter, up to ``MAX_RETRIES`` retries; then raise ``DataError``
-        (fail-closed — the caller decides the degraded posture).
-        Non-retryable errors raise ``DataError`` immediately.
-        """
-        delay = BASE_BACKOFF_S
-        last_exc: Exception | None = None
-        for attempt in range(
-            MAX_RETRIES + 1
-        ):  # pragma: no cover - loop body always runs >=1x (range(MAX_RETRIES+1), MAX_RETRIES>=0); natural exit arc unreachable
-            try:
-                await self._limiter.acquire()
-                return await asyncio.wait_for(factory(), timeout=CALL_TIMEOUT)
-            except Exception as e:
-                if not _is_retryable(e):
-                    raise DataError(f"{op} failed: {e}") from e
-                last_exc = e
-                if attempt >= MAX_RETRIES:
-                    break
-                jitter = random.uniform(0.0, 0.1 * delay)
-                logger.warning(
-                    "%s retryable failure (%s); backoff %.2fs (attempt %d/%d)",
-                    op,
-                    e,
-                    delay + jitter,
-                    attempt + 1,
-                    MAX_RETRIES,
-                )
-                await asyncio.sleep(delay + jitter)
-                delay *= 2
-        raise DataError(f"{op} failed after {MAX_RETRIES} retries: {last_exc}") from last_exc
+        """Delegate to the shared netretry.retry_call (IMP-REV013-4)."""
+        return await retry_call(self._limiter, factory, op, logger_=logger)
 
     # ------------------------------------------------------------------
     # Funding rate

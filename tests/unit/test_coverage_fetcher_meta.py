@@ -13,14 +13,14 @@ import quantflow.data.fetcher as fetcher_module
 import quantflow.data.market_meta_fetcher as meta_module
 from quantflow.common.config import DataConfig
 from quantflow.common.exceptions import GatewayConnectionError
+from quantflow.common.netretry import is_retryable_error as _is_retryable
+from quantflow.common.netretry import to_float as _to_float
+from quantflow.common.netretry import to_int as _to_int
 from quantflow.data.fetcher import DataFetcher, _bar_is_finite
 from quantflow.data.market_meta_fetcher import (
     MarketMetaFetcher,
     OpenInterestSnapshot,
     RateLimiter,
-    _is_retryable,
-    _to_float,
-    _to_int,
     is_oi_fresh,
 )
 

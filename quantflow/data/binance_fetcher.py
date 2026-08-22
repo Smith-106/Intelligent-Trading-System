@@ -93,7 +93,7 @@ def _normalize_epoch_ms(values: Any) -> Any:
     magnitude — anything >= 1e14 is microseconds (1e14 ms ≈ year 5138, no
     legitimate ms stamp is that large).
     """
-    v = values.astype("int64")
+    v = pd.Series(values).astype("int64")
     return v.where(v < 100_000_000_000_000, v // 1000)
 
 

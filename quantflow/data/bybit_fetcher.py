@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
 from typing import Any
 
 import ccxt.async_support as ccxt
@@ -194,39 +193,3 @@ class BybitFetcher:
         logger.info("Bybit fetched %d bars for %s/%s", len(df), symbol, timeframe)
         return df
 
-    async def fetch_ohlcv_multi(
-        self,
-        symbols: list[str],
-        timeframe: str = "1d",
-        start: str | None = None,
-        end: str | None = None,
-        *,
-        max_concurrency: int = 1,
-        on_symbol_error: Callable[[str, Exception], None] | None = None,
-    ) -> dict[str, pd.DataFrame]:
-        """Fetch many symbols over a shared single instance.
-
-        ``max_concurrency=1`` keeps the per-instance rate limiter authoritative
-        (M4-1.2). A failing symbol is reported via ``on_symbol_error`` and
-        omitted from the result rather than aborting the whole batch.
-        """
-        if max_concurrency < 1:
-            raise ValueError("max_concurrency must be >= 1")
-        sem = asyncio.Semaphore(max_concurrency)
-
-        async def _one(sym: str) -> pd.DataFrame | None:
-            async with sem:
-                try:
-                    return await self.fetch_ohlcv(sym, timeframe, start, end)
-                except Exception as e:
-                    logger.warning("Bybit fetch failed for %s: %s", sym, e)
-                    if on_symbol_error:
-                        on_symbol_error(sym, e)
-                    return None
-
-        results = await asyncio.gather(*[_one(s) for s in symbols])
-        return {
-            sym: df
-            for sym, df in zip(symbols, results, strict=True)
-            if df is not None and not df.empty
-        }
