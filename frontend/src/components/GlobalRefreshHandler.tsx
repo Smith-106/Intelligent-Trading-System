@@ -1,18 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useUIStore, type PanelId } from "@/stores/ui-store";
-
-/** panel → queryKey 映射表 */
-const PANEL_QUERY_KEYS: Record<PanelId, string[][]> = {
-  overview: [["overview"]],
-  data: [["data"]],
-  monitoring: [["monitoring"]],
-  research: [["research-history"]],
-  validation: [["validation-history"]],
-  execution: [["execution"]],
-  session: [["session"]],
-  strategies: [["strategies"]],
-};
+import { useUIStore } from "@/stores/ui-store";
+import { PANEL_QUERY_KEYS } from "@/lib/query-keys";
 
 /**
  * P1 H1: 全局刷新处理器（弃用事件总线）

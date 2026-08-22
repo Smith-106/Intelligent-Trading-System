@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SectionHeader } from "@/components/metric-card";
-import { EmptyState } from "@/components/feedback";
+import { EmptyState, ErrorState } from "@/components/feedback";
 import { useWorkbenchStore } from "@/stores/workbench-store";
 import { useToast } from "@/hooks/use-toast";
 import { Play, RefreshCw } from "lucide-react";
@@ -19,7 +19,14 @@ export function ValidationPanel() {
     queryFn: () => api.strategies(),
   });
 
-  const { data: history, refetch: refetchHistory } = useQuery({
+  // Odyssey-UI REV-012: surface loading/error instead of an empty state.
+  const {
+    data: history,
+    refetch: refetchHistory,
+    isLoading: historyLoading,
+    isError: historyError,
+    error: historyErr,
+  } = useQuery({
     queryKey: ["validation-history"],
     queryFn: () => api.validationHistory(12),
     refetchInterval: 60000,
@@ -35,6 +42,8 @@ export function ValidationPanel() {
       setResult(data as unknown as Record<string, unknown>);
       toast({ title: "验证完成", description: "防过拟合验证已完成。" });
       queryClient.invalidateQueries({ queryKey: ["validation-history"] });
+      // Odyssey-UI REV-012: monitoring counters (validation_runs) freshness.
+      queryClient.invalidateQueries({ queryKey: ["monitoring"] });
     },
     onError: (error) => {
       toast({
@@ -179,7 +188,10 @@ export function ValidationPanel() {
                 <div>
                   <SectionHeader title="验证指标" />
                   <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/30 p-3">
-                    {Object.entries(result.metrics as Record<string, unknown>).map(([key, value]) => (
+                    {(result.metrics
+                      ? Object.entries(result.metrics as Record<string, unknown>)
+                      : []
+                    ).map(([key, value]) => (
                       <div key={key}>
                         <p className="text-xs text-muted-foreground">{key}</p>
                         <p className="text-sm font-semibold">
@@ -211,7 +223,14 @@ export function ValidationPanel() {
           </div>
         </CardHeader>
         <CardContent>
-          {historyItems.length === 0 ? (
+          {historyError ? (
+            <ErrorState
+              detail={historyErr instanceof Error ? historyErr.message : "加载验证历史失败"}
+              onRetry={() => refetchHistory()}
+            />
+          ) : historyLoading ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">加载中...</div>
+          ) : historyItems.length === 0 ? (
             <EmptyState
               title="暂无验证记录"
               description="运行第一次防过拟合验证后，验证的历史记录将显示在这里。建议保留最近的 5-10 次验证记录以进行审计。"

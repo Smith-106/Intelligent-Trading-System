@@ -13,6 +13,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { GlobalRefreshHandler } from "@/components/GlobalRefreshHandler";
 import { useUIStore, type PanelId } from "@/stores/ui-store";
 import { useHotkeys } from "@/hooks/use-hotkeys";
+import { PANEL_QUERY_KEYS } from "@/lib/query-keys";
 
 const PANEL_COMPONENTS: Record<PanelId, React.ComponentType> = {
   overview: OverviewPanel,
@@ -31,10 +32,14 @@ export function App() {
   const queryClient = useQueryClient();
   useHotkeys();
 
-  // P1 H1: 刷新直接调用 invalidateQueries（弃用事件总线）
+  // Odyssey-UI REV-012: refresh keys come from the shared PANEL_QUERY_KEYS
+  // table — `[panel]` never matched the real query keys (data-snapshot /
+  // research-history / validation-history), so these buttons were no-ops.
   const handleRefresh = useCallback(() => {
     const panel = useUIStore.getState().activePanel;
-    void queryClient.invalidateQueries({ queryKey: [panel] });
+    PANEL_QUERY_KEYS[panel].forEach((key) => {
+      void queryClient.invalidateQueries({ queryKey: key });
+    });
   }, [queryClient]);
 
   return (

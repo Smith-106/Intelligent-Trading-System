@@ -42,6 +42,7 @@ export function SessionPanel() {
       toast({ title: "会话已启动", description: "交易会话已成功启动。" });
       queryClient.invalidateQueries({ queryKey: ["session"] });
       queryClient.invalidateQueries({ queryKey: ["execution"] });
+      queryClient.invalidateQueries({ queryKey: ["monitoring"] });
     },
     onError: (error) => {
       toast({
@@ -61,6 +62,7 @@ export function SessionPanel() {
       });
       queryClient.invalidateQueries({ queryKey: ["session"] });
       queryClient.invalidateQueries({ queryKey: ["execution"] });
+      queryClient.invalidateQueries({ queryKey: ["monitoring"] });
     },
     onError: (error) => {
       // P0 H7: 停止失败强反馈——最危险形态，用户以为已停止实际仍在跑

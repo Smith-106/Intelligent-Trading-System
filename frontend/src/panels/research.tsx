@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SectionHeader } from "@/components/metric-card";
-import { EmptyState } from "@/components/feedback";
+import { EmptyState, ErrorState } from "@/components/feedback";
 import { useWorkbenchStore } from "@/stores/workbench-store";
 import { useToast } from "@/hooks/use-toast";
 import { Play, RefreshCw } from "lucide-react";
@@ -19,7 +19,15 @@ export function ResearchPanel() {
     queryFn: () => api.strategies(),
   });
 
-  const { data: history, refetch: refetchHistory } = useQuery({
+  // Odyssey-UI REV-012: surface loading/error instead of masquerading
+  // failures as an empty state ("暂无研究记录").
+  const {
+    data: history,
+    refetch: refetchHistory,
+    isLoading: historyLoading,
+    isError: historyError,
+    error: historyErr,
+  } = useQuery({
     queryKey: ["research-history"],
     queryFn: () => api.researchHistory(12),
     refetchInterval: 60000,
@@ -35,6 +43,9 @@ export function ResearchPanel() {
       setResult(data);
       toast({ title: "研究完成", description: "回测已完成，请查看结果。" });
       queryClient.invalidateQueries({ queryKey: ["research-history"] });
+      // Odyssey-UI REV-012: run counters live in the monitoring snapshot;
+      // without this they lag up to a full poll interval.
+      queryClient.invalidateQueries({ queryKey: ["monitoring"] });
     },
     onError: (error) => {
       toast({
@@ -160,7 +171,7 @@ export function ResearchPanel() {
                 <div>
                   <SectionHeader title="回测指标" />
                   <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/30 p-3">
-                    {Object.entries(result.metrics).map(([key, value]) => (
+                    {(result.metrics ? Object.entries(result.metrics) : []).map(([key, value]) => (
                       <div key={key}>
                         <p className="text-xs text-muted-foreground">{key}</p>
                         <p className="text-sm font-semibold">
@@ -201,7 +212,14 @@ export function ResearchPanel() {
           </div>
         </CardHeader>
         <CardContent>
-          {historyItems.length === 0 ? (
+          {historyError ? (
+            <ErrorState
+              detail={historyErr instanceof Error ? historyErr.message : "加载研究历史失败"}
+              onRetry={() => refetchHistory()}
+            />
+          ) : historyLoading ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">加载中...</div>
+          ) : historyItems.length === 0 ? (
             <EmptyState
               title="暂无研究记录"
               description="配置参数并启动第一次回测后，研究的历史记录将显示在这里。建议定期清理过期的研究数据以节省空间。"
