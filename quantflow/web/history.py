@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -38,12 +40,22 @@ def _utc_now() -> str:
 
 @dataclass
 class StationHistoryStore:
+    """JSONL history + workbench state, safe under concurrent to_thread calls.
+
+    REV-008: moving station handlers onto asyncio.to_thread made appends and
+    workbench writes concurrent — without the RLock below, parallel appends
+    interleaved/truncated JSONL and readers observed half-written JSON.
+    """
+
     """Persist recent station activity for frontend replay and review."""
 
     base_dir: Path = field(default_factory=lambda: Path("data") / "station_history")
 
     def __post_init__(self) -> None:
         self.base_dir = Path(self.base_dir)
+        # REV-008: serialises append/rotate/workbench writes across to_thread
+        # workers; not inherited from the dataclass fields on purpose.
+        self._io_lock = threading.RLock()
 
     def append_research_run(self, payload: dict[str, Any]) -> dict[str, Any]:
         result = payload.get("result", {})
@@ -135,7 +147,16 @@ class StationHistoryStore:
         record["savedAt"] = str(record.get("savedAt") or _utc_now())
         path = self.base_dir / "workbench_state.json"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+        # REV-008: atomic swap so concurrent readers never parse a half write.
+        tmp_path = path.with_name(f"workbench_state.{os.getpid()}.tmp.json")
+        with self._io_lock:
+            try:
+                tmp_path.write_text(
+                    json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+                os.replace(tmp_path, path)
+            finally:
+                tmp_path.unlink(missing_ok=True)
         return record
 
     def load_workbench_state(self) -> dict[str, Any] | None:
@@ -159,16 +180,19 @@ class StationHistoryStore:
         # (lifecycle/audit continuity) without the megabyte blob.
         if len(line.encode("utf-8")) > _MAX_JSONL_LINE_BYTES:
             line = self._truncate_line(category, record)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(line)
-        # Cap on-disk growth: if the file exceeds the limit, truncate to the
-        # most recent _MAX_JSONL_BYTES worth of complete lines so the file
-        # does not grow unbounded over a long-running station session.
-        try:
-            if path.stat().st_size > _MAX_JSONL_BYTES:
-                self._rotate(path)
-        except OSError:
-            pass
+        # REV-008: append+rotate is a compound mutation — hold one lock over
+        # both so concurrent appends cannot interleave or truncate each other.
+        with self._io_lock:
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(line)
+            # Cap on-disk growth: if the file exceeds the limit, truncate to
+            # the most recent _MAX_JSONL_BYTES worth of complete lines so the
+            # file does not grow unbounded over a long-running station session.
+            try:
+                if path.stat().st_size > _MAX_JSONL_BYTES:
+                    self._rotate(path)
+            except OSError:
+                pass
 
     @staticmethod
     def _truncate_line(category: str, record: dict[str, Any]) -> str:

@@ -219,6 +219,9 @@ class DataFetcher:
         A failing symbol is reported via ``on_symbol_error`` and omitted from
         the result rather than aborting the batch (P5-F5 exit-code contract).
         """
+        # REV-008-B3: Semaphore(0) would deadlock the gather forever.
+        if max_concurrency < 1:
+            raise ValueError("max_concurrency must be >= 1")
         sem = asyncio.Semaphore(max_concurrency)
 
         async def _one(sym: str) -> pd.DataFrame | None:

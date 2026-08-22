@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import math
@@ -18,6 +19,7 @@ from typing import Any, cast
 
 import numpy as np
 import pandas as pd
+from filelock import FileLock
 from pydantic import BaseModel, field_validator
 
 from quantflow import __version__
@@ -34,7 +36,7 @@ from quantflow.common.config import (  # noqa: F401
 from quantflow.common.exceptions import DataError
 from quantflow.common.numeric import safe_number
 from quantflow.common.validators import validate_symbol
-from quantflow.data.store import DataStore
+from quantflow.data.store import DataStore, partition_lock
 from quantflow.monitoring.metrics import metrics_registry_snapshot, metrics_server_status
 from quantflow.strategy.catalog import (
     get_strategy_definition,
@@ -1244,26 +1246,32 @@ class StationService:
                     f"No data fetched for {request.symbol}. Check symbol and date range."
                 )
 
-            cleaned_frame = clean_ohlcv(raw_frame)
-            if cleaned_frame.empty:
-                raise ValueError(
-                    f"Fetched data for {request.symbol}, but nothing remained after cleaning."
-                )
-            cleaned_frame = cleaned_frame.copy()
-            cleaned_frame["data_source"] = "okx"
-            # P4 suffix isolation: web downloads are OKX-sourced (DataFetcher
-            # is hardwired to ccxt.okx), so persist under the -OKX partition
-            # instead of growing the legacy mixed bare partition.
-            # RV-007/H2: a client passing an already-suffixed symbol used to
-            # mint double-suffix orphan partitions nothing could resolve.
-            base_symbol = request.symbol
-            for suffix in ("-OKX", "-BINANCE", "-BYBIT"):
-                if base_symbol.endswith(suffix):
-                    base_symbol = base_symbol[: -len(suffix)]
-                    break
-            store_symbol = f"{base_symbol}-OKX"
-            store.save(cleaned_frame, store_symbol)
-            date_range = store.get_date_range(store_symbol)
+            def _persist(raw: pd.DataFrame) -> tuple[int, tuple[int, int] | None]:
+                """Clean + save + range — CPU/IO bound, must not run on the loop."""
+                cleaned = clean_ohlcv(raw)
+                if cleaned.empty:
+                    raise ValueError(
+                        f"Fetched data for {request.symbol}, but nothing remained after cleaning."
+                    )
+                cleaned = cleaned.copy()
+                cleaned["data_source"] = "okx"
+                # P4 suffix isolation: web downloads are OKX-sourced (DataFetcher
+                # is hardwired to ccxt.okx), so persist under the -OKX partition
+                # instead of growing the legacy mixed bare partition.
+                # RV-007/H2: strip an already-suffixed symbol before appending so
+                # no double-suffix orphan partitions get minted.
+                base_symbol = request.symbol
+                for suffix in ("-OKX", "-BINANCE", "-BYBIT"):
+                    if base_symbol.endswith(suffix):
+                        base_symbol = base_symbol[: -len(suffix)]
+                        break
+                store_symbol = f"{base_symbol}-OKX"
+                store.save(cleaned, store_symbol)
+                return len(cleaned), store.get_date_range(store_symbol)
+
+            # REV-008-③: the persist stage (zstd month rewrite) previously ran
+            # on the event loop and blocked the kill-switch control plane.
+            rows_saved, date_range = await asyncio.to_thread(_persist, raw_frame)
         finally:
             await fetcher.disconnect()
             store.close()
@@ -1273,7 +1281,7 @@ class StationService:
             "timeframe": request.timeframe,
             "start": request.start,
             "end": request.end,
-            "rows_saved": len(cleaned_frame),
+            "rows_saved": rows_saved,
             "raw_rows": len(raw_frame),
             "data_source": "okx",
             "parquet_dir": config.data.parquet_dir,
@@ -1282,7 +1290,7 @@ class StationService:
                 "start": _timestamp_to_iso(date_range[0]) if date_range else None,
                 "end": _timestamp_to_iso(date_range[1]) if date_range else None,
             },
-            "message": f"Saved {len(cleaned_frame)} bars for {request.symbol}.",
+            "message": f"Saved {rows_saved} bars for {request.symbol}.",
         }
 
     def tag_data_source(self, request: DataSourceTagRequest) -> dict[str, Any]:
@@ -1309,17 +1317,24 @@ class StationService:
             rows_updated = 0
             files_updated = 0
             for parquet_file in parquet_files:
-                frame = pd.read_parquet(parquet_file)
-                updated = frame.copy()
-                updated["data_source"] = normalized_source
-                # RV-007/H5: in-place to_parquet is not atomic — a crash or a
-                # concurrent reader could observe a half-written file.
-                tmp_file = parquet_file.with_name(parquet_file.name + ".tmp")
-                try:
-                    updated.to_parquet(tmp_file, index=False, compression="zstd")
-                    os.replace(tmp_file, parquet_file)
-                finally:
-                    tmp_file.unlink(missing_ok=True)
+                # REV-008-②: tag is a read-modify-write of the same partition
+                # files store.save() merges into — it must hold the identical
+                # lock protocol or a concurrent download's new bars get
+                # overwritten by tag's stale snapshot (and vice versa).
+                with partition_lock(parquet_file), FileLock(f"{parquet_file}.lock", timeout=300):
+                    frame = pd.read_parquet(parquet_file)
+                    updated = frame.copy()
+                    updated["data_source"] = normalized_source
+                    # RV-007/H5: in-place to_parquet is not atomic — a crash or
+                    # a concurrent reader could observe a half-written file.
+                    tmp_file = parquet_file.with_name(
+                        f"{parquet_file.stem}.{os.getpid()}.tmp.parquet"
+                    )
+                    try:
+                        updated.to_parquet(tmp_file, index=False, compression="zstd")
+                        os.replace(tmp_file, parquet_file)
+                    finally:
+                        tmp_file.unlink(missing_ok=True)
                 rows_updated += len(updated)
                 files_updated += 1
 

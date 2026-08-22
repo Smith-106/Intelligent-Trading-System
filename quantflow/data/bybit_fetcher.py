@@ -154,9 +154,7 @@ class BybitFetcher:
             if pages > MAX_PAGINATION_PAGES:
                 # RV-012: a silent stop here truncated history while callers
                 # treated the result as complete — raise instead.
-                raise DataError(
-                    f"Pagination exceeded {MAX_PAGINATION_PAGES} pages for {symbol}"
-                )
+                raise DataError(f"Pagination exceeded {MAX_PAGINATION_PAGES} pages for {symbol}")
             bars = await asyncio.wait_for(
                 self._exchange.fetch_ohlcv(
                     symbol,
@@ -212,6 +210,8 @@ class BybitFetcher:
         (M4-1.2). A failing symbol is reported via ``on_symbol_error`` and
         omitted from the result rather than aborting the whole batch.
         """
+        if max_concurrency < 1:
+            raise ValueError("max_concurrency must be >= 1")
         sem = asyncio.Semaphore(max_concurrency)
 
         async def _one(sym: str) -> pd.DataFrame | None:

@@ -1,0 +1,903 @@
+diff --git a/pyproject.toml b/pyproject.toml
+index f2cad4e..25101c3 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -32,6 +32,7 @@ dependencies = [
+     "feedparser>=6.0",
+     "aiohttp>=3.14.1",  # CVE-2026-54273..54280 (TLS SNI bypass, DoS, cookie/CSRF bypasses) fixed in 3.14.1
+     "cryptography>=48.0.1",  # GHSA-537c-gmf6-5ccf (bundled OpenSSL vuln) fixed in 48.0.1
++    "filelock>=3.13",
+ ]
+ 
+ [project.optional-dependencies]
+diff --git a/quantflow/cli/main.py b/quantflow/cli/main.py
+index b0d036d..84e3e89 100644
+--- a/quantflow/cli/main.py
++++ b/quantflow/cli/main.py
+@@ -20,12 +20,6 @@ from quantflow import __version__
+ from quantflow.common.config import AppConfig, load_config, resolve_config_path
+ from quantflow.common.redaction import redact_secrets
+ from quantflow.monitoring.logger import setup_logging
+-from quantflow.strategy.catalog import (
+-    get_strategy_factories as _catalog_strategy_factories,
+-)
+-from quantflow.strategy.catalog import (
+-    get_strategy_specs as _catalog_strategy_specs,
+-)
+ 
+ setup_logging()
+ 
+@@ -43,11 +37,17 @@ ResultDict: TypeAlias = dict[str, Any]
+ 
+ 
+ def _get_strategy_factories() -> dict[str, StrategyFactory]:
+-    return _catalog_strategy_factories()
++    # PERF(P1/A-2): imported lazily — the catalog chain pulls pandas into the
++    # CLI cold path, which download/status/version/--help never need.
++    from quantflow.strategy.catalog import get_strategy_factories
++
++    return get_strategy_factories()
+ 
+ 
+ def _get_strategy_specs() -> dict[str, tuple[StrategyFactory, ParamSpace]]:
+-    return _catalog_strategy_specs()
++    from quantflow.strategy.catalog import get_strategy_specs
++
++    return get_strategy_specs()
+ 
+ 
+ def _date_to_ms(date_str: str) -> int:
+@@ -127,6 +127,12 @@ def download(
+     start: str = typer.Option("2024-01-01", help="Start date (YYYY-MM-DD)"),
+     end: str = typer.Option("2025-01-01", help="End date (YYYY-MM-DD)"),
+     okx_suffix: bool = typer.Option(True, help="Append -OKX suffix for source isolation"),
++    concurrency: int = typer.Option(
++        1,
++        help="Max in-flight symbol downloads (keep 1 until verify_okx_throttler.py passes for N)",
++        min=1,
++        max=8,
++    ),
+     config: str = typer.Option(DEFAULT_CONFIG_PATH, help="Config file path"),
+ ) -> None:
+     """Download historical data from OKX (single or batch symbol).
+@@ -148,26 +154,32 @@ def download(
+         fetcher = DataFetcher(cfg.data)
+         store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+         failed: list[str] = []
++        # C-2 (PERF): >1 only after verify_okx_throttler.py --concurrency N
++        # proves zero 429s; default keeps the serial M4-1.2 behaviour.
++        sem = asyncio.Semaphore(max(1, concurrency))
+ 
+         try:
+             with console.status("[bold blue]Connecting to OKX..."):
+                 await fetcher.connect()
+             console.print("[green]OK[/] Connected to OKX")
+ 
+-            # M4-1.2: single shared instance, serial loop over symbols (the
+-            # per-instance CCXT rate limiter is authoritative; gather would
+-            # only queue up and risk HTTP 429). A failing symbol is isolated
+-            # so the whole batch is not aborted.
+-            for sym in symbol_list:
++            # M4-1.2: single shared instance. The ccxt rate limiter stays
++            # authoritative; --concurrency>1 only bounds how many symbol
++            # pagination chains are in flight (each still throttled), and the
++            # default of 1 preserves the historical serial behaviour exactly.
++            async def _download_one(sym: str) -> None:
+                 try:
+-                    with console.status(
+-                        f"[bold blue]Downloading {sym} {timeframe} ({start} → {end})..."
+-                    ):
+-                        df = await fetcher.fetch_ohlcv(sym, timeframe, start, end)
++                    async with sem:
++                        with console.status(
++                            f"[bold blue]Downloading {sym} {timeframe} ({start} → {end})..."
++                        ):
++                            df = await fetcher.fetch_ohlcv(sym, timeframe, start, end)
+                     if df.empty:
+                         console.print(f"[yellow]SKIP[/] {sym}: no data (check symbol/date)")
+-                        failed.append(sym)
+-                        continue
++                        # SKIP is not a failure: empty history is a legitimate
++                        # outcome (symbol predates range). Only ERR sets the
++                        # P5-F5 exit-code flag.
++                        return
+                     console.print(f"[dim]Raw data: {len(df)} bars for {sym}[/]")
+                     with console.status("[bold blue]Cleaning data..."):
+                         df = clean_ohlcv(df)
+@@ -188,6 +200,15 @@ def download(
+                     # odyssey-review RP2 (ISS-037): scrub OKX secrets before print.
+                     console.print(f"[red]ERR[/] {sym}: {redact_secrets(str(e))}")
+                     failed.append(sym)
++
++            if concurrency == 1:
++                for sym in symbol_list:
++                    await _download_one(sym)
++            else:
++                # save-on-complete inside _download_one keeps memory bounded;
++                # distinct symbols write distinct partitions, and cross-process
++                # same-partition races are serialised by the P2 FileLock.
++                await asyncio.gather(*[_download_one(s) for s in symbol_list])
+         except Exception as e:
+             console.print(f"[red]ERR Error: {redact_secrets(str(e))}[/]")
+             # P5-F5: a connect-level failure fails the whole batch — count
+@@ -1499,7 +1520,8 @@ def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
+     cfg = _load(config)
+     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+     try:
+-        df = store.query(symbol)
++        resolved = store.resolve_symbol(symbol)
++        df = store.query(resolved)
+         if df.empty:
+             console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+             return
+@@ -1580,7 +1602,8 @@ def _ai_train(
+ 
+         store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+         try:
+-            df = store.query(symbol)
++            resolved = store.resolve_symbol(symbol)
++            df = store.query(resolved)
+             if df.empty:
+                 console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+                 return
+@@ -1620,7 +1643,8 @@ def _ai_train(
+             if features is None:
+                 engine = IndicatorEngine()
+                 fs = FeatureStore(cfg.data.parquet_dir, indicator_computer=engine)
+-                raw = store.query(symbol)
++                resolved_ml = store.resolve_symbol(symbol)
++                raw = store.query(resolved_ml)
+                 features = fs.compute_features(symbol, int(raw["timestamp"].max()), [], store)
+                 close = raw["close"]
+                 console.print(
+@@ -1761,7 +1785,8 @@ def _ai_validation_bypass(
+     reg_dir = registry_dir or cfg.ai.registry_dir
+     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
+     try:
+-        df = store.query(symbol)
++        resolved = store.resolve_symbol(symbol)
++        df = store.query(resolved)
+         if df.empty:
+             console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+             return
+diff --git a/quantflow/data/bybit_fetcher.py b/quantflow/data/bybit_fetcher.py
+index 2620546..ee8e205 100644
+--- a/quantflow/data/bybit_fetcher.py
++++ b/quantflow/data/bybit_fetcher.py
+@@ -152,13 +152,11 @@ class BybitFetcher:
+         while True:
+             pages += 1
+             if pages > MAX_PAGINATION_PAGES:
+-                logger.warning(
+-                    "Pagination exceeded %d pages for %s/%s; stopping",
+-                    MAX_PAGINATION_PAGES,
+-                    symbol,
+-                    timeframe,
++                # RV-012: a silent stop here truncated history while callers
++                # treated the result as complete — raise instead.
++                raise DataError(
++                    f"Pagination exceeded {MAX_PAGINATION_PAGES} pages for {symbol}"
+                 )
+-                break
+             bars = await asyncio.wait_for(
+                 self._exchange.fetch_ohlcv(
+                     symbol,
+diff --git a/quantflow/data/fetcher.py b/quantflow/data/fetcher.py
+index 4c2fe10..2ee24cf 100644
+--- a/quantflow/data/fetcher.py
++++ b/quantflow/data/fetcher.py
+@@ -152,13 +152,9 @@ class DataFetcher:
+         while True:
+             pages += 1
+             if pages > MAX_PAGINATION_PAGES:
+-                logger.warning(
+-                    "Pagination exceeded %d pages for %s/%s; stopping",
+-                    MAX_PAGINATION_PAGES,
+-                    symbol,
+-                    timeframe,
+-                )
+-                break
++                # RV-012: a silent stop here truncated history while callers
++                # treated the result as complete — raise instead.
++                raise DataError(f"Pagination exceeded {MAX_PAGINATION_PAGES} pages for {symbol}")
+             bars = await asyncio.wait_for(
+                 self._exchange.fetch_ohlcv(
+                     symbol,
+@@ -205,6 +201,43 @@ class DataFetcher:
+         logger.info("Fetched %d bars for %s/%s", len(df), symbol, timeframe)
+         return df
+ 
++    async def fetch_ohlcv_multi(
++        self,
++        symbols: list[str],
++        timeframe: str = "1d",
++        start: str | None = None,
++        end: str | None = None,
++        *,
++        max_concurrency: int = 1,
++        on_symbol_error: Callable[[str, Exception], None] | None = None,
++    ) -> dict[str, pd.DataFrame]:
++        """Fetch many symbols over the shared single ccxt instance.
++
++        ``max_concurrency=1`` keeps the per-instance rate limiter authoritative
++        (M4-1.2 invariant) and is the default — values >1 are gated on
++        ``scripts/verify_okx_throttler.py --concurrency N`` returning zero 429s.
++        A failing symbol is reported via ``on_symbol_error`` and omitted from
++        the result rather than aborting the batch (P5-F5 exit-code contract).
++        """
++        sem = asyncio.Semaphore(max_concurrency)
++
++        async def _one(sym: str) -> pd.DataFrame | None:
++            async with sem:
++                try:
++                    return await self.fetch_ohlcv(sym, timeframe, start, end)
++                except Exception as e:
++                    logger.warning("OKX fetch failed for %s: %s", sym, e)
++                    if on_symbol_error:
++                        on_symbol_error(sym, e)
++                    return None
++
++        results = await asyncio.gather(*[_one(s) for s in symbols])
++        return {
++            sym: df
++            for sym, df in zip(symbols, results, strict=True)
++            if df is not None and not df.empty
++        }
++
+     async def fetch_ticker(self, symbol: str) -> dict[str, Any]:
+         """Fetch current ticker for a symbol."""
+         if not self._exchange:
+diff --git a/quantflow/data/store.py b/quantflow/data/store.py
+index 5a67f17..0ebbf7e 100644
+--- a/quantflow/data/store.py
++++ b/quantflow/data/store.py
+@@ -3,10 +3,14 @@
+ from __future__ import annotations
+ 
+ import logging
++import os
++import threading
+ from pathlib import Path
++from typing import Any
+ 
+ import duckdb
+ import pandas as pd
++from filelock import FileLock
+ 
+ from quantflow.common.exceptions import DataError
+ from quantflow.common.validators import (
+@@ -22,6 +26,11 @@ from quantflow.common.validators import (
+ 
+ logger = logging.getLogger(__name__)
+ 
++# ISS-REV007-01: partition writes are read-merge-write; the FileLock below is
++# inter-process, this one serialises threads inside the process (web station
++# handlers run via asyncio.to_thread on a shared interpreter).
++_PARQUET_WRITE_LOCK = threading.Lock()
++
+ # Public patterns re-exported for back-compat / introspection.
+ _SYMBOL_PATTERN = SYMBOL_PATTERN
+ _COLUMN_PATTERN = COLUMN_PATTERN
+@@ -114,49 +123,71 @@ class DataStore:
+             year_dir = symbol_dir / str(int(year))
+             month_path = year_dir / f"{int(month):02d}.parquet"
+ 
+-            existing = self._load_existing(month_path)
+-            if existing is not None:
+-                existing_group = existing[DataStore.group_cols(existing)]
+-                new_group = group[data_cols]
+-                # ISS-034: append-only fast path. The common live/incremental
+-                # case appends bars whose timestamps are all newer than the
+-                # stored max — no overlap, both sides already timestamp-sorted,
+-                # so concat is already sorted and dedup is a no-op. Skip the
+-                # O(n) drop_duplicates + sort_values + reset_index on the full
+-                # month (the prior code rewrote + resorted the entire partition
+-                # for every save, even a 1-bar append to a 720-row month).
+-                # Fall back to the full merge only when timestamps overlap (a
+-                # backfill/replay re-saving existing bars), where keep="last"
+-                # (newer wins) must actually run.
+-                existing_max = existing_group["timestamp"].max()
+-                new_min = new_group["timestamp"].min()
+-                if new_min > existing_max:
+-                    group_data = pd.concat(
+-                        [existing_group, new_group],
+-                        ignore_index=True,
+-                        sort=False,
+-                    )
+-                else:
+-                    group_data = pd.concat(
+-                        [existing_group, new_group],
+-                        ignore_index=True,
+-                        sort=False,
+-                    )
+-                    # Multi-TF co-residence: same wall-clock timestamp can hold
+-                    # both 1h and 1d (etc.). Dedup only within (timestamp, timeframe).
+-                    dedup_cols = ["timestamp"]
+-                    if "timeframe" in group_data.columns:
+-                        dedup_cols.append("timeframe")
+-                    group_data = (
+-                        group_data.drop_duplicates(subset=dedup_cols, keep="last")
+-                        .sort_values("timestamp")
+-                        .reset_index(drop=True)
+-                    )
++            # ISS-REV007-01: the read-merge-write below must be serialised per
++            # partition — two concurrent saves used to lose one side's bars.
++            # Thread lock first (in-process), then a cross-process FileLock
++            # keyed on the canonical partition path.
++            with _PARQUET_WRITE_LOCK, FileLock(f"{month_path}.lock"):
++                self._merge_write_partition(month_path, year_dir, group, data_cols)
++
++    def _merge_write_partition(
++        self,
++        month_path: Path,
++        year_dir: Path,
++        group: pd.DataFrame,
++        data_cols: list[str],
++    ) -> None:
++        """Read-merge-write one YYYY/MM.parquet under external locking."""
++        existing = self._load_existing(month_path)
++        if existing is not None:
++            existing_group = existing[DataStore.group_cols(existing)]
++            new_group = group[data_cols]
++            # ISS-034: append-only fast path. The common live/incremental
++            # case appends bars whose timestamps are all newer than the
++            # stored max — no overlap, both sides already timestamp-sorted,
++            # so concat is already sorted and dedup is a no-op. Skip the
++            # O(n) drop_duplicates + sort_values + reset_index on the full
++            # month (the prior code rewrote + resorted the entire partition
++            # for every save, even a 1-bar append to a 720-row month).
++            # Fall back to the full merge only when timestamps overlap (a
++            # backfill/replay re-saving existing bars), where keep="last"
++            # (newer wins) must actually run.
++            existing_max = existing_group["timestamp"].max()
++            new_min = new_group["timestamp"].min()
++            if new_min > existing_max:
++                group_data = pd.concat(
++                    [existing_group, new_group],
++                    ignore_index=True,
++                    sort=False,
++                )
+             else:
+-                year_dir.mkdir(parents=True, exist_ok=True)
+-                group_data = group[data_cols]
++                group_data = pd.concat(
++                    [existing_group, new_group],
++                    ignore_index=True,
++                    sort=False,
++                )
++                # Multi-TF co-residence: same wall-clock timestamp can hold
++                # both 1h and 1d (etc.). Dedup only within (timestamp, timeframe).
++                dedup_cols = ["timestamp"]
++                if "timeframe" in group_data.columns:
++                    dedup_cols.append("timeframe")
++                group_data = (
++                    group_data.drop_duplicates(subset=dedup_cols, keep="last")
++                    .sort_values("timestamp")
++                    .reset_index(drop=True)
++                )
++        else:
++            year_dir.mkdir(parents=True, exist_ok=True)
++            group_data = group[data_cols]
+ 
+-            group_data.to_parquet(month_path, index=False, compression="zstd")
++        # Atomic swap: a reader globbing mid-write must never see a half
++        # written zstd file (to_parquet is not atomic by itself).
++        tmp_path = month_path.with_name(month_path.name + ".tmp")
++        try:
++            group_data.to_parquet(tmp_path, index=False, compression="zstd")
++            os.replace(tmp_path, month_path)
++        finally:
++            tmp_path.unlink(missing_ok=True)
+ 
+     # ------------------------------------------------------------------
+     # T-s2-02: market meta data (funding rate / open interest)
+@@ -363,7 +394,7 @@ class DataStore:
+     #: three-model consensus): prefer the clean ``-OKX`` partition, then the
+     #: clean ``-BINANCE`` one, and only then the legacy bare (mixed-source)
+     #: partition. Configurable per call site.
+-    DEFAULT_SUFFIX_PRIORITY: tuple[str, ...] = ("-OKX", "-BINANCE", "")
++    DEFAULT_SUFFIX_PRIORITY: tuple[str, ...] = ("-OKX", "-BINANCE", "-BYBIT", "")
+ 
+     def resolve_symbol(
+         self,
+@@ -385,6 +416,7 @@ class DataStore:
+         :meth:`query`, which would silently mix legacy and suffixed sources).
+         """
+         base = _validate_symbol(symbol)
++        hits: list[str] = []
+         for suffix in priority:
+             # RV-007-002: base symbols already at/near the 20-char limit make
+             # suffixed candidates invalid — skip them instead of raising.
+@@ -393,8 +425,66 @@ class DataStore:
+             except ValueError:
+                 continue
+             if (self._parquet_dir / candidate).is_dir():
+-                return candidate
+-        return base
++                hits.append(candidate)
++        if not hits:
++            return base
++        if len(hits) == 1:
++            return hits[0]
++        # RV-010: multiple candidates coexist — prefer the one with the
++        # earliest history start so a sparse fresh partition cannot shadow a
++        # full-history legacy directory. Extra scans only happen here.
++        def _start_ms(name: str) -> int:
++            rng = self.get_date_range(name)
++            return rng[0] if rng else float("inf")
++
++        return min(hits, key=_start_ms)
++
++    def symbol_summary(self, symbol: str) -> dict[str, Any] | None:
++        """One-pass station-overview aggregate for a symbol.
++
++        Returns ``None`` when the symbol has no partition directory;
++        otherwise ``{"rows", "date_range", "breakdown"}`` where breakdown maps
++        data_source (or "unknown" when the column is absent) to row counts.
++        Replaces the query()+get_date_range() double full-history scan in the
++        polling web overview (PERF: N symbols x 2 scans -> x 1).
++        """
++        symbol_name = _validate_symbol(symbol)
++        symbol_dir = self._parquet_dir / symbol_name
++        if not symbol_dir.exists():
++            return None
++        pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/*/*.parquet".replace("'", "''")
++        try:
++            grouped = self._db.query(f"""
++                SELECT COUNT(*) AS n,
++                       MIN(timestamp) AS min_ts,
++                       MAX(timestamp) AS max_ts,
++                       data_source
++                FROM read_parquet('{pattern}', union_by_name=true)
++                GROUP BY data_source
++            """).fetchall()
++        except duckdb.Error:
++            # Legacy partitions without a data_source column: fall back to a
++            # single ungrouped aggregate (still one scan, not two).
++            row = self._db.query(f"""
++                SELECT COUNT(*), MIN(timestamp), MAX(timestamp)
++                FROM read_parquet('{pattern}', union_by_name=true)
++            """).fetchone()
++            if row is None or row[0] == 0:
++                return {"rows": 0, "date_range": None, "breakdown": {}}
++            return {
++                "rows": int(row[0]),
++                "date_range": (int(row[1]), int(row[2])) if row[1] is not None else None,
++                "breakdown": {"unknown": int(row[0])},
++            }
++        rows = sum(int(r[0]) for r in grouped)
++        tmins = [int(r[1]) for r in grouped if r[1] is not None]
++        tmaxs = [int(r[2]) for r in grouped if r[2] is not None]
++        date_range = (min(tmins), max(tmaxs)) if tmins and tmaxs else None
++        return {
++            "rows": rows,
++            "date_range": date_range,
++            "breakdown": {str(r[3]): int(r[0]) for r in grouped},
++        }
+ 
+     def get_date_range(self, symbol: str) -> tuple[int, int] | None:
+         """Get the date range of stored data for a symbol."""
+diff --git a/quantflow/web/app.py b/quantflow/web/app.py
+index d493a0a..aff4edb 100644
+--- a/quantflow/web/app.py
++++ b/quantflow/web/app.py
+@@ -2,9 +2,11 @@
+ 
+ from __future__ import annotations
+ 
++import asyncio
+ import logging
+ from importlib import resources
+ from pathlib import Path
++from typing import Any
+ 
+ from aiohttp import web
+ 
+@@ -132,17 +134,22 @@ async def _spa_fallback(request: web.Request) -> web.FileResponse:
+ 
+ async def _overview(request: web.Request) -> web.Response:
+     service = request.app[STATION_SERVICE_KEY]
+-    return web.json_response(_redact_paths(service.overview()))
++    # PERF(P1): parquet scans are CPU/IO bound — keep them off the event loop
++    # so control-plane endpoints (kill switch, session) stay responsive.
++    overview = await asyncio.to_thread(service.overview)
++    return web.json_response(_redact_paths(overview))
+ 
+ 
+ async def _strategies(request: web.Request) -> web.Response:
+     service = request.app[STATION_SERVICE_KEY]
+-    return web.json_response(service.strategies())
++    strategies = await asyncio.to_thread(service.strategies)
++    return web.json_response(strategies)
+ 
+ 
+ async def _data_snapshot(request: web.Request) -> web.Response:
+     service = request.app[STATION_SERVICE_KEY]
+-    return web.json_response(_redact_paths(service.data_snapshot()))
++    snapshot = await asyncio.to_thread(service.data_snapshot)
++    return web.json_response(_redact_paths(snapshot))
+ 
+ 
+ async def _data_download(request: web.Request) -> web.Response:
+@@ -158,8 +165,12 @@ async def _data_download(request: web.Request) -> web.Response:
+ async def _data_seed_demo(request: web.Request) -> web.Response:
+     service = request.app[STATION_SERVICE_KEY]
+     payload = await request.json()
++
++    def _seed() -> Any:
++        return service.seed_demo_data(DataDownloadRequest.model_validate(payload))
++
+     try:
+-        result = service.seed_demo_data(DataDownloadRequest.model_validate(payload))
++        result = await asyncio.to_thread(_seed)
+     except (ValueError, DataError) as exc:
+         return _error_response(exc)
+     return web.json_response(_redact_paths(result))
+@@ -168,8 +179,12 @@ async def _data_seed_demo(request: web.Request) -> web.Response:
+ async def _data_tag_source(request: web.Request) -> web.Response:
+     service = request.app[STATION_SERVICE_KEY]
+     payload = await request.json()
++
++    def _tag() -> Any:
++        return service.tag_data_source(DataSourceTagRequest.model_validate(payload))
++
+     try:
+-        result = service.tag_data_source(DataSourceTagRequest.model_validate(payload))
++        result = await asyncio.to_thread(_tag)
+     except (ValueError, DataError) as exc:
+         return _error_response(exc)
+     return web.json_response(_redact_paths(result))
+@@ -178,8 +193,12 @@ async def _data_tag_source(request: web.Request) -> web.Response:
+ async def _research(request: web.Request) -> web.Response:
+     service = request.app[STATION_SERVICE_KEY]
+     payload = await request.json()
++
++    def _run_research() -> Any:
++        return service.research(ResearchRequest.model_validate(payload))
++
+     try:
+-        result = service.research(ResearchRequest.model_validate(payload))
++        result = await asyncio.to_thread(_run_research)
+     except ValueError as exc:
+         return _error_response(exc)
+     return web.json_response(_redact_paths(result))
+@@ -188,14 +207,19 @@ async def _research(request: web.Request) -> web.Response:
+ async def _research_history(request: web.Request) -> web.Response:
+     service = request.app[STATION_SERVICE_KEY]
+     limit = _parse_limit(request, default=12)
+-    return web.json_response({"items": service.research_history(limit=limit)})
++    items = await asyncio.to_thread(service.research_history, limit=limit)
++    return web.json_response({"items": items})
+ 
+ 
+ async def _validate(request: web.Request) -> web.Response:
+     service = request.app[STATION_SERVICE_KEY]
+     payload = await request.json()
++
++    def _run_validate() -> Any:
++        return service.validate(ValidationRequest.model_validate(payload))
++
+     try:
+-        result = service.validate(ValidationRequest.model_validate(payload))
++        result = await asyncio.to_thread(_run_validate)
+     except ValueError as exc:
+         return _error_response(exc)
+     return web.json_response(result)
+@@ -204,18 +228,23 @@ async def _validate(request: web.Request) -> web.Response:
+ async def _validation_history(request: web.Request) -> web.Response:
+     service = request.app[STATION_SERVICE_KEY]
+     limit = _parse_limit(request, default=12)
+-    return web.json_response({"items": service.validation_history(limit=limit)})
++    items = await asyncio.to_thread(service.validation_history, limit=limit)
++    return web.json_response({"items": items})
+ 
+ 
+ async def _workbench_state(request: web.Request) -> web.Response:
+     service = request.app[STATION_SERVICE_KEY]
+     if request.method == "GET":
+-        payload = service.workbench_state()
+-        return web.json_response({"state": payload})
++        state = await asyncio.to_thread(service.workbench_state)
++        return web.json_response({"state": state})
+ 
+     payload = await request.json()
++
++    def _save() -> Any:
++        return service.save_workbench_state(payload)
++
+     try:
+-        saved = service.save_workbench_state(payload)
++        saved = await asyncio.to_thread(_save)
+     except ValueError as exc:
+         return _error_response(exc)
+     return web.json_response({"state": saved})
+diff --git a/quantflow/web/service.py b/quantflow/web/service.py
+index 68702d6..dd2f17f 100644
+--- a/quantflow/web/service.py
++++ b/quantflow/web/service.py
+@@ -5,6 +5,7 @@ from __future__ import annotations
+ import json
+ import logging
+ import math
++import os
+ import socket
+ import subprocess
+ import time
+@@ -974,14 +975,20 @@ class StationService:
+                 # symbol must not 500 the whole overview — skip it (logged) so
+                 # the rest of the dashboard still renders.
+                 try:
+-                    frame = store.query(symbol, columns=["timestamp", "data_source"])
+-                    data_source, source_breakdown = _resolve_frame_data_source(frame)
++                    # PERF(P1): one-pass aggregate replaces the query() +
++                    # get_date_range() double full-history scan per symbol.
++                    summary = store.symbol_summary(symbol_name)
++                    if summary is None or not summary["rows"]:
++                        continue
++                    source_breakdown = summary["breakdown"]
++                    categories = [k for k, v in source_breakdown.items() if v > 0]
++                    data_source = (
++                        categories[0]
++                        if len(categories) == 1
++                        else ("hybrid" if len(categories) > 1 else "unknown")
++                    )
+                     source_counts[data_source] += 1
+-                    date_range = store.get_date_range(symbol)
+-                    if date_range is None and not frame.empty and "timestamp" in frame.columns:
+-                        timestamps = pd.to_numeric(frame["timestamp"], errors="coerce").dropna()
+-                        if not timestamps.empty:
+-                            date_range = (int(timestamps.min()), int(timestamps.max()))
++                    date_range = summary["date_range"]
+                 except DataError as e:
+                     logger.warning("Station overview skipping symbol %s: %s", symbol, e)
+                     continue
+@@ -1305,7 +1312,14 @@ class StationService:
+                 frame = pd.read_parquet(parquet_file)
+                 updated = frame.copy()
+                 updated["data_source"] = normalized_source
+-                updated.to_parquet(parquet_file, index=False, compression="zstd")
++                # RV-007/H5: in-place to_parquet is not atomic — a crash or a
++                # concurrent reader could observe a half-written file.
++                tmp_file = parquet_file.with_name(parquet_file.name + ".tmp")
++                try:
++                    updated.to_parquet(tmp_file, index=False, compression="zstd")
++                    os.replace(tmp_file, parquet_file)
++                finally:
++                    tmp_file.unlink(missing_ok=True)
+                 rows_updated += len(updated)
+                 files_updated += 1
+ 
+diff --git a/scripts/archive_legacy_partitions.py b/scripts/archive_legacy_partitions.py
+index 19450b3..8bbed9a 100644
+--- a/scripts/archive_legacy_partitions.py
++++ b/scripts/archive_legacy_partitions.py
+@@ -49,13 +49,41 @@ META_DIRS = ("meta_funding_rate", "meta_open_interest")
+ RELABEL_TARGET = "BTC_USDT"
+ 
+ 
++def _covered_months(symbol_dir: Path) -> set[tuple[int, int]]:
++    """(year, month) pairs physically present under a partition directory."""
++    months: set[tuple[int, int]] = set()
++    for year_dir in symbol_dir.iterdir():
++        if not year_dir.is_dir() or not year_dir.name.isdigit():
++            continue
++        for f in year_dir.glob("*.parquet"):
++            if f.stem.isdigit():
++                months.add((int(year_dir.name), int(f.stem)))
++    return months
++
++
+ def _replacement_ready(store: DataStore, legacy_dir: str) -> str | None:
+-    """Return the suffixed partition name replacing ``legacy_dir``, if any."""
++    """Return the suffixed partition name fully covering ``legacy_dir``.
++
++    ISS-REV007-02: existence alone is not enough — a sparse fresh partition
++    (e.g. a partial re-download) must not green-light archiving a legacy
++    directory holding months the replacement lacks; those months would be
++    unrecoverable. Coverage compares physical (year, month) file sets.
++    """
+     base_symbol = legacy_dir.replace("_", "/")
++    legacy_months = _covered_months(PARQUET_DIR / legacy_dir)
+     for suffix in ("-BINANCE", "-OKX"):
+         candidate = f"{base_symbol}{suffix}"
+-        if store.get_date_range(candidate) is not None:
++        cand_dir = PARQUET_DIR / candidate
++        if not cand_dir.is_dir():
++            continue
++        if store.get_date_range(candidate) is None:
++            continue
++        if not legacy_months or _covered_months(cand_dir) >= legacy_months:
+             return candidate
++        print(
++            f"  !! {candidate} exists but does not cover all legacy months "
++            f"(missing: {sorted(legacy_months - _covered_months(cand_dir))[:6]}...) — BLOCKED"
++        )
+     return None
+ 
+ 
+diff --git a/tests/unit/test_cli.py b/tests/unit/test_cli.py
+index 70a1555..7ba1dd7 100644
+--- a/tests/unit/test_cli.py
++++ b/tests/unit/test_cli.py
+@@ -530,6 +530,10 @@ class TestAICommand:
+             def __init__(self, *args, **kwargs):
+                 pass
+ 
++            def resolve_symbol(self, symbol, **kwargs):
++                # RV-013: bare-query call sites now route through the resolver.
++                return symbol.replace("/", "_")
++
+             def query(self, symbol, **kwargs):
+                 return fake_df.copy()
+ 
+diff --git a/tests/unit/test_coverage_cli_tail.py b/tests/unit/test_coverage_cli_tail.py
+index 6cec8da..22d8824 100644
+--- a/tests/unit/test_coverage_cli_tail.py
++++ b/tests/unit/test_coverage_cli_tail.py
+@@ -67,7 +67,9 @@ class TestDownloadTail:
+         ):
+             result = runner.invoke(app, ["download", "--symbol", "BTC/USDT"])
+         assert result.exit_code == 0
+-        assert "No data fetched" in result.output
++        # SKIP is not a failure (empty history is legitimate) — P5-F5 exit 1
++        # fires only on ERR.
++        assert "SKIP" in result.output
+ 
+     def test_download_exception(self) -> None:
+         fake_fetcher = MagicMock()
+@@ -80,7 +82,8 @@ class TestDownloadTail:
+             patch("quantflow.data.store.DataStore", return_value=fake_store),
+         ):
+             result = runner.invoke(app, ["download", "--symbol", "BTC/USDT"])
+-        assert result.exit_code == 0
++        # P5-F5: a connect-level failure fails the batch with exit code 1.
++        assert result.exit_code == 1
+         assert "ERR" in result.output
+ 
+ 
+diff --git a/tests/unit/test_fetcher_pagination.py b/tests/unit/test_fetcher_pagination.py
+index 4da8779..6b3b629 100644
+--- a/tests/unit/test_fetcher_pagination.py
++++ b/tests/unit/test_fetcher_pagination.py
+@@ -87,15 +87,19 @@ class TestPagination:
+         assert mock_call.call_count == 1
+ 
+     def test_page_cap_protects_against_hang(self) -> None:
+-        """Runaway pagination stops at MAX_PAGINATION_PAGES."""
++        """RV-012: runaway pagination fails loud instead of silently truncating."""
++        import pytest as _pytest
++
++        from quantflow.common.exceptions import DataError
++
+         pages = [
+             _page(1_700_000_000_000 + i * OKX_KLINE_PAGE_MAX * 3_600_000, OKX_KLINE_PAGE_MAX)
+             for i in range(600)
+         ]
+         fetcher, mock_call = _make_fetcher(pages)
+-        df = asyncio.run(fetcher.fetch_ohlcv("BTC/USDT", "1h"))
++        with _pytest.raises(DataError, match="Pagination exceeded"):
++            asyncio.run(fetcher.fetch_ohlcv("BTC/USDT", "1h"))
+         assert mock_call.call_count == MAX_PAGINATION_PAGES
+-        assert len(df) == MAX_PAGINATION_PAGES * OKX_KLINE_PAGE_MAX
+ 
+     def test_non_finite_bars_filtered(self) -> None:
+         """Non-finite bars are dropped at the parse boundary."""
+diff --git a/tests/unit/test_web_app.py b/tests/unit/test_web_app.py
+index 1730c66..e231032 100644
+--- a/tests/unit/test_web_app.py
++++ b/tests/unit/test_web_app.py
+@@ -1113,11 +1113,14 @@ async def test_station_service_download_data_persists_market_data(
+     assert payload["data_source"] == "okx"
+     assert payload["date_range"]["start"] == "2025-01-01T00:00:00+00:00"
+     assert payload["date_range"]["end"] == "2025-01-01T04:00:00+00:00"
+-    assert (tmp_path / "parquet" / "BTC_USDT" / "2025" / "01.parquet").exists()
++    # P4 suffix isolation: web downloads persist under the -OKX partition.
++    assert (tmp_path / "parquet" / "BTC_USDT-OKX" / "2025" / "01.parquet").exists()
+ 
+     store = DataStore(str(tmp_path / "parquet"), str(tmp_path / "verify.duckdb"))
+     try:
+-        saved = store.query("BTC/USDT", columns=["timestamp", "close", "data_source"])
++        saved = store.query(
++            "BTC/USDT-OKX", columns=["timestamp", "close", "data_source"]
++        )
+     finally:
+         store.close()
+     assert list(saved["data_source"].unique()) == ["okx"]
+@@ -1483,9 +1486,14 @@ def test_query_symbol_frame_uses_timestamp_column_as_datetime_index() -> None:
+ 
+     class FakeStore:
+         def query(self, symbol: str) -> pd.DataFrame:
+-            assert symbol == "BTC/USDT"
++            # P4: _query_symbol_frame resolves first, so query receives the
++            # storage name (underscores), not the raw trading symbol.
++            assert symbol == "BTC_USDT"
+             return frame
+ 
++        def resolve_symbol(self, symbol: str) -> str:
++            return "BTC_USDT"
++
+     result_frame, data_source = _query_symbol_frame(FakeStore(), "BTC/USDT")
+ 
+     assert str(result_frame.index[0]) == "2024-01-01 00:00:00+00:00"
+diff --git a/tests/unit/test_web_service_extra.py b/tests/unit/test_web_service_extra.py
+index f96c36b..29f39b1 100644
+--- a/tests/unit/test_web_service_extra.py
++++ b/tests/unit/test_web_service_extra.py
+@@ -208,20 +208,15 @@ class TestDataSnapshotSymbolProcessing:
+ 
+             mock_store = MagicMock()
+             mock_store.list_symbols.return_value = ["BTC_USDT"]
+-            btc_frame = pd.DataFrame(
+-                {"timestamp": [1700000000000], "data_source": ["unknown_source"]}
+-            )
+-            mock_store.query.return_value = btc_frame
+-            mock_store.get_date_range.return_value = (1700000000000, 1700003600000)
++            # PERF(P1): overview now consumes store.symbol_summary (single scan).
++            mock_store.symbol_summary.return_value = {
++                "rows": 1,
++                "date_range": (1700000000000, 1700003600000),
++                "breakdown": {"unknown": 1},
++            }
+             mock_store.close = MagicMock()
+ 
+-            with (
+-                patch("quantflow.web.service._open_station_store", return_value=mock_store),
+-                patch(
+-                    "quantflow.web.service._resolve_frame_data_source",
+-                    return_value=("unknown", {"unknown": 1}),
+-                ),
+-            ):
++            with patch("quantflow.web.service._open_station_store", return_value=mock_store):
+                 service = StationService(history_store=StationHistoryStore())
+                 result = service.data_snapshot()
+                 # Should have source-unknown mode highlights
+@@ -255,18 +250,15 @@ class TestDataSnapshotSymbolProcessing:
+ 
+             mock_store = MagicMock()
+             mock_store.list_symbols.return_value = ["BTC_USDT"]
+-            btc_frame = pd.DataFrame({"timestamp": [1700000000000], "data_source": ["demo"]})
+-            mock_store.query.return_value = btc_frame
+-            mock_store.get_date_range.return_value = (1700000000000, 1700003600000)
++            # PERF(P1): overview now consumes store.symbol_summary (single scan).
++            mock_store.symbol_summary.return_value = {
++                "rows": 1,
++                "date_range": (1700000000000, 1700003600000),
++                "breakdown": {"demo": 1},
++            }
+             mock_store.close = MagicMock()
+ 
+-            with (
+-                patch("quantflow.web.service._open_station_store", return_value=mock_store),
+-                patch(
+-                    "quantflow.web.service._resolve_frame_data_source",
+-                    return_value=("demo", {"demo": 1}),
+-                ),
+-            ):
++            with patch("quantflow.web.service._open_station_store", return_value=mock_store):
+                 service = StationService(history_store=StationHistoryStore())
+                 result = service.data_snapshot()
+                 assert result["mode"] == "demo-seeded"
+@@ -299,17 +291,14 @@ class TestDataSnapshotSymbolProcessing:
+ 
+             mock_store = MagicMock()
+             mock_store.list_symbols.return_value = ["BTC_USDT", "ETH_USDT"]
+-            btc_frame = pd.DataFrame({"timestamp": [1700000000000], "data_source": ["okx"]})
+-            eth_frame = pd.DataFrame({"timestamp": [1700000000000], "data_source": ["demo"]})
+-            mock_store.query.side_effect = [btc_frame, eth_frame]
+-            mock_store.get_date_range.return_value = (1700000000000, 1700003600000)
++            # PERF(P1): overview now consumes store.symbol_summary (single scan).
++            mock_store.symbol_summary.side_effect = [
++                {"rows": 1, "date_range": (1700000000000, 1700003600000), "breakdown": {"okx": 1}},
++                {"rows": 1, "date_range": (1700000000000, 1700003600000), "breakdown": {"demo": 1}},
++            ]
+             mock_store.close = MagicMock()
+ 
+-            with (
+-                patch("quantflow.web.service._open_station_store", return_value=mock_store),
+-                patch("quantflow.web.service._resolve_frame_data_source") as mock_resolve_src,
+-            ):
+-                mock_resolve_src.side_effect = [("okx", {"okx": 1}), ("demo", {"demo": 1})]
++            with patch("quantflow.web.service._open_station_store", return_value=mock_store):
+                 service = StationService(history_store=StationHistoryStore())
+                 result = service.data_snapshot()
+                 assert result["mode"] == "hybrid"

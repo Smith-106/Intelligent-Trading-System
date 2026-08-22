@@ -257,15 +257,17 @@ async def _monitoring(request: web.Request) -> web.Response:
     session_id = session_snapshot.get("session_id") if isinstance(session_snapshot, dict) else None
     session_history_payload = await manager.session_history(limit=6)
     session_events_payload = await manager.events(limit=24, session_id=session_id)
-    return web.json_response(
-        _redact_paths(
-            service.monitoring_snapshot(
-                session_snapshot=session_snapshot,
-                session_history=session_history_payload.get("items", []),
-                session_events=session_events_payload.get("items", []),
-            )
+
+    def _snapshot() -> dict[str, object]:
+        return service.monitoring_snapshot(
+            session_snapshot=session_snapshot,
+            session_history=session_history_payload.get("items", []),
+            session_events=session_events_payload.get("items", []),
         )
-    )
+
+    # REV-008: monitoring_snapshot internally re-scans parquet via overview().
+    payload = await asyncio.to_thread(_snapshot)
+    return web.json_response(_redact_paths(payload))
 
 
 async def _execution(request: web.Request) -> web.Response:
@@ -275,13 +277,17 @@ async def _execution(request: web.Request) -> web.Response:
     session_id = session_snapshot.get("session_id") if isinstance(session_snapshot, dict) else None
     session_history_payload = await manager.session_history(limit=6)
     session_events_payload = await manager.events(limit=24, session_id=session_id)
-    return web.json_response(
-        service.execution_snapshot(
+
+    def _snapshot() -> dict[str, object]:
+        return service.execution_snapshot(
             session_snapshot=session_snapshot,
             session_history=session_history_payload.get("items", []),
             session_events=session_events_payload.get("items", []),
         )
-    )
+
+    # REV-008: execution_snapshot internally re-scans parquet via overview().
+    payload = await asyncio.to_thread(_snapshot)
+    return web.json_response(payload)
 
 
 async def _session_snapshot(request: web.Request) -> web.Response:

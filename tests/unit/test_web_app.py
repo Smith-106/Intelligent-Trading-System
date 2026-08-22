@@ -1118,9 +1118,7 @@ async def test_station_service_download_data_persists_market_data(
 
     store = DataStore(str(tmp_path / "parquet"), str(tmp_path / "verify.duckdb"))
     try:
-        saved = store.query(
-            "BTC/USDT-OKX", columns=["timestamp", "close", "data_source"]
-        )
+        saved = store.query("BTC/USDT-OKX", columns=["timestamp", "close", "data_source"])
     finally:
         store.close()
     assert list(saved["data_source"].unique()) == ["okx"]

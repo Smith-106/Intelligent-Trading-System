@@ -48,6 +48,32 @@ BYBIT_FUNDING_PAGE_MAX = 200  # ccxt.bybit funding-history page cap (OKX is 100)
 BYBIT_OI_PAGE_MAX = 200  # open-interest history page cap
 BYBIT_MARK_PAGE_MAX = 1000  # mark-price-kline page cap (V5 kline-style endpoint)
 
+
+def _unsupported_oi_interval(timeframe: str) -> str:
+    """Raise a domain error listing valid OI intervals (REV-008-B1)."""
+    raise DataError(
+        f"Unsupported Bybit OI timeframe: {timeframe!r}. Valid: {sorted(BYBIT_OI_INTERVAL_MAP)}"
+    )
+
+
+def _oi_interval_ms(timeframe: str) -> int:
+    """Interval duration in ms for OI/mark alignment (REV-008-B1)."""
+    table = {
+        "5m": 300_000,
+        "15m": 900_000,
+        "30m": 1_800_000,
+        "1h": 3_600_000,
+        "4h": 14_400_000,
+        "1d": 86_400_000,
+    }
+    try:
+        return table[timeframe]
+    except KeyError:
+        raise DataError(
+            f"Unsupported Bybit meta timeframe: {timeframe!r}. Valid: {sorted(table)}"
+        ) from None
+
+
 # OI ``intervalTime`` -> mark-price-kline ``interval`` enums differ in V5.
 BYBIT_MARK_INTERVAL_MAP = {
     "5m": "5",
@@ -181,8 +207,9 @@ class BybitMetaFetcher:
         while since < now_ms:
             pages += 1
             if pages > 500:
-                logger.warning("Bybit funding pagination exceeded 500 pages for %s", symbol)
-                break
+                # REV-008-B2: aligned with fetcher RV-012 — a silent stop here
+                # returned truncated history as if complete.
+                raise DataError(f"Bybit funding pagination exceeded 500 pages for {symbol}")
 
             window_start = since
 
@@ -271,8 +298,8 @@ class BybitMetaFetcher:
         while True:
             pages += 1
             if pages > 500:
-                logger.warning("Bybit mark-price pagination exceeded 500 pages for %s", symbol)
-                break
+                # REV-008-B2: fail-loud, aligned with fetcher RV-012.
+                raise DataError(f"Bybit mark-price pagination exceeded 500 pages for {symbol}")
 
             def _call(s: int = cursor_start) -> Any:
                 return exchange.request(
@@ -348,8 +375,8 @@ class BybitMetaFetcher:
         while True:
             pages += 1
             if pages > 500:
-                logger.warning("Bybit OI pagination exceeded 500 pages for %s", symbol)
-                break
+                # REV-008-B2: fail-loud, aligned with fetcher RV-012.
+                raise DataError(f"Bybit OI pagination exceeded 500 pages for {symbol}")
 
             def _call(
                 c: str | None = cursor,
@@ -363,7 +390,8 @@ class BybitMetaFetcher:
                     "category": self._category,
                     "symbol": bybit_market_id(symbol),
                     # RV-007-007: V5 intervalTime enum is '5min'-style below 1h.
-                    "intervalTime": BYBIT_OI_INTERVAL_MAP[timeframe],
+                    "intervalTime": BYBIT_OI_INTERVAL_MAP.get(timeframe)
+                    or _unsupported_oi_interval(timeframe),
                     "limit": effective_limit,
                 }
                 # Bybit open-interest requires startTime AND endTime. Use a
@@ -422,14 +450,7 @@ class BybitMetaFetcher:
         merge with tolerance of one interval is exact for complete data; gaps
         beyond tolerance stay NaN rather than being silently filled.
         """
-        interval_ms = {
-            "5m": 300_000,
-            "15m": 900_000,
-            "30m": 1_800_000,
-            "1h": 3_600_000,
-            "4h": 14_400_000,
-            "1d": 86_400_000,
-        }[timeframe]
+        interval_ms = _oi_interval_ms(timeframe)
         try:
             mark_df = await self.fetch_mark_price_kline(
                 symbol,

@@ -31,6 +31,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from quantflow.common.validators import validate_symbol  # noqa: E402
 from quantflow.data.store import DataStore  # noqa: E402 — after REPO_ROOT setup
 
 PARQUET_DIR = REPO_ROOT / "data" / "parquet"
@@ -71,8 +72,12 @@ def _replacement_ready(store: DataStore, legacy_dir: str) -> str | None:
     """
     base_symbol = legacy_dir.replace("_", "/")
     legacy_months = _covered_months(PARQUET_DIR / legacy_dir)
-    for suffix in ("-BINANCE", "-OKX"):
-        candidate = f"{base_symbol}{suffix}"
+    for suffix in ("-OKX", "-BINANCE", "-BYBIT"):
+        candidate = validate_symbol(f"{base_symbol}{suffix}")
+        # REV-008-④: candidates must be probed in their NORMALISED storage
+        # form — the raw slash form ("BTC/USDT-OKX") built a nested path that
+        # never exists, silently skipping every real candidate and blocking
+        # --apply forever.
         cand_dir = PARQUET_DIR / candidate
         if not cand_dir.is_dir():
             continue

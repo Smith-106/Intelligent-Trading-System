@@ -27,9 +27,23 @@ from quantflow.common.validators import (
 logger = logging.getLogger(__name__)
 
 # ISS-REV007-01: partition writes are read-merge-write; the FileLock below is
-# inter-process, this one serialises threads inside the process (web station
-# handlers run via asyncio.to_thread on a shared interpreter).
-_PARQUET_WRITE_LOCK = threading.Lock()
+# inter-process. Inside the process, locks are keyed per partition path — a
+# single module-level Lock would serialise unrelated symbols and flatten the
+# FileLock's per-partition granularity (REV-008-⑤).
+_PARTITION_THREAD_LOCKS: dict[str, threading.Lock] = {}
+_PARTITION_LOCKS_GUARD = threading.Lock()
+
+
+def partition_lock(month_path) -> threading.Lock:
+    """Return the in-process lock guarding one partition file."""
+    key = str(month_path)
+    with _PARTITION_LOCKS_GUARD:
+        lock = _PARTITION_THREAD_LOCKS.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _PARTITION_THREAD_LOCKS[key] = lock
+        return lock
+
 
 # Public patterns re-exported for back-compat / introspection.
 _SYMBOL_PATTERN = SYMBOL_PATTERN
@@ -125,9 +139,10 @@ class DataStore:
 
             # ISS-REV007-01: the read-merge-write below must be serialised per
             # partition — two concurrent saves used to lose one side's bars.
-            # Thread lock first (in-process), then a cross-process FileLock
-            # keyed on the canonical partition path.
-            with _PARQUET_WRITE_LOCK, FileLock(f"{month_path}.lock"):
+            # In-process per-partition thread lock first, then the cross-process
+            # FileLock on the canonical partition path (bounded wait so a stuck
+            # writer surfaces as an error instead of hanging the caller forever).
+            with partition_lock(month_path), FileLock(f"{month_path}.lock", timeout=300):
                 self._merge_write_partition(month_path, year_dir, group, data_cols)
 
     def _merge_write_partition(
@@ -405,15 +420,16 @@ class DataStore:
         """Return the best existing storage key for a logical symbol.
 
         Walks ``priority`` suffix candidates (e.g. ``BTC/USDT-OKX`` →
-        ``BTC/USDT-BINANCE`` → ``BTC/USDT``) and returns the validated storage
-        name of the first candidate whose partition exists on disk. Falls back
-        to the bare symbol when nothing matches — read behaviour then equals
-        the pre-migration status quo.
+        ``BTC/USDT-BINANCE`` → ``BTC/USDT-BYBIT`` → ``BTC/USDT``) and returns
+        the validated storage name of the first candidate whose partition
+        exists on disk. Falls back to the bare symbol when nothing matches —
+        read behaviour then equals the pre-migration status quo.
 
-        Pure filesystem predicate: no data is read, so callers can use it for
-        provenance reporting as well as for querying. Explicit by design —
-        call sites opt in (P4 consensus rejected transparent fallback inside
-        :meth:`query`, which would silently mix legacy and suffixed sources).
+        When several suffixed partitions coexist, **priority order decides**
+        (P4 source-isolation contract: a clean tagged partition outranks the
+        legacy mixed one even while it is still sparse). Coexistence is made
+        observable via a warning so the coverage gap is not silent. Filesystem
+        predicate only: no row data is read.
         """
         base = _validate_symbol(symbol)
         hits: list[str] = []
@@ -428,16 +444,21 @@ class DataStore:
                 hits.append(candidate)
         if not hits:
             return base
-        if len(hits) == 1:
-            return hits[0]
-        # RV-010: multiple candidates coexist — prefer the one with the
-        # earliest history start so a sparse fresh partition cannot shadow a
-        # full-history legacy directory. Extra scans only happen here.
-        def _start_ms(name: str) -> int:
-            rng = self.get_date_range(name)
-            return rng[0] if rng else float("inf")
-
-        return min(hits, key=_start_ms)
+        chosen = hits[0]
+        if len(hits) > 1:
+            # REV-008-⑥: priority order is the contract; an earlier RV-010
+            # draft preferred the earliest history start, which would have let
+            # the legacy mixed partition permanently shadow clean tagged ones.
+            # Keep priority semantics, make the coverage gap observable instead.
+            logger.warning(
+                "resolve_symbol(%s): partitions coexist %s — reading '%s' per "
+                "suffix priority; run scripts/archive_legacy_partitions.py to "
+                "reconcile coverage",
+                symbol,
+                hits,
+                chosen,
+            )
+        return chosen
 
     def symbol_summary(self, symbol: str) -> dict[str, Any] | None:
         """One-pass station-overview aggregate for a symbol.
@@ -450,25 +471,35 @@ class DataStore:
         """
         symbol_name = _validate_symbol(symbol)
         symbol_dir = self._parquet_dir / symbol_name
-        if not symbol_dir.exists():
-            return None
+        # REV-008-①: a directory can exist with zero parquet files (interrupted
+        # save leaves the mkdir behind). DuckDB then raises on the glob itself;
+        # probe first so an empty dir reads as "no rows", never as a 500.
+        if not symbol_dir.exists() or not any(symbol_dir.glob("*/*.parquet")):
+            return {"rows": 0, "date_range": None, "breakdown": {}}
         pattern = f"{self._parquet_dir.as_posix()}/{symbol_name}/*/*.parquet".replace("'", "''")
         try:
             grouped = self._db.query(f"""
                 SELECT COUNT(*) AS n,
                        MIN(timestamp) AS min_ts,
                        MAX(timestamp) AS max_ts,
-                       data_source
+                       COALESCE(data_source, 'unknown') AS data_source
                 FROM read_parquet('{pattern}', union_by_name=true)
                 GROUP BY data_source
             """).fetchall()
-        except duckdb.Error:
+        except duckdb.Error as exc:
             # Legacy partitions without a data_source column: fall back to a
-            # single ungrouped aggregate (still one scan, not two).
-            row = self._db.query(f"""
-                SELECT COUNT(*), MIN(timestamp), MAX(timestamp)
-                FROM read_parquet('{pattern}', union_by_name=true)
-            """).fetchone()
+            # single ungrouped aggregate (still one scan, not two). The
+            # fallback query is guarded too — a corrupt partition must surface
+            # as DataError (which overview degrades per-symbol), not as a raw
+            # duckdb error that 500s the endpoint.
+            try:
+                row = self._db.query(f"""
+                    SELECT COUNT(*), MIN(timestamp), MAX(timestamp)
+                    FROM read_parquet('{pattern}', union_by_name=true)
+                """).fetchone()
+            except duckdb.Error as exc2:
+                raise DataError(f"Failed to summarise partition for {symbol}: {exc2}") from exc2
+            del exc
             if row is None or row[0] == 0:
                 return {"rows": 0, "date_range": None, "breakdown": {}}
             return {
@@ -483,6 +514,8 @@ class DataStore:
         return {
             "rows": rows,
             "date_range": date_range,
+            # REV-008: COALESCE keeps NULL data_source out of breakdown; str()
+            # would otherwise mint a literal "None" source key.
             "breakdown": {str(r[3]): int(r[0]) for r in grouped},
         }
 
