@@ -35,6 +35,7 @@ from datetime import datetime
 from typing import Any
 
 from quantflow.common.monitoring_sink import MonitoringSink, NullMonitoringSink
+from quantflow.common.redaction import redact_secrets
 from quantflow.execution.gateway_base import GatewayBase, GatewayError
 from quantflow.reconciliation.audit_logger import AuditLogger
 from quantflow.reconciliation.models import (
@@ -158,7 +159,9 @@ class ReconciliationEngine:
             return report
 
         except Exception as e:
-            logger.error("Reconciliation %s failed: %s", reconciliation_id, e)
+            logger.error(
+            "Reconciliation %s failed: %s", reconciliation_id, redact_secrets(str(e))
+        )
 
             # Create failure report
             duration = time.time() - start_time
@@ -246,7 +249,9 @@ class ReconciliationEngine:
                     source="exchange",
                 )
             except GatewayError as e:
-                logger.error("Failed to query exchange positions: %s", e)
+                logger.error(
+                "Failed to query exchange positions: %s", redact_secrets(str(e))
+            )
                 raise
 
     async def _compare_snapshots(
@@ -386,7 +391,9 @@ class ReconciliationEngine:
                                 )
                             )
         except GatewayError as e:
-            logger.warning("Failed to detect orphan orders: %s", e)
+            logger.warning(
+                "Failed to detect orphan orders: %s", redact_secrets(str(e))
+            )
 
         return discrepancies
 
@@ -469,7 +476,7 @@ class ReconciliationEngine:
                 try:
                     await self.run_daily_reconciliation()
                 except Exception as e:
-                    logger.error("Background reconciliation failed: %s", e)
+                    logger.error("Background reconciliation failed: %s", redact_secrets(str(e)))
 
                 await asyncio.sleep(interval_seconds)
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import urllib.parse
 import warnings
 from typing import Any
 
@@ -37,11 +38,24 @@ class RedisCache:
         self._db = db
         self._client: redis.Redis | None = None
 
+    @staticmethod
+    def _safe_redis_endpoint(url: str) -> str:
+        """Strip userinfo (password) from a redis:// URL for logging."""
+        try:
+            parsed = urllib.parse.urlsplit(url)
+            host = parsed.hostname or "?"
+            port = parsed.port
+            return f"redis://{host}:{port}" if port else f"redis://{host}"
+        except ValueError:
+            return "redis://<redacted>"
+
     def connect(self) -> None:
         try:
             self._client = redis.from_url(self._url, db=self._db, decode_responses=True)
             self._client.ping()
-            logger.info("Connected to Redis at %s", self._url)
+            # SEC-REV010-3: never log the full redis URL — it may embed
+            # :password@. Emit only scheme+host+port.
+            logger.info("Connected to Redis at %s", self._safe_redis_endpoint(self._url))
         except Exception as e:
             logger.warning("Redis connection failed: %s. Caching disabled.", e)
             self._client = None

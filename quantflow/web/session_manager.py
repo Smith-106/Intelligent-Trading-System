@@ -13,13 +13,14 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from quantflow.common.config import load_config, resolve_config_path_safe
 from quantflow.common.event_bus import Event, EventBus
 from quantflow.common.models import EVENT_FILL, EVENT_ORDER, EVENT_RISK, EVENT_SIGNAL
 from quantflow.common.numeric import safe_number
 from quantflow.common.redaction import redact_secrets
+from quantflow.common.validators import validate_symbol
 from quantflow.monitoring.metrics import update_portfolio_metrics
 from quantflow.monitoring.sink import create_default_sink
 from quantflow.strategy.catalog import get_strategy_factories
@@ -62,6 +63,14 @@ class SessionStartRequest(BaseModel):
     interval_seconds: int = 60
     capital: float = 100000.0
     config_path: str = DEFAULT_CONFIG_PATH
+
+    @field_validator("symbol")
+    @classmethod
+    def _validate_symbol(cls, value: str) -> str:
+        # SEC-REV010-5: validate at the web boundary like every other request
+        # model (DataDownloadRequest/ValidationRequest); store-layer checks
+        # remain as defense-in-depth.
+        return validate_symbol(value)
 
 
 @dataclass

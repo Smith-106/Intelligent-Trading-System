@@ -328,12 +328,24 @@ class RDAgentRunner:
         else:
             df.to_csv(data_path)
 
-        env = os.environ.copy()
-        env["LLM_BACKEND"] = llm_cfg["backend"]
+        # SEC-REV010-6: pass a whitelist env to the third-party rdagent CLI
+        # instead of inheriting the full process env (which carries OKX keys,
+        # alert tokens, redis password). Only PATH plus the LLM_* keys the CLI
+        # actually consumes are forwarded; PATH is minimal so the venv python
+        # still resolves.
+        env = {
+            "PATH": os.environ.get("PATH", ""),
+            "VIRTUAL_ENV": os.environ.get("VIRTUAL_ENV", ""),
+            "PYTHONPATH": os.environ.get("PYTHONPATH", ""),
+            "LLM_BACKEND": llm_cfg["backend"],
+        }
         if llm_cfg["model"]:
             env["CHAT_MODEL"] = llm_cfg["model"]
         if llm_cfg["api_base"]:
             env["OPENAI_API_BASE"] = llm_cfg["api_base"]
+        for key in self.LLM_ENV_KEYS:
+            if key in os.environ:
+                env[key] = os.environ[key]
 
         cmd = [
             cli_path,

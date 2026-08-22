@@ -336,10 +336,13 @@ class TradingSession:
         """
         await self._execution.start(mode, gateway_config)
 
-        # Safety: live mode MUST run with the kill switch armed (CLAUDE.md
-        # "实盘模式必须启用 Kill Switch"). Refuse to start rather than silently
-        # trading live without an emergency-stop path.
-        if mode == "live" and not self._config.risk.kill_switch_enabled:
+        # Safety: live/okx mode MUST run with the kill switch armed (CLAUDE.md
+        # "实盘模式必须启用 Kill Switch"). "okx" is a legacy alias that also
+        # connects the production OKX gateway (execution/engine.py:123 routes
+        # it to OKXGateway with sandbox=False from the CLI), so it must carry
+        # the same refusal — SEC-REV010-2. Refuse to start rather than
+        # silently trading live without an emergency-stop path.
+        if mode in ("live", "okx") and not self._config.risk.kill_switch_enabled:
             raise RuntimeError(
                 "Kill switch must be enabled in live mode "
                 "(config.risk.kill_switch_enabled=True); refusing to start."

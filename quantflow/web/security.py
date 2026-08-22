@@ -67,6 +67,33 @@ def _is_loopback_host(host: str) -> bool:
         return False
 
 
+# SEC-REV010-4: hardening response headers. Absent before the audit:
+# clickjacking (frame-ancestors), MIME-sniffing (nosniff), referrer leakage,
+# and any CSP to bound same-origin XSS blast radius.
+_SECURITY_HEADERS: dict[str, str] = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Content-Security-Policy": (
+        "default-src 'self'; img-src 'self' data:; connect-src 'self'; "
+        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    ),
+    "Referrer-Policy": "no-referrer",
+}
+
+
+@web.middleware
+async def security_headers_guard(
+    request: web.Request,
+    handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
+) -> web.StreamResponse:
+    """Apply hardening headers to every response (setdefault keeps any
+    intentionally-set header the app later provides)."""
+    resp = await handler(request)
+    for key, value in _SECURITY_HEADERS.items():
+        resp.headers.setdefault(key, value)
+    return resp
+
+
 @web.middleware
 async def same_origin_guard(
     request: web.Request,

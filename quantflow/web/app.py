@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,7 @@ from quantflow.web.security import (
     STATION_TOKEN_ENV,
     _is_loopback_host,
     _station_token,
+    security_headers_guard,
 )
 from quantflow.web.security import (
     same_origin_guard as _same_origin_guard,
@@ -369,7 +371,12 @@ def create_app(
     # used as a memory-amplification vector. Order matters: rate_limit runs
     # before same_origin_guard so an over-limit client is rejected cheapest.
     app = web.Application(
-        middlewares=[rate_limit_middleware(rate_limiter), _same_origin_guard],
+        middlewares=[
+            # SEC-REV010-4: hardening headers first (cheapest, applies to all).
+            security_headers_guard,
+            rate_limit_middleware(rate_limiter),
+            _same_origin_guard,
+        ],
         client_max_size=MAX_REQUEST_BODY_BYTES,
     )
     # REV-012: history_store is now an explicit parameter rather than reached
@@ -429,4 +436,13 @@ def run_station(host: str = "127.0.0.1", port: int = 8088) -> None:
             f"an auth token. Set the {STATION_TOKEN_ENV} environment variable "
             "to a strong secret before exposing the Station on the network."
         )
+    # SEC-REV010-1: install the global log-redaction safety net before serving
+    # (structlog processor chain); web started outside the CLI must not write
+    # raw exception bodies / alert tokens to logs.
+    from quantflow.monitoring.logger import setup_logging
+
+    setup_logging(
+        level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+        json_format=os.environ.get("LOG_FORMAT", "plain") == "json",
+    )
     web.run_app(create_app(), host=host, port=port)
