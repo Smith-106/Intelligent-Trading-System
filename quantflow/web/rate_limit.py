@@ -33,6 +33,7 @@ _LIMITED_PATHS: frozenset[str] = frozenset(
         "/api/data/download",
         "/api/data/seed-demo",
         "/api/data/tag-source",
+        "/api/analysis/multi-tf",
         "/api/research",
         "/api/validate",
         "/api/session/start",

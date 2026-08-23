@@ -23,11 +23,6 @@ from filelock import FileLock
 from pydantic import BaseModel, field_validator
 
 from quantflow import __version__
-
-# resolve_config_path is re-exported here only so existing test patches
-# (`patch("quantflow.web.service.resolve_config_path")`) keep working; the web
-# layer resolves request-supplied paths via resolve_config_path_safe only
-# (ISS-019). Do not add new call sites of the unsafe variant in this module.
 from quantflow.common.config import (  # noqa: F401
     load_config,
     resolve_config_path,
@@ -44,6 +39,12 @@ from quantflow.strategy.catalog import (
 )
 from quantflow.strategy.research.backtest import BacktestEngine, BacktestResult
 from quantflow.strategy.research.report import generate_report
+
+# resolve_config_path is re-exported here only so existing test patches
+# (`patch("quantflow.web.service.resolve_config_path")`) keep working; the web
+# layer resolves request-supplied paths via resolve_config_path_safe only
+# (ISS-019). Do not add new call sites of the unsafe variant in this module.
+from quantflow.web.cache import OVERVIEW_TTL_S, TTLCache
 from quantflow.web.history import StationHistoryStore
 
 logger = logging.getLogger(__name__)
@@ -957,8 +958,22 @@ class StationService:
 
     config_path: str = DEFAULT_CONFIG_PATH
     history_store: StationHistoryStore = field(default_factory=StationHistoryStore)
+    # PERF-REV015: instance-level TTL cache — overview() is re-read by
+    # data/monitoring/execution snapshots within one poll cycle.
+    snapshot_cache: TTLCache = field(default_factory=lambda: TTLCache(OVERVIEW_TTL_S))
 
     def overview(self) -> dict[str, Any]:
+        hit = self.snapshot_cache.get("overview")
+        if hit is not None:
+            return hit
+        value = self._overview_uncached()
+        self.snapshot_cache.set("overview", value)
+        return value
+
+    def _overview_uncached(self) -> dict[str, Any]:
+        # PERF-REV015: overview() is called by data_snapshot, monitoring_snapshot
+        # AND execution_snapshot — one poll cycle used to trigger 2-3 identical
+        # full-history parquet scans. A short TTL cache collapses them into one.
         # ISS-019: even though self.config_path is the constructor default (not
         # request-supplied), resolve via the safe confining variant so the web
         # layer has a single config-resolution contract — no resolve_config_path

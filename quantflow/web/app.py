@@ -14,6 +14,7 @@ from aiohttp import web
 from quantflow.common.exceptions import DataError, GatewayConnectionError
 from quantflow.common.redaction import redact_secrets
 from quantflow.web.history import StationHistoryStore
+from quantflow.web.multi_tf import MultiTfRequest, multi_tf_analysis
 from quantflow.web.rate_limit import RateLimiter, rate_limit_middleware
 from quantflow.web.security import (
     STATION_TOKEN_ENV,
@@ -146,6 +147,18 @@ async def _strategies(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
     strategies = await asyncio.to_thread(service.strategies)
     return web.json_response(strategies)
+
+
+async def _multi_tf_analysis(request: web.Request) -> web.Response:
+    """PERF-REV015: simultaneous multi-timeframe analysis (up to 23 TFs)."""
+    service = request.app[STATION_SERVICE_KEY]
+    payload = await request.json()
+    try:
+        req = MultiTfRequest(payload)
+    except ValueError as e:
+        return web.json_response({"error": str(e)}, status=400)
+    result = await multi_tf_analysis(service, req)
+    return web.json_response(_redact_paths(result))
 
 
 async def _data_snapshot(request: web.Request) -> web.Response:
@@ -392,6 +405,7 @@ def create_app(
     app.router.add_get("/api/overview", _overview)
     app.router.add_get("/api/strategies", _strategies)
     app.router.add_get("/api/data", _data_snapshot)
+    app.router.add_post("/api/analysis/multi-tf", _multi_tf_analysis)
     app.router.add_post("/api/data/download", _data_download)
     app.router.add_post("/api/data/seed-demo", _data_seed_demo)
     app.router.add_post("/api/data/tag-source", _data_tag_source)
