@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { useMutationFeedback } from "@/hooks/use-mutation-feedback";
 import { api } from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -23,44 +23,42 @@ import { useQueryClient } from "@tanstack/react-query";
 export function KillSwitchButton({ isRunning }: { isRunning: boolean }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // REV-023-RV2: was toast-only via a hand-rolled try/catch — the most
+  // dangerous operation had the least traceable feedback. Now unified:
+  // destructive toast (emergency semantics) + inline notice inside the
+  // dialog on failure.
+  const killFeedback = useMutationFeedback({
+    mutationFn: () => api.sessionKillSwitch(reason.trim()),
+    onSuccess: {
+      title: "紧急停止已触发",
+      description: "会话已被强制终止，请检查风险评估日志。",
+      variant: "destructive",
+    },
+    onError: { title: "触发失败", description: (e) => (e instanceof Error ? e.message : "未知错误") },
+    onSettledExtra: () => {
+      queryClient.invalidateQueries({ queryKey: ["execution"] });
+      queryClient.invalidateQueries({ queryKey: ["session"] });
+      // REV-019-RV1: monitoring carries runtime.active_session / status —
+      // stale values here are worst exactly when the operator just killed
+      // the session.
+      queryClient.invalidateQueries({ queryKey: ["monitoring"] });
+    },
+    inlineMs: 0, // 错误保留至用户处理
+  });
 
   const handleSubmit = async () => {
     if (!reason.trim()) return;
-
-    setIsSubmitting(true);
     try {
-      await api.sessionKillSwitch(reason.trim());
-
-      toast({
-        title: "紧急停止已触发",
-        description: "会话已被强制终止，请检查风险评估日志。",
-        variant: "destructive",
-      });
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["execution"] }),
-        queryClient.invalidateQueries({ queryKey: ["session"] }),
-        // REV-019-RV1: monitoring carries runtime.active_session / status —
-        // stale values here are worst exactly when the operator just killed
-        // the session.
-        queryClient.invalidateQueries({ queryKey: ["monitoring"] }),
-      ]);
-
+      await killFeedback.mutateAsync(undefined as never);
       setOpen(false);
       setReason("");
-    } catch (error) {
-      toast({
-        title: "触发失败",
-        description: error instanceof Error ? error.message : "未知错误",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
+    } catch {
+      // failure already surfaced via toast + inline notice
     }
   };
+  const isSubmitting = killFeedback.mutation.isPending;
 
   return (
     <>
@@ -102,6 +100,11 @@ export function KillSwitchButton({ isRunning }: { isRunning: boolean }) {
               />
             </div>
 
+            {killFeedback.notice?.kind === "error" && (
+              <p role="alert" className="text-sm text-status-danger">
+                触发失败：{killFeedback.notice.detail}
+              </p>
+            )}
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               <strong>注意：</strong>此操作会被记录到风控日志，无法撤销。
             </div>

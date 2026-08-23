@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { useMutationFeedback } from "@/hooks/use-mutation-feedback";
+import { PanelError, PanelLoading, usePanelQuery } from "@/hooks/use-panel-query";
 import { api } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MetricsRow, StatusRow } from "@/components/metric-card";
-import { ErrorState, EmptyState } from "@/components/feedback";
+import { EmptyState } from "@/components/feedback";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { Download, RefreshCw } from "lucide-react";
+import { fmtDate } from "@/lib/format";
 import { DATA_MODE_LABELS, labelFor } from "@/lib/labels";
 
 function dataModeLabel(mode: string): string {
@@ -24,28 +27,23 @@ function dataModeTone(mode: string): "go" | "warn" | "danger" | "default" {
   return "default";
 }
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-}
 
 export function DataPanel() {
   const queryClient = useQueryClient();
-  const { data: snapshot, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["data-snapshot"],
-    queryFn: () => api.dataSnapshot(),
-    refetchInterval: 60000,
-  });
+  const { data: snapshot, isLoading, error, refetch, isFetching } = usePanelQuery(
+    ["data-snapshot"],
+    () => api.dataSnapshot(),
+    60000,
+  );
 
   const [downloadSymbol, setDownloadSymbol] = useState("BTC/USDT");
   const [downloadTimeframe, setDownloadTimeframe] = useState("1h");
   const [downloadStart, setDownloadStart] = useState("2024-01-01");
   const [downloadEnd, setDownloadEnd] = useState("");
-  const downloadMutation = useMutation({
+  // REV-023-RV2: was inline-only — no toast, and the success note stayed
+  // forever after editing the form. Unified hook adds the toast and
+  // auto-clears the notice (errors persist until dismissed/next attempt).
+  const downloadFeedback = useMutationFeedback({
     mutationFn: () => {
       const endDate: string = downloadEnd.trim() !== "" ? downloadEnd.trim() : new Date().toISOString().slice(0, 10);
       return api.dataDownload({
@@ -55,24 +53,20 @@ export function DataPanel() {
         end: endDate,
       });
     },
-    onSuccess: () => {
+    onSuccess: { title: "下载完成", description: "" },
+    onError: { title: "下载失败", description: (e) => (e instanceof Error ? e.message : "未知错误") },
+    onSettledExtra: () => {
       queryClient.invalidateQueries({ queryKey: ["data-snapshot"] });
       queryClient.invalidateQueries({ queryKey: ["overview"] });
       // REV-019-RV2: monitoring's platform block derives from the same scan.
       queryClient.invalidateQueries({ queryKey: ["monitoring"] });
     },
   });
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-sm text-muted-foreground">加载中...</div>
-      </div>
-    );
-  }
+  const downloadMutation = downloadFeedback.mutation;
+  if (isLoading) return <PanelLoading />;
 
   if (error) {
-    // RC-4 (P1-3): what + why + fix 错误指引
-    return <ErrorState detail={error.message} onRetry={() => refetch()} />;
+    return <PanelError context="数据中心" error={error} onRetry={() => refetch()} />;
   }
 
   if (!snapshot) return null;
@@ -173,10 +167,10 @@ export function DataPanel() {
             <Download className="mr-2 h-4 w-4" />
             {downloadMutation.isPending ? "下载中..." : "开始下载"}
           </Button>
-        {downloadMutation.isError && (
-          <p role="alert" className="mt-2 text-sm text-destructive">下载失败：{downloadMutation.error.message}</p>
+        {downloadFeedback.notice?.kind === "error" && (
+          <p role="alert" className="mt-2 text-sm text-destructive">下载失败：{downloadFeedback.notice.detail}</p>
         )}
-          {downloadMutation.isSuccess && (
+          {downloadFeedback.notice?.kind === "success" && downloadMutation.data && (
             <p role="status" className="mt-2 text-sm text-status-go">
               下载完成: {downloadMutation.data.rows_saved} 行数据
             </p>
@@ -229,8 +223,8 @@ export function DataPanel() {
                         </Badge>
                       </td>
                       <td className="hidden py-2 pr-4 sm:table-cell">{sym.files}</td>
-                      <td className="hidden py-2 pr-4 sm:table-cell">{formatDate(sym.range_start)}</td>
-                      <td className="hidden py-2 pr-4 sm:table-cell">{formatDate(sym.range_end)}</td>
+                      <td className="hidden py-2 pr-4 sm:table-cell">{fmtDate(sym.range_start)}</td>
+                      <td className="hidden py-2 pr-4 sm:table-cell">{fmtDate(sym.range_end)}</td>
                       <td className="py-2 pr-4">{sym.coverage_days ?? "—"}</td>
                       <td className="py-2">
                         {sym.last_bar_age_days !== null ? (
@@ -283,7 +277,7 @@ export function DataPanel() {
               <CardContent>
                 <p className="text-lg font-bold">{leaders.latest_symbol.symbol}</p>
                 <p className="text-xs text-muted-foreground">
-                  截至 {formatDate(leaders.latest_symbol.range_end)}
+                  截至 {fmtDate(leaders.latest_symbol.range_end)}
                 </p>
               </CardContent>
             </Card>

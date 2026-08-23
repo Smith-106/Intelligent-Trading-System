@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import {  } from "@tanstack/react-query";
+import { PanelError, PanelLoading, usePanelQuery } from "@/hooks/use-panel-query";
 import { api, type MonitoringSnapshot } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MetricsRow, StatusRow } from "@/components/metric-card";
-import { ErrorState } from "@/components/feedback";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { AlertTriangle, XCircle, RefreshCw } from "lucide-react";
 import { DATA_MODE_LABELS, labelFor } from "@/lib/labels";
@@ -23,23 +23,16 @@ function healthToneClass(tone: string): string {
 }
 
 export function MonitoringPanel() {
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["monitoring"],
-    queryFn: () => api.monitoring(),
-    refetchInterval: 15000,
-  });
+  const { data, isLoading, error, refetch, isFetching } = usePanelQuery(
+    ["monitoring"],
+    () => api.monitoring(),
+    15000,
+  );
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-sm text-muted-foreground">加载中...</div>
-      </div>
-    );
-  }
+  if (isLoading) return <PanelLoading />;
 
   if (error) {
-    // RC-4 (P1-3): what + why + fix 错误指引
-    return <ErrorState detail={error.message} onRetry={() => refetch()} />;
+    return <PanelError context="监控" error={error} onRetry={() => refetch()} />;
   }
 
   if (!data) return null;

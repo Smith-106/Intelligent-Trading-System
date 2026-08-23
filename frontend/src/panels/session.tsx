@@ -1,36 +1,37 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { PanelError, PanelLoading, usePanelQuery } from "@/hooks/use-panel-query";
 import { api, type SessionStartRequest, type Strategy } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MetricsRow } from "@/components/metric-card";
-import { ErrorState } from "@/components/feedback";
 import { LiveWarningBanner } from "@/components/LiveWarningBanner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LiveModeConfirmDialog } from "@/components/LiveModeConfirmDialog";
-import { useToast } from "@/hooks/use-toast";
+import { useMutationFeedback } from "@/hooks/use-mutation-feedback";
 import { Play, Square, RefreshCw, AlertCircle } from "lucide-react";
+import { CopyableText } from "@/components/copyable-text";
+import { fmtDateTime } from "@/lib/format";
 import { toFiniteNumber } from "@/lib/form-utils";
 import { useStrategiesQuery } from "@/hooks/use-strategies-query";
 import { ORDER_STATUS_LABELS, ORDER_TYPE_LABELS, SIDE_LABELS, labelFor } from "@/lib/labels";
 
 export function SessionPanel() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const [showLiveConfirm, setShowLiveConfirm] = useState(false);
   // UI3-H3: destructive stop button needs a confirmation step.
   const [showStopConfirm, setShowStopConfirm] = useState(false);
 const { data: strategies } = useStrategiesQuery();
 
-  const { data: snapshot, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["session"],
-    queryFn: () => api.sessionSnapshot(),
+  const { data: snapshot, isLoading, error, refetch, isFetching } = usePanelQuery(
+    ["session"],
+    () => api.sessionSnapshot(),
     // REV-019-RV5: an idle session's payload never changes — poll only
     // while a session is actually running.
-    refetchInterval: (query) => (query.state.data?.running ? 5000 : false),
-  });
+    (query) => (query.state.data?.running ? 5000 : false),
+  );
 
   const [form, setForm] = useState<SessionStartRequest>({
     mode: "paper",
@@ -41,44 +42,32 @@ const { data: strategies } = useStrategiesQuery();
     capital: 10000,
   });
 
-  const startMutation = useMutation({
+  // REV-023-RV2: unified feedback — one toast (instant) + one inline notice
+  // (traceable, auto-clears after 8s) for both session mutations.
+  const startFeedback = useMutationFeedback({
     mutationFn: () => api.sessionStart(form),
-    onSuccess: () => {
-      toast({ title: "会话已启动", description: "交易会话已成功启动。" });
+    onSuccess: { title: "会话已启动", description: "交易会话已成功启动。" },
+    onError: { title: "启动失败", description: (e) => (e instanceof Error ? e.message : "未知错误") },
+    onSettledExtra: () => {
       queryClient.invalidateQueries({ queryKey: ["session"] });
       queryClient.invalidateQueries({ queryKey: ["execution"] });
       queryClient.invalidateQueries({ queryKey: ["monitoring"] });
     },
-    onError: (error) => {
-      toast({
-        title: "启动失败",
-        description: error instanceof Error ? error.message : "未知错误",
-        variant: "destructive",
-      });
-    },
   });
+  const startMutation = startFeedback.mutation;
 
-  const stopMutation = useMutation({
+  const stopFeedback = useMutationFeedback({
     mutationFn: () => api.sessionStop(),
-    onSuccess: () => {
-      toast({
-        title: "会话已停止",
-        description: `会话已于 ${new Date().toLocaleTimeString()} 优雅退出。`,
-      });
+    onSuccess: { title: "会话已停止", description: `会话已于 ${fmtDateTime(new Date())} 优雅退出。` },
+    // P0 H7: 停止失败强反馈——最危险形态，用户以为已停止实际仍在跑
+    onError: { title: "停止失败", description: "会话可能仍在运行，请立即检查执行情况面板。" },
+    onSettledExtra: () => {
       queryClient.invalidateQueries({ queryKey: ["session"] });
       queryClient.invalidateQueries({ queryKey: ["execution"] });
       queryClient.invalidateQueries({ queryKey: ["monitoring"] });
     },
-    onError: (error) => {
-      // P0 H7: 停止失败强反馈——最危险形态，用户以为已停止实际仍在跑
-      toast({
-        title: "停止失败",
-        description: "会话可能仍在运行，请立即检查执行情况面板。",
-        variant: "destructive",
-      });
-      void error; // error detail shown in inline card below
-    },
   });
+  const stopMutation = stopFeedback.mutation;
 
   // P0 H3: 实盘启动需二次确认
   const handleStart = () => {
@@ -94,17 +83,10 @@ const { data: strategies } = useStrategiesQuery();
     startMutation.mutate();
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-sm text-muted-foreground">加载中...</div>
-      </div>
-    );
-  }
+  if (isLoading) return <PanelLoading />;
 
   if (error) {
-    // RC-4 (P1-3): what + why + fix 错误指引
-    return <ErrorState detail={error.message} onRetry={() => refetch()} />;
+    return <PanelError context="交易会话" error={error} onRetry={() => refetch()} />;
   }
 
   const isRunning = snapshot?.running ?? false;
@@ -185,33 +167,33 @@ const { data: strategies } = useStrategiesQuery();
         </div>
       </div>
 
-      {/* Status Messages */}
-      {startMutation.isError && (
+      {/* Status Messages — REV-023-RV2: rendered from the unified notices */}
+      {startFeedback.notice?.kind === "error" && (
         <Card className="border-status-danger/30 bg-status-danger/5">
           <CardContent className="flex items-center gap-3 py-4">
             <AlertCircle className="h-4 w-4 text-status-danger" />
-            <p role="alert" className="text-sm text-status-danger">启动失败：{startMutation.error.message}</p>
+            <p role="alert" className="text-sm text-status-danger">
+              启动失败：{startFeedback.notice.detail}
+            </p>
           </CardContent>
         </Card>
       )}
-      {startMutation.isSuccess && (
+      {startFeedback.notice?.kind === "success" && (
         <Card className="border-status-go/30 bg-status-go/5">
           <CardContent className="py-4">
             <p role="status" className="text-sm text-status-go">会话已启动</p>
           </CardContent>
         </Card>
       )}
-      {/* P0 H7: 停止失败内联错误卡片 */}
-      {stopMutation.isError && (
+      {/* P0 H7: 停止失败内联错误卡片（不自动消失——必须被看到或被重试） */}
+      {stopFeedback.notice?.kind === "error" && (
         <Card className="border-status-danger/30 bg-status-danger/5">
           <CardContent className="flex items-center justify-between gap-3 py-4">
             <div className="flex items-center gap-3">
               <AlertCircle className="h-4 w-4 shrink-0 text-status-danger" />
               <div>
                 <p className="text-sm font-medium text-status-danger">停止失败：会话可能仍在运行</p>
-                <p className="text-xs text-status-danger/80">
-                  {stopMutation.error instanceof Error ? stopMutation.error.message : "未知错误"}
-                </p>
+                <p className="text-xs text-status-danger/80">{stopFeedback.notice.detail}</p>
               </div>
             </div>
             <Button variant="outline" size="sm" onClick={() => stopMutation.mutate()}>
@@ -387,8 +369,9 @@ const { data: strategies } = useStrategiesQuery();
                 <div key={order.order_id} className="flex items-center justify-between rounded-lg border p-3">
                   <div className="flex items-center gap-2">
                     <Badge variant={order.side === "buy" ? "go" : "danger"} className="text-xs">
-                      {order.side}
+                      {labelFor(SIDE_LABELS, order.side)}
                     </Badge>
+                    <CopyableText value={order.order_id} className="text-muted-foreground" />
                     <span className="text-sm">{order.symbol}</span>
                     <Badge variant="outline" className="text-xs">{labelFor(ORDER_TYPE_LABELS, order.order_type)}</Badge>
                   </div>

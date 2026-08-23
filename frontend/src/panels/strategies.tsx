@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import type { Strategy } from "@/lib/api-client";
+import { PanelLoading } from "@/hooks/use-panel-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { SectionHeader } from "@/components/metric-card";
 import { EmptyState, ErrorState } from "@/components/feedback";
 import { useStrategiesQuery } from "@/hooks/use-strategies-query";
 import { Search, RefreshCw, ChevronRight } from "lucide-react";
+import { CopyableText } from "@/components/copyable-text";
 
 export function StrategiesPanel() {
   // REV-019-RV6: shared hook — polling no longer depends on mount order.
@@ -34,13 +36,7 @@ export function StrategiesPanel() {
     return data.find((s) => s.strategy_id === selectedId) ?? null;
   }, [data, selectedId]);
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-sm text-muted-foreground">加载中...</div>
-      </div>
-    );
-  }
+  if (isLoading) return <PanelLoading />;
 
   if (error) {
     // REV-022-RV5: last panel still on the bare error template — align with
@@ -277,9 +273,11 @@ function StrategyDetail({ strategy, onClose }: { strategy: Strategy; onClose: ()
         {/* Config Path */}
         <div>
           <SectionHeader title="配置文件" />
-          <p className="truncate rounded bg-muted/30 px-2 py-1 font-mono text-xs text-muted-foreground">
-            {strategy.config_path}
-          </p>
+          <CopyableText
+            value={strategy.config_path}
+            display={strategy.config_path}
+            className="w-full justify-start truncate rounded bg-muted/30 px-2 py-1 text-muted-foreground"
+          />
         </div>
       </CardContent>
     </Card>

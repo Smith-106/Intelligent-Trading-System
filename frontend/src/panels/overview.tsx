@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { PanelError, PanelLoading, usePanelQuery } from "@/hooks/use-panel-query";
 import { api, type OverviewData } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MetricsRow, StatusRow, SectionHeader } from "@/components/metric-card";
-import { ErrorState, EmptyState } from "@/components/feedback";
+import { EmptyState } from "@/components/feedback";
 import { useUIStore } from "@/stores/ui-store";
 import { TrendingUp, Server, RefreshCw, ExternalLink } from "lucide-react";
 import { DATA_MODE_LABELS, labelFor } from "@/lib/labels";
@@ -21,23 +21,17 @@ function dataModeTone(mode: string): "go" | "warn" | "default" {
 }
 
 export function OverviewPanel() {
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["overview"],
-    queryFn: () => api.overview(),
-    refetchInterval: 30000,
-  });
+  // REV-023: shared panel query shell (was a copy-pasted useQuery + guards)
+  const { data, isLoading, error, refetch, isFetching } = usePanelQuery(
+    ["overview"],
+    () => api.overview(),
+    30000,
+  );
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-sm text-muted-foreground">加载中...</div>
-      </div>
-    );
-  }
+  if (isLoading) return <PanelLoading />;
 
   if (error) {
-    // RC-4 (P1-3): what + why + fix 错误指引
-    return <ErrorState detail={error.message} onRetry={() => refetch()} />;
+    return <PanelError context="总览" error={error} onRetry={() => refetch()} />;
   }
 
   if (!data) return null;

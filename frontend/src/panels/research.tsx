@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { PanelLoading } from "@/hooks/use-panel-query";
 import { api, type ResearchRequest, type ResearchResult, type Strategy } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,7 @@ import { EmptyState, ErrorState } from "@/components/feedback";
 import { useWorkbenchStore } from "@/stores/workbench-store";
 import { useToast } from "@/hooks/use-toast";
 import { Play, RefreshCw } from "lucide-react";
+import { fmtDateTime } from "@/lib/format";
 import { toFiniteNumber } from "@/lib/form-utils";
 import { useStrategiesQuery } from "@/hooks/use-strategies-query";
 
@@ -225,7 +227,7 @@ const { data: strategies } = useStrategiesQuery();
               onRetry={() => refetchHistory()}
             />
           ) : historyLoading ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">加载中...</div>
+            <PanelLoading />
           ) : historyItems.length === 0 ? (
             <EmptyState
               title="暂无研究记录"
@@ -246,7 +248,7 @@ const { data: strategies } = useStrategiesQuery();
                       </Badge>
                       {typeof item.created_at === "string" && (
                         <span className="ml-auto text-xs text-muted-foreground">
-                          {new Date(item.created_at).toLocaleDateString("zh-CN")}
+                          {fmtDateTime(item.created_at)}
                         </span>
                       )}
                     </div>

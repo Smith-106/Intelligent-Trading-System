@@ -1,15 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import {  } from "@tanstack/react-query";
+import { PanelError, PanelLoading, usePanelQuery } from "@/hooks/use-panel-query";
 import { api, type ExecutionSnapshot } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MetricsRow, StatusRow } from "@/components/metric-card";
-import { ErrorState } from "@/components/feedback";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { EquityChart } from "@/components/charts/equity-chart";
 import { DrawdownChart } from "@/components/charts/drawdown-chart";
 import { KillSwitchButton } from "@/components/KillSwitchButton";
 import { RefreshCw } from "lucide-react";
+import { CopyableText } from "@/components/copyable-text";
+import { fmtDateTime } from "@/lib/format";
 import { LEVEL_LABELS, MODE_LABELS, ORDER_STATUS_LABELS, ORDER_TYPE_LABELS, SIDE_LABELS, labelFor } from "@/lib/labels";
 
 function toneClass(tone: string): string {
@@ -26,23 +28,16 @@ function toneClass(tone: string): string {
 }
 
 export function ExecutionPanel() {
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["execution"],
-    queryFn: () => api.execution(),
-    refetchInterval: 10000,
-  });
+  const { data, isLoading, error, refetch, isFetching } = usePanelQuery(
+    ["execution"],
+    () => api.execution(),
+    10000,
+  );
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-sm text-muted-foreground">加载中...</div>
-      </div>
-    );
-  }
+  if (isLoading) return <PanelLoading />;
 
   if (error) {
-    // RC-4 (P1-3): what + why + fix 错误指引
-    return <ErrorState detail={error.message} onRetry={() => refetch()} />;
+    return <PanelError context="执行情况" error={error} onRetry={() => refetch()} />;
   }
 
   if (!data) return null;
@@ -260,8 +255,9 @@ function ExecutionContent({
                 <div key={order.order_id} className="flex items-center justify-between rounded-lg border p-3">
                   <div className="flex items-center gap-2">
                     <Badge variant={order.side === "buy" ? "go" : "danger"} className="text-xs">
-                      {order.side}
+                      {labelFor(SIDE_LABELS, order.side)}
                     </Badge>
+                    <CopyableText value={order.order_id} className="text-muted-foreground" />
                     <span className="text-sm">{order.symbol}</span>
                     <Badge variant="outline" className="text-xs">{labelFor(ORDER_TYPE_LABELS, order.order_type)}</Badge>
                   </div>
@@ -308,7 +304,7 @@ function ExecutionContent({
                   <span className="text-sm">{event.title}</span>
                   {typeof event.created_at === "string" && (
                     <span className="ml-auto text-xs text-muted-foreground">
-                      {new Date(event.created_at).toLocaleTimeString("zh-CN")}
+                      {fmtDateTime(event.created_at)}
                     </span>
                   )}
                 </div>
