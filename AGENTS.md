@@ -14,7 +14,7 @@
 - parity 仅 paper↔live（TradingSession 统一 paper/live 执行路径）；backtest 走独立 BacktestEngine（纯向量化），不在 parity 范围（.workflow/specs/architecture-constraints.md S-20260722-pd2y）
 
 ## 技术栈
-- Python 3.11+, CCXT (OKX), VectorBT, Optuna, DuckDB+Parquet, Redis
+- Python 3.11+, CCXT (OKX), 自建 BacktestEngine（pandas/numpy 向量化）, Optuna, DuckDB+Parquet, Redis
 - 自建事件驱动引擎（TradingSession），不依赖外部引擎库
 - 防过拟合：CPCV + DSR + PBO + WFO (purgedcv)
 - 风控：半Kelly + VaR/CVaR + 回撤熔断 + Kill Switch
@@ -27,7 +27,7 @@
 ### 代码质量
 - 使用 `ruff` format + lint（配置见 pyproject.toml）
 - 使用 `mypy --strict` 类型检查
-- 测试覆盖率 fail_under ≥ 75%（核心模块；见 pyproject.toml [tool.coverage.report]）
+- 测试覆盖率 fail_under = 100（行+分支双 100% 门禁；见 pyproject.toml [tool.coverage.report]）
 - 所有 async 函数使用 `async/await`，不用回调
 - 导入顺序：标准库 → 第三方 → 项目内（ruff isort 管理）
 
@@ -60,12 +60,15 @@ quantflow/
 ├── data/           # L1 数据层 (CCXT获取/清洗/Parquet+DuckDB/FeatureStore/Redis)
 ├── indicators/     # L2 指标层 (21因子/注册表/趋势/动量/波动/成交量)
 ├── strategy/       # L3 策略层 (回测/优化/验证/模板/AI因子/情绪)
-│   ├── research/   #   VectorBT回测 + Optuna优化 + 报告生成
+│   ├── research/   #   回测引擎 + Optuna优化 + 报告生成
 │   ├── validation/ #   CPCV + DSR + PBO + WFO + GO/NO-GO门
 │   └── templates/  #   趋势跟踪 + 均值回归
 ├── signal/         # L4 信号风控 (信号生成/风控引擎/仓位/风险指标/组合)
 ├── execution/      # L5 执行层 (OKX/Paper/执行引擎/订单/持仓/KillSwitch)
 ├── monitoring/     # L6 监控 (Prometheus指标/告警/日志)
+├── reconciliation/ # 对账引擎 (实盘/本地状态一致性)
+├── trading/        # TradingSession 别名 re-export
+├── web/            # Station 后端 (aiohttp + 业务前端静态托管)
 ├── common/         # 公共 (数据模型/事件总线/配置/异常)
 ├── cli/            # CLI入口 (Typer + Rich)
 └── config/         # 配置文件 (default.yaml + strategies/)
@@ -107,7 +110,7 @@ CCXT/WebSocket → Redis Cache → EventBus(BAR) → Strategy.on_bar()
 
 ## 验证管道
 ```
-策略参数 → VectorBT快速筛选 → Optuna精调 → CPCV多路径 → DSR修正 → WFO前向 → GO/NO-GO
+策略参数 → pandas/numpy向量化快速筛选 → Optuna精调 → CPCV多路径 → DSR修正 → WFO前向 → GO/NO-GO
 ```
 
 ## 扩展指南

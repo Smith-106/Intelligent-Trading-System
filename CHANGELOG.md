@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [Unreleased]
+
+### Features
+- **多时间框架并行分析（PERF-REV015）**：`data/resample.py` 本地重采样层——仅下载 {5m, 1d} 基础网格即可派生全部 24 档周期（5m…30d，含交易所不原生支持的 45m/7h/16h/32h）；UTC floor 锚定 + leak-safe 尾桶丢弃 + 幂等性测试
+- **新端点 `POST /api/analysis/multi-tf`**：每 symbol 单次 base 读取 → 内存重采样全部请求周期；部分成功语义；已接入限流白名单
+- **overview TTL 缓存**：data/monitoring/execution 三快照共用一次 parquet 全扫（原每轮询周期重复 2-3 次），命中返回深拷贝
+- **行情图表面板（UI-REV016）**：lightweight-charts v4 蜡烛图 + 成交量副图，24 周期切换（分段+分组弹层），symbol/TF/成交量开关持久化，主题翻转自动重配色
+
+### Fixed
+- multi-tf 端点 start/end 参数透传缺失（fields=full 返回全历史）；ISO 日期→epoch-ms 归一化
+- `_analyze_symbol` DuckDB 连接泄漏（每 symbol 一条未关闭）
+- 重采样单 base bar 尾桶泄漏（1 根 bar 冒充完整大周期 K 线）+ 回归测试
+- 图表双重 ms→s 时间换算（渲染必崩，上线前拦截）；主题切换后成交量柱颜色滞留
+- 验证门禁 NO-GO 结果误渲染为绿色徽章（"no-go".includes("go") 判断顺序反转）
+- session 停止零确认（紧邻刷新按钮，误触即终止会话）；数值表单 NaN/清空静默归零
+
 ## [0.10.0] — 2026-08-22
 
 ### Features

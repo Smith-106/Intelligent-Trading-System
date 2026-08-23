@@ -6,6 +6,8 @@ from typing import Any, cast
 
 import numpy as np
 import pandas as pd
+import importlib.util
+
 import pytest
 
 from quantflow.strategy.research.optimizer import StrategyOptimizer
@@ -44,8 +46,10 @@ class TestStrategyOptimizer:
         assert "best_value" in result
         assert result["method"] == "bayesian"
 
+    cmaes_available = importlib.util.find_spec("cmaes") is not None
+
     @pytest.mark.skipif(
-        True,  # cmaes package not installed in this environment
+        not cmaes_available,
         reason="cmaes package not available",
     )
     def test_optimize_cmaes(self, sample_data, simple_signal_fn):

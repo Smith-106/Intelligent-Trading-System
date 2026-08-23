@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import pytest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -47,7 +48,11 @@ def test_secret_scan_hits_private_key(tmp_path: Path):
     assert any(h["rule"] == "private_key_pem" for h in r["hits"])
 
 
+@pytest.mark.slow
 def test_run_gate_quick_structure():
+    # REV-018: run_gate scans the whole repo (docs/gitignore/secrets/CI);
+    # measured at ~8.5s it dominates the unit suite. Contract still runs,
+    # just out of the fast lane.
     mod = _load()
     report = mod.run_gate(quick=True)
     assert report["kind"] == "oss_c_gate"

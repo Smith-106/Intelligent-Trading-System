@@ -346,7 +346,10 @@ class TestBenchmarkServiceRun:
         result = service.run(req)
         assert result.failures == []
 
+    # REV-018: xfail alone still EXECUTES the body (real subprocess run on
+    # every suite pass). slow keeps it out of the default selection.
     @pytest.mark.xfail(reason="Subprocess benchmark takes too long for unit tests")
+    @pytest.mark.slow
     def test_run_includes_subprocess_benchmarks(self) -> None:
         """This test would run subprocess benchmarks but is marked xfail."""
         service = BenchmarkService()

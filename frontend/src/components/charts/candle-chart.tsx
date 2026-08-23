@@ -35,10 +35,15 @@ function resolveTheme(): ChartTheme {
   const css = getComputedStyle(document.documentElement);
   const v = (name: string, fallback: string): string =>
     css.getPropertyValue(name).trim() || fallback;
+  const dark = document.documentElement.classList.contains("dark");
   return {
     background: v("--card", "#111318"),
     textColor: v("--muted-foreground", "#8b8f98"),
-    gridLine: v("--border", "#262a31"),
+    // REV-018-RV4/5: --border is too faint to act as a chart reference grid
+    // (near-invisible on light, muddy on dark). A fixed low-alpha overlay
+    // derived from the theme polarity keeps the grid legible without
+    // competing with the candles.
+    gridLine: dark ? "rgba(148, 163, 184, 0.14)" : "rgba(100, 116, 139, 0.16)",
     border: v("--border", "#262a31"),
     // project-wide green-up/red-down convention
     upColor: v("--status-go", "#22c55e"),
@@ -97,7 +102,8 @@ export function CandleChart({ candles, showVolume = true, className }: CandleCha
       priceFormat: { type: "volume" },
       priceLineVisible: false,
     });
-    chart.priceScale("").applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
+    // REV-018-RV3: volume pane was squashed to the bottom 15% — raise it.
+    chart.priceScale("").applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
 
     chartRef.current = chart;
     candleSeriesRef.current = candle;

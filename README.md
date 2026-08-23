@@ -1,6 +1,6 @@
 # QuantFlow
 
-> 当前版本 **v0.8.0** — 详见 [docs/release/v0.8.0.md](docs/release/v0.8.0.md)
+> 当前版本 **v0.10.0** — 详见 [docs/release/v0.10.0.md](docs/release/v0.10.0.md)
 
 个人 Crypto 量化交易系统 — 从策略研究到实盘交易的完整闭环。
 
@@ -37,7 +37,7 @@
 - **事件驱动**：自建 TradingSession 引擎，回测/模拟/实盘统一架构
 - **指标表面（W18c 口径）**：21 经典核心 + 扩展（supertrend/DEMA/stochRSI/Keltner/Donchian/session VWAP/OBV slope/CVD proxy）+ 6 个 Elliott Wave 注册名（wave 需专用管道），纯 pandas/numpy
 - **AI 增强**：Meta-Labeling + FinBERT 情绪分析（已实现）；Qlib RD-Agent 因子挖掘骨架（CLI 已接线，qlib 为可选依赖）
-- **QuantFlow Station**：React + Vite 现代前端 + aiohttp 业务后端，23 个 REST 端点 + CSRF/Token 安全防护
+- **QuantFlow Station**：React + Vite 现代前端 + aiohttp 业务后端，21 个 REST 端点 + CSRF/Token 安全防护
 - **对账引擎**：持仓漂移检测 + 孤儿订单发现 + 审计日志 + 会话崩溃恢复（Checkpoint 状态存储）
 - **数据质量**：实时数据流健康监控 + Redis 降级 fallback
 - **交易所健康**：单交易所熔断器（滑窗错误率 + 限频检测 + 滞后恢复）
@@ -261,7 +261,7 @@ quantflow/
 │   ├── validators.py   #   安全校验（symbol/column，防注入/遍历）
 │   └── exceptions.py   #   自定义异常
 ├── cli/                # CLI 入口
-│   └── main.py         #   Typer + Rich（9 命令）
+│   └── main.py         #   Typer + Rich（20 命令）
 ├── web/                # QuantFlow Station 业务后端
 │   ├── app.py          #   aiohttp 应用（23 REST 端点）
 │   ├── security.py     #   CSRF + Bearer 认证 + 启动保护
