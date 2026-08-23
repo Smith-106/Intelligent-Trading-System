@@ -3,6 +3,7 @@ import { PANEL_LABELS, useUIStore, type PanelId } from "@/stores/ui-store";
 import {
   LayoutDashboard,
   Database,
+  ChartCandlestick,
   Activity,
   FlaskConical,
   ShieldCheck,
@@ -14,6 +15,7 @@ import {
 const NAV_ITEMS: Array<{ id: PanelId; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "overview", icon: LayoutDashboard },
   { id: "data", icon: Database },
+  { id: "charts", icon: ChartCandlestick },
   { id: "monitoring", icon: Activity },
   { id: "research", icon: FlaskConical },
   { id: "validation", icon: ShieldCheck },

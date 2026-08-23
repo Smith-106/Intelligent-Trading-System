@@ -3,6 +3,7 @@ import { create } from "zustand";
 export type PanelId =
   | "overview"
   | "data"
+  | "charts"
   | "monitoring"
   | "research"
   | "validation"
@@ -13,6 +14,7 @@ export type PanelId =
 export const PANEL_LABELS: Record<PanelId, string> = {
   overview: "总览",
   data: "数据中心",
+  charts: "行情图表",
   monitoring: "监控运维",
   research: "研究回测",
   validation: "验证门禁",

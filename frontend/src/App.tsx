@@ -9,6 +9,7 @@ import { ValidationPanel } from "@/panels/validation";
 import { ExecutionPanel } from "@/panels/execution";
 import { SessionPanel } from "@/panels/session";
 import { StrategiesPanel } from "@/panels/strategies";
+import { ChartsPanel } from "@/panels/charts";
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalRefreshHandler } from "@/components/GlobalRefreshHandler";
 import { useUIStore, type PanelId } from "@/stores/ui-store";
@@ -18,6 +19,7 @@ import { PANEL_QUERY_KEYS } from "@/lib/query-keys";
 const PANEL_COMPONENTS: Record<PanelId, React.ComponentType> = {
   overview: OverviewPanel,
   data: DataPanel,
+  charts: ChartsPanel,
   monitoring: MonitoringPanel,
   research: ResearchPanel,
   validation: ValidationPanel,

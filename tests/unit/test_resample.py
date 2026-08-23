@@ -38,7 +38,7 @@ def _base_5m(n: int = 300, start_ms: int | None = None) -> pd.DataFrame:
 
 class TestTimeframeParsing:
     def test_all_analysis_timeframes_parse(self) -> None:
-        assert len(ANALYSIS_TIMEFRAMES) == 23
+        assert len(ANALYSIS_TIMEFRAMES) == 24
         for tf in ANALYSIS_TIMEFRAMES:
             assert timeframe_to_ms(tf) > 0
             assert timeframe_to_timedelta(tf) == pd.Timedelta(timeframe_to_ms(tf), unit="ms")
@@ -52,7 +52,8 @@ class TestTimeframeParsing:
         # every analysis bucket derives from exactly one base grid
         derived = {tf: base_timeframe_for(tf) for tf in ANALYSIS_TIMEFRAMES}
         assert set(derived.values()) == set(BASE_TIMEFRAMES)
-        # spot-check the documented mapping
+        # spot-check the documented mapping (4h derives from the 5m grid)
+        assert derived["4h"] == "5m"
         assert derived["45m"] == "5m"
         assert derived["32h"] == "5m"
         assert derived["24h"] == "1d"

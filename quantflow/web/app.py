@@ -150,7 +150,7 @@ async def _strategies(request: web.Request) -> web.Response:
 
 
 async def _multi_tf_analysis(request: web.Request) -> web.Response:
-    """PERF-REV015: simultaneous multi-timeframe analysis (up to 23 TFs)."""
+    """PERF-REV015: simultaneous multi-timeframe analysis (up to 24 TFs)."""
     service = request.app[STATION_SERVICE_KEY]
     payload = await request.json()
     try:

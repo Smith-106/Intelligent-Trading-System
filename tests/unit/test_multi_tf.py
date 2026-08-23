@@ -17,7 +17,7 @@ def _payload(**over: object) -> dict:
 class TestMultiTfRequestValidation:
     def test_defaults_to_full_analysis_vocabulary(self) -> None:
         req = MultiTfRequest(_payload())
-        assert len(req.timeframes) == 23
+        assert len(req.timeframes) == 24
         assert req.fields == "meta"
 
     def test_rejects_empty_symbols(self) -> None:

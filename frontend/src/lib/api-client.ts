@@ -470,6 +470,47 @@ export interface ExecutionSnapshot {
 
 // ── API Endpoints ──────────────────────────────────────────
 
+// PERF-REV015: multi-timeframe analysis (POST /api/analysis/multi-tf)
+export interface MultiTfAnalysisRequest {
+  symbols: string[];
+  timeframes?: string[];
+  start?: string;
+  end?: string;
+  fields?: "full" | "meta";
+}
+
+export interface MultiTfCandle {
+  timestamp: number; // epoch milliseconds
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface MultiTfTimeframeResult {
+  timeframe: string;
+  bars: number;
+  insufficient_data?: boolean;
+  warning?: string;
+  last_close?: number;
+  last_timestamp?: number;
+  candles?: MultiTfCandle[];
+}
+
+export interface MultiTfSymbolResult {
+  symbol: string;
+  partial: boolean;
+  warnings: string[];
+  timeframes: MultiTfTimeframeResult[];
+}
+
+export interface MultiTfAnalysisResponse {
+  partial: boolean;
+  warnings: string[];
+  results: MultiTfSymbolResult[];
+}
+
 export const api = {
   // Overview
   overview: () => get<OverviewData>("/api/overview"),
@@ -479,6 +520,10 @@ export const api = {
   dataSnapshot: () => get<DataSnapshot>("/api/data"),
   dataDownload: (req: DataDownloadRequest) =>
     post<DataDownloadResponse>("/api/data/download", req),
+
+  // Analysis
+  analyzeMultiTf: (req: MultiTfAnalysisRequest) =>
+    post<MultiTfAnalysisResponse>("/api/analysis/multi-tf", req),
   dataSeedDemo: (req: DataDownloadRequest) =>
     post<DataDownloadResponse>("/api/data/seed-demo", req),
   dataTagSource: (req: { symbol: string; source: string }) =>

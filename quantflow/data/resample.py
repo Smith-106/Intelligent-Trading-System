@@ -34,7 +34,7 @@ __all__ = [
 #: The full analysis vocabulary requested for simultaneous multi-TF analysis.
 ANALYSIS_TIMEFRAMES: tuple[str, ...] = (
     "5m", "10m", "15m", "30m", "45m",
-    "1h", "2h", "3h", "5h", "6h", "7h", "8h", "12h", "16h",
+    "1h", "2h", "3h", "4h", "5h", "6h", "7h", "8h", "12h", "16h",
     "24h", "32h",
     "2d", "3d", "5d", "7d", "10d", "15d", "30d",
 )

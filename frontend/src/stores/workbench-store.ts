@@ -26,6 +26,12 @@ export interface ValidationFormState {
   capital: number;
 }
 
+export interface ChartViewState {
+  symbol: string;
+  timeframe: string;
+  showVolume: boolean;
+}
+
 interface WorkbenchState {
   // Research form persistence
   researchForm: ResearchFormState;
@@ -36,6 +42,10 @@ interface WorkbenchState {
   validationForm: ValidationFormState;
   setValidationForm: (form: Partial<ValidationFormState>) => void;
   resetValidationForm: () => void;
+
+  // Chart view persistence (UI-REV016): survives panel remount
+  chartView: ChartViewState;
+  setChartView: (view: Partial<ChartViewState>) => void;
 }
 
 const DEFAULT_RESEARCH_FORM: ResearchFormState = {
@@ -45,6 +55,12 @@ const DEFAULT_RESEARCH_FORM: ResearchFormState = {
   fee: 0.001,
   start: "2024-01-01",
   end: "",
+};
+
+const DEFAULT_CHART_VIEW: ChartViewState = {
+  symbol: "BTC/USDT",
+  timeframe: "1h",
+  showVolume: true,
 };
 
 const DEFAULT_VALIDATION_FORM: ValidationFormState = {
@@ -68,6 +84,10 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       setValidationForm: (form) =>
         set((state) => ({ validationForm: { ...state.validationForm, ...form } })),
       resetValidationForm: () => set({ validationForm: { ...DEFAULT_VALIDATION_FORM } }),
+
+      chartView: { ...DEFAULT_CHART_VIEW },
+      setChartView: (view) =>
+        set((state) => ({ chartView: { ...state.chartView, ...view } })),
     }),
     {
       name: "quantflow-workbench",

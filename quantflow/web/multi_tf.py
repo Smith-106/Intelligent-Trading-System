@@ -1,6 +1,6 @@
 """Multi-timeframe analysis service (PERF-REV015).
 
-POST /api/analysis/multi-tf — simultaneous analysis across up to 23 derived
+POST /api/analysis/multi-tf — simultaneous analysis across up to 24 derived
 timeframes per symbol. Latency contract (perf_api audit): each symbol reads
 its base grid from the store exactly once, then all timeframes are resampled
 in memory — never per-TF fetches (that would multiply parquet/network reads
@@ -77,7 +77,7 @@ def _analyze_symbol(
             warnings.append(f"{symbol} {tf}: {e}")
             continue
         if base_tf not in base_cache:
-            frame = store.query(symbol, timeframe=base_tf)
+            frame = store.query(symbol, timeframe=base_tf, start=start, end=end)
             base_cache[base_tf] = frame
         base = base_cache[base_tf]
         if base.empty:

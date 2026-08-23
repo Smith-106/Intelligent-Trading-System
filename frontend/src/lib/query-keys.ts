@@ -15,6 +15,7 @@ export const PANEL_QUERY_KEYS: Record<PanelId, string[][]> = {
   overview: [["overview"]],
   // real key in data-hub.tsx is "data-snapshot" (not the panel id)
   data: [["data-snapshot"]],
+  charts: [["multi-tf"]],
   monitoring: [["monitoring"]],
   research: [["research-history"], ["strategies"]],
   validation: [["validation-history"], ["strategies"]],
