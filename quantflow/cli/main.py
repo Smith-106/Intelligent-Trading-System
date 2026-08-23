@@ -657,8 +657,6 @@ def research(
         resolved = store.resolve_symbol(symbol)
         if resolved != symbol:
             console.print(f"[dim]Using stored symbol {resolved}[/]")
-        if resolved != symbol:
-            console.print(f"[dim]Using stored symbol {resolved}[/]")
         df = store.query(resolved, start=start_ts, end=end_ts, timeframe=timeframe)
         if df.empty:
             console.print(f"[red]No data for {resolved}. Run 'download' first.[/]")

@@ -1,6 +1,6 @@
 # QuantFlow
 
-> 当前版本 **v0.10.0** — 详见 [docs/release/v0.10.0.md](docs/release/v0.10.0.md)
+> 当前版本 **v0.11.0**（前端 Station v0.4.0，独立演进）— 详见 [docs/release/v0.11.0/release-notes.md](docs/release/v0.11.0/release-notes.md)
 
 个人 Crypto 量化交易系统 — 从策略研究到实盘交易的完整闭环。
 
@@ -114,13 +114,23 @@ cp .env.example .env
 
 ### Docker 部署
 
+> ⚠️ **compose 有两个 fail-fast 必填变量**：`GRAFANA_ADMIN_PASSWORD` 与
+> `QUANTFLOW_REDIS_PASSWORD`。缺失或为空时 `docker compose up` 直接拒绝启动——
+> 请先在 `.env` 中填入（`.env.example` 已列出全部必填项）。
+
 ```bash
 cd docker
-docker compose up -d    # 默认将 QuantFlow 暴露到 localhost:18000
-
-# 如需自定义宿主端口
-QUANTFLOW_HOST_PORT=8008 docker compose up -d
+docker compose up -d    # 启动 paper 交易会话 + metrics + Prometheus/Grafana 栈
 ```
+
+#### 端口一览（v0.11.0 起明确）
+
+| 端口 | 服务 | 说明 |
+|------|------|------|
+| 18000 → 容器 8000 | **Prometheus /metrics** | 交易会话指标抓取口，浏览器打开是文本不是管理台 |
+| **8088** | **QuantFlow Station 业务前端** | 不在 compose 内——另行本机运行 `quantflow station` |
+| 9090 | Prometheus UI | 监控栈 |
+| 3000 | Grafana | 监控栈（`GF_USERS_ALLOW_SIGN_UP=false`） |
 
 ## 使用
 
@@ -178,6 +188,20 @@ quantflow benchmark
 
 # AI 因子挖掘（Qlib RD-Agent 骨架；qlib 未安装时打印安装提示）
 quantflow ai rdagent --symbol BTC/USDT
+
+# 新策略脚手架（StrategyBase 模块 + YAML + 验收清单）
+quantflow new-strategy --strategy-id my_alpha --description "..." 
+
+# AI 层工作流（rdagent 因子挖掘 / train / register fail-closed；bypass 永不实盘）
+quantflow ai rdagent --symbol BTC/USDT
+
+# Discord KOL 消息摄取与共识构建（仅建议，不自动交易）
+quantflow kol-ingest export --path kol_export.json
+
+# 研究档案工具（Elliott 成本包校验 / B4 裁决冻结 / BTC overlay 评估）
+quantflow assert-elliott --dir docs/research/
+quantflow freeze-b4 --run-dir <baseline4_run_dir>
+quantflow eval-btc-overlay --start 2024-01-01
 
 # 查看状态
 quantflow status

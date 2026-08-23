@@ -75,6 +75,8 @@ quantflow/
 ```
 
 ## CLI 命令
+核心六个：
+
 ```bash
 quantflow download --symbol BTC/USDT --start 2024-01-01
 quantflow research --strategy trend_following --symbol BTC/USDT
@@ -83,6 +85,23 @@ quantflow validate --strategy trend_following --method gate
 quantflow run --mode paper --strategy trend_following
 quantflow status
 ```
+
+其余 14 个（v0.11.0 起完整收录，REV-024 欠账清偿）：
+
+| 命令 | 用途 |
+|------|------|
+| `station` | 启动 Station 业务前端（aiohttp + React，默认 127.0.0.1:8088） |
+| `benchmark` | 六路性能基线 + 阈值门（CI 可用 exit 1） |
+| `ai` | AI 层工作流：rdagent/train/register/bypass |
+| `new-strategy` | 策略脚手架（模块 + YAML + 验收清单） |
+| `download-funding` / `download-oi` | OKX 资金费率/持仓量回补 |
+| `download-binance` | Binance 公共归档 K 线（免鉴权） |
+| `download-bybit` / `download-bybit-funding` / `download-bybit-oi` | Bybit V5 三件套 |
+| `assert-elliott` / `freeze-b4` / `eval-btc-overlay` | Elliott 包校验 / B4 冻结 / overlay 评估 |
+| `kol-ingest` | Discord KOL 摄取与共识 |
+
+**版本约定**：后端 `quantflow` 与前端 `quantflow-station` 各自独立 SemVer
+（当前 0.11.0 / 0.4.0），发布时分别 bump。
 
 ## 分阶段
 - Phase 1 MVP ✅：数据+指标+回测+单策略+CLI

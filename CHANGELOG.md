@@ -6,6 +6,42 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-08-23
+
+### Security
+- **限频键伪造绕过（HIGH，SEC-REV020）**：`X-Forwarded-For` 不再被无条件采信为限频桶键——仅当直连 peer 位于 `STATION_TRUSTED_PROXIES` 白名单时生效；桶键折叠 Bearer 凭据 SHA-256 摘要（按凭据分桶替代共享 per-IP 桶）、陈旧桶惰性驱逐、尾斜杠规范化封堵 `/download/` 变体；新增不变量测试保证所有 mutation 路由均在限流名单内
+- **同源策略收紧（SEC-REV020）**：未配置 token 时，非回环来源且缺失 Origin 头的变更请求一律 403；持有效 token 时 Origin 缺失放行（Bearer 已证明非浏览器意图），跨域携带 token 仍 403
+- **响应安全头强化（REV-010 + SEC-REV020）**：全部响应携带 `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、CSP（`frame-ancestors 'none'` + 显式 `script-src/style-src 'self'` + `object-src 'none'` + Permissions-Policy）、`Referrer-Policy: no-referrer`；未知 API 404 不再回显请求路径
+- **对账审计签名密钥外置（SEC-REV020）**：移除硬编码 `"test-only-reconciliation"` HMAC 密钥，改读 `QUANTFLOW_AUDIT_HMAC_KEY` 环境变量；未配置时降级为「不签名 + 明确警告」
+- **配置样例防凭证泄漏（SEC-REV020）**：`default.yaml` 移除 `${TELEGRAM_BOT_TOKEN}` 插值示例——加载器从不展开环境变量，该示例诱导将真实 token 提交进受跟踪 YAML
+- **web 入口安全基线（REV-010）**：run_station 前置 structlog 脱敏链；`--mode okx` 遗留别名并入 Kill-Switch 强制启用门；reconciliation 异常日志与 redis 连接串脱敏（密码不再入日志）；`SessionStartRequest.symbol` 过 web 边界符号校验；rdagent 子进程改白名单环境变量
+- **错误码语义修正（SEC-REV020）**：未知策略 id 由 KeyError→500 归一为 ValueError→400（research/validate 双入口）
+
+### Fixed
+- **回撤符号契约（Critical，REV-025）**：后端恒定输出 drawdown ≤ 0，前端 `drawdown > 0.05` 危险分级为死代码——会话面板改按 `Math.abs(drawdown)` 阈值分级、执行面板回撤红色高亮与百分号修正、overview max_drawdown 阈值比较修正（原逻辑恒绿）
+- **净值指标恒绿（REV-022）**：权益指标原「equity > 0 即绿色」（即使 -50% 回撤也绿）——改为对照初始资本的 go/warn/danger 分级；执行面板按未实现盈亏符号着色
+- **实盘确认双因子（REV-022）**：LiveModeConfirmDialog 由「勾选确认 **或** 口令任一即解锁」改为两者同时满足
+- **告警静默失效（REV-024）**：文档记载的 `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` 环境变量此前从未到达 AlertManager——sink 启动时回落读取环境变量装配（含 3 个回归测试）
+- **CLI 读不到自己的下载数据（HIGH，REV-024）**：research/optimize/validate 按裸 symbol 查询而 download 默认写 `-OKX` 分区——三命令统一接入 `store.resolve_symbol`
+- **web validate 忽略时间窗（REV-024）**：start/end 参数此前被丢弃（恒回全历史）——字段接入 `_query_symbol_frame`
+- **Bybit 线性永续下载路径损坏（REV-013）**：`bybit_market_id` 将全部 `BTC/USDT:USDT` 永续误入交割合约解析分支而报错——永续改按现货方式映射共享原生 id；附带 `_normalize_epoch_ms` numpy 输入崩溃加固
+- **管理台冷启动雪崩（REV-021/025）**：并发冷请求各自触发全量 parquet 扫描（实测 ~1.6–2.3s × N）——TTLCache single-flight 合并 + 重算迁出存储锁（一次扫描服务全部请求且不再阻塞普通读写）；`/api/strategies` ~340ms → ~2ms
+- **数据面板全局刷新失效（REV-012）**：三方 queryKey 各自漂移致 data 面板任何全局路径都无法刷新——收敛为单一映射表；后台标签页停止轮询
+- **持仓/订单字段漂移渲染 NaN%（UI2-REV014）**：前端接口与后端 payload 漂移（`return_pct/type` vs `pnl_pct/order_type`）导致 PnL 显示 NaN%、订单类型徽章空白——已对齐
+- **可靠性批次（DEF-REV011）**：OKX 网关瞬断后以匿名凭据进入重连循环；emergency 级风控事件真正拉起 Kill Switch；optimize/validate 失败退出码 0→1；interval=0 忙轮询钳制；trades/feature store 写入并入统一分区锁协议
+- **multi_tf 资源治理（REV-017/019）**：每 symbol DuckDB 连接泄漏（try/finally 包裹）；50-symbol 无界扇出钳制到 8 并发；event_bus 派发期间订阅变更 RuntimeError（迭代快照化）
+
+### Changed
+- **无障碍加固（REV-022，WCAG 映射）**：约 22 个表单字段 label 编程关联；策略卡键盘可操作；失败 `role=alert`、成功 `role=status` 播报；面板切换焦点迁移 + skip-to-content；数据表 `th scope="col"`
+- **枚举展示中文化收敛（REV-022/025）**：`lib/labels.ts` 统一六类枚举映射，原始枚举不再漏出中文界面；补齐后端实际值 `demo-ready`
+- **操作反馈统一（REV-023/026）**：`useMutationFeedback` 单钩子契约——即时 toast + 可追溯内联提示 8 秒自清（错误驻留）；六个 mutation 面 DOM 契约一致
+- **可复制 ID 与格式层（REV-023/026）**：CopyableText 应用于 session_id/订单号/config_path/存储路径；`lib/format.ts` 统一日期/金额/百分比格式
+- **配置面修复（REV-024）**：`.env.example` 对照穷尽式审计重写（删 6 幽灵变量、补 compose 必填与安全变量、文档化覆盖语法）；活跃风控参数 `risk.cvar_limit` 补入 default.yaml；`status` 策略列表改读活目录
+- **日志降噪（REV-024/025）**：约 330 调用点审计后的低风险批次——例行 info→debug、重叠错误合并、自愈连接失败降级、session 崩溃补日志并防刷屏
+- **前端测试基建从 0 到 1（REV-026）**：vitest@4 + Testing Library + jsdom（`npm test`），首批 7 个组件/hook 测试；共享 FakeDataStore + Protocol 收集期契约测试
+- **结构工程（REV-013/014，行为不变）**：OKX/Bybit 分页循环去重；四个 meta 回补命令骨架合一；monitoring_snapshot 三段拆分
+
+
 ### Features
 - **多时间框架并行分析（PERF-REV015）**：`data/resample.py` 本地重采样层——仅下载 {5m, 1d} 基础网格即可派生全部 24 档周期（5m…30d，含交易所不原生支持的 45m/7h/16h/32h）；UTC floor 锚定 + leak-safe 尾桶丢弃 + 幂等性测试
 - **新端点 `POST /api/analysis/multi-tf`**：每 symbol 单次 base 读取 → 内存重采样全部请求周期；部分成功语义；已接入限流白名单

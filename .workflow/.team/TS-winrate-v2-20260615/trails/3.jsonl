@@ -1,4 +1,0 @@
-{"ant_id": "ANT-3-1", "path": ["trailing_stop_tuning", "profit_target_calibration", "min_conditions_optimal", "backtest_edge_cases"], "self_score": 0.85, "verified_score": 0.34, "source": "fallback_self"}
-{"ant_id": "ANT-3-2", "path": ["profit_target_calibration", "trailing_stop_tuning", "backtest_edge_cases", "mean_rev_exit_validation"], "self_score": 0.85, "verified_score": 0.31875, "source": "fallback_self"}
-{"ant_id": "ANT-3-3", "path": ["min_conditions_optimal", "backtest_edge_cases", "entry_signal_strength", "trailing_stop_tuning"], "self_score": 0.82, "verified_score": 0.3075, "source": "fallback_self"}
-{"ant_id": "ANT-3-4", "path": ["entry_signal_strength", "signal_weight_calibration", "regime_detection", "min_conditions_optimal", "stop_loss_atr_calibration"], "self_score": 0.82, "verified_score": 0.3075, "source": "fallback_self"}

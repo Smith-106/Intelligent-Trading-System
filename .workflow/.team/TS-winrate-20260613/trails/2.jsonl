@@ -1,4 +1,0 @@
-{"ant_id": "ANT-2-1", "path": ["atr_threshold_tuning", "trend_entry_filter", "exit_rule_early_exit", "vol_breakout_entry_filter", "backtest_validation"], "self_score": 0.8, "verified_score": 0.30000000000000004, "source": "fallback_self"}
-{"ant_id": "ANT-2-2", "path": ["signal_consolidation", "multi_strategy_combination", "risk_engine_signal_filter", "trend_entry_filter", "backtest_validation"], "self_score": 0.83, "verified_score": 0.29879999999999995, "source": "fallback_self"}
-{"ant_id": "ANT-2-3", "path": ["risk_engine_signal_filter", "signal_consolidation", "multi_strategy_combination", "macd_threshold_tuning", "param_optimization_search"], "self_score": 0.77, "verified_score": 0.26949999999999996, "source": "fallback_self"}
-{"ant_id": "ANT-2-4", "path": ["backtest_validation", "exit_rule_early_exit", "trend_entry_filter", "mean_rev_entry_filter", "param_optimization_search"], "self_score": 0.85, "verified_score": 0.3315, "source": "fallback_self"}

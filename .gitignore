@@ -72,7 +72,6 @@ htmlcov/
 # Docker
 docker/redis_data/
 docker/grafana_data/
-.venv/
 
 # Maestro / Odyssey workflow runtime state.
 # Scratch probe scripts and live session state are local-only — they should
@@ -165,9 +164,11 @@ gitleaks-report.json
 .workflow/archive/
 .workflow/search-daemon-spawning
 .workflow/search-daemon*.json
-.workflow/scratch/
 
 
 # 第三方参考仓库（只读克隆，不纳入版本控制）
 third_party/
 tmp_x1/
+
+# pytest --basetemp scratch dirs
+tmp_*/

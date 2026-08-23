@@ -1,3 +1,0 @@
-{"ant_id": "ANT-2-1", "path": ["regime_detection", "multi_timeframe_filter", "signal_weight_calibration", "entry_signal_strength", "win_rate_profit_factor_tradeoff"], "self_score": 0.85, "verified_score": 0.34, "source": "fallback_self"}
-{"ant_id": "ANT-2-2", "path": ["profit_target_calibration", "trailing_stop_tuning", "backtest_edge_cases", "min_conditions_optimal", "entry_signal_strength"], "self_score": 0.78, "verified_score": 0.2808, "source": "fallback_self"}
-{"ant_id": "ANT-2-3", "path": ["multi_timeframe_filter", "regime_detection", "entry_signal_strength", "stop_loss_atr_calibration", "win_rate_profit_factor_tradeoff"], "self_score": 0.78, "verified_score": 0.2808, "source": "fallback_self"}

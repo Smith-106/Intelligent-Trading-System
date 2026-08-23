@@ -1,2 +1,0 @@
-{"ant_id": "ANT-1-1", "path": ["stop_loss_atr_calibration", "backtest_edge_cases", "profit_target_calibration", "trailing_stop_tuning", "rsi_adaptive_effectiveness"], "self_score": 0.82, "verified_score": 0.3075, "source": "fallback_self"}
-{"ant_id": "ANT-1-4", "path": ["entry_signal_strength", "profit_target_calibration", "trailing_stop_tuning", "min_conditions_optimal", "backtest_edge_cases"], "self_score": 0.82, "verified_score": 0.3075, "source": "fallback_self"}

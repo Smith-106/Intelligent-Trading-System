@@ -45,7 +45,6 @@ def test_get_not_blocked_during_compute() -> None:
         release.wait(timeout=5)
         return "value"
 
-    import concurrent.futures
 
     with ThreadPoolExecutor(max_workers=2) as ex:
         compute_future = ex.submit(cache.get_or_set, "k", scan)
