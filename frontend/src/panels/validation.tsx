@@ -10,6 +10,18 @@ import { EmptyState, ErrorState } from "@/components/feedback";
 import { useWorkbenchStore } from "@/stores/workbench-store";
 import { useToast } from "@/hooks/use-toast";
 import { Play, RefreshCw } from "lucide-react";
+import { toFiniteNumber } from "@/lib/form-utils";
+
+/**
+ * UI3-H1: badge tone mirrors the backend _validation_tone decision order —
+ * "no-go" must be tested before "go" ("no-go".includes("go") is true).
+ */
+function decisionTone(decision: string): "go" | "danger" | "warn" {
+  const d = decision.toLowerCase();
+  if (d.startsWith("no") || d.includes("fail")) return "danger";
+  if (d.includes("go") || d.includes("pass")) return "go";
+  return "warn";
+}
 
 export function ValidationPanel() {
   const queryClient = useQueryClient();
@@ -114,16 +126,18 @@ export function ValidationPanel() {
                 <label className="mb-1 block text-xs text-muted-foreground">优化次数</label>
                 <Input
                   type="number"
+                  min="1"
                   value={validationForm.optimize_trials}
-                  onChange={(e) => setValidationForm({ optimize_trials: Number(e.target.value) })}
+                  onChange={(e) => setValidationForm({ optimize_trials: toFiniteNumber(e.target.value, 50) })}
                 />
               </div>
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">WFO 窗口数</label>
                 <Input
                   type="number"
+                  min="1"
                   value={validationForm.wfo_windows}
-                  onChange={(e) => setValidationForm({ wfo_windows: Number(e.target.value) })}
+                  onChange={(e) => setValidationForm({ wfo_windows: toFiniteNumber(e.target.value, 5) })}
                 />
               </div>
             </div>
@@ -132,8 +146,9 @@ export function ValidationPanel() {
               <label className="mb-1 block text-xs text-muted-foreground">初始资金</label>
               <Input
                 type="number"
+                min="1"
                 value={validationForm.capital}
-                onChange={(e) => setValidationForm({ capital: Number(e.target.value) })}
+                onChange={(e) => setValidationForm({ capital: toFiniteNumber(e.target.value) })}
               />
             </div>
 
@@ -164,15 +179,7 @@ export function ValidationPanel() {
             ) : result ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <Badge
-                    variant={
-                      String(result.decision).toLowerCase().includes("go")
-                        ? "go"
-                        : String(result.decision).toLowerCase().includes("no-go")
-                          ? "danger"
-                          : "warn"
-                    }
-                  >
+                  <Badge variant={decisionTone(String(result.decision))}>
                     {String(result.decision)}
                   </Badge>
                   <Badge variant="outline">{String(result.method)}</Badge>
@@ -243,16 +250,7 @@ export function ValidationPanel() {
                 return (
                   <div key={(item.record_id as string) ?? i} className="rounded-lg border p-3">
                     <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          decision.toLowerCase().includes("go")
-                            ? "go"
-                            : decision.toLowerCase().includes("no-go")
-                              ? "danger"
-                              : "warn"
-                        }
-                        className="text-xs"
-                      >
+                      <Badge variant={decisionTone(decision)} className="text-xs">
                         {decision}
                       </Badge>
                       <Badge variant="outline" className="text-xs">

@@ -8,14 +8,18 @@ import { Input } from "@/components/ui/input";
 import { MetricsRow } from "@/components/metric-card";
 import { ErrorState } from "@/components/feedback";
 import { LiveWarningBanner } from "@/components/LiveWarningBanner";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LiveModeConfirmDialog } from "@/components/LiveModeConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Play, Square, RefreshCw, AlertCircle } from "lucide-react";
+import { toFiniteNumber } from "@/lib/form-utils";
 
 export function SessionPanel() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [showLiveConfirm, setShowLiveConfirm] = useState(false);
+  // UI3-H3: destructive stop button needs a confirmation step.
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
   const { data: strategies } = useQuery({
     queryKey: ["strategies"],
     queryFn: () => api.strategies(),
@@ -128,16 +132,44 @@ export function SessionPanel() {
             刷新
           </Button>
           {isRunning ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => stopMutation.mutate()}
-              disabled={stopMutation.isPending}
-              aria-busy={stopMutation.isPending}
-            >
-              <Square className="mr-2 h-4 w-4" />
-              {stopMutation.isPending ? "停止中..." : "停止"}
-            </Button>
+            <>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowStopConfirm(true)}
+                disabled={stopMutation.isPending}
+                aria-busy={stopMutation.isPending}
+              >
+                <Square className="mr-2 h-4 w-4" />
+                {stopMutation.isPending ? "停止中..." : "停止"}
+              </Button>
+              <Dialog open={showStopConfirm} onOpenChange={setShowStopConfirm}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>确认停止会话？</DialogTitle>
+                    <DialogDescription>
+                      将取消所有挂单并断开交易所连接。若当前为实盘会话，停止后需重新校验持仓才能再次启动。
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setShowStopConfirm(false)}>
+                      取消
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        stopMutation.mutate();
+                        setShowStopConfirm(false);
+                      }}
+                      disabled={stopMutation.isPending}
+                    >
+                      确认停止
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </>
           ) : (
             <Button
               size="sm"
@@ -244,8 +276,9 @@ export function SessionPanel() {
                 <label className="mb-1 block text-xs text-muted-foreground">初始资金</label>
                 <Input
                   type="number"
+                  min="1"
                   value={form.capital}
-                  onChange={(e) => setForm({ ...form, capital: Number(e.target.value) })}
+                  onChange={(e) => setForm({ ...form, capital: toFiniteNumber(e.target.value) })}
                 />
               </div>
             </div>
@@ -280,8 +313,9 @@ export function SessionPanel() {
               <label className="mb-1 block text-xs text-muted-foreground">执行间隔 (秒)</label>
               <Input
                 type="number"
+                min="1"
                 value={form.interval_seconds}
-                onChange={(e) => setForm({ ...form, interval_seconds: Number(e.target.value) })}
+                onChange={(e) => setForm({ ...form, interval_seconds: toFiniteNumber(e.target.value, 1) })}
               />
             </div>
           </CardContent>

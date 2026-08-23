@@ -10,6 +10,7 @@ import { EmptyState, ErrorState } from "@/components/feedback";
 import { useWorkbenchStore } from "@/stores/workbench-store";
 import { useToast } from "@/hooks/use-toast";
 import { Play, RefreshCw } from "lucide-react";
+import { toFiniteNumber } from "@/lib/form-utils";
 
 export function ResearchPanel() {
   const queryClient = useQueryClient();
@@ -102,8 +103,9 @@ export function ResearchPanel() {
                 <label className="mb-1 block text-xs text-muted-foreground">初始资金</label>
                 <Input
                   type="number"
+                  min="1"
                   value={researchForm.capital}
-                  onChange={(e) => setResearchForm({ capital: Number(e.target.value) })}
+                  onChange={(e) => setResearchForm({ capital: toFiniteNumber(e.target.value) })}
                 />
               </div>
             </div>
@@ -131,9 +133,10 @@ export function ResearchPanel() {
               <label className="mb-1 block text-xs text-muted-foreground">手续费率</label>
               <Input
                 type="number"
+                min="0"
                 step="0.0001"
                 value={researchForm.fee}
-                onChange={(e) => setResearchForm({ fee: Number(e.target.value) })}
+                onChange={(e) => setResearchForm({ fee: toFiniteNumber(e.target.value, 0.001) })}
               />
             </div>
 
