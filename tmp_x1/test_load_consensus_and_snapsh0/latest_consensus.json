@@ -1,1 +1,0 @@
-{"all": [{"symbol": "BTC/USDT", "window_start_ms": 1, "window_end_ms": 2000000000000, "side": "long", "score": 0.9, "long_weight": 1.0, "short_weight": 0.0, "flat_weight": 0.0, "n_signals": 2, "n_sources": 2, "avg_confidence": 0.8, "signal_ids": [], "actionable": true, "reason": "ok"}]}
