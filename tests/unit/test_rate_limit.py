@@ -138,3 +138,30 @@ async def test_request_body_size_cap_rejects_oversized():
         assert resp.status == 413
     finally:
         await client.close()
+
+
+class TestRouteRegistrationInvariant:
+    """SEC-RV19-008: every registered mutation route must be rate-limited."""
+
+    def test_all_mutation_routes_registered(self) -> None:
+        from quantflow.web.app import create_app
+        from quantflow.web.rate_limit import _LIMITED_PATHS
+
+        app = create_app()
+        # DynamicRoute resources lack .path; enumerate via resources().
+        mutations: set[str] = set()
+        for resource in app.router.resources():
+            for route in resource:
+                if route.method in {"POST", "PUT", "PATCH", "DELETE"}:
+                    mutations.add(resource.canonical)
+        unregistered = sorted(mutations - set(_LIMITED_PATHS))
+        assert not unregistered, (
+            "mutation routes missing from _LIMITED_PATHS (they would bypass "
+            f"rate limiting): {unregistered}"
+        )
+
+    def test_trailing_slash_normalized(self) -> None:
+        from quantflow.web.rate_limit import _LIMITED_PATHS
+
+        # /api/data/download/ must hit the same bucket as the canonical path.
+        assert "/api/data/download/".rstrip("/") in _LIMITED_PATHS

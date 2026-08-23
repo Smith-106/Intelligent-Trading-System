@@ -162,10 +162,7 @@ kol_reference:
   max_age_hours: 6.0
   consensus_path: "data/kol_signals/latest_consensus.json"
 
-# 告警渠道示例（取消注释并填入真实值即可启用）:
-# alert_channels:
-#   - type: "telegram"                  # Telegram 告警
-#     chat_id: "${TELEGRAM_CHAT_ID}"    # 从环境变量读取
-#     token: "${TELEGRAM_BOT_TOKEN}"    # 从环境变量读取
-#   - type: "line"                      # LINE Notify 告警
-#     token: "${LINE_NOTIFY_TOKEN}"     # 从环境变量读取
+# 告警渠道（SEC-RV19-A2）: 本配置加载器【不做】${VAR} 环境变量插值——
+# 不要把 token 写在本文件（会进 git 历史）。token 仅经 monitoring/sink.py
+# 从环境变量装配：TELEGRAM_CHAT_ID / TELEGRAM_BOT_TOKEN / LINE_NOTIFY_TOKEN。
+# alert_channels 段留空即不启用任何渠道。

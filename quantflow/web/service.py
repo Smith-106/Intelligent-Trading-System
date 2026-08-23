@@ -2307,7 +2307,12 @@ class StationService:
         }
 
     def research(self, request: ResearchRequest) -> dict[str, Any]:
-        definition = get_strategy_definition(request.strategy)
+        # SEC-RV19-5: unknown ids raised KeyError -> 500; normalize so the
+        # handler's ValueError mapping returns a client error.
+        try:
+            definition = get_strategy_definition(request.strategy)
+        except KeyError as e:
+            raise ValueError(f"Unknown strategy: {request.strategy}") from e
         config, store = _load_store(request.config_path)
         try:
             frame, data_source = _query_symbol_frame(
@@ -2363,7 +2368,10 @@ class StationService:
         from quantflow.strategy.validation.pbo import probability_of_overfitting
         from quantflow.strategy.validation.wfo import walk_forward_optimization
 
-        definition = get_strategy_definition(request.strategy)
+        try:
+            definition = get_strategy_definition(request.strategy)
+        except KeyError as e:
+            raise ValueError(f"Unknown strategy: {request.strategy}") from e
         _, store = _load_store(request.config_path)
         try:
             frame, data_source = _query_symbol_frame(store, request.symbol)

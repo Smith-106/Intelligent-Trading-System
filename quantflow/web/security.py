@@ -73,10 +73,14 @@ def _is_loopback_host(host: str) -> bool:
 _SECURITY_HEADERS: dict[str, str] = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
+    # SEC-RV19-007: explicit script-src/object-src/style-src + Permissions-
+    # Policy — defense in depth against future inline-script/object drift.
     "Content-Security-Policy": (
-        "default-src 'self'; img-src 'self' data:; connect-src 'self'; "
+        "default-src 'self'; script-src 'self'; style-src 'self'; "
+        "object-src 'none'; img-src 'self' data:; connect-src 'self'; "
         "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     ),
+    "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
     "Referrer-Policy": "no-referrer",
 }
 
@@ -139,8 +143,10 @@ async def same_origin_guard(
             if not auth or not hmac.compare_digest(auth, expected):
                 return web.json_response({"error": "unauthorized"}, status=401)
 
-        # 2. CSRF: reject when Origin is present and does not match Host.
-        #    Origin absent (non-browser) is allowed — token governs network.
+        # 2. CSRF: reject when Origin is present and does not match Host —
+        #    ALWAYS, token or not (the controls are orthogonal: auth=who,
+        #    CSRF=browser intent; a stolen token must not also grant
+        #    cross-origin browser intent).
         origin = request.headers.get("Origin")
         if origin:
             host = request.headers.get("Host", "")
@@ -152,6 +158,21 @@ async def same_origin_guard(
             if not same_origin:
                 return web.json_response(
                     {"error": "cross-origin mutations are not permitted"},
+                    status=403,
+                )
+        elif not _station_token():
+            # SEC-RV19-002/003: Origin ABSENT without a bearer token. Browsers
+            # always send Origin on cross-site POSTs, so a missing Origin means
+            # either a local script or something stripping headers behind a
+            # proxy. Allow it only from loopback (single-operator model);
+            # network-exposed unauthenticated mutations with no Origin are a
+            # proxy-strip/SSRF signature -> deny.
+            host = request.headers.get("Host", "")
+            hostname = host.rsplit(":", 1)[0] if host else ""
+            is_loopback = hostname in ("127.0.0.1", "::1", "localhost", "[::1]")
+            if not is_loopback:
+                return web.json_response(
+                    {"error": "origin header required for mutation requests"},
                     status=403,
                 )
     return await handler(request)

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import importlib.util
-import pytest
 from pathlib import Path
+
+import pytest
 
 REPO = Path(__file__).resolve().parents[2]
 

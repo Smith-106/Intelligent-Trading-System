@@ -245,6 +245,56 @@ class TestStationAuthAndCSRF:
     async def _post(self, client, path, *, headers=None, json_body=None):
         return await client.post(path, json=json_body, headers=headers or {})
 
+    async def test_mutation_origin_missing_non_loopback_denied(self):
+        """SEC-RV19-002: no token + non-loopback Host + no Origin -> 403.
+
+        A proxy stripping Origin can no longer silently disable the CSRF
+        layer on network-exposed deployments.
+        """
+        history_store = StationHistoryStore()
+        app = create_app(
+            service=StationService(history_store=history_store),
+            session_manager=StationSessionManager(history_store=history_store),
+        )
+        async with TestClient(TestServer(app)) as client:
+            # Rewrite Host to a non-loopback address; aiohttp routes on the
+            # test server socket but the guard reads the Host header.
+            resp = await client.post(
+                "/api/session/stop",
+                json=None,
+                headers={"Host": "station.example.com:8088"},
+            )
+            assert resp.status == 403
+            body = await resp.json()
+            assert "origin" in body["error"].lower()
+
+    async def test_mutation_token_present_origin_missing_allowed(self):
+        """SEC-RV19-002 corollary: valid Bearer + no Origin -> allowed (the
+        token proves a non-browser client; browsers never auto-attach it)."""
+        monkeypatch = getattr(self, "_monkeypatch", None)
+        import os
+
+        old = os.environ.get("QUANTFLOW_STATION_TOKEN")
+        os.environ["QUANTFLOW_STATION_TOKEN"] = "secret-token-value-123"
+        try:
+            history_store = StationHistoryStore()
+            app = create_app(
+                service=StationService(history_store=history_store),
+                session_manager=StationSessionManager(history_store=history_store),
+            )
+            async with TestClient(TestServer(app)) as client:
+                resp = await self._post(
+                    client,
+                    "/api/session/stop",
+                    headers={"Authorization": "Bearer secret-token-value-123"},
+                )
+                assert resp.status == 200
+        finally:
+            if old is None:
+                os.environ.pop("QUANTFLOW_STATION_TOKEN", None)
+            else:
+                os.environ["QUANTFLOW_STATION_TOKEN"] = old
+
     async def test_mutation_allowed_without_token_on_loopback(self):
         """No token set + loopback TestClient → mutation allowed (back-compat)."""
         history_store = StationHistoryStore()

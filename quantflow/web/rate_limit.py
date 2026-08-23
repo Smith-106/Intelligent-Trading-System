@@ -18,6 +18,7 @@ a burst of automated requests will receive 429.
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -73,6 +74,13 @@ class RateLimiter:
         """Try to consume one token for ``client_key``. Returns True if allowed."""
         async with self._lock:
             now = self._now()
+            # REV-019-SEC RV5: lazy eviction — buckets for keys unseen for an
+            # hour are dropped so rotated/spoofed keys cannot grow memory.
+            stale_cutoff = now - 3600.0
+            if len(self._buckets) > 64:
+                dead = [k for k, b in self._buckets.items() if b.last_refill < stale_cutoff]
+                for k in dead:
+                    del self._buckets[k]
             bucket = self._buckets.get(client_key)
             if bucket is None:
                 bucket = _Bucket(tokens=self.capacity, last_refill=now)
@@ -104,18 +112,28 @@ class RateLimiter:
         return max(0.0, deficit / self.refill_per_sec)
 
 
+#: Comma/space-separated peer IPs allowed to set X-Forwarded-For on behalf of
+#: clients (reverse-proxy deployments). Empty by default: without an explicit
+#: proxy list the header is attacker-controlled and must not be trusted.
+_TRUSTED_PROXIES = frozenset(
+    ip.strip() for ip in os.environ.get("STATION_TRUSTED_PROXIES", "").replace(",", " ").split() if ip.strip()
+)
+
+
 def _client_key(request: web.Request) -> str:
-    """Identify the calling client. Prefer X-Forwarded-For (when behind a
-    reverse proxy that set it) so a proxy's many connections aren't collapsed
-    into one bucket; fall back to the transport peer."""
-    forwarded = request.headers.get("X-Forwarded-For", "").strip()
-    if forwarded:
-        # First hop is the originating client.
-        return forwarded.split(",")[0].strip()
+    """Identify the calling client.
+
+    SEC-RV19-001: X-Forwarded-For is honored ONLY when the direct transport
+    peer is in STATION_TRUSTED_PROXIES. Unconditionally trusting the header
+    let any client rotate fresh rate-limit buckets per request.
+    """
     peername = request.transport.get_extra_info("peername") if request.transport else None
-    if peername:
-        return str(peername[0])
-    return "unknown"
+    peer_ip = str(peername[0]) if peername else "unknown"
+    forwarded = request.headers.get("X-Forwarded-For", "").strip()
+    if forwarded and peer_ip in _TRUSTED_PROXIES:
+        # First hop is the originating client, as recorded by our proxy.
+        return forwarded.split(",")[0].strip()
+    return peer_ip
 
 
 def rate_limit_middleware(
@@ -134,8 +152,19 @@ def rate_limit_middleware(
         request: web.Request,
         handler: Callable[[web.Request], Awaitable[web.StreamResponse]],
     ) -> web.StreamResponse:
-        if request.path in _LIMITED_PATHS and request.method != "GET":
+        # SEC-RV19-008: normalize the trailing slash and match exactly —
+        # frozenset membership has no prefix bypass, but "/download/" used to
+        # slip past both route-adjacent normalization and this check.
+        if request.path.rstrip("/") in _LIMITED_PATHS and request.method != "GET":
             key = _client_key(request)
+            # SEC-RV19-004: with token auth configured, fold a digest of the
+            # credential into the bucket key — per-credential limits instead
+            # of one shared per-IP bucket (multi-tab self-DoS).
+            auth = request.headers.get("Authorization", "")
+            if auth.startswith("Bearer "):
+                import hashlib
+
+                key = f"{key}:{hashlib.sha256(auth.encode()).hexdigest()[:16]}"
             allowed = await state.acquire(key)
             if not allowed:
                 retry = state.retry_after(key)

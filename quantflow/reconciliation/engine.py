@@ -95,17 +95,43 @@ class ReconciliationEngine:
         self._order_manager = order_manager
         # L5→L6 seam: depend on the Protocol only, never import monitoring/.
         self._sink: MonitoringSink = monitoring_sink or NullMonitoringSink()
-        self._audit = audit_logger or AuditLogger(
-            # Dev/test default only — production must inject AuditLogger with env secret.
-            secret_key="test-only-reconciliation",
-            enable_file_logging=False,
-        )
+        # SEC-RV19-A1: no hardcoded signing key — without QUANTFLOW_AUDIT_HMAC_KEY
+        # the audit trail stays unsigned (with a loud warning) instead of being
+        # signed with a public constant anyone could forge. A no-op stub keeps
+        # the reconciliation flow alive; it just writes nothing.
+        self._audit = audit_logger or self._build_default_audit()
         self._drift_threshold_bps = drift_threshold_bps
         self._order_staleness_threshold = order_staleness_threshold_seconds
 
         self._lock = asyncio.Lock()
         self._background_task: asyncio.Task[None] | None = None
         self._running = False
+
+    @staticmethod
+    def _build_default_audit() -> Any:
+        import os
+
+        key = os.environ.get("QUANTFLOW_AUDIT_HMAC_KEY", "")
+        if not key:
+            logger.warning(
+                "QUANTFLOW_AUDIT_HMAC_KEY unset — reconciliation audit trail will be UNSIGNED"
+            )
+
+        class _UnsignedAudit:
+            """No-op stand-in preserving the AuditLogger call surface."""
+
+            async def log_event(self, *args: Any, **kwargs: Any) -> None:
+                return None
+
+            async def log_report(self, report: Any) -> dict[str, Any]:
+                return {"signed": False}
+
+            async def close(self) -> None:
+                return None
+
+        if not key:
+            return _UnsignedAudit()
+        return AuditLogger(secret_key=key, enable_file_logging=False)
 
     async def run_daily_reconciliation(self) -> DailyReconReport:
         """Run complete reconciliation and generate report.

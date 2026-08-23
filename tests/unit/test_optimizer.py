@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+import importlib.util
 from typing import Any, cast
 
 import numpy as np
 import pandas as pd
-import importlib.util
-
 import pytest
 
 from quantflow.strategy.research.optimizer import StrategyOptimizer

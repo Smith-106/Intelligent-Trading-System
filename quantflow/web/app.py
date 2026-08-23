@@ -157,7 +157,10 @@ async def _spa_fallback(request: web.Request) -> web.Response:
     typo from a real resource. API prefixes get an explicit JSON 404.
     """
     if request.path.startswith("/api/"):
-        return web.json_response({"error": f"Unknown API endpoint: {request.path}"}, status=404)
+        # SEC-RV19-006: no path echo — reflected input is an enumeration/log
+        # injection surface. Log server-side instead.
+        logging.warning("unknown API endpoint requested: %s", request.path)
+        return web.json_response({"error": "unknown endpoint"}, status=404)
     return await _index(request)
 
 
