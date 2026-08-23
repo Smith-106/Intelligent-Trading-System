@@ -107,7 +107,8 @@ cp .env.example .env
 
 # 编辑 .env，填入：
 # - OKX_API_KEY / OKX_SECRET / OKX_PASSPHRASE（实盘必需）
-# - REDIS_URL（默认 redis://localhost:6379）
+# - QUANTFLOW_DATA__REDIS_URL（Redis 连接，默认 redis://localhost:6379/0；
+#   注意不是 REDIS_URL——代码不读后者）
 # - TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID（告警通知）
 ```
 

@@ -121,6 +121,10 @@ class ResearchRequest(BaseModel):
 class ValidationRequest(BaseModel):
     strategy: str = "trend_following"
     symbol: str = "BTC/USDT"
+    # REV-024: optional window bounds — previously accepted-but-ignored, the
+    # validation always ran full history and could not reproduce a CLI run.
+    start: str | None = None
+    end: str | None = None
     method: str = "gate"
     groups: int = 4
     test_groups: int = 1
@@ -2381,7 +2385,12 @@ class StationService:
             raise ValueError(f"Unknown strategy: {request.strategy}") from e
         _, store = _load_store(request.config_path)
         try:
-            frame, data_source = _query_symbol_frame(store, request.symbol)
+            # REV-024: request.start/end were parsed but never passed — web
+            # validation always ran the FULL history, so results could not
+            # reproduce a CLI validate on a specific window.
+            frame, data_source = _query_symbol_frame(
+                store, request.symbol, request.start, request.end
+            )
         finally:
             store.close()
 

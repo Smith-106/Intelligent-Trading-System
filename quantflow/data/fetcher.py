@@ -118,7 +118,10 @@ async def fetch_ohlcv_paginated(
     df = (
         df.drop_duplicates(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
     )
-    logger.info("%s %d bars for %s/%s", log_prefix, len(df), symbol, timeframe)
+    # REV-024-LOG5: fires every poll interval per symbol — routine telemetry
+    # at info level drowned real signals (~1000+/day). Debug keeps it for
+    # diagnosis without the noise.
+    logger.debug("%s %d bars for %s/%s", log_prefix, len(df), symbol, timeframe)
     return df
 
 # Safety cap on pagination loops (defensive; 500 pages ≈ 150k bars per call

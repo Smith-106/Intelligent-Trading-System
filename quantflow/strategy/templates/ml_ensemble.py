@@ -263,7 +263,7 @@ class MLEnsembleStrategy(StrategyBase):
             if self._meta_model is not None:
                 dump(self._meta_model, self._model_path.replace(".joblib", "_meta.joblib"))
         except Exception as e:
-            logger.warning(f"Failed to save model: {e}")
+            logger.warning("Failed to save model: %s", e)
 
         return {
             "validation_method": "time_series_expanding_oos",
@@ -402,9 +402,9 @@ class MLEnsembleStrategy(StrategyBase):
                 meta_path = str(path).replace(".joblib", "_meta.joblib")
                 if Path(meta_path).exists():
                     self._meta_model = load(meta_path)
-                logger.info(f"Loaded ML model from {path}")
+                logger.info("Loaded ML model from %s", path)
         except Exception as e:
-            logger.warning(f"Failed to load model: {e}")
+            logger.warning("Failed to load model: %s", e)
 
     def _bars_to_df(self) -> pd.DataFrame:
         if not self._bars:

@@ -72,9 +72,20 @@ class DefaultMonitoringSink:
         channels = config.monitoring.alert_channels
         if channels:
             ch = channels[0]
+            token, chat_id = ch.token, ch.chat_id
+        else:
+            token, chat_id = "", ""
+        # REV-024-TOP1: YAML deliberately carries no tokens (they would land
+        # in git history). The documented ENV path is the real source — fall
+        # back to it when the (usually empty) YAML section has no values.
+        import os
+
+        token = token or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        chat_id = chat_id or os.environ.get("TELEGRAM_CHAT_ID", "")
+        if token and chat_id:
             self._alert_mgr = AlertManager(
-                telegram_token=ch.token,
-                telegram_chat_id=ch.chat_id,
+                telegram_token=token,
+                telegram_chat_id=chat_id,
             )
 
     def record_signal(self, strategy_id: str, direction: str) -> None:

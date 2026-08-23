@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import hashlib
 import os
 import secrets
@@ -27,6 +28,8 @@ from quantflow.strategy.catalog import get_strategy_factories
 from quantflow.strategy.engine import TradingSession
 from quantflow.web.history import StationHistoryStore
 from quantflow.web.security import _station_token
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_PATH = "quantflow/config/default.yaml"
 MAX_TELEMETRY_POINTS = 240
@@ -238,6 +241,15 @@ class StationSessionManager:
             # config layers can otherwise leak them into the dashboard and
             # the persisted session_events log.
             runtime.last_error = _redact_secrets(str(exc))
+            # REV-024-LOG2: a crashed trading loop previously left ZERO trace
+            # in the server log (dashboard/JSONL only). Log it where ops
+            # actually look first.
+            logger.error(
+                "session data loop crashed: session_id=%s err=%s",
+                runtime.session_id,
+                _redact_secrets(str(exc)),
+                exc_info=exc,
+            )
             self._record_lifecycle_event(
                 runtime,
                 event_type="session_error",

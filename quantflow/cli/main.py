@@ -64,7 +64,7 @@ def _date_to_ms(date_str: str) -> int:
 
 app = typer.Typer(
     name="quantflow",
-    help="Personal Crypto quantitative trading system\n\nCommands: download → research → optimize → validate → run",
+    help="Personal Crypto quantitative trading system\n\nCommands: download → research → optimize → validate → run → status",
     no_args_is_help=True,
     rich_markup_mode="rich",
 )
@@ -652,9 +652,14 @@ def research(
         # Load data
         start_ts = _date_to_ms(start)
         end_ts = _date_to_ms(end)
-        df = store.query(symbol, start=start_ts, end=end_ts, timeframe=timeframe)
+        # REV-024: resolve "-OKX"/"-BINANCE"/"-BYBIT" storage suffixes —
+        # bare-symbol queries silently missed everything `download` wrote.
+        resolved = store.resolve_symbol(symbol)
+        if resolved != symbol:
+            console.print(f"[dim]Using stored symbol {resolved}[/]")
+        df = store.query(resolved, start=start_ts, end=end_ts, timeframe=timeframe)
         if df.empty:
-            console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+            console.print(f"[red]No data for {resolved}. Run 'download' first.[/]")
             return
 
         # Set datetime index
@@ -725,9 +730,10 @@ def optimize(
 
     start_ts = _date_to_ms(start)
     end_ts = _date_to_ms(end)
-    df = store.query(symbol, start=start_ts, end=end_ts, timeframe=timeframe)
+    resolved = store.resolve_symbol(symbol)
+    df = store.query(resolved, start=start_ts, end=end_ts, timeframe=timeframe)
     if df.empty:
-        console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+        console.print(f"[red]No data for {resolved}. Run 'download' first.[/]")
         return
 
     if "datetime" in df.columns:
@@ -876,9 +882,10 @@ def validate(
     store = DataStore(cfg.data.parquet_dir, cfg.data.duckdb_path)
     start_ts = _date_to_ms(start)
     end_ts = _date_to_ms(end)
-    df = store.query(symbol, start=start_ts, end=end_ts, timeframe=timeframe)
+    resolved = store.resolve_symbol(symbol)
+    df = store.query(resolved, start=start_ts, end=end_ts, timeframe=timeframe)
     if df.empty:
-        console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
+        console.print(f"[red]No data for {resolved}. Run 'download' first.[/]")
         store.close()
         return
 
@@ -1096,10 +1103,6 @@ def run(
         else:
             console.print(f"[red]Unknown strategy: {name}[/]")
             return
-
-    if not strategies:  # pragma: no cover — unknown names return inside the loop above
-        console.print("[red]No valid strategies specified[/]")
-        return
 
     console.print(f"[bold blue]Starting {mode} trading with {len(strategies)} strategy(ies)[/]")
 
@@ -1890,10 +1893,11 @@ def status() -> None:
     table.add_row("Data Layer", data_status)
     table.add_row("Config", config_status)
     table.add_row("Indicators", "Ready (21 factors)")
-    table.add_row(
-        "Strategies",
-        "trend_following, mean_reversion, elliott_wave, volatility_breakout, funding_rate, momentum_rotation, ml_ensemble",
-    )
+    # REV-024: hardcoded list went stale as strategies were added — read the
+    # live catalog instead.
+    from quantflow.strategy.catalog import get_strategy_definitions
+
+    table.add_row("Strategies", ", ".join(sorted(get_strategy_definitions())))
     table.add_row("Validation", "CPCV + DSR + PBO + WFO + Gate")
     table.add_row("Risk Engine", "Kelly + VaR/CVaR + Drawdown")
     table.add_row("Paper Trade", "Ready (PaperGateway)")

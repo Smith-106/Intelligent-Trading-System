@@ -38,6 +38,7 @@ risk:
   daily_loss_limit: -0.03              # 日度最大亏损限制（-3%触发暂停）
   weekly_loss_limit: -0.05             # 周度最大亏损限制（-5%触发暂停）
   max_drawdown: -0.10                   # 组合最大回撤（-10%触发熔断）
+  cvar_limit: -0.05                    # REV-024: CVaR 门限（returns>=30 样本时生效，低于阈值拦截信号）——原为隐藏配置
   kill_switch_enabled: true             # 是否启用 Kill Switch（一键清仓）
   kelly_fraction: 0.5                   # 半 Kelly 仓位比例
   var_confidence: 0.95                  # VaR 置信度

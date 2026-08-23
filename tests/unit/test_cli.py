@@ -345,6 +345,9 @@ class TestCLIBasics:
                 self.parquet_dir = parquet_dir
                 self.duckdb_path = duckdb_path
 
+            def resolve_symbol(self, symbol, **kwargs):
+                return symbol
+
             def query(self, symbol, **kwargs):
                 assert symbol == "ETH/USDT"
                 return frame.copy()
@@ -444,6 +447,10 @@ class TestCLIBasics:
         class EmptyStore:
             def __init__(self, parquet_dir, duckdb_path) -> None:
                 pass
+
+            def resolve_symbol(self, symbol, **kwargs):
+                # REV-024: the CLI resolves storage suffixes before querying.
+                return symbol
 
             def query(self, symbol, **kwargs):
                 return pd.DataFrame()

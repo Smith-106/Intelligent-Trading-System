@@ -275,9 +275,11 @@ class ReconciliationEngine:
                     source="exchange",
                 )
             except GatewayError as e:
-                logger.error(
-                "Failed to query exchange positions: %s", redact_secrets(str(e))
-            )
+                # REV-024-LOG3: re-raised and logged again by callers — this
+                # middle layer's error echo turned one failure into 3-4 lines.
+                logger.debug(
+                    "Failed to query exchange positions: %s", redact_secrets(str(e))
+                )
                 raise
 
     async def _compare_snapshots(

@@ -91,7 +91,9 @@ class ExchangeHealthMonitor:
     def record_api_error(self, code: str | None = None) -> None:
         """Record a REST failure (timeout, HTTP error, exchange error code)."""
         self._record_failure()
-        logger.warning("Exchange health: API error recorded (code=%s)", code)
+        # REV-024-LOG8: every REST failure already logs an error at the
+        # gateway layer; this per-call echo is breaker input telemetry.
+        logger.debug("Exchange health: API error recorded (code=%s)", code)
 
     def record_rate_limited(self) -> None:
         """Record an OKX 50011 (Too Many Requests) failure.

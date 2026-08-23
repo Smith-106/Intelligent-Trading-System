@@ -1256,7 +1256,7 @@ class TradingSession:
             try:
                 await fetcher.connect()
             except Exception as e:
-                logger.error("BBO poll connect failed: %s", redact_secrets(str(e)))
+                logger.warning("BBO poll connect failed (will retry): %s", redact_secrets(str(e)))
         try:
             while self._running:
                 for sym in symbols:
@@ -1309,7 +1309,7 @@ class TradingSession:
         except Exception as e:
             # Connection failure must not kill the feed — per-cycle fetch
             # errors below are isolated and the loop keeps retrying.
-            logger.error("Meta feed connect failed: %s", redact_secrets(str(e)))
+            logger.warning("Meta feed connect failed (will retry): %s", redact_secrets(str(e)))
 
         next_funding_at = 0.0
         next_oi_at = 0.0
