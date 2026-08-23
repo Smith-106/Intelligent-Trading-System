@@ -12,7 +12,18 @@ from __future__ import annotations
 
 import time
 
+import pytest
+
 from quantflow.data.dq_monitor import DataQualityMonitor
+
+
+@pytest.fixture(autouse=True)
+def _fixed_clock(monkeypatch):
+    """REV-021-T1: single deterministic clock — _now_ms() helpers and
+    dq_monitor's internal time.time() reads share one pinned epoch, killing
+    the 1s-margin race on the stale-oi boundary (was :113)."""
+    monkeypatch.setattr(time, "time", lambda: 1_700_000_000.0)
+    yield
 
 EIGHT_HOURS_MS = 8 * 3600 * 1000
 

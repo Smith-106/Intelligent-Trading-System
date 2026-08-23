@@ -964,15 +964,14 @@ class StationService:
     snapshot_cache: TTLCache = field(default_factory=lambda: TTLCache(OVERVIEW_TTL_S))
 
     def overview(self) -> dict[str, Any]:
-        hit = self.snapshot_cache.get("overview")
-        if hit is not None:
-            # REV-017-RV5: deep-copy on hit — data/monitoring/execution
-            # snapshots share this object within the TTL window; an in-place
-            # edit by any consumer would silently poison the others.
-            return copy.deepcopy(hit)
-        value = self._overview_uncached()
-        self.snapshot_cache.set("overview", value)
-        return value
+        # REV-021-PERF: get_or_set coalesces concurrent misses — measured 4x
+        # full parquet scans when the frontend's three panels polled a cold
+        # cache simultaneously; now exactly one scan serves all of them.
+        value = self.snapshot_cache.get_or_set("overview", self._overview_uncached)
+        # REV-017-RV5: deep-copy on hit — data/monitoring/execution
+        # snapshots share this object within the TTL window; an in-place
+        # edit by any consumer would silently poison the others.
+        return copy.deepcopy(value)
 
     def _overview_uncached(self) -> dict[str, Any]:
         # PERF-REV015: overview() is called by data_snapshot, monitoring_snapshot
@@ -1067,7 +1066,15 @@ class StationService:
         }
 
     def strategies(self) -> list[dict[str, Any]]:
-        return list_strategy_summaries()
+        # REV-021-PERF: measured ~340-372ms EVERY call — the only hot==cold
+        # endpoint. The strategy catalog is static per process; cache for the
+        # same TTL window as the other snapshots.
+        cached = self.snapshot_cache.get("strategies")
+        if cached is not None:
+            return copy.deepcopy(cached)
+        value = list_strategy_summaries()
+        self.snapshot_cache.set("strategies", value)
+        return copy.deepcopy(value)
 
     def data_snapshot(self) -> dict[str, Any]:
         overview = self.overview()

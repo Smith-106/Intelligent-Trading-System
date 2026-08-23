@@ -272,9 +272,12 @@ class TestWaveIdentifierImpulseThenCorrective:
             ]
         )
         result = wid.identify(pivots_seq, mode="bullish")
-        # Should attempt impulse first (line 79), then corrective if impulse fails
-        # Just verify no crash
-        assert result is not None or result is None
+        # REV-021-T3: was a tautology (`x is not None or x is None`). The
+        # real contract: a WaveCount comes back, and a sequence matching
+        # neither impulse nor corrective degrades honestly to UNKNOWN.
+        assert result is not None
+        assert result.pattern is not None
+        assert 0.0 <= result.confidence <= 1.0
 
 
 # ===================================================================
@@ -409,7 +412,11 @@ class TestMeanReversionNoneIndicators:
         for i in range(3):
             bar = Bar("BTC/USDT", 1700000000 + i, 100 + i * 0.1, 101, 99, 100.5, 1000)
             strategy.on_bar(ctx, bar)
-        # No crash — _latest_signal returns (None, False) when insufficient data
+        # REV-021-T3: was comment-only. The contract: insufficient history
+        # yields (None, False) — no signal emitted, no exception.
+        signal, ready = strategy._latest_signal()
+        assert signal is None
+        assert ready is False
 
 
 # ===================================================================

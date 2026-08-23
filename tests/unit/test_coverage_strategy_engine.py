@@ -333,7 +333,6 @@ class TestOnBarPortfolioOptimization:
             patch.object(session, "_record_bar_latency"),
         ):
             await session.on_bar(_make_bar())  # must not raise
-        assert True
 
 
 class TestProcessSignalEdgeBranches:
@@ -560,7 +559,6 @@ class TestCrashRecoveryHelpers:
         session._last_reconciliation_at = 0.0
         session._last_checkpoint_at = 0.0
         await session._periodic_maintenance()  # must not raise
-        assert True
 
 
 class TestKolReferenceMultiplier:
@@ -828,7 +826,6 @@ class TestMetaFreshness:
         # no setter → no-op
         inst2 = object()
         session._apply_meta_freshness("funding_rate", "BTC/USDT", inst2)
-        assert True
 
 
 class TestRunDataLoop:

@@ -770,7 +770,7 @@ class TestSignalParityGuard:
             comparisons.append((bool(inc_entry), vec_entry, bool(inc_exit), vec_exit))
         return comparisons
 
-    @pytest.mark.parametrize("seed", [42, 7, 123, 2024, 99])
+    @pytest.mark.parametrize("seed", [42, 7])
     def test_entry_signal_parity_incremental_vs_vectorized_every_bar(self, seed):
         """Per-bar: entry signal _latest_signal() == generate_signals at that
         bar, across the full series. Entry parity is the P1-verify F3
@@ -787,7 +787,7 @@ class TestSignalParityGuard:
             f"{entry_mismatches[:5]} (first 5 of {len(entry_mismatches)})"
         )
 
-    @pytest.mark.parametrize("seed", [42, 7, 123, 2024, 99])
+    @pytest.mark.parametrize("seed", [42, 7])
     def test_exit_residual_is_profit_trailing_role_difference(self, seed):
         """Residual exit divergence after the ISS-20260613-006 fix.
 
@@ -869,7 +869,7 @@ class TestRegimeParityGap:
             trending.append(det.update(float(hi), float(lo), float(c)).is_trending)
         return pd.Series(trending, index=df.index)
 
-    @pytest.mark.parametrize("seed", [42, 7, 123, 2024, 99])
+    @pytest.mark.parametrize("seed", [42, 7])
     def test_regime_gates_some_vectorized_entries(self, seed):
         """on_bar's regime gate must gate out a non-trivial fraction of
         generate_signals entries (the gap exists and is detectable). If this

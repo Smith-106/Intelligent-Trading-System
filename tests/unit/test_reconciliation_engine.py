@@ -13,7 +13,6 @@ Tests cover:
 from __future__ import annotations
 
 import asyncio
-import time
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -301,8 +300,13 @@ class TestOrphanOrderDetection:
     """Tests for orphan order detection (exchange orders not tracked locally)."""
 
     @pytest.mark.asyncio
-    async def test_orphan_order_detected_when_stale(self, mock_audit_logger):
+    async def test_orphan_order_detected_when_stale(self, mock_audit_logger, monkeypatch):
         """Exchange order not tracked locally and older than threshold is flagged."""
+
+        # REV-021-T1: pin the clock so order-age math is deterministic —
+        # the engine reads time.time() again when computing age_seconds.
+        now = 1_800_000_000.0
+        monkeypatch.setattr("quantflow.reconciliation.engine.time.time", lambda: now)
         portfolio = MockPortfolioManager([MockPosition("BTC/USDT", 1.0)])
         # Order created 10 minutes ago (600s > 300s threshold)
         stale_order = OpenOrder(
@@ -313,7 +317,7 @@ class TestOrphanOrderDetection:
             price=49000.0,
             filled_amount=0.0,
             status="open",
-            timestamp=time.time() - 600,  # 10 minutes ago
+            timestamp=now - 600,  # 10 minutes ago
         )
         gateway = MockGateway(
             positions=[MockPosition("BTC/USDT", 1.0)],
@@ -334,8 +338,13 @@ class TestOrphanOrderDetection:
         assert orphans[0].details["age_seconds"] > 300
 
     @pytest.mark.asyncio
-    async def test_recent_order_not_flagged(self, mock_audit_logger):
+    async def test_recent_order_not_flagged(self, mock_audit_logger, monkeypatch):
         """Exchange order younger than staleness threshold is not flagged."""
+
+        # REV-021-T1: pin the clock so order-age math is deterministic —
+        # the engine reads time.time() again when computing age_seconds.
+        now = 1_800_000_000.0
+        monkeypatch.setattr("quantflow.reconciliation.engine.time.time", lambda: now)
         portfolio = MockPortfolioManager([MockPosition("BTC/USDT", 1.0)])
         recent_order = OpenOrder(
             id="recent-order-001",
@@ -345,7 +354,7 @@ class TestOrphanOrderDetection:
             price=51000.0,
             filled_amount=0.0,
             status="open",
-            timestamp=time.time() - 60,  # 1 minute ago (< 300s threshold)
+            timestamp=now - 60,  # 1 minute ago (< 300s threshold)
         )
         gateway = MockGateway(
             positions=[MockPosition("BTC/USDT", 1.0)],
@@ -364,8 +373,13 @@ class TestOrphanOrderDetection:
         assert len(orphans) == 0
 
     @pytest.mark.asyncio
-    async def test_tracked_order_not_flagged(self, mock_audit_logger):
+    async def test_tracked_order_not_flagged(self, mock_audit_logger, monkeypatch):
         """Exchange order that IS tracked locally is not flagged as orphan."""
+
+        # REV-021-T1: pin the clock so order-age math is deterministic —
+        # the engine reads time.time() again when computing age_seconds.
+        now = 1_800_000_000.0
+        monkeypatch.setattr("quantflow.reconciliation.engine.time.time", lambda: now)
         portfolio = MockPortfolioManager([MockPosition("BTC/USDT", 1.0)])
         portfolio.add_pending_order("BTC/USDT", "tracked-order-001")
 
@@ -377,7 +391,7 @@ class TestOrphanOrderDetection:
             price=49500.0,
             filled_amount=0.5,
             status="open",
-            timestamp=time.time() - 600,  # Old but tracked
+            timestamp=now - 600,  # Old but tracked
         )
         gateway = MockGateway(
             positions=[MockPosition("BTC/USDT", 1.0)],
@@ -690,8 +704,13 @@ class TestProductionWiring:
         sink.send_alert.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_orphan_order_via_injected_order_manager(self, mock_audit_logger):
+    async def test_orphan_order_via_injected_order_manager(self, mock_audit_logger, monkeypatch):
         """Local ids from order_manager.get_open_orders suppress tracked orders."""
+
+        # REV-021-T1: pin the clock so order-age math is deterministic —
+        # the engine reads time.time() again when computing age_seconds.
+        now = 1_800_000_000.0
+        monkeypatch.setattr("quantflow.reconciliation.engine.time.time", lambda: now)
         portfolio = MockPortfolioManager([MockPosition("BTC/USDT", 1.0)])
         stale_orphan = OpenOrder(
             id="orphan-002",
@@ -701,7 +720,7 @@ class TestProductionWiring:
             price=49000.0,
             filled_amount=0.0,
             status="open",
-            timestamp=time.time() - 600,
+            timestamp=now - 600,
         )
         tracked = OpenOrder(
             id="tracked-002",
@@ -711,7 +730,7 @@ class TestProductionWiring:
             price=49000.0,
             filled_amount=0.0,
             status="open",
-            timestamp=time.time() - 600,
+            timestamp=now - 600,
         )
         gateway = MockGateway(
             positions=[MockPosition("BTC/USDT", 1.0)],
