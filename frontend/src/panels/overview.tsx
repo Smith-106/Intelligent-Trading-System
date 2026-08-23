@@ -7,15 +7,11 @@ import { MetricsRow, StatusRow, SectionHeader } from "@/components/metric-card";
 import { ErrorState, EmptyState } from "@/components/feedback";
 import { useUIStore } from "@/stores/ui-store";
 import { TrendingUp, Server, RefreshCw, ExternalLink } from "lucide-react";
+import { DATA_MODE_LABELS, labelFor } from "@/lib/labels";
 
 function dataModeLabel(mode: string): string {
-  const labels: Record<string, string> = {
-    live: "实时数据",
-    parquet: "本地数据",
-    mixed: "混合模式",
-    unknown: "未检测",
-  };
-  return labels[mode] ?? mode;
+  // REV-022-RV4: unified vocabulary — was a second diverging word list.
+  return labelFor(DATA_MODE_LABELS, mode);
 }
 
 function dataModeTone(mode: string): "go" | "warn" | "default" {

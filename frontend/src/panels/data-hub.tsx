@@ -9,16 +9,11 @@ import { MetricsRow, StatusRow } from "@/components/metric-card";
 import { ErrorState, EmptyState } from "@/components/feedback";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { Download, RefreshCw } from "lucide-react";
+import { DATA_MODE_LABELS, labelFor } from "@/lib/labels";
 
 function dataModeLabel(mode: string): string {
-  const labels: Record<string, string> = {
-    market: "Market 数据",
-    "demo-seeded": "演示数据",
-    "source-unknown": "来源未标注",
-    hybrid: "混合数据",
-    unknown: "未检测",
-  };
-  return labels[mode] ?? mode;
+  // REV-022-RV4: unified vocabulary (was "Market 数据" style local list).
+  return labelFor(DATA_MODE_LABELS, mode);
 }
 
 function dataModeTone(mode: string): "go" | "warn" | "danger" | "default" {
@@ -134,32 +129,36 @@ export function DataPanel() {
         <CardContent>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">交易对</label>
+              <label htmlFor="dl-symbol" className="mb-1 block text-xs text-muted-foreground">交易对</label>
               <Input
+                id="dl-symbol"
                 value={downloadSymbol}
                 onChange={(e) => setDownloadSymbol(e.target.value)}
                 placeholder="BTC/USDT"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">时间周期</label>
+              <label htmlFor="dl-timeframe" className="mb-1 block text-xs text-muted-foreground">时间周期</label>
               <Input
+                id="dl-timeframe"
                 value={downloadTimeframe}
                 onChange={(e) => setDownloadTimeframe(e.target.value)}
                 placeholder="1h"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">开始日期</label>
+              <label htmlFor="dl-start" className="mb-1 block text-xs text-muted-foreground">开始日期</label>
               <Input
+                id="dl-start"
                 type="date"
                 value={downloadStart}
                 onChange={(e) => setDownloadStart(e.target.value)}
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">结束日期</label>
+              <label htmlFor="dl-end" className="mb-1 block text-xs text-muted-foreground">结束日期</label>
               <Input
+                id="dl-end"
                 type="date"
                 value={downloadEnd}
                 onChange={(e) => setDownloadEnd(e.target.value)}
@@ -175,10 +174,10 @@ export function DataPanel() {
             {downloadMutation.isPending ? "下载中..." : "开始下载"}
           </Button>
         {downloadMutation.isError && (
-          <p className="mt-2 text-sm text-destructive">下载失败：{downloadMutation.error.message}</p>
+          <p role="alert" className="mt-2 text-sm text-destructive">下载失败：{downloadMutation.error.message}</p>
         )}
           {downloadMutation.isSuccess && (
-            <p className="mt-2 text-sm text-status-go">
+            <p role="status" className="mt-2 text-sm text-status-go">
               下载完成: {downloadMutation.data.rows_saved} 行数据
             </p>
           )}
@@ -202,13 +201,13 @@ export function DataPanel() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs text-muted-foreground">
-                    <th className="pb-2 pr-4">交易对</th>
-                    <th className="pb-2 pr-4">来源</th>
-                    <th className="hidden pb-2 pr-4 sm:table-cell">文件数</th>
-                    <th className="hidden pb-2 pr-4 sm:table-cell">起始日期</th>
-                    <th className="hidden pb-2 pr-4 sm:table-cell">结束日期</th>
-                    <th className="pb-2 pr-4">覆盖天数</th>
-                    <th className="pb-2">数据新鲜度</th>
+                    <th scope="col" className="pb-2 pr-4">交易对</th>
+                    <th scope="col" className="pb-2 pr-4">来源</th>
+                    <th scope="col" className="hidden pb-2 pr-4 sm:table-cell">文件数</th>
+                    <th scope="col" className="hidden pb-2 pr-4 sm:table-cell">起始日期</th>
+                    <th scope="col" className="hidden pb-2 pr-4 sm:table-cell">结束日期</th>
+                    <th scope="col" className="pb-2 pr-4">覆盖天数</th>
+                    <th scope="col" className="pb-2">数据新鲜度</th>
                   </tr>
                 </thead>
                 <tbody>

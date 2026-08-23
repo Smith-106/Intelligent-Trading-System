@@ -82,8 +82,9 @@ const { data: strategies } = useStrategiesQuery();
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">策略</label>
+              <label htmlFor="validation-strategy" className="mb-1 block text-xs text-muted-foreground">策略</label>
               <select
+              id="validation-strategy"
                 value={validationForm.strategy}
                 onChange={(e) => setValidationForm({ strategy: e.target.value })}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -98,15 +99,17 @@ const { data: strategies } = useStrategiesQuery();
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">交易对</label>
+                <label htmlFor="validation-symbol" className="mb-1 block text-xs text-muted-foreground">交易对</label>
                 <Input
+              id="validation-symbol"
                   value={validationForm.symbol}
                   onChange={(e) => setValidationForm({ symbol: e.target.value })}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">验证方法</label>
+                <label htmlFor="validation-method" className="mb-1 block text-xs text-muted-foreground">验证方法</label>
                 <select
+              id="validation-method"
                   value={validationForm.method}
                   onChange={(e) => setValidationForm({ method: e.target.value })}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -121,8 +124,9 @@ const { data: strategies } = useStrategiesQuery();
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">优化次数</label>
+                <label htmlFor="validation-trials" className="mb-1 block text-xs text-muted-foreground">优化次数</label>
                 <Input
+              id="validation-trials"
                   type="number"
                   min="1"
                   value={validationForm.optimize_trials}
@@ -130,8 +134,9 @@ const { data: strategies } = useStrategiesQuery();
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">WFO 窗口数</label>
+                <label htmlFor="validation-wfo" className="mb-1 block text-xs text-muted-foreground">WFO 窗口数</label>
                 <Input
+              id="validation-wfo"
                   type="number"
                   min="1"
                   value={validationForm.wfo_windows}
@@ -141,8 +146,9 @@ const { data: strategies } = useStrategiesQuery();
             </div>
 
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">初始资金</label>
+              <label htmlFor="validation-capital" className="mb-1 block text-xs text-muted-foreground">初始资金</label>
               <Input
+              id="validation-capital"
                 type="number"
                 min="1"
                 value={validationForm.capital}

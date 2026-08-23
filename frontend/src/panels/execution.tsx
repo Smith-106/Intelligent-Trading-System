@@ -9,9 +9,8 @@ import { CollapsibleSection } from "@/components/collapsible-section";
 import { EquityChart } from "@/components/charts/equity-chart";
 import { DrawdownChart } from "@/components/charts/drawdown-chart";
 import { KillSwitchButton } from "@/components/KillSwitchButton";
-import {
-  RefreshCw,
-} from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { LEVEL_LABELS, MODE_LABELS, ORDER_STATUS_LABELS, ORDER_TYPE_LABELS, SIDE_LABELS, labelFor } from "@/lib/labels";
 
 function toneClass(tone: string): string {
   switch (tone) {
@@ -85,8 +84,10 @@ function ExecutionContent({
         featured={{
           label: "权益",
           value: summary.equity.toLocaleString(undefined, { maximumFractionDigits: 2 }),
-          tone: summary.equity > 0 ? "go" : "default",
-          hint: `${summary.mode} · ${summary.symbol}`,
+          // REV-022-RV1: follow PnL sign — equity alone carries no health
+          // information (any funded account is > 0).
+          tone: summary.unrealized_pnl > 0 ? "go" : summary.unrealized_pnl < 0 ? "danger" : "default",
+          hint: `${labelFor(MODE_LABELS, summary.mode)} · ${summary.symbol}`,
         }}
         items={[
           {
@@ -111,7 +112,7 @@ function ExecutionContent({
               value={status.session_label}
               tone={status.session_tone === "accent" ? "go" : status.session_tone === "muted" ? "default" : "warn"}
             />
-            <StatusRow label="模式" value={summary.mode} />
+            <StatusRow label="模式" value={labelFor(MODE_LABELS, summary.mode)} />
             <StatusRow label="交易对" value={summary.symbol} />
             <StatusRow label="时间周期" value={summary.timeframe} />
             <StatusRow label="策略" value={summary.strategy_text} />
@@ -211,13 +212,13 @@ function ExecutionContent({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs text-muted-foreground">
-                    <th className="pb-2 pr-4">交易对</th>
-                    <th className="pb-2 pr-4">方向</th>
-                    <th className="pb-2 pr-4">数量</th>
-                    <th className="pb-2 pr-4">入场价</th>
-                    <th className="pb-2 pr-4">当前价</th>
-                    <th className="pb-2 pr-4">盈亏</th>
-                    <th className="pb-2">收益率</th>
+                    <th scope="col" className="pb-2 pr-4">交易对</th>
+                    <th scope="col" className="pb-2 pr-4">方向</th>
+                    <th scope="col" className="pb-2 pr-4">数量</th>
+                    <th scope="col" className="pb-2 pr-4">入场价</th>
+                    <th scope="col" className="pb-2 pr-4">当前价</th>
+                    <th scope="col" className="pb-2 pr-4">盈亏</th>
+                    <th scope="col" className="pb-2">收益率</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -226,7 +227,7 @@ function ExecutionContent({
                       <td className="py-2 pr-4 font-medium">{pos.symbol}</td>
                       <td className="py-2 pr-4">
                         <Badge variant={pos.side === "long" ? "go" : "danger"} className="text-xs">
-                          {pos.side}
+                          {labelFor(SIDE_LABELS, pos.side)}
                         </Badge>
                       </td>
                       <td className="py-2 pr-4">{pos.quantity}</td>
@@ -262,11 +263,11 @@ function ExecutionContent({
                       {order.side}
                     </Badge>
                     <span className="text-sm">{order.symbol}</span>
-                    <Badge variant="outline" className="text-xs">{order.order_type}</Badge>
+                    <Badge variant="outline" className="text-xs">{labelFor(ORDER_TYPE_LABELS, order.order_type)}</Badge>
                   </div>
                   <div className="text-right">
                     <p className="text-sm">{order.quantity} @ {order.price}</p>
-                    <p className="text-xs text-muted-foreground">{order.status}</p>
+                    <p className="text-xs text-muted-foreground">{labelFor(ORDER_STATUS_LABELS, order.status)}</p>
                   </div>
                 </div>
               ))}
@@ -301,7 +302,7 @@ function ExecutionContent({
                     }
                     className="text-xs"
                   >
-                    {event.level}
+                    {labelFor(LEVEL_LABELS, event.level)}
                   </Badge>
                   <Badge variant="outline" className="text-xs">{event.event_type}</Badge>
                   <span className="text-sm">{event.title}</span>

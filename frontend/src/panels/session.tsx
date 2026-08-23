@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Play, Square, RefreshCw, AlertCircle } from "lucide-react";
 import { toFiniteNumber } from "@/lib/form-utils";
 import { useStrategiesQuery } from "@/hooks/use-strategies-query";
+import { ORDER_STATUS_LABELS, ORDER_TYPE_LABELS, SIDE_LABELS, labelFor } from "@/lib/labels";
 
 export function SessionPanel() {
   const queryClient = useQueryClient();
@@ -189,14 +190,14 @@ const { data: strategies } = useStrategiesQuery();
         <Card className="border-status-danger/30 bg-status-danger/5">
           <CardContent className="flex items-center gap-3 py-4">
             <AlertCircle className="h-4 w-4 text-status-danger" />
-            <p className="text-sm text-status-danger">启动失败：{startMutation.error.message}</p>
+            <p role="alert" className="text-sm text-status-danger">启动失败：{startMutation.error.message}</p>
           </CardContent>
         </Card>
       )}
       {startMutation.isSuccess && (
         <Card className="border-status-go/30 bg-status-go/5">
           <CardContent className="py-4">
-            <p className="text-sm text-status-go">会话已启动</p>
+            <p role="status" className="text-sm text-status-go">会话已启动</p>
           </CardContent>
         </Card>
       )}
@@ -222,7 +223,19 @@ const { data: strategies } = useStrategiesQuery();
 
       {/* RC-2 (P1-4): 主指标 + 内联统计 */}
       <MetricsRow
-        featured={{ label: "权益", value: portfolio.equity.toLocaleString(undefined, { maximumFractionDigits: 2 }), tone: portfolio.equity > 0 ? "go" : "default" }}
+        featured={{
+          label: "权益",
+          value: portfolio.equity.toLocaleString(undefined, { maximumFractionDigits: 2 }),
+          // REV-022-RV1: `equity > 0` was always green — a halved account
+          // still showed a healthy signal. Tone now tracks performance vs
+          // the configured initial capital.
+          tone:
+            portfolio.drawdown > 0.05 || portfolio.equity < form.capital * 0.9
+              ? "danger"
+              : portfolio.drawdown > 0.02 || portfolio.equity < form.capital
+                ? "warn"
+                : "go",
+        }}
         items={[
           { label: "现金", value: portfolio.cash.toLocaleString(undefined, { maximumFractionDigits: 2 }) },
           {
@@ -245,9 +258,10 @@ const { data: strategies } = useStrategiesQuery();
             <LiveWarningBanner mode={form.mode} />
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">模式</label>
+                <label htmlFor="session-mode" className="mb-1 block text-xs text-muted-foreground">模式</label>
                 <select
                   value={form.mode}
+                  id="session-mode"
                   onChange={(e) => setForm({ ...form, mode: e.target.value })}
                   className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
@@ -256,9 +270,10 @@ const { data: strategies } = useStrategiesQuery();
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">交易对</label>
+                <label htmlFor="session-symbol" className="mb-1 block text-xs text-muted-foreground">交易对</label>
                 <Input
                   value={form.symbol}
+                  id="session-symbol"
                   onChange={(e) => setForm({ ...form, symbol: e.target.value })}
                 />
               </div>
@@ -266,18 +281,20 @@ const { data: strategies } = useStrategiesQuery();
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">时间周期</label>
+                <label htmlFor="session-timeframe" className="mb-1 block text-xs text-muted-foreground">时间周期</label>
                 <Input
                   value={form.timeframe}
+                  id="session-timeframe"
                   onChange={(e) => setForm({ ...form, timeframe: e.target.value })}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">初始资金</label>
+                <label htmlFor="session-capital" className="mb-1 block text-xs text-muted-foreground">初始资金</label>
                 <Input
                   type="number"
                   min="1"
                   value={form.capital}
+                  id="session-capital"
                   onChange={(e) => setForm({ ...form, capital: toFiniteNumber(e.target.value) })}
                 />
               </div>
@@ -310,8 +327,9 @@ const { data: strategies } = useStrategiesQuery();
             </div>
 
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">执行间隔 (秒)</label>
+              <label htmlFor="session-interval" className="mb-1 block text-xs text-muted-foreground">执行间隔 (秒)</label>
               <Input
+                id="session-interval"
                 type="number"
                 min="1"
                 value={form.interval_seconds}
@@ -334,7 +352,7 @@ const { data: strategies } = useStrategiesQuery();
                 <div key={i} className="flex items-center justify-between rounded-lg border p-3">
                   <div className="flex items-center gap-2">
                     <Badge variant={pos.side === "long" ? "go" : "danger"} className="text-xs">
-                      {pos.side}
+                      {labelFor(SIDE_LABELS, pos.side)}
                     </Badge>
                     <span className="text-sm font-medium">{pos.symbol}</span>
                   </div>
@@ -372,11 +390,11 @@ const { data: strategies } = useStrategiesQuery();
                       {order.side}
                     </Badge>
                     <span className="text-sm">{order.symbol}</span>
-                    <Badge variant="outline" className="text-xs">{order.order_type}</Badge>
+                    <Badge variant="outline" className="text-xs">{labelFor(ORDER_TYPE_LABELS, order.order_type)}</Badge>
                   </div>
                   <div className="text-right">
                     <p className="text-sm">{order.quantity} @ {order.price}</p>
-                    <p className="text-xs text-muted-foreground">{order.status}</p>
+                    <p className="text-xs text-muted-foreground">{labelFor(ORDER_STATUS_LABELS, order.status)}</p>
                   </div>
                 </div>
               ))}

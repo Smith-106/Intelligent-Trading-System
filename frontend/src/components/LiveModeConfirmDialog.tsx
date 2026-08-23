@@ -33,7 +33,9 @@ export function LiveModeConfirmDialog({
   const [acknowledged, setAcknowledged] = useState(false);
   const [confirmText, setConfirmText] = useState("");
 
-  const isConfirmed = acknowledged || confirmText.toUpperCase() === "START LIVE";
+  // REV-022-RV10: was `||` — ticking the box OR typing the passphrase alone
+        // unlocked live trading. High-risk confirmations require both factors.
+        const isConfirmed = acknowledged && confirmText.toUpperCase() === "START LIVE";
 
   const handleClose = () => {
     setAcknowledged(false);

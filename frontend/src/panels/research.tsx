@@ -75,8 +75,9 @@ const { data: strategies } = useStrategiesQuery();
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">策略</label>
+              <label htmlFor="research-strategy" className="mb-1 block text-xs text-muted-foreground">策略</label>
               <select
+              id="research-strategy"
                 value={researchForm.strategy}
                 onChange={(e) => setResearchForm({ strategy: e.target.value })}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -91,15 +92,17 @@ const { data: strategies } = useStrategiesQuery();
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">交易对</label>
+                <label htmlFor="research-symbol" className="mb-1 block text-xs text-muted-foreground">交易对</label>
                 <Input
+              id="research-symbol"
                   value={researchForm.symbol}
                   onChange={(e) => setResearchForm({ symbol: e.target.value })}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">初始资金</label>
+                <label htmlFor="research-capital" className="mb-1 block text-xs text-muted-foreground">初始资金</label>
                 <Input
+              id="research-capital"
                   type="number"
                   min="1"
                   value={researchForm.capital}
@@ -110,16 +113,18 @@ const { data: strategies } = useStrategiesQuery();
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">开始日期</label>
+                <label htmlFor="research-start" className="mb-1 block text-xs text-muted-foreground">开始日期</label>
                 <Input
+              id="research-start"
                   type="date"
                   value={researchForm.start}
                   onChange={(e) => setResearchForm({ start: e.target.value })}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">结束日期</label>
+                <label htmlFor="research-end" className="mb-1 block text-xs text-muted-foreground">结束日期</label>
                 <Input
+              id="research-end"
                   type="date"
                   value={researchForm.end}
                   onChange={(e) => setResearchForm({ end: e.target.value })}
@@ -128,8 +133,9 @@ const { data: strategies } = useStrategiesQuery();
             </div>
 
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">手续费率</label>
+              <label htmlFor="research-fee" className="mb-1 block text-xs text-muted-foreground">手续费率</label>
               <Input
+              id="research-fee"
                 type="number"
                 min="0"
                 step="0.0001"

@@ -7,6 +7,7 @@ import { MetricsRow, StatusRow } from "@/components/metric-card";
 import { ErrorState } from "@/components/feedback";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { AlertTriangle, XCircle, RefreshCw } from "lucide-react";
+import { DATA_MODE_LABELS, labelFor } from "@/lib/labels";
 
 function healthToneClass(tone: string): string {
   switch (tone) {
@@ -263,7 +264,7 @@ function MonitoringContent({
         <div className="space-y-1">
           <StatusRow label="版本" value={`v${platform.version}`} />
           <StatusRow label="阶段" value={platform.phase} />
-          <StatusRow label="数据模式" value={platform.data_mode} />
+          <StatusRow label="数据模式" value={labelFor(DATA_MODE_LABELS, platform.data_mode)} />
           <StatusRow label="交易对数" value={platform.symbol_count} />
           <StatusRow
             label="Docker"

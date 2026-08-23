@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SectionHeader } from "@/components/metric-card";
-import { EmptyState } from "@/components/feedback";
+import { EmptyState, ErrorState } from "@/components/feedback";
 import { useStrategiesQuery } from "@/hooks/use-strategies-query";
 import { Search, RefreshCw, ChevronRight } from "lucide-react";
 
@@ -43,16 +43,16 @@ export function StrategiesPanel() {
   }
 
   if (error) {
+    // REV-022-RV5: last panel still on the bare error template — align with
+    // the ErrorState contract the other eight panels follow.
     return (
-      <div className="flex h-full items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="pt-6">
-            <p className="text-destructive">加载失败: {error.message}</p>
-            <Button onClick={() => refetch()} className="mt-4">
-              重试
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex h-full items-center justify-center p-6">
+        <ErrorState
+          title="策略目录加载失败"
+          description="无法获取策略定义。请确认 Station 后端已启动后重试。"
+          detail={error instanceof Error ? error.message : undefined}
+          onRetry={() => refetch()}
+        />
       </div>
     );
   }
@@ -77,6 +77,7 @@ export function StrategiesPanel() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
+          aria-label="搜索策略"
           placeholder="搜索策略名称、ID 或交易对..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -150,7 +151,16 @@ function StrategyListItem({
 }) {
   return (
     <Card
-      className={`cursor-pointer transition-colors hover:bg-accent/5 ${
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={`cursor-pointer transition-colors hover:bg-accent/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         isSelected ? "border-primary" : ""
       }`}
       onClick={onSelect}
