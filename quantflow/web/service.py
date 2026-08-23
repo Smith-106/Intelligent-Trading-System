@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import math
@@ -965,7 +966,10 @@ class StationService:
     def overview(self) -> dict[str, Any]:
         hit = self.snapshot_cache.get("overview")
         if hit is not None:
-            return hit
+            # REV-017-RV5: deep-copy on hit — data/monitoring/execution
+            # snapshots share this object within the TTL window; an in-place
+            # edit by any consumer would silently poison the others.
+            return copy.deepcopy(hit)
         value = self._overview_uncached()
         self.snapshot_cache.set("overview", value)
         return value

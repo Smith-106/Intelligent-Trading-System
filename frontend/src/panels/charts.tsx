@@ -34,11 +34,16 @@ function TfButton({
   active: boolean;
   onSelect: (tf: string) => void;
 }) {
+  const handleClick = () => {
+    onSelect(tf);
+    // REV-017-RV8: auto-collapse the enclosing "更多" dropdown on pick.
+    document.activeElement?.closest("details")?.removeAttribute("open");
+  };
   return (
     <button
       type="button"
       aria-pressed={active}
-      onClick={() => onSelect(tf)}
+      onClick={handleClick}
       className={`min-w-9 rounded-md px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
         active
           ? "bg-primary text-primary-foreground"
@@ -73,15 +78,20 @@ export function ChartsPanel() {
 
   // K-line history is not polled; refresh is manual (topbar / Alt+R via
   // PANEL_QUERY_KEYS.charts) or on request change.
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, error, refetch, isFetching, isPlaceholderData } =
+    useQuery({
     queryKey: ["multi-tf", chartView.symbol, ALL_TFS.join(",")],
-    queryFn: () => api.analyzeMultiTf(request),
+    queryFn: ({ signal }) => api.analyzeMultiTf(request, signal),
     enabled: chartView.symbol.trim() !== "",
     staleTime: 5 * 60_000,
     placeholderData: (prev) => prev,
   });
 
   const result = data?.results.find((r) => r.symbol === chartView.symbol);
+  // REV-017-RV3: while a new symbol's query is in flight, TanStack keeps the
+  // previous payload as placeholderData — find() would miss and render a
+  // misleading "no data" empty state. The empty branch gates on
+  // isPlaceholderData (destructured from useQuery above).
   const tfResult: MultiTfTimeframeResult | undefined = result?.timeframes.find(
     (t) => t.timeframe === chartView.timeframe,
   );
@@ -112,7 +122,7 @@ export function ChartsPanel() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
+            <div className="relative mb-4 sm:mb-1">
               <input
                 list="known-symbols"
                 value={chartView.symbol}
@@ -211,7 +221,7 @@ export function ChartsPanel() {
               <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                 加载中...
               </div>
-            ) : candles.length === 0 || tfResult?.insufficient_data ? (
+            ) : !isPlaceholderData && (candles.length === 0 || tfResult?.insufficient_data) ? (
               <div className="p-6">
                 <EmptyState
                   title={`暂无 ${chartView.symbol} ${chartView.timeframe} 数据`}

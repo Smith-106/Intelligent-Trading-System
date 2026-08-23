@@ -113,7 +113,12 @@ def resample_ohlcv(base: pd.DataFrame, timeframe: str) -> pd.DataFrame:
         spacing = int(df["timestamp"].diff().dropna().min())
         base_period = max(spacing, 1)
     else:
-        base_period = timeframe_to_ms(timeframe)
+        # REV-017-RV3: with a single base bar the grid spacing is unknowable.
+        # Falling back to the analysis period here made ANY partially-covered
+        # bucket look complete (1 bar "became" a full 32h candle). The
+        # conservative 1ms lower bound forces the trailing-bucket drop —
+        # degraded input degrades to insufficient data, never to fake bars.
+        base_period = 1
     last_close = int(df["timestamp"].iloc[-1]) + base_period
     while len(out) > 0 and int(out["timestamp"].iloc[-1]) + timeframe_to_ms(timeframe) > last_close:
         out = out.iloc[:-1]

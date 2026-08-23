@@ -99,6 +99,14 @@ class TestResampleOhlcv:
         # middle 15m bucket has only one sub-bar but still aggregates
         assert len(out) >= 3
 
+    def test_single_base_bar_degrades_to_empty(self) -> None:
+        # REV-017-RV3: one 5m bar cannot complete any larger bucket — it must
+        # NOT be presented as a full candle (old fallback used the analysis
+        # period as base_period and let the partial bucket through).
+        base = _base_5m(1)
+        out = resample_ohlcv(base, "30m")
+        assert out.empty
+
     def test_empty_input_returns_empty(self) -> None:
         base = _base_5m(10).iloc[0:0]
         out = resample_ohlcv(base, "1h")

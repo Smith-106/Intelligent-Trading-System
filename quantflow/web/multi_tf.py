@@ -10,6 +10,7 @@ by 24×).
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC
 from typing import Any
 
 from quantflow.common.config import load_config
@@ -23,6 +24,25 @@ from quantflow.web.service import StationService, _open_station_store, resolve_c
 __all__ = ["MAX_MULTI_TF_SYMBOLS", "MultiTfRequest", "multi_tf_analysis"]
 
 MAX_MULTI_TF_SYMBOLS = 50
+
+
+def _to_epoch_ms(value: Any) -> int | None:
+    """Normalize an ISO date string or epoch value to an epoch-ms int."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return int(text)
+    from datetime import datetime
+
+    dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return int(dt.timestamp() * 1000)
 
 
 class MultiTfRequest:
@@ -46,8 +66,11 @@ class MultiTfRequest:
             raise ValueError(f"Unsupported timeframes: {unknown}")
         self.timeframes = [str(tf) for tf in timeframes]
 
-        self.start = payload.get("start")
-        self.end = payload.get("end")
+        # REV-017-RV2: accept ISO date strings and normalize to epoch-ms
+        # ints — DataStore.query's signature is start/end: int | None and
+        # int("2024-01-01") would raise mid-request.
+        self.start = _to_epoch_ms(payload.get("start"))
+        self.end = _to_epoch_ms(payload.get("end"))
         fields = payload.get("fields", "meta")
         if fields not in ("full", "meta"):
             raise ValueError("fields must be 'full' or 'meta'.")
@@ -65,7 +88,25 @@ def _analyze_symbol(
     """One symbol: a single base-grid read, then in-memory resampling."""
     config = load_config(resolve_config_path_safe(service.config_path))
     store = _open_station_store(config)
+    # REV-017-RV1: dedicated :memory: DuckDB connection — without the
+    # finally-close it leaked one connection per symbol under the executor
+    # fan-out (service.py's own paths always close in a finally).
+    try:
+        return _analyze_symbol_frames(
+            store, symbol, timeframes, start, end, include_candles
+        )
+    finally:
+        store.close()
 
+
+def _analyze_symbol_frames(
+    store: Any,
+    symbol: str,
+    timeframes: list[str],
+    start: Any,
+    end: Any,
+    include_candles: bool,
+) -> dict[str, Any]:
     warnings: list[str] = []
     tf_results: list[dict[str, Any]] = []
     base_cache: dict[str, Any] = {}

@@ -32,8 +32,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
   if (!response.ok) {
     const error = payload as { error?: string; message?: string };
+    const rawText =
+      typeof (payload as { rawText?: unknown })?.rawText === "string"
+        ? `: ${(payload as { rawText: string }).rawText.slice(0, 200)}`
+        : "";
     throw new Error(
-      error?.error ?? error?.message ?? `Request failed (${response.status})`,
+      error?.error ?? error?.message ?? `Request failed (${response.status})${rawText}`,
     );
   }
   return payload as T;
@@ -522,8 +526,12 @@ export const api = {
     post<DataDownloadResponse>("/api/data/download", req),
 
   // Analysis
-  analyzeMultiTf: (req: MultiTfAnalysisRequest) =>
-    post<MultiTfAnalysisResponse>("/api/analysis/multi-tf", req),
+  // REV-017-RV4: multi-TF analysis is the heaviest endpoint (cold-cache
+  // DuckDB + resampling); give it a 60s budget and let react-query's
+  // abort signal cancel stale symbol switches instead of hogging the
+  // backend thread pool for the full default timeout.
+  analyzeMultiTf: (req: MultiTfAnalysisRequest, signal?: AbortSignal) =>
+    post<MultiTfAnalysisResponse>("/api/analysis/multi-tf", req, signal),
   dataSeedDemo: (req: DataDownloadRequest) =>
     post<DataDownloadResponse>("/api/data/seed-demo", req),
   dataTagSource: (req: { symbol: string; source: string }) =>

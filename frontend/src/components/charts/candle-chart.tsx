@@ -20,7 +20,7 @@ import {
   type IChartApi,
   type ISeriesApi,
 } from "lightweight-charts";
-import { toCandlestickData, toVolumeData, type RawCandle } from "@/lib/candle-data";
+import { prepareCandles, toCandlestickData, toVolumeData, type RawCandle } from "@/lib/candle-data";
 
 interface ChartTheme {
   background: string;
@@ -57,6 +57,12 @@ export function CandleChart({ candles, showVolume = true, className }: CandleCha
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  // REV-017-RV2: keep the latest inputs so the theme observer can rebuild the
+  // volume colors baked into per-bar HistogramData (series options can't).
+  const dataRef = useRef<{ candles: RawCandle[]; showVolume: boolean }>({
+    candles: [],
+    showVolume: true,
+  });
 
   useEffect(() => {
     const el = containerRef.current;
@@ -131,6 +137,12 @@ export function CandleChart({ candles, showVolume = true, className }: CandleCha
           wickUpColor: t.upColor,
           wickDownColor: t.downColor,
         });
+        const { candles: cur, showVolume: vol } = dataRef.current;
+        if (vol && volumeSeriesRef.current && cur.length > 0) {
+          volumeSeriesRef.current.setData(
+            toVolumeData(prepareCandles(cur), `${t.upColor}66`, `${t.downColor}66`),
+          );
+        }
       });
       observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
       return () => observer.disconnect();
@@ -141,11 +153,13 @@ export function CandleChart({ candles, showVolume = true, className }: CandleCha
   useEffect(() => {
     const candle = candleSeriesRef.current;
     const volume = volumeSeriesRef.current;
+    dataRef.current = { candles, showVolume };
     if (!candle || !volume) return;
     const t = resolveTheme();
-    const candleData: CandlestickData[] = toCandlestickData(candles);
+    const normalized = prepareCandles(candles);
+    const candleData: CandlestickData[] = toCandlestickData(normalized);
     const volumeData: HistogramData[] = showVolume
-      ? toVolumeData(candles, `${t.upColor}66`, `${t.downColor}66`)
+      ? toVolumeData(normalized, `${t.upColor}66`, `${t.downColor}66`)
       : [];
     candle.setData(candleData);
     volume.setData(volumeData);
