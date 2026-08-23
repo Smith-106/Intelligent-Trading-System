@@ -834,6 +834,9 @@ class TestTradingSessionExtra:
                 assert start == 3
                 return pd.DataFrame()
 
+            def resolve_symbol(self, symbol: str, **k) -> str:  # REV-026 parity
+                return symbol
+
             def close(self) -> None:
                 self.closed = True
 

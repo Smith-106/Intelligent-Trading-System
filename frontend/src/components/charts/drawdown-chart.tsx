@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import type { Telemetry } from "./telemetry-helpers";
 import { zipTelemetry } from "./telemetry-helpers";
+import { fmtPct } from "@/lib/format";
 
 interface DrawdownChartProps {
   telemetry: Telemetry;
@@ -50,7 +51,9 @@ export function DrawdownChart({ telemetry }: DrawdownChartProps) {
             axisLine={{ stroke: "var(--color-border)" }}
           />
           <YAxis
-            tickFormatter={(v: number) => `${v.toFixed(1)}%`}
+            // hy3 RV-008：drawdown 序列已在 zipTelemetry 中转为百分比（0.05→5），
+            // 故先 /100 还原为小数交给 fmtPct 格式化，避免直接 fmtPct 产生 500% 百倍误差。
+            tickFormatter={(v: number) => fmtPct(Math.abs(v) / 100, 1)}
             tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
             tickLine={false}
             axisLine={false}

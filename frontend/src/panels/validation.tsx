@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PanelLoading } from "@/hooks/use-panel-query";
 import { api, type ValidationRequest, type Strategy } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { SectionHeader } from "@/components/metric-card";
 import { EmptyState, ErrorState } from "@/components/feedback";
 import { useWorkbenchStore } from "@/stores/workbench-store";
-import { useToast } from "@/hooks/use-toast";
 import { Play, RefreshCw } from "lucide-react";
 import { fmtDateTime } from "@/lib/format";
 import { toFiniteNumber } from "@/lib/form-utils";
 import { useStrategiesQuery } from "@/hooks/use-strategies-query";
+import { useMutationFeedback } from "@/hooks/use-mutation-feedback";
 
 /**
  * UI3-H1: badge tone mirrors the backend _validation_tone decision order —
@@ -28,7 +27,6 @@ function decisionTone(decision: string): "go" | "danger" | "warn" {
 
 export function ValidationPanel() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 const { data: strategies } = useStrategiesQuery();
 
   // Odyssey-UI REV-012: surface loading/error instead of an empty state.
@@ -46,25 +44,22 @@ const { data: strategies } = useStrategiesQuery();
 
   // P1 H4: 从 Zustand store 读取表单状态（切面板不丢失）
   const { validationForm, setValidationForm } = useWorkbenchStore();
-  const [result, setResult] = useState<Record<string, unknown> | null>(null);
-
-  const mutation = useMutation({
+  // REV-023-RV2（hy3 RV-008）：用统一反馈 hook 替代裸 useMutation + 手动 toast。
+  // 成功：toast「验证完成」+ 结果由 mutation.data 驱动展示；
+  // 失败：toast「验证失败」+ 内联 p[role=alert]（文案统一为「验证失败：…」）；
+  // onSuccess 的缓存失效逻辑通过 onSettledExtra 承载（在反馈前执行）。
+  const validationFeedback = useMutationFeedback({
     mutationFn: () => api.validate(validationForm as ValidationRequest),
-    onSuccess: (data) => {
-      setResult(data as unknown as Record<string, unknown>);
-      toast({ title: "验证完成", description: "防过拟合验证已完成。" });
+    onSuccess: { title: "验证完成", description: "防过拟合验证已完成。" },
+    onError: { title: "验证失败", description: (e) => (e instanceof Error ? e.message : "未知错误") },
+    onSettledExtra: () => {
       queryClient.invalidateQueries({ queryKey: ["validation-history"] });
       // Odyssey-UI REV-012: monitoring counters (validation_runs) freshness.
       queryClient.invalidateQueries({ queryKey: ["monitoring"] });
     },
-    onError: (error) => {
-      toast({
-        title: "验证失败",
-        description: error instanceof Error ? error.message : "未知错误",
-        variant: "destructive",
-      });
-    },
   });
+  // 结果直接取自 mutation.data（等价于迁移前的本地 result 状态）。
+  const result = validationFeedback.mutation.data;
 
   const historyItems = Array.isArray(history) ? history : (history as { items?: unknown[] })?.items ?? [];
 
@@ -160,16 +155,17 @@ const { data: strategies } = useStrategiesQuery();
 
             <Button
               className="w-full"
-              onClick={() => mutation.mutate()}
-              disabled={mutation.isPending}
-              aria-busy={mutation.isPending}
+              onClick={() => validationFeedback.mutation.mutate()}
+              disabled={validationFeedback.mutation.isPending}
+              aria-busy={validationFeedback.mutation.isPending}
             >
               <Play className="mr-2 h-4 w-4" />
-              {mutation.isPending ? "验证中..." : "启动验证"}
+              {validationFeedback.mutation.isPending ? "验证中..." : "启动验证"}
             </Button>
 
-            {mutation.isError && (
-              <p className="text-sm text-destructive" role="alert">错误: {mutation.error.message}</p>
+            {/* hy3 RV-008：错误文案统一为「验证失败：…」，role=alert 属性保留 */}
+            {validationFeedback.notice?.kind === "error" && (
+              <p className="text-sm text-destructive" role="alert">验证失败：{validationFeedback.notice.detail}</p>
             )}
           </CardContent>
         </Card>
@@ -180,7 +176,7 @@ const { data: strategies } = useStrategiesQuery();
             <CardTitle className="text-base">验证结果</CardTitle>
           </CardHeader>
           <CardContent>
-            {mutation.isPending ? (
+            {validationFeedback.mutation.isPending ? (
               <div className="py-8 text-center text-sm text-muted-foreground">验证中...</div>
             ) : result ? (
               <div className="space-y-4">

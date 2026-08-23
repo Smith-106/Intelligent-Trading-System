@@ -605,6 +605,9 @@ def test_load_parquet_ohlcv_missing(monkeypatch) -> None:
     class EmptyStore:
         def __init__(self, *a, **k):
             pass
+        def resolve_symbol(self, symbol: str, **k):  # REV-026: interface parity
+            return symbol
+
 
         def query(self, *a, **k):
             return None
@@ -621,6 +624,9 @@ def test_load_parquet_ohlcv_missing_column(monkeypatch) -> None:
     class NoVolStore:
         def __init__(self, *a, **k):
             pass
+        def resolve_symbol(self, symbol: str, **k):  # REV-026: interface parity
+            return symbol
+
 
         def query(self, *a, **k):
             return pd.DataFrame({"open": [1.0], "high": [1.0], "low": [1.0], "close": [1.0]})
@@ -639,6 +645,9 @@ def test_load_parquet_ohlcv_ok(monkeypatch) -> None:
     class GoodStore:
         def __init__(self, *a, **k):
             pass
+        def resolve_symbol(self, symbol: str, **k):  # REV-026: interface parity
+            return symbol
+
 
         def query(self, *a, **k):
             return df

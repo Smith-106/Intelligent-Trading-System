@@ -11,7 +11,7 @@ import { DrawdownChart } from "@/components/charts/drawdown-chart";
 import { KillSwitchButton } from "@/components/KillSwitchButton";
 import { RefreshCw } from "lucide-react";
 import { CopyableText } from "@/components/copyable-text";
-import { fmtDateTime, fmtPct } from "@/lib/format";
+import { fmtDateTime, fmtMoney, fmtPct } from "@/lib/format";
 import { LEVEL_LABELS, MODE_LABELS, ORDER_STATUS_LABELS, ORDER_TYPE_LABELS, SIDE_LABELS, labelFor } from "@/lib/labels";
 
 function toneClass(tone: string): string {
@@ -88,7 +88,7 @@ function ExecutionContent({
         items={[
           {
             label: "未实现盈亏",
-            value: summary.unrealized_pnl.toLocaleString(undefined, { maximumFractionDigits: 2 }),
+            value: fmtMoney(summary.unrealized_pnl),
             tone: summary.unrealized_pnl >= 0 ? "go" : "danger",
           },
           { label: "持仓", value: summary.position_count },

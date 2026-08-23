@@ -8,7 +8,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import type { UseQueryResult } from "@tanstack/react-query";
+import type { Query, UseQueryResult } from "@tanstack/react-query";
 
 import { ErrorState } from "@/components/feedback";
 
@@ -51,8 +51,10 @@ export function usePanelQuery<TData>(
   queryFn: () => Promise<TData>,
   refetchInterval?:
     | number
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    | ((query: any) => number | false),
+    // hy3 RV-008：用 react-query 的 Query 类型收窄 any 逃逸；泛型绑定到本面板的 TData，
+    // 以便调用方函数式 interval 直接读取 query.state.data 字段（如 session 的 running）。
+    | ((query: Query<TData, Error>) => number | false),
 ): UseQueryResult<TData, Error> {
-  return useQuery({ queryKey, queryFn, refetchInterval: refetchInterval as never });
+  // refetchInterval 现已类型正确，无需 as never 双重断言。
+  return useQuery({ queryKey, queryFn, refetchInterval });
 }
