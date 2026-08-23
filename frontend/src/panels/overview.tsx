@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/feedback";
 import { useUIStore } from "@/stores/ui-store";
 import { TrendingUp, Server, RefreshCw, ExternalLink } from "lucide-react";
 import { DATA_MODE_LABELS, labelFor } from "@/lib/labels";
+import { fmtPct } from "@/lib/format";
 
 function dataModeLabel(mode: string): string {
   // REV-022-RV4: unified vocabulary — was a second diverging word list.
@@ -130,16 +131,18 @@ function OverviewContent({
               <div className="space-y-1">
                 <StatusRow
                   label="最大回撤"
-                  value={`${(data.risk.max_drawdown * 100).toFixed(1)}%`}
-                  tone={data.risk.max_drawdown < 0.1 ? "go" : "warn"}
+                  value={fmtPct(Math.abs(data.risk.max_drawdown), 1)}
+                  /* REV-025-H2: threshold stored negative (-0.10); the old
+                     `< 0.1` comparison was always true => permanent green. */
+                  tone={Math.abs(data.risk.max_drawdown) > 0.1 ? "warn" : "go"}
                 />
                 <StatusRow
                   label="日损失限制"
-                  value={`${(data.risk.daily_loss_limit * 100).toFixed(1)}%`}
+                  value={fmtPct(Math.abs(data.risk.daily_loss_limit), 1)}
                 />
                 <StatusRow
                   label="周损失限制"
-                  value={`${(data.risk.weekly_loss_limit * 100).toFixed(1)}%`}
+                  value={fmtPct(Math.abs(data.risk.weekly_loss_limit), 1)}
                 />
                 <StatusRow
                   label="Kill Switch"
@@ -152,9 +155,9 @@ function OverviewContent({
               <SectionHeader title="执行" />
               <div className="space-y-1">
                 <StatusRow label="交易模式" value={data.execution.mode} />
-                <StatusRow label="滑点" value={`${(data.execution.slippage * 100).toFixed(2)}%`} />
-                <StatusRow label="Maker 费率" value={`${(data.execution.maker_fee * 100).toFixed(3)}%`} />
-                <StatusRow label="Taker 费率" value={`${(data.execution.taker_fee * 100).toFixed(3)}%`} />
+                <StatusRow label="滑点" value={fmtPct(data.execution.slippage, 2)} />
+                <StatusRow label="Maker 费率" value={fmtPct(data.execution.maker_fee, 3)} />
+                <StatusRow label="Taker 费率" value={fmtPct(data.execution.taker_fee, 3)} />
               </div>
             </div>
           </div>

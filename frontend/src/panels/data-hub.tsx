@@ -53,7 +53,10 @@ export function DataPanel() {
         end: endDate,
       });
     },
-    onSuccess: { title: "下载完成", description: "" },
+        // REV-025-M6: success detail comes from the mutation result now —
+    // previously the hook notice carried an empty string and the panel
+    // bypassed it to render rows_saved itself.
+    onSuccess: { title: "下载完成", description: (d) => `已保存 ${d.rows_saved} 行数据` },
     onError: { title: "下载失败", description: (e) => (e instanceof Error ? e.message : "未知错误") },
     onSettledExtra: () => {
       queryClient.invalidateQueries({ queryKey: ["data-snapshot"] });
@@ -170,9 +173,9 @@ export function DataPanel() {
         {downloadFeedback.notice?.kind === "error" && (
           <p role="alert" className="mt-2 text-sm text-destructive">下载失败：{downloadFeedback.notice.detail}</p>
         )}
-          {downloadFeedback.notice?.kind === "success" && downloadMutation.data && (
+          {downloadFeedback.notice?.kind === "success" && (
             <p role="status" className="mt-2 text-sm text-status-go">
-              下载完成: {downloadMutation.data.rows_saved} 行数据
+              {downloadFeedback.notice.detail}
             </p>
           )}
         </CardContent>

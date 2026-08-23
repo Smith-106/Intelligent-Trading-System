@@ -1,0 +1,1 @@
+{"session_id": "session-stale", "running": true, "health": {"running": true, "open_positions": 0, "pending_orders": 0}, "dashboard": {"status_label": "Running", "status_tone": "accent"}, "request": {"mode": "paper", "symbol": "BTC/USDT", "timeframe": "1h"}, "record_id": "session-5d16ba2f62bd", "created_at": "2026-08-23T12:29:32.471997+00:00"}

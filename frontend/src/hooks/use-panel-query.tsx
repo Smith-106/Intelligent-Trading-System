@@ -15,7 +15,9 @@ import { ErrorState } from "@/components/feedback";
 /** Unified loading placeholder — replaces the two inline variants. */
 export function PanelLoading() {
   return (
-    <div className="flex h-full items-center justify-center">
+    /* REV-025-M4: the layout key-div has no height chain, so h-full
+       collapsed to content height and the text hugged the panel top. */
+    <div className="flex min-h-[50vh] items-center justify-center">
       <div className="text-sm text-muted-foreground">加载中...</div>
     </div>
   );

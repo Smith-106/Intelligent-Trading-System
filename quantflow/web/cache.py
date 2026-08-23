@@ -27,6 +27,9 @@ class TTLCache:
         self._ttl = ttl_seconds
         self._store: dict[str, tuple[float, Any]] = {}
         self._lock = threading.Lock()
+        # REV-025: separate miss-coalescing lock — compute() runs OUTSIDE
+        # _lock so the ~1s parquet scan never blocks plain get()/set().
+        self._compute_lock = threading.Lock()
         self.hits = 0
         self.misses = 0
 
@@ -51,24 +54,24 @@ class TTLCache:
             self._store.clear()
 
     def get_or_set(self, key: str, compute: Callable[[], Any]) -> Any:
-        """Read-through with miss coalescing (REV-021-PERF).
+        """Read-through with miss coalescing (REV-021-PERF, REV-025 fix).
 
-        Measured behavior this replaces: N concurrent requests missing in the
-        same instant each ran the full parquet scan (~0.9s alone, ~2x slower
-        under contention). Now exactly ONE caller recomputes; the rest wait
-        on the compute lock and then hit the fresh entry.
+        Exactly ONE caller recomputes per expired key: the rest wait on
+        _compute_lock and then find the fresh entry. The scan itself runs
+        OUTSIDE _lock — only concurrent misses serialize with each other,
+        never with plain reads/writes (REV-025: holding _lock across the
+        ~0.9s scan starved get()/set()/clear()).
         """
         hit = self.get(key)
         if hit is not None:
             return hit
-        with self._lock:
-            # Double-check inside the write path so only the first misser
-            # computes; later waiters find the freshly-set entry.
-            entry = self._store.get(key)
-            if entry is not None and time.monotonic() - entry[0] < self._ttl:
-                return entry[1]
+        with self._compute_lock:
+            # Double-check: an earlier waiter may have filled it already.
+            hit = self.get(key)
+            if hit is not None:
+                return hit
             value = compute()
-            self._store[key] = (time.monotonic(), value)
+            self.set(key, value)
             return value
 
 

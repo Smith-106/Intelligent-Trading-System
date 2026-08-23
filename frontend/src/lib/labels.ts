@@ -59,12 +59,10 @@ export const LEVEL_LABELS: Record<string, string> = {
  * divergent maps; matches service.py's data_mode values).
  */
 export const DATA_MODE_LABELS: Record<string, string> = {
+  // REV-025-RV6: exactly the values service.py _resolve_data_mode produces.
   market: "实时数据",
-  live: "实时数据",
-  parquet: "本地数据",
   "demo-seeded": "演示数据",
-  demo: "演示数据",
+  "demo-ready": "演示就绪",
   hybrid: "混合数据",
-  mixed: "混合数据",
   "source-unknown": "来源未标注",
 };

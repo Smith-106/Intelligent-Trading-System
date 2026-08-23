@@ -51,11 +51,23 @@ def _station_token() -> str | None:
 
 
 def _is_loopback_host(host: str) -> bool:
-    """True if ``host`` resolves to a loopback address (127.0.0.0/8 or ::1)."""
+    """True if ``host`` resolves to a loopback address (127.0.0.0/8 or ::1).
+
+    REV-025: accepts a full Host header ("127.0.0.1:8099") — the port is
+    stripped before the address check.
+    """
     if not host:
         return False
-    # Host may be "0.0.0.0", "127.0.0.1", "localhost", or "[::1]".
-    cleaned = host.strip().strip("[]")
+    # Host may be "0.0.0.0", "127.0.0.1", "localhost", "[::1]" (+ optional
+    # ":port" suffix).
+    cleaned = host.strip()
+    # "[::1]:80" — bracketed IPv6 with port: strip the port suffix first.
+    if cleaned.startswith("[") and "]:" in cleaned:
+        cleaned = cleaned.rsplit("]:", 1)[0]
+    cleaned = cleaned.strip("[]")
+    # Bare "host:port" (single colon, not IPv6) — drop the port.
+    if cleaned.count(":") == 1:
+        cleaned = cleaned.rsplit(":", 1)[0]
     if cleaned == "localhost":
         return True
     if cleaned in ("0.0.0.0", "::"):
@@ -168,8 +180,9 @@ async def same_origin_guard(
             # network-exposed unauthenticated mutations with no Origin are a
             # proxy-strip/SSRF signature -> deny.
             host = request.headers.get("Host", "")
-            hostname = host.rsplit(":", 1)[0] if host else ""
-            is_loopback = hostname in ("127.0.0.1", "::1", "localhost", "[::1]")
+            # REV-025: reuse the shared helper — it covers all of 127.0.0.0/8
+            # via ip_address().is_loopback, not just four hardcoded names.
+            is_loopback = _is_loopback_host(host)
             if not is_loopback:
                 return web.json_response(
                     {"error": "origin header required for mutation requests"},

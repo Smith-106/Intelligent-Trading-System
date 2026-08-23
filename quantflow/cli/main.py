@@ -657,6 +657,8 @@ def research(
         resolved = store.resolve_symbol(symbol)
         if resolved != symbol:
             console.print(f"[dim]Using stored symbol {resolved}[/]")
+        if resolved != symbol:
+            console.print(f"[dim]Using stored symbol {resolved}[/]")
         df = store.query(resolved, start=start_ts, end=end_ts, timeframe=timeframe)
         if df.empty:
             console.print(f"[red]No data for {resolved}. Run 'download' first.[/]")
@@ -731,6 +733,8 @@ def optimize(
     start_ts = _date_to_ms(start)
     end_ts = _date_to_ms(end)
     resolved = store.resolve_symbol(symbol)
+    if resolved != symbol:
+        console.print(f"[dim]Using stored symbol {resolved}[/]")
     df = store.query(resolved, start=start_ts, end=end_ts, timeframe=timeframe)
     if df.empty:
         console.print(f"[red]No data for {resolved}. Run 'download' first.[/]")
@@ -883,6 +887,8 @@ def validate(
     start_ts = _date_to_ms(start)
     end_ts = _date_to_ms(end)
     resolved = store.resolve_symbol(symbol)
+    if resolved != symbol:
+        console.print(f"[dim]Using stored symbol {resolved}[/]")
     df = store.query(resolved, start=start_ts, end=end_ts, timeframe=timeframe)
     if df.empty:
         console.print(f"[red]No data for {resolved}. Run 'download' first.[/]")
@@ -1327,6 +1333,8 @@ def _ai_factor_mining(action: str, symbol: str, config: str) -> None:
 
     with store_scope(cfg.data.parquet_dir, cfg.data.duckdb_path) as store:
         resolved = store.resolve_symbol(symbol)
+        if resolved != symbol:
+            console.print(f"[dim]Using stored symbol {resolved}[/]")
         df = store.query(resolved)
         if df.empty:
             console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
@@ -1406,6 +1414,8 @@ def _ai_train(
 
         with store_scope(cfg.data.parquet_dir, cfg.data.duckdb_path) as store:
             resolved = store.resolve_symbol(symbol)
+            if resolved != symbol:
+                console.print(f"[dim]Using stored symbol {resolved}[/]")
             df = store.query(resolved)
             if df.empty:
                 console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")
@@ -1587,6 +1597,8 @@ def _ai_validation_bypass(
 
     with store_scope(cfg.data.parquet_dir, cfg.data.duckdb_path) as store:
         resolved = store.resolve_symbol(symbol)
+        if resolved != symbol:
+            console.print(f"[dim]Using stored symbol {resolved}[/]")
         df = store.query(resolved)
         if df.empty:
             console.print(f"[red]No data for {symbol}. Run 'download' first.[/]")

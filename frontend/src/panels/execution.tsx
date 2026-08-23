@@ -11,7 +11,7 @@ import { DrawdownChart } from "@/components/charts/drawdown-chart";
 import { KillSwitchButton } from "@/components/KillSwitchButton";
 import { RefreshCw } from "lucide-react";
 import { CopyableText } from "@/components/copyable-text";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, fmtPct } from "@/lib/format";
 import { LEVEL_LABELS, MODE_LABELS, ORDER_STATUS_LABELS, ORDER_TYPE_LABELS, SIDE_LABELS, labelFor } from "@/lib/labels";
 
 function toneClass(tone: string): string {
@@ -81,7 +81,8 @@ function ExecutionContent({
           value: summary.equity.toLocaleString(undefined, { maximumFractionDigits: 2 }),
           // REV-022-RV1: follow PnL sign — equity alone carries no health
           // information (any funded account is > 0).
-          tone: summary.unrealized_pnl > 0 ? "go" : summary.unrealized_pnl < 0 ? "danger" : "default",
+                      // REV-025-H4: align with the items-row convention (0 = flat = green).
+            tone: summary.unrealized_pnl >= 0 ? "go" : "danger",
           hint: `${labelFor(MODE_LABELS, summary.mode)} · ${summary.symbol}`,
         }}
         items={[
@@ -164,8 +165,10 @@ function ExecutionContent({
             </div>
             <div>
               <p className="text-xs text-muted-foreground">回撤</p>
-              <p className={`text-lg font-bold ${summary.drawdown > 0 ? "text-status-danger" : ""}`}>
-                {(summary.drawdown * 100).toFixed(2)}%
+              {/* REV-025-H1: drawdown is <=0 from the backend; `> 0` never
+                  fired and the raw value printed an odd negative percent. */}
+              <p className={`text-lg font-bold ${Math.abs(summary.drawdown) > 0.02 ? "text-status-danger" : ""}`}>
+                {fmtPct(Math.abs(summary.drawdown))}
               </p>
             </div>
             <div>
@@ -257,7 +260,7 @@ function ExecutionContent({
                     <Badge variant={order.side === "buy" ? "go" : "danger"} className="text-xs">
                       {labelFor(SIDE_LABELS, order.side)}
                     </Badge>
-                    <CopyableText value={order.order_id} className="text-muted-foreground" />
+                    <CopyableText value={order.order_id} className="min-w-0 max-w-[140px] text-muted-foreground" />
                     <span className="text-sm">{order.symbol}</span>
                     <Badge variant="outline" className="text-xs">{labelFor(ORDER_TYPE_LABELS, order.order_type)}</Badge>
                   </div>

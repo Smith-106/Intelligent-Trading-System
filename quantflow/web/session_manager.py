@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import hashlib
+import logging
 import os
 import secrets
 from collections import Counter
@@ -244,12 +244,25 @@ class StationSessionManager:
             # REV-024-LOG2: a crashed trading loop previously left ZERO trace
             # in the server log (dashboard/JSONL only). Log it where ops
             # actually look first.
-            logger.error(
-                "session data loop crashed: session_id=%s err=%s",
-                runtime.session_id,
-                _redact_secrets(str(exc)),
-                exc_info=exc,
-            )
+            # REV-025: crash-restart loops must not flood the log with full
+            # tracebacks — first 3 get exc_info, repeats degrade to warning.
+            crash_count = getattr(runtime, "_crash_log_count", 0) + 1
+            runtime._crash_log_count = crash_count
+            if crash_count <= 3:
+                logger.error(
+                    "session data loop crashed (#%d): session_id=%s err=%s",
+                    crash_count,
+                    runtime.session_id,
+                    _redact_secrets(str(exc)),
+                    exc_info=exc,
+                )
+            else:
+                logger.warning(
+                    "session data loop crashed (repeated #%d): session_id=%s err=%s",
+                    crash_count,
+                    runtime.session_id,
+                    _redact_secrets(str(exc)),
+                )
             self._record_lifecycle_event(
                 runtime,
                 event_type="session_error",

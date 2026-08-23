@@ -329,3 +329,47 @@ async def test_send_routed_webhook_channel(
     )
     assert result == {"webhook": True}  # 321
     assert calls[0][1] == AlertLevel.INFO
+
+
+def test_sink_env_fallback_wires_alert_manager(monkeypatch: pytest.MonkeyPatch) -> None:
+    """REV-025-RV9: the documented TELEGRAM_* env path is the real credential
+    source when YAML alert_channels carry no token (the default). Guards the
+    REV-024 fallback so alerting cannot silently die again."""
+    monkeypatch.setattr(sink_mod, "start_metrics_server", lambda port: None)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "env-token-123")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "env-chat-456")
+    config = SimpleNamespace(monitoring=SimpleNamespace(prometheus_port=9999, alert_channels=[]))
+
+    sink = sink_mod.DefaultMonitoringSink()
+    sink.start(config)
+
+    assert sink._alert_mgr is not None
+    assert sink._alert_mgr.telegram_token == "env-token-123"
+    assert sink._alert_mgr.telegram_chat_id == "env-chat-456"
+
+
+def test_sink_empty_yaml_token_falls_back_to_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """YAML channel present but token empty ('' is falsy) -> env still wins."""
+    monkeypatch.setattr(sink_mod, "start_metrics_server", lambda port: None)
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "env-token")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "env-chat")
+    channel = SimpleNamespace(token="", chat_id="")
+    config = SimpleNamespace(monitoring=SimpleNamespace(prometheus_port=9999, alert_channels=[channel]))
+
+    sink = sink_mod.DefaultMonitoringSink()
+    sink.start(config)
+
+    assert sink._alert_mgr is not None
+    assert sink._alert_mgr.telegram_token == "env-token"
+
+
+def test_sink_no_channels_no_env_stays_unwired(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sink_mod, "start_metrics_server", lambda port: None)
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+    config = SimpleNamespace(monitoring=SimpleNamespace(prometheus_port=9999, alert_channels=[]))
+
+    sink = sink_mod.DefaultMonitoringSink()
+    sink.start(config)
+
+    assert sink._alert_mgr is None

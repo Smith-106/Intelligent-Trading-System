@@ -13,7 +13,7 @@ import { LiveModeConfirmDialog } from "@/components/LiveModeConfirmDialog";
 import { useMutationFeedback } from "@/hooks/use-mutation-feedback";
 import { Play, Square, RefreshCw, AlertCircle } from "lucide-react";
 import { CopyableText } from "@/components/copyable-text";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, fmtMoney, fmtPct } from "@/lib/format";
 import { toFiniteNumber } from "@/lib/form-utils";
 import { useStrategiesQuery } from "@/hooks/use-strategies-query";
 import { ORDER_STATUS_LABELS, ORDER_TYPE_LABELS, SIDE_LABELS, labelFor } from "@/lib/labels";
@@ -207,23 +207,32 @@ const { data: strategies } = useStrategiesQuery();
       <MetricsRow
         featured={{
           label: "权益",
-          value: portfolio.equity.toLocaleString(undefined, { maximumFractionDigits: 2 }),
+          value: fmtMoney(portfolio.equity),
           // REV-022-RV1: `equity > 0` was always green — a halved account
-          // still showed a healthy signal. Tone now tracks performance vs
-          // the configured initial capital.
+          // still showed a healthy signal.
+          // REV-025-C1: backend drawdown is always <=0 ((total-peak)/peak),
+          // so the old `drawdown > 0.05` branches never fired; and comparing
+          // against form.capital used an EDITABLE input as baseline. The
+          // drawdown field itself is already peak-relative — absolute-value
+          // thresholds are the whole story.
           tone:
-            portfolio.drawdown > 0.05 || portfolio.equity < form.capital * 0.9
+            Math.abs(portfolio.drawdown) > 0.05
               ? "danger"
-              : portfolio.drawdown > 0.02 || portfolio.equity < form.capital
+              : Math.abs(portfolio.drawdown) > 0.02
                 ? "warn"
                 : "go",
         }}
         items={[
-          { label: "现金", value: portfolio.cash.toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+          { label: "现金", value: fmtMoney(portfolio.cash) },
           {
             label: "回撤",
-            value: `${(portfolio.drawdown * 100).toFixed(2)}%`,
-            tone: portfolio.drawdown > 0.05 ? "danger" : portfolio.drawdown > 0.02 ? "warn" : "default",
+            value: fmtPct(Math.abs(portfolio.drawdown)),
+            tone:
+              Math.abs(portfolio.drawdown) > 0.05
+                ? "danger"
+                : Math.abs(portfolio.drawdown) > 0.02
+                  ? "warn"
+                  : "default",
           },
           { label: "持仓数", value: positions.length },
         ]}
@@ -371,7 +380,7 @@ const { data: strategies } = useStrategiesQuery();
                     <Badge variant={order.side === "buy" ? "go" : "danger"} className="text-xs">
                       {labelFor(SIDE_LABELS, order.side)}
                     </Badge>
-                    <CopyableText value={order.order_id} className="text-muted-foreground" />
+                    <CopyableText value={order.order_id} className="min-w-0 max-w-[140px] text-muted-foreground" />
                     <span className="text-sm">{order.symbol}</span>
                     <Badge variant="outline" className="text-xs">{labelFor(ORDER_TYPE_LABELS, order.order_type)}</Badge>
                   </div>

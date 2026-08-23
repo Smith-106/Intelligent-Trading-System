@@ -21,7 +21,12 @@ import { useToast } from "@/hooks/use-toast";
 
 export interface MutationFeedbackOptions<TData, TVars> {
   /** Toast + inline on success. */
-  onSuccess?: { title: string; description?: string; variant?: "default" | "destructive" };
+  onSuccess?: {
+    title: string;
+    /** Static text or a function of the mutation result (e.g. rows_saved). */
+    description?: string | ((data: TData) => string);
+    variant?: "default" | "destructive";
+  };
   /** Toast + inline on failure. */
   onError?: { title: string; description?: string | ((error: unknown) => string) };
   /**
@@ -90,11 +95,15 @@ export function useMutationFeedback<TData, TVars = void>(
     onSuccess: (data) => {
       onSettledExtra?.();
       if (onSuccess) {
-        setNotice({ kind: "success", title: onSuccess.title, detail: onSuccess.description });
+        const detail =
+          typeof onSuccess.description === "function"
+            ? onSuccess.description(data)
+            : onSuccess.description;
+        setNotice({ kind: "success", title: onSuccess.title, detail });
         scheduleClear(inlineMs);
         toast({
           title: onSuccess.title,
-          description: onSuccess.description,
+          description: detail || undefined,
           variant: onSuccess.variant,
         });
       }
