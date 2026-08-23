@@ -43,6 +43,10 @@ export function KillSwitchButton({ isRunning }: { isRunning: boolean }) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["execution"] }),
         queryClient.invalidateQueries({ queryKey: ["session"] }),
+        // REV-019-RV1: monitoring carries runtime.active_session / status —
+        // stale values here are worst exactly when the operator just killed
+        // the session.
+        queryClient.invalidateQueries({ queryKey: ["monitoring"] }),
       ]);
 
       setOpen(false);

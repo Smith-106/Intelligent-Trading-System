@@ -94,7 +94,25 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       partialize: (state) => ({
         researchForm: state.researchForm,
         validationForm: state.validationForm,
+        // REV-019-RV7: chartView's own docstring promises persistence —
+        // actually honor it so refresh keeps the user's symbol/timeframe.
+        chartView: state.chartView,
       }),
+      // REV-019-RV3: default merge is a shallow top-level spread — nested
+      // forms from an older localStorage would silently drop NEW fields
+      // (undefined -> NaN in requests). Field-level migration keeps new
+      // defaults for missing keys.
+      version: 1,
+      migrate: (persisted, _version) => {
+        const p = (persisted ?? {}) as Partial<
+          Pick<WorkbenchState, "researchForm" | "validationForm" | "chartView">
+        >;
+        return {
+          researchForm: { ...DEFAULT_RESEARCH_FORM, ...p.researchForm },
+          validationForm: { ...DEFAULT_VALIDATION_FORM, ...p.validationForm },
+          chartView: { ...DEFAULT_CHART_VIEW, ...p.chartView },
+        } as WorkbenchState;
+      },
     },
   ),
 );

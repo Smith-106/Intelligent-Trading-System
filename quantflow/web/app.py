@@ -68,6 +68,25 @@ def _parse_limit(request: web.Request, default: int = 12, maximum: int = 500) ->
     return min(value, maximum)
 
 
+async def _json_payload(request: web.Request) -> Any:
+    """Parse the request body as JSON, raising ValueError for bad bodies.
+
+    REV-019-RT2: bare request.json() leaked json.JSONDecodeError as a 500
+    ("Server got itself in trouble") for empty/invalid bodies. Callers
+    already map ValueError to a 400 _error_response.
+    """
+    from aiohttp import web as _web
+
+    try:
+        return await request.json()
+    except _web.HTTPException:
+        # e.g. 413 Payload Too Large — aiohttp's own contract must pass
+        # through unchanged (test_request_body_size_cap_rejects_oversized).
+        raise
+    except Exception as exc:
+        raise ValueError("Request body must be valid JSON.") from exc
+
+
 def _error_response(exc: BaseException, *, status: int = 400) -> web.Response:
     """Build a client-safe 400 response from a service-layer exception.
 
@@ -130,8 +149,15 @@ async def _index(_: web.Request) -> web.FileResponse:
     raise web.HTTPNotFound()
 
 
-async def _spa_fallback(request: web.Request) -> web.FileResponse:
-    """Return the React index.html for any non-API, non-asset path (SPA routing)."""
+async def _spa_fallback(request: web.Request) -> web.Response:
+    """Return the React index.html for any non-API, non-asset path (SPA routing).
+
+    REV-019-RT1: unknown /api/* paths used to fall through here and return
+    the SPA HTML with status 200 — programmatic clients could not tell a
+    typo from a real resource. API prefixes get an explicit JSON 404.
+    """
+    if request.path.startswith("/api/"):
+        return web.json_response({"error": f"Unknown API endpoint: {request.path}"}, status=404)
     return await _index(request)
 
 
@@ -152,8 +178,10 @@ async def _strategies(request: web.Request) -> web.Response:
 async def _multi_tf_analysis(request: web.Request) -> web.Response:
     """PERF-REV015: simultaneous multi-timeframe analysis (up to 24 TFs)."""
     service = request.app[STATION_SERVICE_KEY]
-    payload = await request.json()
     try:
+        # REV-019-RT2: body parsing inside the try — an empty/invalid body is
+        # a client error (400), not "Server got itself in trouble" (500).
+        payload = await _json_payload(request)
         req = MultiTfRequest(payload)
     except ValueError as e:
         return web.json_response({"error": str(e)}, status=400)
@@ -169,7 +197,7 @@ async def _data_snapshot(request: web.Request) -> web.Response:
 
 async def _data_download(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    payload = await request.json()
+    payload = await _json_payload(request)
     try:
         result = await service.download_data(DataDownloadRequest.model_validate(payload))
     except (ValueError, DataError, GatewayConnectionError) as exc:
@@ -179,7 +207,7 @@ async def _data_download(request: web.Request) -> web.Response:
 
 async def _data_seed_demo(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    payload = await request.json()
+    payload = await _json_payload(request)
 
     def _seed() -> Any:
         return service.seed_demo_data(DataDownloadRequest.model_validate(payload))
@@ -193,7 +221,7 @@ async def _data_seed_demo(request: web.Request) -> web.Response:
 
 async def _data_tag_source(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    payload = await request.json()
+    payload = await _json_payload(request)
 
     def _tag() -> Any:
         return service.tag_data_source(DataSourceTagRequest.model_validate(payload))
@@ -207,7 +235,7 @@ async def _data_tag_source(request: web.Request) -> web.Response:
 
 async def _research(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    payload = await request.json()
+    payload = await _json_payload(request)
 
     def _run_research() -> Any:
         return service.research(ResearchRequest.model_validate(payload))
@@ -228,7 +256,7 @@ async def _research_history(request: web.Request) -> web.Response:
 
 async def _validate(request: web.Request) -> web.Response:
     service = request.app[STATION_SERVICE_KEY]
-    payload = await request.json()
+    payload = await _json_payload(request)
 
     def _run_validate() -> Any:
         return service.validate(ValidationRequest.model_validate(payload))
@@ -253,7 +281,7 @@ async def _workbench_state(request: web.Request) -> web.Response:
         state = await asyncio.to_thread(service.workbench_state)
         return web.json_response({"state": state})
 
-    payload = await request.json()
+    payload = await _json_payload(request)
 
     def _save() -> Any:
         return service.save_workbench_state(payload)
@@ -325,7 +353,7 @@ async def _session_history(request: web.Request) -> web.Response:
 
 async def _session_start(request: web.Request) -> web.Response:
     manager = request.app[SESSION_MANAGER_KEY]
-    payload = await request.json()
+    payload = await _json_payload(request)
     try:
         result = await manager.start(SessionStartRequest.model_validate(payload))
     except (RuntimeError, ValueError) as exc:
@@ -340,7 +368,7 @@ async def _session_stop(request: web.Request) -> web.Response:
 
 async def _kill_switch(request: web.Request) -> web.Response:
     manager = request.app[SESSION_MANAGER_KEY]
-    payload = await request.json()
+    payload = await _json_payload(request)
     if not isinstance(payload, dict):
         return web.json_response({"error": "payload must be a JSON object"}, status=400)
     reason = str(payload.get("reason", "station_manual_override"))

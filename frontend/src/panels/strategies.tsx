@@ -1,20 +1,17 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { api, type Strategy } from "@/lib/api-client";
+import type { Strategy } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SectionHeader } from "@/components/metric-card";
 import { EmptyState } from "@/components/feedback";
+import { useStrategiesQuery } from "@/hooks/use-strategies-query";
 import { Search, RefreshCw, ChevronRight } from "lucide-react";
 
 export function StrategiesPanel() {
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["strategies"],
-    queryFn: () => api.strategies(),
-    refetchInterval: 60000,
-  });
+  // REV-019-RV6: shared hook — polling no longer depends on mount order.
+  const { data, isLoading, error, refetch, isFetching } = useStrategiesQuery();
 
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);

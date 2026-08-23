@@ -1209,7 +1209,12 @@ class TradingSession:
                 with contextlib.suppress(Exception):
                     await fetcher.connect()
 
+            # REV-019-M1: register with _background_tasks — stop() drains that
+            # set; an unregistered connect task survived stop and re-connected
+            # against a torn-down session.
             self._trades_connect_task = asyncio.create_task(_ensure_connect())
+            self._background_tasks.add(self._trades_connect_task)
+            self._trades_connect_task.add_done_callback(self._background_tasks.discard)
 
         fetch_fn = make_fetcher_adapter(fetcher) if hasattr(fetcher, "fetch_trades") else fetcher
         self._trades_ingest = TradesIngestLoop(
@@ -1419,6 +1424,9 @@ class TradingSession:
                     self._kill_switch_task = asyncio.create_task(
                         self._kill_switch.activate(decision.reason or REASON)
                     )
+                    # REV-019-M1: same orphan-task fix as trades-connect.
+                    self._background_tasks.add(self._kill_switch_task)
+                    self._kill_switch_task.add_done_callback(self._background_tasks.discard)
         else:
             self._risk_pauses.remove(REASON)
 

@@ -73,7 +73,7 @@ class EventBus:
     def unsubscribe(self, event_type: str, handler: Callable[[Event], Any]) -> None:
         """Remove a handler for an event type."""
         handlers = self._handlers.get(event_type, [])
-        for registered in handlers:
+        for registered in tuple(handlers):  # REV-019-M3: snapshot — handlers may mutate during dispatch
             if registered.handler == handler:
                 handlers.remove(registered)
                 break
@@ -85,7 +85,7 @@ class EventBus:
         For awaiting async handlers, use publish_async().
         """
         handlers = self._handlers.get(event.type, [])
-        for registered in handlers:
+        for registered in tuple(handlers):  # REV-019-M3: snapshot — handlers may mutate during dispatch
             try:
                 if registered.is_async:
                     task = asyncio.create_task(registered.handler(event))
@@ -99,7 +99,7 @@ class EventBus:
     async def publish_async(self, event: Event) -> None:
         """Publish an event, awaiting both sync and async handlers."""
         handlers = self._handlers.get(event.type, [])
-        for registered in handlers:
+        for registered in tuple(handlers):  # REV-019-M3: snapshot — handlers may mutate during dispatch
             try:
                 if registered.is_async:
                     await registered.handler(event)

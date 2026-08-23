@@ -11,6 +11,7 @@ import { useWorkbenchStore } from "@/stores/workbench-store";
 import { useToast } from "@/hooks/use-toast";
 import { Play, RefreshCw } from "lucide-react";
 import { toFiniteNumber } from "@/lib/form-utils";
+import { useStrategiesQuery } from "@/hooks/use-strategies-query";
 
 /**
  * UI3-H1: badge tone mirrors the backend _validation_tone decision order —
@@ -26,10 +27,7 @@ function decisionTone(decision: string): "go" | "danger" | "warn" {
 export function ValidationPanel() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: strategies } = useQuery({
-    queryKey: ["strategies"],
-    queryFn: () => api.strategies(),
-  });
+const { data: strategies } = useStrategiesQuery();
 
   // Odyssey-UI REV-012: surface loading/error instead of an empty state.
   const {

@@ -63,6 +63,8 @@ export function DataPanel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["data-snapshot"] });
       queryClient.invalidateQueries({ queryKey: ["overview"] });
+      // REV-019-RV2: monitoring's platform block derives from the same scan.
+      queryClient.invalidateQueries({ queryKey: ["monitoring"] });
     },
   });
   if (isLoading) {

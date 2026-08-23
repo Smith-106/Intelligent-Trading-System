@@ -156,13 +156,21 @@ def _order(tf: str) -> int:
     return timeframe_to_ms(tf)
 
 
+# REV-019-M2: the default executor is shared with every to_thread handler —
+# an unbounded 50-symbol fan-out could saturate it and head-of-line block the
+# control plane (overview/session/kill-switch) plus the trading hot loop.
+_MAX_CONCURRENT_SYMBOLS = 8
+
+
 async def multi_tf_analysis(service: StationService, request: MultiTfRequest) -> dict[str, Any]:
-    """Async entrypoint: fan out per-symbol analysis onto the thread pool."""
+    """Async entrypoint: bounded fan-out of per-symbol analysis."""
     include_candles = request.fields == "full"
     loop = asyncio.get_running_loop()
-    results = await asyncio.gather(
-        *(
-            loop.run_in_executor(
+    sem = asyncio.Semaphore(_MAX_CONCURRENT_SYMBOLS)
+
+    async def _run(sym: str) -> Any:
+        async with sem:
+            return await loop.run_in_executor(
                 None,
                 _analyze_symbol,
                 service,
@@ -172,8 +180,9 @@ async def multi_tf_analysis(service: StationService, request: MultiTfRequest) ->
                 request.end,
                 include_candles,
             )
-            for sym in request.symbols
-        ),
+
+    results = await asyncio.gather(
+        *(_run(sym) for sym in request.symbols),
         return_exceptions=True,
     )
 

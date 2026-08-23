@@ -13,6 +13,7 @@ import { LiveModeConfirmDialog } from "@/components/LiveModeConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Play, Square, RefreshCw, AlertCircle } from "lucide-react";
 import { toFiniteNumber } from "@/lib/form-utils";
+import { useStrategiesQuery } from "@/hooks/use-strategies-query";
 
 export function SessionPanel() {
   const queryClient = useQueryClient();
@@ -20,15 +21,14 @@ export function SessionPanel() {
   const [showLiveConfirm, setShowLiveConfirm] = useState(false);
   // UI3-H3: destructive stop button needs a confirmation step.
   const [showStopConfirm, setShowStopConfirm] = useState(false);
-  const { data: strategies } = useQuery({
-    queryKey: ["strategies"],
-    queryFn: () => api.strategies(),
-  });
+const { data: strategies } = useStrategiesQuery();
 
   const { data: snapshot, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["session"],
     queryFn: () => api.sessionSnapshot(),
-    refetchInterval: 5000,
+    // REV-019-RV5: an idle session's payload never changes — poll only
+    // while a session is actually running.
+    refetchInterval: (query) => (query.state.data?.running ? 5000 : false),
   });
 
   const [form, setForm] = useState<SessionStartRequest>({
