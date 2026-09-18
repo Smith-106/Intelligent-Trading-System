@@ -6,6 +6,22 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.11.1] — 2026-09-18
+
+### Fixed
+- **4 个 F841 未用变量 lint 清零**：`data/fetcher.py` 残留 `since` 赋值（已被 `fetch_ohlcv_paginated` 取代）、`data/resample.py` 未用 `period`、`data/trades_store.py` 未累加的 `written`、`web/service.py` 重复死赋值的 `registry_values`（`_monitoring_internal_metrics` 已抽出为独立方法）
+- **Station 前端 dist 构建产物误删恢复**：`quantflow/web/static/dist/` 重建（`test_station_root_and_strategy_api` 依赖 `index.html` SPA fallback）
+
+### Engineering
+- **知识图谱修复（Wiki Health 0→92/100）**：85 条死链清零——68 条 `DOC-*`/`kh-*` 前缀漂移批量规范化为 `knowhow-doc-*`/`knowhow-kh-*` 索引 id；9 个 spec 文件 related 引用同步修正；19 个文件移除 20 条已删除 `session-*` 死引用
+- **孤儿条目收敛 63→8**：12 个孤立 knowhow 链回 `knowledge-hub`；剩余 8 个均为 `spec:global:*` 容器（设计性孤立）
+- **Drift Realign 手动扫描**：roadmap.md / project.md 版本漂移 v0.5.0→v0.11.0（4 处）；新报告 `.workflow/.drift-realign/drift-report-2026-09-18.md`（10 项 findings 处置）
+- **本地仓库清理**：`no/` 空目录壳、`.pytest_cache`、`.ruff_cache`、全部 `__pycache__`（21 目录）、`*.pyc`、coverage 产物、frontend `dist`/`.vite`/`node_modules/.cache`、误跟踪的 `.workflow/codebase/doc-index.json.bak-refresh-20260725`
+- **ruff format 规范化**：16 个文件行长/空行重排（行为不变）
+
+### Docs
+- **版本对齐**：roadmap/project.md 当前版本与里程碑焦点同步至 v0.11.0
+
 ## [0.11.0] — 2026-08-23
 
 ### Security
