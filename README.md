@@ -1,6 +1,6 @@
 # QuantFlow
 
-> 当前版本 **v0.11.0**（前端 Station v0.4.0，独立演进）— 详见 [docs/release/v0.11.0/release-notes.md](docs/release/v0.11.0/release-notes.md)
+> 当前版本 **v0.11.1**（前端 Station v0.4.0，独立演进）— 详见 [docs/release/v0.11.1/release-notes.md](docs/release/v0.11.1/release-notes.md)
 
 个人 Crypto 量化交易系统 — 从策略研究到实盘交易的完整闭环。
 
