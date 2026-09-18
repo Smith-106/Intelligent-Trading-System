@@ -9,7 +9,7 @@
 - `M3` **已完成**：P0-verify PASS → P1-verify PASS → P2 全链关闭；Wave 1-5 多 book reconcile 一致性收口（L4 单一权威 + L5 薄路由 + partial-fill cumulative 契约为 load-bearing 不变量）
 - `M4` **已完成**：v0.2 多 Symbol 扩展（tag `v0.2.0`）
 - `M5` **已完成**：生产安全接线 + 30 天 paper 回放（A2+C1）
-- **当前焦点（v0.5.0）**：共享账本 + symbol-level RP 上的 **paper 生产候选**；ISS-004/005 账本已 resolved；ISS-006 RD-Agent paper 管道在途
+- **当前版本（v0.11.0）**：多交易所数据接入（OKX/Binance/Bybit 三源后缀分区隔离）+ 24 时间框架并行分析 + Station 前端 UI/性能/安全 26 轮 REV 收口；ISS-006 RD-Agent paper 管道在途
 - **验收口径**：**paper / paper_replay 取代交易 live** 作为默认晋级与回归环境（只读 live 连接证据可选，不阻塞候选）
 
 **2026-08-06 快照（生产安全接线 + 回放验证）**：

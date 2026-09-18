@@ -6,8 +6,7 @@ sourceRef: 20260802-team-ui-polish-continuous
 type: knowhow
 status: active
 related:
-  - session-20260802-team-ui-polish-full
-  - DOC-ui-polish-loop-methodology
+  - knowhow-doc-ui-polish-loop-methodology
 ---
 # MetricsRow 去模板模式 — featured + inline 指标行
 

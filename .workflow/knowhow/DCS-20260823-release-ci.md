@@ -1,6 +1,8 @@
 ---
 title: 发布文档目录形态是release CI硬依赖
 type: decision
+related:
+  - knowhow-doc-knowledge-hub
 created: 2026-08-23T14:57:51.412Z
 ---
 

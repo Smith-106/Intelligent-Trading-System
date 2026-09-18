@@ -1500,7 +1500,6 @@ class StationService:
             ),
         }
 
-
     def _monitoring_services(
         self,
         overview: dict[str, Any],
@@ -1754,13 +1753,6 @@ class StationService:
             else (session_history[0] if session_history else live_session)
         )
 
-        metrics_registry = metrics_registry_snapshot()
-        registry_values = (
-            metrics_registry.get("values", {})
-            if isinstance(metrics_registry, dict)
-            and isinstance(metrics_registry.get("values", {}), dict)
-            else {}
-        )
         internal_metrics = self._monitoring_internal_metrics()
 
         services, reachable_total = self._monitoring_services(overview, internal_metrics)

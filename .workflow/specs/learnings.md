@@ -9,7 +9,7 @@ keywords:
   - gotcha
   - learning
 related:
-  - DOC-knowledge-hub
+  - knowhow-doc-knowledge-hub
 type: spec
 ---
 # Learnings

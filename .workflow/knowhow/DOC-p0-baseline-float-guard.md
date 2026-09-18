@@ -6,8 +6,8 @@ sourceRef: maestro-n1-pagination-20260804-20260804-102422
 type: knowhow
 status: active
 related:
-  - DOC-research-direction-gate-wfo-overfit
-  - DOC-model-registry-design
+  - knowhow-doc-research-direction-gate-wfo-overfit
+  - knowhow-doc-model-registry-design
 ---
 # P0 Baseline Guard 浮动基线机制
 

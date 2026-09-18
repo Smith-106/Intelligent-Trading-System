@@ -99,7 +99,6 @@ async def _retry_call(limiter: RateLimiter, factory: Callable[[], Any], op: str)
     return await retry_call(limiter, factory, op)
 
 
-
 class BybitMetaFetcher:
     """Fetch Bybit V5 funding-rate / open-interest history (CCXT, category=linear).
 

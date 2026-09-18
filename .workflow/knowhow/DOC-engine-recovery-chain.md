@@ -6,8 +6,8 @@ sourceRef: maestro-wave1-precheck-20260803-20260803-075540
 type: knowhow
 status: active
 related:
-  - DOC-exchange-health-breaker
-  - DOC-state-store-atomic-write
+  - knowhow-doc-exchange-health-breaker
+  - knowhow-doc-state-store-atomic-write
 ---
 # 交易引擎恢复链架构
 

@@ -6,7 +6,7 @@ sourceRef: maestro-wave1-precheck-20260803-20260803-075540
 type: knowhow
 status: active
 related:
-  - DOC-engine-recovery-chain
+  - knowhow-doc-engine-recovery-chain
 ---
 # 状态存储原子写入模式
 

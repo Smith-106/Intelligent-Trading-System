@@ -4,7 +4,7 @@ type: tip
 tags: [workflow, verification]
 status: active
 related:
-  - DOC-knowledge-hub
+  - knowhow-doc-knowledge-hub
 ---
 ---
 related:

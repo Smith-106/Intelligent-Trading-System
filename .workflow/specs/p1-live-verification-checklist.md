@@ -2,7 +2,7 @@
 title: "p1-live-verification-checklist"
 type: spec
 related:
-  - DOC-knowledge-hub
+  - knowhow-doc-knowledge-hub
 ---
 
 # P1 风控层实盘验证 Checklist

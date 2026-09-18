@@ -92,9 +92,7 @@ def _analyze_symbol(
     # finally-close it leaked one connection per symbol under the executor
     # fan-out (service.py's own paths always close in a finally).
     try:
-        return _analyze_symbol_frames(
-            store, symbol, timeframes, start, end, include_candles
-        )
+        return _analyze_symbol_frames(store, symbol, timeframes, start, end, include_candles)
     finally:
         store.close()
 
@@ -122,9 +120,7 @@ def _analyze_symbol_frames(
             base_cache[base_tf] = frame
         base = base_cache[base_tf]
         if base.empty:
-            tf_results.append(
-                {"timeframe": tf, "bars": 0, "insufficient_data": True}
-            )
+            tf_results.append({"timeframe": tf, "bars": 0, "insufficient_data": True})
             continue
         derived = resample_ohlcv(base, tf)
         if derived.empty:
@@ -147,7 +143,12 @@ def _analyze_symbol_frames(
             ].to_dict(orient="records")
         tf_results.append(entry)
 
-    return {"symbol": symbol, "partial": bool(warnings), "warnings": warnings, "timeframes": tf_results}
+    return {
+        "symbol": symbol,
+        "partial": bool(warnings),
+        "warnings": warnings,
+        "timeframes": tf_results,
+    }
 
 
 def _order(tf: str) -> int:

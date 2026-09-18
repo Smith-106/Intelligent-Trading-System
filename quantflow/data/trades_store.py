@@ -60,7 +60,6 @@ class TradesStore:
         dt = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
         df["year"] = dt.dt.year
         df["month"] = dt.dt.month
-        written = 0
         for (year, month), group in df.groupby(["year", "month"]):
             year_dir = self._base / sym / f"year={int(year)}"
             year_dir.mkdir(parents=True, exist_ok=True)
@@ -71,9 +70,7 @@ class TradesStore:
             # silently dropped each other's batches; readers could see halves.
             with partition_lock(path), FileLock(f"{path}.lock", timeout=300):
                 existing = pd.read_parquet(path) if path.exists() else pd.DataFrame()
-                combined = pd.concat(
-                    [existing, group[list(TRADE_COLS)]], ignore_index=True
-                )
+                combined = pd.concat([existing, group[list(TRADE_COLS)]], ignore_index=True)
                 combined = combined.drop_duplicates(
                     subset=["timestamp", "price", "amount", "side"], keep="first"
                 ).sort_values("timestamp")

@@ -185,9 +185,7 @@ class ReconciliationEngine:
             return report
 
         except Exception as e:
-            logger.error(
-            "Reconciliation %s failed: %s", reconciliation_id, redact_secrets(str(e))
-        )
+            logger.error("Reconciliation %s failed: %s", reconciliation_id, redact_secrets(str(e)))
 
             # Create failure report
             duration = time.time() - start_time
@@ -277,9 +275,7 @@ class ReconciliationEngine:
             except GatewayError as e:
                 # REV-024-LOG3: re-raised and logged again by callers — this
                 # middle layer's error echo turned one failure into 3-4 lines.
-                logger.debug(
-                    "Failed to query exchange positions: %s", redact_secrets(str(e))
-                )
+                logger.debug("Failed to query exchange positions: %s", redact_secrets(str(e)))
                 raise
 
     async def _compare_snapshots(
@@ -419,9 +415,7 @@ class ReconciliationEngine:
                                 )
                             )
         except GatewayError as e:
-            logger.warning(
-                "Failed to detect orphan orders: %s", redact_secrets(str(e))
-            )
+            logger.warning("Failed to detect orphan orders: %s", redact_secrets(str(e)))
 
         return discrepancies
 

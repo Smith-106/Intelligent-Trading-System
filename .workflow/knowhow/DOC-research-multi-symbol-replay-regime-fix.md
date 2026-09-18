@@ -7,10 +7,9 @@ status: active
   - knowhow-kh-multi-symbol-patterns
 related:
   - knowhow-doc-20260810-residual-ops-t023-wave-close
-  - session-multi-symbol-replay-20260808-20260808-045132
-  - DOC-research-execution-fidelity-fee-slip
-  - kh-multi-symbol-patterns
-  - DOC-research-direction-gate-wfo-overfit
+  - knowhow-doc-research-execution-fidelity-fee-slip
+  - knowhow-kh-multi-symbol-patterns
+  - knowhow-doc-research-direction-gate-wfo-overfit
 ---
 
 # Multi-symbol replay (2026-08)

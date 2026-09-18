@@ -1,6 +1,8 @@
 ---
 title: "REV-008: 全部 BLOCKED 可能是探测路径 bug 而非门禁生效"
 type: tip
+related:
+  - knowhow-doc-knowledge-hub
 created: 2026-08-22T08:25:00.775Z
 ---
 

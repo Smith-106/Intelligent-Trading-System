@@ -6,7 +6,7 @@ sourceRef: maestro-20260812-l6-research-go-export-20260812-112502
 type: knowhow
 status: active
 related:
-  - DOC-monitoring-sink-protocol
+  - knowhow-doc-monitoring-sink-protocol
 ---
 # 研究 GO 面板导出（L6 research_go_panel）
 

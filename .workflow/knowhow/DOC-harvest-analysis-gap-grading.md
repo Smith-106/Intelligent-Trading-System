@@ -6,8 +6,7 @@ sourceRef: 20260803-001-analyze
 type: knowhow
 status: active
 related:
-  - session-run-maestro-benchmark-evolve-20260803-20260803-045922-20260803-001-analyze
-  - DOC-harvest-analysis-benchmark-methodology
+  - knowhow-doc-harvest-analysis-benchmark-methodology
 ---
 # QuantFlow vs 前沿量化平台六维度差距分级总览（2026-08 对标）
 

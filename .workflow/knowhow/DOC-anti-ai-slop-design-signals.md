@@ -6,8 +6,7 @@ sourceRef: 20260802-team-ui-polish-continuous
 type: knowhow
 status: active
 related:
-  - session-20260802-team-ui-polish-full
-  - DOC-ui-polish-loop-methodology
+  - knowhow-doc-ui-polish-loop-methodology
 ---
 # Anti-AI-slop 设计信号清单（QuantFlow Station）
 

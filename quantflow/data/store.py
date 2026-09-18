@@ -147,16 +147,12 @@ class DataStore:
             # FileLock on the canonical partition path (bounded wait so a stuck
             # writer surfaces as an error instead of hanging the caller forever).
             try:
-                with partition_lock(month_path), FileLock(
-                    f"{month_path}.lock", timeout=300
-                ):
+                with partition_lock(month_path), FileLock(f"{month_path}.lock", timeout=300):
                     self._merge_write_partition(month_path, year_dir, group, data_cols)
             except FileLockTimeout as exc:
                 # DEF-REV011-I: contention surfaces as the storage error type,
                 # not a bare filelock.Timeout (fail-closed preserved).
-                raise DataError(
-                    f"partition lock timeout: {month_path}"
-                ) from exc
+                raise DataError(f"partition lock timeout: {month_path}") from exc
 
     def _merge_write_partition(
         self,

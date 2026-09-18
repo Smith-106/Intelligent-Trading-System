@@ -78,4 +78,3 @@ class TTLCache:
 #: Below the fastest frontend poll cadence; collapses the data/monitoring/
 #: execution triple-scan of overview() into one parquet read per cycle.
 OVERVIEW_TTL_S = 4.0
-

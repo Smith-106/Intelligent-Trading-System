@@ -32,7 +32,6 @@ BYBIT_KLINE_PAGE_MAX = 1000
 CALL_TIMEOUT = 30.0
 
 
-
 class BybitFetcher:
     """Fetch historical OHLCV from Bybit V5 through CCXT.
 
@@ -137,4 +136,3 @@ class BybitFetcher:
             page_max=BYBIT_KLINE_PAGE_MAX,
             log_prefix="Bybit fetched",
         )
-

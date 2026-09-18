@@ -92,9 +92,7 @@ async def fetch_ohlcv_paginated(
         # bars; cleaner fills NaN gaps but does NOT reject non-finite values.
         bars = [b for b in bars if _bar_is_finite(b)]
         if not bars:
-            logger.warning(
-                "All fetched bars for %s/%s were non-finite; skipped", symbol, timeframe
-            )
+            logger.warning("All fetched bars for %s/%s were non-finite; skipped", symbol, timeframe)
             break
         all_bars.extend(bars)
         last_ts = bars[-1][0]
@@ -115,14 +113,13 @@ async def fetch_ohlcv_paginated(
     df["symbol"] = symbol
     df["timeframe"] = timeframe
     df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
-    df = (
-        df.drop_duplicates(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
-    )
+    df = df.drop_duplicates(subset=["timestamp"]).sort_values("timestamp").reset_index(drop=True)
     # REV-024-LOG5: fires every poll interval per symbol — routine telemetry
     # at info level drowned real signals (~1000+/day). Debug keeps it for
     # diagnosis without the noise.
     logger.debug("%s %d bars for %s/%s", log_prefix, len(df), symbol, timeframe)
     return df
+
 
 # Safety cap on pagination loops (defensive; 500 pages ≈ 150k bars per call
 # at the OKX page size — far beyond any realistic date window).
@@ -214,10 +211,6 @@ class DataFetcher:
             raise GatewayConnectionError("Not connected. Call connect() first.")
         if timeframe not in TIMEFRAMES:
             raise DataError(f"Invalid timeframe: {timeframe}. Valid: {TIMEFRAMES}")
-
-        since = None
-        if start:
-            since = self._exchange.parse8601(f"{start}T00:00:00Z")
 
         # OKX kline API caps a single response at 300 bars regardless of the
         # requested limit; ccxt silently truncates. The page-full test must

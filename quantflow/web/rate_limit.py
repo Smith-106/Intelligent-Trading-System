@@ -116,7 +116,9 @@ class RateLimiter:
 #: clients (reverse-proxy deployments). Empty by default: without an explicit
 #: proxy list the header is attacker-controlled and must not be trusted.
 _TRUSTED_PROXIES = frozenset(
-    ip.strip() for ip in os.environ.get("STATION_TRUSTED_PROXIES", "").replace(",", " ").split() if ip.strip()
+    ip.strip()
+    for ip in os.environ.get("STATION_TRUSTED_PROXIES", "").replace(",", " ").split()
+    if ip.strip()
 )
 
 

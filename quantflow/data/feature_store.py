@@ -144,9 +144,7 @@ class FeatureStore:
             # stale-existing winner silently dropped fresh feature rows — a
             # direct anti-lookahead-contract hazard.
             with partition_lock(month_path), FileLock(f"{month_path}.lock", timeout=300):
-                existing = (
-                    pd.read_parquet(month_path) if month_path.exists() else pd.DataFrame()
-                )
+                existing = pd.read_parquet(month_path) if month_path.exists() else pd.DataFrame()
                 combined = pd.concat([existing, group], ignore_index=True)
                 # W19a: explicit keep="first" — existing / earlier rows win. Prevents a
                 # later backfill from silently overwriting a PIT feature row at the

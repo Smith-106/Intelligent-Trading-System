@@ -18,8 +18,8 @@ related:
 - 回测结果可通过 `CPCV + DSR + PBO + WFO` 交叉验证
 - 风控链路完整，含 `Half-Kelly + VaR/CVaR + 回撤熔断 + Kill Switch`
 - 策略扩展通过 `StrategyBase + YAML` 统一约束
-- v0.5.0 当前：共享账本 symbol-level risk parity + 多 symbol paper 研究闭环；验收默认 **paper / paper_replay**（非交易 live）
-- 历史：v0.2.0（17 ISS 清零 + 多 symbol 基建，tag `v0.2.0`，2026-08-02）；v0.4.0（checkpoint / 交易所熔断 / funding-OI）
+- v0.11.0 当前：多交易所数据接入 + 24-TF 并行分析 + Station 前端 26 轮 REV 收口；验收默认 **paper / paper_replay**（非交易 live）
+- 历史：v0.5.0（共享账本 symbol-level RP）；v0.4.0（checkpoint / 交易所熔断 / funding-OI）；v0.2.0（17 ISS 清零 + 多 symbol 基建，tag `v0.2.0`，2026-08-02）
 
 ## Requirements
 
@@ -50,10 +50,13 @@ related:
 
 ## Current Version
 
-**v0.5.0**（2026-08-08，代码 `quantflow.__version__`；相对 tag `v0.4.0` 超前研究/组合提交）
+**v0.11.0**（2026-08-23，代码 `quantflow.__version__`；tag `v0.11.0`）
 
 主要交付（相对 v0.2 累计）：
-- **v0.5**：共享账本 multi-symbol + symbol-level risk parity 再平衡 + WFO OOS（`scripts/wfo_shared_rp.py` / `multi_symbol_replay.py`）
+- **v0.11**：多时间框架并行分析（24 档重采样）+ Station 前端图表/a11y/性能收口 + SEC-REV020 安全二轮审计
+- **v0.9–0.10**：Binance/Bybit 多交易所接入、交易所后缀分区隔离、web 异步化、CLI 冷启动 1.9s→0.59s
+- **v0.8**：覆盖率行+分支双 100%（18568 stmts / 5386 branches）
+- **v0.5**：共享账本 multi-symbol + symbol-level risk parity 再平衡 + WFO OOS
 - **v0.4**：StateStore 崩溃恢复、ExchangeHealthMonitor、funding/OI 多源、对账生产接线
 - **v0.2–0.3**：17 ISS 清零、多 symbol 基建、对账层、DQ monitor、Station 前端、tracing
 - **验收口径（paper-first）**：策略/组合晋级与回归默认走 `quantflow run --mode paper` 与 paper_replay；交易权限 live 不在默认验收路径
@@ -113,4 +116,4 @@ related:
 - 个人量化交易开发者（主用户）
 
 ---
-*Last updated: 2026-08-08 — current version v0.5.0; paper-first acceptance; ISS-004/005 resolved*
+*Last updated: 2026-09-18 — current version v0.11.0; paper-first acceptance; ISS-006 in-flight*

@@ -10,7 +10,7 @@ keywords:
   - root-cause
   - gotcha
 related:
-  - DOC-knowledge-hub
+  - knowhow-doc-knowledge-hub
 type: spec
 ---
 # Debug Notes

@@ -4,7 +4,7 @@ type: knowhow
 tags: [performance, hotpath]
 status: active
 related:
-  - DOC-engine-recovery-chain
+  - knowhow-doc-engine-recovery-chain
 ---
 ---
 id: kh-hotpath-zero-alloc

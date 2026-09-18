@@ -1,6 +1,8 @@
 ---
 title: "REV-009: re-export 在 isort force-single-line 下用赋值形式"
 type: tip
+related:
+  - knowhow-doc-knowledge-hub
 created: 2026-08-22T08:24:34.453Z
 ---
 

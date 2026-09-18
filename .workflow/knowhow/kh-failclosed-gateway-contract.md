@@ -4,8 +4,8 @@ type: knowhow
 tags: [gateway, safety]
 status: active
 related:
-  - kh-order-statemachine-completeness
-  - kh-multi-symbol-patterns
+  - knowhow-kh-order-statemachine-completeness
+  - knowhow-kh-multi-symbol-patterns
 ---
 ---
 id: kh-failclosed-gateway-contract

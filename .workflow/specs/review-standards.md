@@ -10,7 +10,7 @@ keywords:
   - approval
   - standard
 related:
-  - DOC-knowledge-hub
+  - knowhow-doc-knowledge-hub
 type: spec
 ---
 # Review Standards

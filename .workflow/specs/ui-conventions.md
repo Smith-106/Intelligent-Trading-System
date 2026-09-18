@@ -12,7 +12,7 @@ keywords:
   - animation
   - component
 related:
-  - DOC-knowledge-hub
+  - knowhow-doc-knowledge-hub
 type: spec
 ---
 # UI Conventions

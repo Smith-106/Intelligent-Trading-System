@@ -6,8 +6,8 @@ sourceRef: maestro-wave3-s4-20260804-20260804-054608
 type: knowhow
 status: active
 related:
-  - DOC-exchange-health-breaker
-  - DOC-engine-recovery-chain
+  - knowhow-doc-exchange-health-breaker
+  - knowhow-doc-engine-recovery-chain
   - knowhow-doc-research-go-panel-export
 ---
 # MonitoringSink Protocol 扩展模式

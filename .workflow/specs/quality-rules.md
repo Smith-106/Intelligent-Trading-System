@@ -9,7 +9,7 @@ keywords:
   - rule
   - enforcement
 related:
-  - DOC-knowledge-hub
+  - knowhow-doc-knowledge-hub
 type: spec
 ---
 # Quality Rules

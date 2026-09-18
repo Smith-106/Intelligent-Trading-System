@@ -56,9 +56,7 @@ def _date_to_ms(date_str: str) -> int:
     try:
         dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=UTC)
     except ValueError as e:
-        raise typer.BadParameter(
-            f"日期格式须为 YYYY-MM-DD: {date_str!r}"
-        ) from e
+        raise typer.BadParameter(f"日期格式须为 YYYY-MM-DD: {date_str!r}") from e
     return int(dt.timestamp() * 1000)
 
 
@@ -244,8 +242,6 @@ FUNDING_HISTORY_MAX_DAYS = 90
 _OI_HISTORY_PERIODS = {"1H", "1D"}
 
 
-
-
 def _run_meta_backfill(
     *,
     fetcher: Any,
@@ -292,7 +288,6 @@ def _run_meta_backfill(
             store.close()
 
     asyncio.run(_run())
-
 
 
 @app.command()
@@ -378,9 +373,7 @@ def download_oi(
         ),
         save=lambda df: store.save_open_interest(df, store_symbol),
         empty_msg="No OI data fetched. Check the symbol.",
-        ok_msg=(
-            f"Saved [bold]{{rows}}[/] OI rows for [bold]{store_symbol}[/] ({period})"
-        ),
+        ok_msg=(f"Saved [bold]{{rows}}[/] OI rows for [bold]{store_symbol}[/] ({period})"),
         last_label="Last OI timestamp",
         meta_kind="open_interest",
         store_symbol=store_symbol,
@@ -612,9 +605,7 @@ def download_bybit_oi(
         ),
         save=lambda df: fetcher.save_open_interest(store, df, symbol),
         empty_msg="No OI data fetched. Check the symbol/period.",
-        ok_msg=(
-            f"Saved [bold]{{rows}}[/] OI rows for [bold]{symbol}-BYBIT[/] ({period})"
-        ),
+        ok_msg=(f"Saved [bold]{{rows}}[/] OI rows for [bold]{symbol}-BYBIT[/] ({period})"),
         last_label="Last OI timestamp",
         meta_kind="open_interest",
         store_symbol=bybit_store_symbol(symbol),

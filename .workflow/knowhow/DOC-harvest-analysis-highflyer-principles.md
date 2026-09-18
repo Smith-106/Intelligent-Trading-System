@@ -6,8 +6,7 @@ sourceRef: 20260803-001-analyze
 type: knowhow
 status: active
 related:
-  - session-run-maestro-benchmark-evolve-20260803-20260803-045922-20260803-001-analyze
-  - DOC-harvest-roadmap-evolution-dag
+  - knowhow-doc-harvest-roadmap-evolution-dag
 ---
 # 幻方式 AI 量化范式：借鉴生产方式原则而非硬件规模
 

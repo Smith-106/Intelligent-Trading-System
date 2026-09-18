@@ -6,9 +6,8 @@ sourceRef: 20260803-002-roadmap
 type: knowhow
 status: active
 related:
-  - session-run-maestro-benchmark-evolve-20260803-20260803-045922-20260803-002-roadmap
-  - DOC-harvest-analysis-highflyer-principles
-  - DOC-knowledge-hub
+  - knowhow-doc-harvest-analysis-highflyer-principles
+  - knowhow-doc-knowledge-hub
 ---
 # QuantFlow 演进路线图：三阶段四 session DAG（benchmark-evolve）
 

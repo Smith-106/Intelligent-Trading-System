@@ -11,7 +11,7 @@ keywords:
   - assertion
   - framework
 related:
-  - DOC-knowledge-hub
+  - knowhow-doc-knowledge-hub
 type: spec
 ---
 # Test Conventions

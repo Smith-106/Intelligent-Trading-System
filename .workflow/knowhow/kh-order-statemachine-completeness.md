@@ -4,7 +4,7 @@ type: knowhow
 tags: [execution, orders]
 status: active
 related:
-  - kh-failclosed-gateway-contract
+  - knowhow-kh-failclosed-gateway-contract
 ---
 ---
 id: kh-order-statemachine-completeness

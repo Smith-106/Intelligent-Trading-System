@@ -106,7 +106,11 @@ async def retry_call(
             if logger_ is not None:
                 logger_.warning(
                     "%s retryable failure (%s); backoff %.2fs (attempt %d/%d)",
-                    op, e, delay + jitter, attempt + 1, MAX_RETRIES,
+                    op,
+                    e,
+                    delay + jitter,
+                    attempt + 1,
+                    MAX_RETRIES,
                 )
             await asyncio.sleep(delay + jitter)
             delay *= 2

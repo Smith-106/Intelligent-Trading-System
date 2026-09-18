@@ -6,7 +6,7 @@ sourceRef: maestro-smoke-llm-20260804-20260804-065343
 type: knowhow
 status: active
 related:
-  - DOC-knowledge-hub
+  - knowhow-doc-knowledge-hub
 ---
 # LLM 端点验证三要素模式
 

@@ -85,6 +85,4 @@ def bybit_store_symbol(symbol: str, *, suffix: str = "-BYBIT") -> str:
     for candidate in (f"{symbol}{suffix}", mid) if ":" not in symbol else (f"{mid}{suffix}", mid):
         if len(candidate) <= STORE_SYMBOL_MAX_LEN:
             return candidate
-    raise DataError(
-        f"Bybit store symbol exceeds {STORE_SYMBOL_MAX_LEN}-char cap: {symbol!r}"
-    )
+    raise DataError(f"Bybit store symbol exceeds {STORE_SYMBOL_MAX_LEN}-char cap: {symbol!r}")

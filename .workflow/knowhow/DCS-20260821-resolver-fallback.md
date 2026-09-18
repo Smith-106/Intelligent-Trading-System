@@ -1,6 +1,8 @@
 ---
 title: 交易所后缀分区隔离 + 显式读侧 resolver（否决透明 fallback）
 type: decision
+related:
+  - knowhow-doc-knowledge-hub
 created: 2026-08-21T13:05:57.010Z
 ---
 

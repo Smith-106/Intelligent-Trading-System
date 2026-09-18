@@ -4,9 +4,9 @@ type: knowhow
 tags: [hub, index]
 status: active
 related:
-  - DOC-research-direction-gate-wfo-overfit
-  - DOC-research-execution-fidelity-fee-slip
-  - DOC-research-multi-symbol-replay-regime-fix
+  - knowhow-doc-research-direction-gate-wfo-overfit
+  - knowhow-doc-research-execution-fidelity-fee-slip
+  - knowhow-doc-research-multi-symbol-replay-regime-fix
   - knowhow-doc-20260810-b4-b5-funding-contracts-keep-b0
   - knowhow-doc-20260810-residual-ops-t023-wave-close
   - knowhow-tip-20260810-wiki-kg-false-positive-broken-links

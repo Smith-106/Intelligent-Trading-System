@@ -6,9 +6,8 @@ sourceRef: maestro-wave3-s4-20260804-20260804-054608
 type: knowhow
 status: active
 related:
-  - session-maestro-wave3-s4-20260804-20260804-054608
   - knowhow-doc-knowledge-hub
-  - DOC-monitoring-sink-protocol
+  - knowhow-doc-monitoring-sink-protocol
 ---
 # DynamicBudget EWMA 动态预算缩放
 
