@@ -29,7 +29,7 @@ type: spec
 
 ## Entries
 
-<spec-entry sid="S-20260722-ui01" category="ui" keywords="design-token,spacing,typography,dark-theme" date="2026-07-22" source="ui-odyssey">
+<spec-entry category="ui" keywords="design-token,spacing,typography,dark-theme" date="2026-07-22" sid="S-20260722-ui01" sourceRef="ui-odyssey" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### Dark dashboard token 系统 4 轴结构
 
@@ -46,7 +46,7 @@ dark theme 运营 dashboard 的 `:root` 必须暴露 4 轴 token + elevation + m
 
 </spec-entry>
 
-<spec-entry sid="S-20260722-ui02" category="ui" keywords="interaction,async-submit,feedback,toast,spinner" date="2026-07-22" source="ui-odyssey">
+<spec-entry category="ui" keywords="interaction,async-submit,feedback,toast,spinner" date="2026-07-22" sid="S-20260722-ui02" sourceRef="ui-odyssey" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 异步提交反馈三件套（idle→in-flight→success/error→idle）
 
@@ -61,7 +61,7 @@ dark theme 运营 dashboard 的 `:root` 必须暴露 4 轴 token + elevation + m
 
 </spec-entry>
 
-<spec-entry sid="S-20260722-ui03" category="ui" keywords="accessibility,wcag,focus-visible,skip-link,reduced-motion,aria-current" date="2026-07-22" source="ui-odyssey">
+<spec-entry category="ui" keywords="accessibility,wcag,focus-visible,skip-link,reduced-motion,aria-current" date="2026-07-22" sid="S-20260722-ui03" sourceRef="ui-odyssey" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### WCAG 关键 4 项最小实现
 
@@ -76,7 +76,7 @@ dark theme 运营 dashboard 的 `:root` 必须暴露 4 轴 token + elevation + m
 
 </spec-entry>
 
-<spec-entry sid="S-20260722-cg01" category="coding" keywords="numeric-render,guard,infinity,nan,toFixed,formatter" date="2026-07-22" source="ui-odyssey">
+<spec-entry category="coding" keywords="numeric-render,guard,infinity,nan,toFixed,formatter" date="2026-07-22" sid="S-20260722-cg01" sourceRef="ui-odyssey" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 数值渲染必须经 guard helper，禁止裸 toFixed
 
@@ -98,7 +98,7 @@ function formatMetricNumber(value, digits = 3) {
 
 </spec-entry>
 
-<spec-entry sid="S-20260802-ui04" category="ui" keywords="responsive,table,column-hiding,progressive-disclosure,mobile,tailwind" date="2026-08-02" source="harvest:team-ui-polish-r2">
+<spec-entry category="ui" keywords="responsive,table,column-hiding,progressive-disclosure,mobile,tailwind" date="2026-08-02" sid="S-20260802-ui04" sourceRef="harvest:team-ui-polish-r2" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 响应式数据表格列隐藏：`hidden sm:table-cell` 渐进披露
 
@@ -117,7 +117,7 @@ function formatMetricNumber(value, digits = 3) {
 
 </spec-entry>
 
-<spec-entry sid="S-20260802-ui05" category="ui" keywords="toast,overlay,fluid-width,min,viewport,fixed-position" date="2026-08-02" source="harvest:team-ui-polish-r2">
+<spec-entry category="ui" keywords="toast,overlay,fluid-width,min,viewport,fixed-position" date="2026-08-02" sid="S-20260802-ui05" sourceRef="harvest:team-ui-polish-r2" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 固定浮层流体宽度约束：`min(420px, calc(100vw-2rem))`
 
@@ -134,7 +134,7 @@ function formatMetricNumber(value, digits = 3) {
 
 </spec-entry>
 
-<spec-entry sid="S-20260802-ui06" category="ui" keywords="typography,modular-scale,major-third,heading-body-ratio,text-sm" date="2026-08-02" source="harvest:team-ui-polish-r2">
+<spec-entry category="ui" keywords="typography,modular-scale,major-third,heading-body-ratio,text-sm" date="2026-08-02" sid="S-20260802-ui06" sourceRef="harvest:team-ui-polish-r2" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 标题/正文字号比须对齐模数字阶（禁止跳阶）
 

@@ -1,11 +1,17 @@
 ---
-title: "Hotpath zero-allocation patterns"
-type: knowhow
-tags: [performance, hotpath]
-status: active
+title: Hotpath zero-allocation patterns
+type: document
+keywords:
+  - performance
+  - hotpath
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: '--- id: kh-hotpath-zero-alloc title: 热路径零分配模式 — per-bar/per-signal 管线优化 tags: - performance - hot-path - deque - tuple - cache - risk-engine - allocation source: "harvest:20260723-improve-odyssey-trade-main-path" created: 2026-08-01 related'
+lifecycleStatus: active
 related:
   - knowhow-doc-engine-recovery-chain
 ---
+
 ---
 id: kh-hotpath-zero-alloc
 title: 热路径零分配模式 — per-bar/per-signal 管线优化

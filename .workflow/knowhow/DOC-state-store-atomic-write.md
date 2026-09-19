@@ -1,13 +1,16 @@
 ---
 title: 状态存储 StateStore 原子写入模式：tmp + os.replace 安全写入
-category: reliability
-createdBy: "harvest:wave1-precheck"
+type: document
+category: coding
 sourceRef: maestro-wave1-precheck-20260803-20260803-075540
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 1. **tmp + os.replace 原子写入**：先写入临时文件，成功后再 `os.replace` 替换目标文件 2. **schema_version 版本保护**：文件头包含版本号，读取时校验格式兼容性 3. **fail-closed 读取**：corrupt 文件返回 None + critical 日志，不尝试恢复损坏数据 4. **调用方责任**：返回 None 时调用方自行决定降级策略
+lifecycleStatus: active
 related:
   - knowhow-doc-engine-recovery-chain
 ---
+
 # 状态存储原子写入模式
 
 ## 适用场景

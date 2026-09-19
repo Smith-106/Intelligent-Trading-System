@@ -1,14 +1,17 @@
 ---
 title: 交易引擎恢复链架构：reset → restore → _verify_recovery
-category: architecture
-createdBy: "harvest:wave1-precheck"
+type: document
+category: arch
 sourceRef: maestro-wave1-precheck-20260803-20260803-075540
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 1. **reset()**：重置运行时状态到干净初始态 2. **restore()**：从检查点加载持久化状态 3. **_verify_recovery()**：验证恢复状态的完整性
+lifecycleStatus: active
 related:
   - knowhow-doc-exchange-health-breaker
   - knowhow-doc-state-store-atomic-write
 ---
+
 # 交易引擎恢复链架构
 
 ## 适用场景

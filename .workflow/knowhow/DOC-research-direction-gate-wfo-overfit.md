@@ -1,9 +1,16 @@
 ---
-title: "Direction gate + Optuna sync Sharpe 1.04 is WFO-overfit; classic 1h nested remains research baseline"
-type: knowhow
-category: research
-tags: [wfo, overfit, direction-gate, trend-following, oos]
-status: active
+title: Direction gate + Optuna sync Sharpe 1.04 is WFO-overfit; classic 1h nested remains research baseline
+type: document
+keywords:
+  - wfo
+  - overfit
+  - direction-gate
+  - trend-following
+  - oos
+category: arch
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+lifecycleStatus: active
 related:
   - knowhow-doc-20260810-b4-b5-funding-contracts-keep-b0
   - knowhow-doc-research-execution-fidelity-fee-slip

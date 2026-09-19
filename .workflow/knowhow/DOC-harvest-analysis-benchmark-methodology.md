@@ -1,14 +1,17 @@
 ---
 title: 对标分析方法论：四级差距分级 + 外部事实源边界
-category: knowhow
-createdBy: harvest
+type: document
+category: review
 sourceRef: 20260803-001-analyze
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: "**Source**: 20260803-001-analyze（decisions[]，locked；risk-matrix R6/R8） **Tags**: benchmark, methodology, knowhow"
+lifecycleStatus: active
 related:
   - knowhow-doc-harvest-analysis-gap-grading
   - knowhow-doc-knowledge-hub
 ---
+
 # 对标分析方法论：四级差距分级 + 外部事实源边界
 
 **Source**: 20260803-001-analyze（decisions[]，locked；risk-matrix R6/R8）

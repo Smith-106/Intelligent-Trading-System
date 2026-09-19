@@ -1,13 +1,16 @@
 ---
 title: 并发 Agent 会话并行提交同仓 — ancestry 检查 + 工作区审计防冲突
+type: document
 category: arch
-createdBy: manage-harvest
-sourceRef: "session:20260724-debug-odyssey-l6-sibling-sinks, commit:b2a4cf8"
-type: knowhow
-status: active
+sourceRef: session:20260724-debug-odyssey-l6-sibling-sinks, commit:b2a4cf8
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 单个仓库被多个 agent 会话（如 odyssey-debug + 并行 maestro-cli 会话）同时操作时， 会出现：A 会话基于 commit X 开始工作，期间 B 会话提交了 X→Y（含 A 未触及的文件）， A 提交时基于 Y（fast-forward）或产生交叉。更隐蔽的是：A 会话工作区里出现 B 会话 "in-flight" 的未提交改动（B 正在写的文件），A 若不审计就提交会混入 B 的工作。
+lifecycleStatus: active
 related:
   - knowhow-doc-knowledge-hub
 ---
+
 # 并发 Agent 会话并行提交同仓 — ancestry 检查 + 工作区审计防冲突
 
 ## 场景

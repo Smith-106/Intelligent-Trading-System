@@ -60,7 +60,7 @@ related:
 - **v0.4**：StateStore 崩溃恢复、ExchangeHealthMonitor、funding/OI 多源、对账生产接线
 - **v0.2–0.3**：17 ISS 清零、多 symbol 基建、对账层、DQ monitor、Station 前端、tracing
 - **验收口径（paper-first）**：策略/组合晋级与回归默认走 `quantflow run --mode paper` 与 paper_replay；交易权限 live 不在默认验收路径
-- **开放研究**：生产候选 alpha 仍未过 WFO 生产门槛；RD-Agent 真管道（ISS-006）在途
+- **开放研究**：生产候选 alpha 仍未过 WFO 生产门槛；RD-Agent 全 LLM 管道（research→train→register(paper)，skeleton/CLI 接线已 resolved 见 ISS-20260803-006/ISS-20260804-001）在途
 
 ## Context
 
@@ -116,4 +116,4 @@ related:
 - 个人量化交易开发者（主用户）
 
 ---
-*Last updated: 2026-09-18 — current version v0.11.0; paper-first acceptance; ISS-006 in-flight*
+*Last updated: 2026-09-18 — current version v0.11.0; paper-first acceptance; RD-Agent full pipeline in-flight*

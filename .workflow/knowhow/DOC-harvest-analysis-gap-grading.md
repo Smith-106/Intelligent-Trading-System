@@ -1,13 +1,16 @@
 ---
 title: QuantFlow vs 前沿量化平台六维度差距分级总览（2026-08 对标）
-category: finding
-createdBy: harvest
+type: document
+category: review
 sourceRef: 20260803-001-analyze
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: "**Source**: 20260803-001-analyze（findings.json dimensions[]/gap_grading[]） **Tags**: benchmark, architecture, gap-analysis"
+lifecycleStatus: active
 related:
   - knowhow-doc-harvest-analysis-benchmark-methodology
 ---
+
 # QuantFlow vs 前沿量化平台六维度差距分级总览（2026-08 对标）
 
 **Source**: 20260803-001-analyze（findings.json dimensions[]/gap_grading[]）

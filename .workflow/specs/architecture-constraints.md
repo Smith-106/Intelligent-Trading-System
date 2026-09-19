@@ -51,7 +51,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
 
 ## Entries
 
-<spec-entry category="arch" keywords="generate_signals,on_bar,增量,向量化,双模式API" date="2026-06-13" title="保持 generate_signals(df) 为研究 API，增量 live/paper 用 on_bar" description="策略双模式 API 设计决策" sid="S-legacy-94ab063e">
+<spec-entry category="arch" keywords="generate_signals,on_bar,增量,向量化,双模式API" date="2026-06-13" sid="S-legacy-94ab063e" title="保持 generate_signals(df) 为研究 API，增量 live/paper 用 on_bar" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="策略双模式 API 设计决策">
 ### 保持 generate_signals(df) 为研究 API，增量 live/paper 用 on_bar
 
 保持 `generate_signals(df)` 作为向量化研究/回测 API 不变，为 live/paper 添加增量 `on_bar()` 路径。增量路径使用 bounded deque + rolling state，避免每根 bar 重建 DataFrame。必须证明增量信号与向量化信号 parity。
@@ -60,7 +60,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
 **验收**: 增量 vs 向量化信号 parity 测试存在，3 个真实策略达 2000 bars/s
 </spec-entry>
 
-<spec-entry category="arch" keywords="策略顺序,波动率突破,资金费率,动量轮动,ML集成,实施优先级" date="2026-06-13" title="新增策略实施顺序" description="从 brainstorm 收敛的四策略优先级" sid="S-legacy-7e5a7b8e">
+<spec-entry category="arch" keywords="策略顺序,波动率突破,资金费率,动量轮动,ML集成,实施优先级" date="2026-06-13" sid="S-legacy-7e5a7b8e" title="新增策略实施顺序" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="从 brainstorm 收敛的四策略优先级">
 ### 新增策略实施顺序
 
 新增策略按优先级排序：P1 波动率突破（复杂度低、互补性强）→ P2 资金费率（Crypto 特有、简单有效）→ P3 动量因子轮动（需多品种支持）→ P4 ML 集成（高工作量）。跨交易所套利因架构改动大优先级最低。
@@ -69,7 +69,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
 **理由**: P1/P2 复杂度低且互补性强，可并行实现
 </spec-entry>
 
-<spec-entry category="arch" keywords="W3铁律,双模式,回顾模式,渐进模式,波浪理论" date="2026-06-13" title="W3 铁律双模式" description="浪3不能最短铁律的实时处理方案" sid="S-legacy-55b14d75">
+<spec-entry category="arch" keywords="W3铁律,双模式,回顾模式,渐进模式,波浪理论" date="2026-06-13" sid="S-legacy-55b14d75" title="W3 铁律双模式" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="浪3不能最短铁律的实时处理方案">
 ### W3 铁律双模式：回顾强制、渐进仅检查不拒绝
 
 回顾模式（RETROSPECTIVE）：W3 不能最短铁律强制执行，违反即拒绝浪型分类。
@@ -79,7 +79,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
 **理由**: Q2 滞后判定 + Q3 实时困难，需平衡严谨与可用性
 </spec-entry>
 
-<spec-entry category="arch" keywords="背离检测,浪级比较,WaveCount,DivergenceDetector" date="2026-06-13" title="DivergenceDetector 强制浪级比较" description="背离检测接口必须基于 WaveCount" sid="S-legacy-e689eae2">
+<spec-entry category="arch" keywords="背离检测,浪级比较,WaveCount,DivergenceDetector" date="2026-06-13" sid="S-legacy-e689eae2" title="DivergenceDetector 强制浪级比较" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="背离检测接口必须基于 WaveCount">
 ### DivergenceDetector 强制浪级比较
 
 `DivergenceDetector.detect(wave_count: WaveCount)` — 接口接收 WaveCount 而非裸 pivots，强制 W5 vs W3 浪级比较。顶背离：W5 价格新高但 MACD 未新高。底背离：W2/W4 价格新低但 MACD 未新低。
@@ -88,7 +88,7 @@ Auto-generated from project structure. Update manually as architecture evolves.
 **理由**: 波浪理论背离验证必须基于浪级，通用 pivots 接口会导致误用
 </spec-entry>
 
-<spec-entry category="arch" keywords="仓位管理,RiskEngine,PositionRequest,风控权限" date="2026-06-13" title="ScalingPosition → RiskEngine: PositionRequest 权限控制" description="分批建仓与风控引擎的交互协议" sid="S-legacy-cae8ed3d">
+<spec-entry category="arch" keywords="仓位管理,RiskEngine,PositionRequest,风控权限" date="2026-06-13" sid="S-legacy-cae8ed3d" title="ScalingPosition → RiskEngine: PositionRequest 权限控制" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="分批建仓与风控引擎的交互协议">
 ### ScalingPosition → RiskEngine 交互协议（⚠️ ISS-20260723-004 已删 ScalingPositionSizer 死代码，本 spec-entry 的交互协议 moot）
 
 ScalingPositionSizer 输出 `PositionRequest`，由 RiskEngine 做最终权限控制。单笔风险 ≤2%，日最大亏损 ≤5%，月最大亏损 ≤15%。RiskEngine 可拒绝或缩减 PositionRequest。
@@ -99,7 +99,7 @@ ScalingPositionSizer 输出 `PositionRequest`，由 RiskEngine 做最终权限�
 **drift-realign 2026-07-28 标注**: ScalingPositionSizer/PositionRequest/ScalingConfig/PositionPhase 4 类已随 ISS-004 (commit a5b7f37) 删除（生产零引用死代码）。当前仓位 sizing 由 `signal/position_sizer.py` PositionSizer 直接产出 notional（half-Kelly + vol-target + 单名上限 min 下界）。单笔 ≤2%/日 ≤5%/月 ≤15% 约束现由 PositionSizer.size 内执行。若未来重启分批建仓，应作新 spec 而非恢复本 stale 引用。
 </spec-entry>
 
-<spec-entry category="arch" keywords="波浪理论,六层架构,规则引擎,集成方式" date="2026-06-13" title="波浪理论集成到 QuantFlow 六层架构" description="波浪理论系统设计决策" sid="S-legacy-3f2bf039">
+<spec-entry category="arch" keywords="波浪理论,六层架构,规则引擎,集成方式" date="2026-06-13" sid="S-legacy-3f2bf039" title="波浪理论集成到 QuantFlow 六层架构" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="波浪理论系统设计决策">
 ### 波浪理论集成到 QuantFlow 六层架构，纯规则引擎
 
 - 集成方式：集成到 QuantFlow 六层架构（非独立系统），复用现有基础设施
@@ -111,7 +111,7 @@ ScalingPositionSizer 输出 `PositionRequest`，由 RiskEngine 做最终权限�
 **理由**: 复用六层架构降低实现成本；规则引擎确保可验证性；状态机与铁律逻辑一致
 </spec-entry>
 
-<spec-entry category="arch" keywords="security-primitive,private-helper,common-module,public-api,choke-point" date="2026-07-05" title="Cross-cutting security primitives are public API in quantflow/common/, never private borrow-ins" description="Validation/auth choke points imported across layers must be public, not underscored module-private helpers" sid="S-legacy-7b834936">
+<spec-entry category="arch" keywords="security-primitive,private-helper,common-module,public-api,choke-point" date="2026-07-05" sid="S-legacy-7b834936" title="Cross-cutting security primitives are public API in quantflow/common/, never private borrow-ins" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Validation/auth choke points imported across layers must be public, not underscored module-private helpers">
 ### Cross-cutting security primitives are public API in quantflow/common/, never private borrow-ins
 
 A security choke point (symbol validation, auth/CSRF policy) imported by 2+ modules MUST be a public (no underscore) function in a dedicated `quantflow/common/` (or `quantflow/web/security.py`) module. The underscore signals "module-private implementation detail" — the wrong contract for a security primitive imported across layers.
@@ -127,7 +127,7 @@ Closing pattern: `quantflow/common/validators.py` exposes public `validate_symbo
 Source: odyssey-review security-fixes session (REV-005, REV-013).
 </spec-entry>
 
-<spec-entry category="arch" keywords="launch-guard,bind-boundary,create-app,run-station,fail-closed" date="2026-07-05" title="Launch-time safety guards live at the bind boundary, documented in the constructor docstring" description="When a fail-closed guard depends on a bind-time param, keep it at the launcher; document the contract in the app-constructor docstring" sid="S-legacy-62fb9b81">
+<spec-entry category="arch" keywords="launch-guard,bind-boundary,create-app,run-station,fail-closed" date="2026-07-05" sid="S-legacy-62fb9b81" title="Launch-time safety guards live at the bind boundary, documented in the constructor docstring" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="When a fail-closed guard depends on a bind-time param, keep it at the launcher; document the contract in the app-constructor docstring">
 ### Launch-time safety guards live at the bind boundary, documented in the constructor docstring
 
 When a fail-closed launch guard (e.g. "non-loopback bind requires an auth token") depends on a parameter the app constructor does NOT receive (the bind `host`), keep the guard at the bind boundary (`run_station`) — the only entry point that knows the host. Do NOT force the parameter into the constructor to "share" the guard: that breaks the test harness, which calls `create_app()` directly and assumes a loopback-equivalent threat model.
@@ -140,7 +140,7 @@ Source: odyssey-review security-fixes session (REV-006).
 </spec-entry>
 
 
-<spec-entry category="arch" keywords="llm因子挖掘,schema-only,防泄漏,rd-agent,时间点安全" date="2026-07-18" sid="S-20260718-cxia" title="LLM 因子挖掘须采纳 schema-only 数据中心设计防泄漏" description="LLM 因子挖掘只接触 schema 级信息,不接触原始数据与时间分割,防未来数据泄漏" source="harvest:deep-research-20260718">
+<spec-entry category="arch" keywords="llm因子挖掘,schema-only,防泄漏,rd-agent,时间点安全" date="2026-07-18" sid="S-20260718-cxia" title="LLM 因子挖掘须采纳 schema-only 数据中心设计防泄漏" sourceRef="harvest:deep-research-20260718" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="LLM 因子挖掘只接触 schema 级信息,不接触原始数据与时间分割,防未来数据泄漏">
 
 ### LLM 因子挖掘须采纳 schema-only 数据中心设计防泄漏
 
@@ -148,7 +148,7 @@ Source: odyssey-review security-fixes session (REV-006).
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="回测实盘一致,parity,tradingsession,事件驱动,确定性时钟" date="2026-07-18" sid="S-20260718-h6ml" title="回测-实盘 parity 范式:同语义执行+同确定性时钟,策略研究到生产不改代码" description="回测与实盘共用同语义执行+同确定性时钟,策略研究到生产不改代码" source="harvest:deep-research-20260718">
+<spec-entry category="arch" keywords="回测实盘一致,parity,tradingsession,事件驱动,确定性时钟" date="2026-07-18" sid="S-20260718-h6ml" title="回测-实盘 parity 范式:同语义执行+同确定性时钟,策略研究到生产不改代码" sourceRef="harvest:deep-research-20260718" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="回测与实盘共用同语义执行+同确定性时钟,策略研究到生产不改代码">
 
 ### 回测-实盘 parity 范式:同语义执行+同确定性时钟,策略研究到生产不改代码
 
@@ -158,7 +158,7 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="跨交易所套利,统计套利,价差z-score,half-life,市场中性" date="2026-07-20" sid="S-20260720-5v13" title="跨交易所套利策略候选（P5，未实现）——brainstorm 20260602 收敛的 5 候选中唯一未落地项。核心逻辑：同一交易对在不同交易所的价差 → 统计套利。指标：价差 Z-Score、Half-Life、Hedge Ratio（OLS/Kalman）。互补性：市场中性，不依赖方向，与所有方向性策略负相关。复杂度：高（需多交易所数据源 + 低延迟执行）。适用：全状态。学术依据：Avellaneda &amp; Lee (2010) 统计套利。优先级最低因架构改动大（需多 Gateway 数据源 + 低延迟执行路径），暂未实现。设计依据详见 knowhow DOC-strategy-matrix-complementarity-and-rationale。" description="brainstorm 5 候选中唯一未落地项——市场中性统计套利" source="main@805e5b7">
+<spec-entry category="arch" keywords="跨交易所套利,统计套利,价差z-score,half-life,市场中性" date="2026-07-20" sid="S-20260720-5v13" title="跨交易所套利策略候选（P5，未实现）——brainstorm 20260602 收敛的 5 候选中唯一未落地项。核心逻辑：同一交易对在不同交易所的价差 → 统计套利。指标：价差 Z-Score、Half-Life、Hedge Ratio（OLS/Kalman）。互补性：市场中性，不依赖方向，与所有方向性策略负相关。复杂度：高（需多交易所数据源 + 低延迟执行）。适用：全状态。学术依据：Avellaneda &amp; Lee (2010) 统计套利。优先级最低因架构改动大（需多 Gateway 数据源 + 低延迟执行路径），暂未实现。设计依据详见 knowhow DOC-strategy-matrix-complementarity-and-rationale。" sourceRef="main@805e5b7" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="brainstorm 5 候选中唯一未落地项——市场中性统计套利">
 
 ### 跨交易所套利策略候选（P5，未实现）——brainstorm 20260602 收敛的 5 候选中唯一未落地项。核心逻辑：同一交易对在不同交易所的价差 → 统计套利。指标：价差 Z-Score、Half-Life、Hedge Ratio（OLS/Kalman）。互补性：市场中性，不依赖方向，与所有方向性策略负相关。复杂度：高（需多交易所数据源 + 低延迟执行）。适用：全状态。学术依据：Avellaneda & Lee (2010) 统计套利。优先级最低因架构改动大（需多 Gateway 数据源 + 低延迟执行路径），暂未实现。设计依据详见 knowhow DOC-strategy-matrix-complementarity-and-rationale。
 
@@ -166,7 +166,7 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="parity,backtest,BacktestEngine,paper,live,独立引擎" date="2026-07-22" sid="S-20260722-pd2y" title="backtest 不在 parity 范围 — parity 仅约束 paper/live 路径" description="parity spec 称 backtest/paper/live 共享语义，但 backtest 走独立 BacktestEngine，parity 仅 paper/live 成立；不可宣称三方一致" source="harvest:deepresearch-20260718">
+<spec-entry category="arch" keywords="parity,backtest,BacktestEngine,paper,live,独立引擎" date="2026-07-22" sid="S-20260722-pd2y" title="backtest 不在 parity 范围 — parity 仅约束 paper/live 路径" sourceRef="harvest:deepresearch-20260718" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="parity spec 称 backtest/paper/live 共享语义，但 backtest 走独立 BacktestEngine，parity 仅 paper/live 成立；不可宣称三方一致">
 
 ### backtest 不在 parity 范围 — parity 仅约束 paper/live 路径
 
@@ -181,7 +181,7 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 </spec-entry>
 
 
-<spec-entry category="arch" keywords="layer-violation,lazy-import,monitoring-coupling,l6,audit-evasion,architecture" date="2026-07-24" sid="S-20260724-02ek" title="L6 跨层耦合禁用 in-function import 规避审计" description="L6 跨层耦合禁用；in-function import 规避静态审计是反模式；guard 须扫两层" source="main@bb3c6cd">
+<spec-entry category="arch" keywords="layer-violation,lazy-import,monitoring-coupling,l6,audit-evasion,architecture" date="2026-07-24" sid="S-20260724-02ek" title="L6 跨层耦合禁用 in-function import 规避审计" sourceRef="main@bb3c6cd" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="L6 跨层耦合禁用；in-function import 规避静态审计是反模式；guard 须扫两层">
 
 ### L6 跨层耦合禁用 in-function import 规避审计
 
@@ -191,7 +191,7 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="l4,权威账本,engine.submit,薄路由,reconcile,paper-live-parity" date="2026-07-25" sid="S-20260725-y8sf" title="L4 单一权威账本: engine.submit 统一负责 L4 PortfolioManager 的 fill 更新(含 fee), _process_signal 不再二次更新 L4。L5 PositionManager 退化为薄路由委托 L4(全 9 方法委托), PaperGateway 移除第三套 _cash 账本(仅保留 _positions 作为 gateway 本地交易所视图, 与 OKXGateway 对称: gateway 暴露交易所持仓视图不拥有 L4 账本)。消除 L5 委托 L4 后 engine.submit + _process_signal 双计同一 fill 的风险。fee 由 L4 单次扣除(PaperGateway send_order 不再借记 cash)。paper/live parity: 两者均经 engine.submit 单一 L4 fill 更新点。backtest 独立向量化 book 不在 reconcile 范围(per arch parity spec)。" description="多 book reconcile: L4 单一权威账本 + L5 薄路由委托 + engine.submit 统一 fill 更新" source="main@06a8d93">
+<spec-entry category="arch" keywords="l4,权威账本,engine.submit,薄路由,reconcile,paper-live-parity" date="2026-07-25" sid="S-20260725-y8sf" title="L4 单一权威账本: engine.submit 统一负责 L4 PortfolioManager 的 fill 更新(含 fee), _process_signal 不再二次更新 L4。L5 PositionManager 退化为薄路由委托 L4(全 9 方法委托), PaperGateway 移除第三套 _cash 账本(仅保留 _positions 作为 gateway 本地交易所视图, 与 OKXGateway 对称: gateway 暴露交易所持仓视图不拥有 L4 账本)。消除 L5 委托 L4 后 engine.submit + _process_signal 双计同一 fill 的风险。fee 由 L4 单次扣除(PaperGateway send_order 不再借记 cash)。paper/live parity: 两者均经 engine.submit 单一 L4 fill 更新点。backtest 独立向量化 book 不在 reconcile 范围(per arch parity spec)。" sourceRef="main@06a8d93" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="多 book reconcile: L4 单一权威账本 + L5 薄路由委托 + engine.submit 统一 fill 更新">
 
 ### L4 单一权威账本: engine.submit 统一负责 L4 PortfolioManager 的 fill 更新(含 fee), _process_signal 不再二次更新 L4。L5 PositionManager 退化为薄路由委托 L4(全 9 方法委托), PaperGateway 移除第三套 _cash 账本(仅保留 _positions 作为 gateway 本地交易所视图, 与 OKXGateway 对称: gateway 暴露交易所持仓视图不拥有 L4 账本)。消除 L5 委托 L4 后 engine.submit + _process_signal 双计同一 fill 的风险。fee 由 L4 单次扣除(PaperGateway send_order 不再借记 cash)。paper/live parity: 两者均经 engine.submit 单一 L4 fill 更新点。backtest 独立向量化 book 不在 reconcile 范围(per arch parity spec)。
 
@@ -199,7 +199,7 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="翻仓,realized-pnl,归因,cash-解耦,closing-qty" date="2026-07-25" sid="S-20260725-nxzl" title="翻仓 realized PnL 归因与 cash 解耦(保守路径): PortfolioManager.update_position 在 cash mutation 后, 当 existing.quantity * quantity_delta &lt; 0(方向反转/部分平仓) 时, 用 closing_qty = min(|delta|, |existing.qty|), sign = sign(existing.quantity), realized = (price - entry) * closing_qty * sign 累计到 _realized_pnl。cash mutation 保留原 notional 语义(cash 总变动 = delta*price + fee), realized 仅作归因累计不重算 cash。0 数值回归(现有 cash 断言全保持), realized 可观测(snapshot 暴露 realized_pnl)。比重算 cash 方案更稳, 避免新 leg qty 代数推导风险。" description="翻仓 realized 归因: closing_qty*sign 累计, cash 保留原 notional 语义" source="main@06a8d93">
+<spec-entry category="arch" keywords="翻仓,realized-pnl,归因,cash-解耦,closing-qty" date="2026-07-25" sid="S-20260725-nxzl" title="翻仓 realized PnL 归因与 cash 解耦(保守路径): PortfolioManager.update_position 在 cash mutation 后, 当 existing.quantity * quantity_delta &lt; 0(方向反转/部分平仓) 时, 用 closing_qty = min(|delta|, |existing.qty|), sign = sign(existing.quantity), realized = (price - entry) * closing_qty * sign 累计到 _realized_pnl。cash mutation 保留原 notional 语义(cash 总变动 = delta*price + fee), realized 仅作归因累计不重算 cash。0 数值回归(现有 cash 断言全保持), realized 可观测(snapshot 暴露 realized_pnl)。比重算 cash 方案更稳, 避免新 leg qty 代数推导风险。" sourceRef="main@06a8d93" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="翻仓 realized 归因: closing_qty*sign 累计, cash 保留原 notional 语义">
 
 ### 翻仓 realized PnL 归因与 cash 解耦(保守路径): PortfolioManager.update_position 在 cash mutation 后, 当 existing.quantity * quantity_delta < 0(方向反转/部分平仓) 时, 用 closing_qty = min(|delta|, |existing.qty|), sign = sign(existing.quantity), realized = (price - entry) * closing_qty * sign 累计到 _realized_pnl。cash mutation 保留原 notional 语义(cash 总变动 = delta*price + fee), realized 仅作归因累计不重算 cash。0 数值回归(现有 cash 断言全保持), realized 可观测(snapshot 暴露 realized_pnl)。比重算 cash 方案更稳, 避免新 leg qty 代数推导风险。
 
@@ -207,7 +207,7 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="partial-fill,cumulative,applied-filled-qty,增量,delta,双计" date="2026-07-25" sid="S-20260725-ue4p" title="partial-fill cumulative-fill 契约: ccxt/OKX 的 order['filled'] 是累计总量(非每次回调 delta)。Order.applied_filled_qty 跟踪已应用到 L4 的累计量, ExecutionEngine.submit 派生增量 delta = filled_quantity - applied_filled_qty, 仅当 delta &gt; POSITION_EPSILON 时调 L4 update_position(qty_signed=delta*side, fee=order.fee), 然后 applied_filled_qty = filled_quantity。POSITION_EPSILON guard 防 delta=0 重复回调误调 L4。OKXGateway.send_order 从 ccxt result 提取 filled/average/fee.cost 累计值盖印到 order。OKX REST create_order 仅返回 market order final state; limit 部分成交的 live 自动感知需未来 ws(watch_orders)集成。" description="cumulative-fill 契约: applied_filled_qty 防 partial 重复 fill 双计" source="main@06a8d93">
+<spec-entry category="arch" keywords="partial-fill,cumulative,applied-filled-qty,增量,delta,双计" date="2026-07-25" sid="S-20260725-ue4p" title="partial-fill cumulative-fill 契约: ccxt/OKX 的 order['filled'] 是累计总量(非每次回调 delta)。Order.applied_filled_qty 跟踪已应用到 L4 的累计量, ExecutionEngine.submit 派生增量 delta = filled_quantity - applied_filled_qty, 仅当 delta &gt; POSITION_EPSILON 时调 L4 update_position(qty_signed=delta*side, fee=order.fee), 然后 applied_filled_qty = filled_quantity。POSITION_EPSILON guard 防 delta=0 重复回调误调 L4。OKXGateway.send_order 从 ccxt result 提取 filled/average/fee.cost 累计值盖印到 order。OKX REST create_order 仅返回 market order final state; limit 部分成交的 live 自动感知需未来 ws(watch_orders)集成。" sourceRef="main@06a8d93" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="cumulative-fill 契约: applied_filled_qty 防 partial 重复 fill 双计">
 
 ### partial-fill cumulative-fill 契约: ccxt/OKX 的 order['filled'] 是累计总量(非每次回调 delta)。Order.applied_filled_qty 跟踪已应用到 L4 的累计量, ExecutionEngine.submit 派生增量 delta = filled_quantity - applied_filled_qty, 仅当 delta > POSITION_EPSILON 时调 L4 update_position(qty_signed=delta*side, fee=order.fee), 然后 applied_filled_qty = filled_quantity。POSITION_EPSILON guard 防 delta=0 重复回调误调 L4。OKXGateway.send_order 从 ccxt result 提取 filled/average/fee.cost 累计值盖印到 order。OKX REST create_order 仅返回 market order final state; limit 部分成交的 live 自动感知需未来 ws(watch_orders)集成。
 
@@ -215,7 +215,7 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="构造顺序,懒绑定,set-portfolio,循环依赖,l4-l5" date="2026-07-25" sid="S-20260725-0du3" title="构造顺序循环懒绑定: ExecutionEngine 在 PortfolioManager 之前构造(TradingSession line 130 前注入 gateway), 产生 L4 引用循环。解法: ExecutionEngine.__init__ 接受 portfolio=None, PositionManager 默认自建私有 PortfolioManager(standalone/test 可用); set_portfolio(portfolio) 在 PortfolioManager 构造后注入共享 L4, 内部调 position_mgr.bind_portfolio(portfolio) 重绑委托目标。Idempotent。PositionManager 默认自建 L4 保证 submit() 在 standalone/test 不崩。" description="构造顺序循环: set_portfolio 懒绑定重绑共享 L4" source="main@06a8d93">
+<spec-entry category="arch" keywords="构造顺序,懒绑定,set-portfolio,循环依赖,l4-l5" date="2026-07-25" sid="S-20260725-0du3" title="构造顺序循环懒绑定: ExecutionEngine 在 PortfolioManager 之前构造(TradingSession line 130 前注入 gateway), 产生 L4 引用循环。解法: ExecutionEngine.__init__ 接受 portfolio=None, PositionManager 默认自建私有 PortfolioManager(standalone/test 可用); set_portfolio(portfolio) 在 PortfolioManager 构造后注入共享 L4, 内部调 position_mgr.bind_portfolio(portfolio) 重绑委托目标。Idempotent。PositionManager 默认自建 L4 保证 submit() 在 standalone/test 不崩。" sourceRef="main@06a8d93" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="构造顺序循环: set_portfolio 懒绑定重绑共享 L4">
 
 ### 构造顺序循环懒绑定: ExecutionEngine 在 PortfolioManager 之前构造(TradingSession line 130 前注入 gateway), 产生 L4 引用循环。解法: ExecutionEngine.__init__ 接受 portfolio=None, PositionManager 默认自建私有 PortfolioManager(standalone/test 可用); set_portfolio(portfolio) 在 PortfolioManager 构造后注入共享 L4, 内部调 position_mgr.bind_portfolio(portfolio) 重绑委托目标。Idempotent。PositionManager 默认自建 L4 保证 submit() 在 standalone/test 不崩。
 
@@ -225,7 +225,7 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="daily-loss,total-value,baseline,日切锚定,warmup-guard" date="2026-07-25" sid="S-20260725-58tc" title="daily_loss 门 total-vs-baseline 语义: RiskEngine._check_daily_loss 改用 pnl_pct = (portfolio.total_value - portfolio.daily_baseline) / daily_baseline, baseline&lt;=0 时 warmup guard 返回 passed=True(首日无 baseline 不阻断)。daily_baseline 由 TradingSession.on_bar 日切锚定: current_day = bar.timestamp // 86_400_000(UTC 日历日索引), 新日时 portfolio.set_daily_baseline(curr_equity)。daily_baseline 经 Portfolio dataclass 快照传递(非 RiskEngine 持 L4 引用绕过快照), 保持 check 纯函数语义。原 sum(unrealized_pnl)/total 语义被替代(不含 realized + 对浮亏过度敏感)。" description="daily_loss 改 total-vs-baseline + 日切锚定 + warmup guard" source="main@06a8d93">
+<spec-entry category="arch" keywords="daily-loss,total-value,baseline,日切锚定,warmup-guard" date="2026-07-25" sid="S-20260725-58tc" title="daily_loss 门 total-vs-baseline 语义: RiskEngine._check_daily_loss 改用 pnl_pct = (portfolio.total_value - portfolio.daily_baseline) / daily_baseline, baseline&lt;=0 时 warmup guard 返回 passed=True(首日无 baseline 不阻断)。daily_baseline 由 TradingSession.on_bar 日切锚定: current_day = bar.timestamp // 86_400_000(UTC 日历日索引), 新日时 portfolio.set_daily_baseline(curr_equity)。daily_baseline 经 Portfolio dataclass 快照传递(非 RiskEngine 持 L4 引用绕过快照), 保持 check 纯函数语义。原 sum(unrealized_pnl)/total 语义被替代(不含 realized + 对浮亏过度敏感)。" sourceRef="main@06a8d93" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="daily_loss 改 total-vs-baseline + 日切锚定 + warmup guard">
 
 ### daily_loss 门 total-vs-baseline 语义: RiskEngine._check_daily_loss 改用 pnl_pct = (portfolio.total_value - portfolio.daily_baseline) / daily_baseline, baseline<=0 时 warmup guard 返回 passed=True(首日无 baseline 不阻断)。daily_baseline 由 TradingSession.on_bar 日切锚定: current_day = bar.timestamp // 86_400_000(UTC 日历日索引), 新日时 portfolio.set_daily_baseline(curr_equity)。daily_baseline 经 Portfolio dataclass 快照传递(非 RiskEngine 持 L4 引用绕过快照), 保持 check 纯函数语义。原 sum(unrealized_pnl)/total 语义被替代(不含 realized + 对浮亏过度敏感)。
 
@@ -233,7 +233,7 @@ TradingSession 统一 backtest/paper/live 的目标可参照两个成熟范式:(
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="execution-engine,srp,god-object,order-router,route,build-order,close-position,arch-017" date="2026-07-27" sid="S-20260727-or3r" title="ExecutionEngine god-object 退役: OrderRouter 抽取 gateway dispatch + Order 构造, engine 保留 submit 编排 + gateway 生命周期 (ISS-20260723-003)" description="ExecutionEngine 原 7 职责 god-object; ISS-003 抽 OrderRouter 拿 routing + Order shaping + close_request, engine 降级为编排 facade" source="main@c51d571">
+<spec-entry category="arch" keywords="execution-engine,srp,god-object,order-router,route,build-order,close-position,arch-017" date="2026-07-27" sid="S-20260727-or3r" title="ExecutionEngine god-object 退役: OrderRouter 抽取 gateway dispatch + Order 构造, engine 保留 submit 编排 + gateway 生命周期 (ISS-20260723-003)" sourceRef="main@c51d571" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="ExecutionEngine 原 7 职责 god-object; ISS-003 抽 OrderRouter 拿 routing + Order shaping + close_request, engine 降级为编排 facade">
 
 ### ExecutionEngine god-object 退役 — OrderRouter 抽取 (ISS-20260723-003, commit c51d571)
 
@@ -250,7 +250,7 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="四象限,timeout,Fail-Closed,CRITICAL,pending,sweeper,cancel,sync" date="2026-07-31" sid="S-20260731-b9m3" title="Timeout 四象限 Fail-Closed 矩阵：cancel×sync 双失败必须 HOLD pending + CRITICAL 告警" description="数据循环 timeout 处理的四象限决策矩阵，双失败时不 release + sweeper 兆底" source="phase-6-codereview">
+<spec-entry category="arch" keywords="四象限,timeout,Fail-Closed,CRITICAL,pending,sweeper,cancel,sync" date="2026-07-31" sid="S-20260731-b9m3" title="Timeout 四象限 Fail-Closed 矩阵：cancel×sync 双失败必须 HOLD pending + CRITICAL 告警" sourceRef="phase-6-codereview" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="数据循环 timeout 处理的四象限决策矩阵，双失败时不 release + sweeper 兆底">
 
 ### Timeout 四象限 Fail-Closed 矩阵
 
@@ -272,7 +272,7 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 落地：`quantflow/strategy/engine.py` `run_data_loop` ~lines 766-788。测试：`tests/unit/test_m4_timeout_quadrant.py` 9 测试覆盖全四象限 + legacy + 异常 + 交互（D-hold 后下周期 sync 成功 → release）。
 </spec-entry>
 
-<spec-entry category="arch" keywords="getattr,private,cross-layer,encapsulation,public-accessor,shadow-book,single-source" date="2026-08-01" sid="S-20260801-c5d3" title="禁止跨层 getattr 私有属性 + 同域对象单一权威源" description="高层禁止 getattr(low_layer, \"_private\") 绕接口抓私有属性；同域对象禁止 N 类各自维护独立可变账本" source="harvest:20260723-trade-main-path">
+<spec-entry category="arch" keywords="getattr,private,cross-layer,encapsulation,public-accessor,shadow-book,single-source" date="2026-08-01" sid="S-20260801-c5d3" title="禁止跨层 getattr 私有属性 + 同域对象单一权威源" sourceRef="harvest:20260723-trade-main-path" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="高层禁止 getattr(low_layer, \">
 
 ### 禁止跨层 getattr 私有属性
 
@@ -287,7 +287,7 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 落地：trade-main-path odyssey 根因 D（三本账零对账）+ 根因 generalize 扫描（session_manager getattr `_event_bus` / `last_error`）。
 </spec-entry>
 
-<spec-entry category="arch" keywords="redis,fallback,degraded-mode,in-memory,graceful-degradation,state-store,dq-monitor" date="2026-08-02" sid="S-20260802-redis-fallback" title="Redis 依赖必须有 in-memory fallback 降级路径" description="任何依赖 Redis 的运行时组件必须实现透明降级到进程内存储，确保 Redis 不可用时核心功能不中断" source="harvest:ralph-v2-20260802-220000">
+<spec-entry category="arch" keywords="redis,fallback,degraded-mode,in-memory,graceful-degradation,state-store,dq-monitor" date="2026-08-02" sid="S-20260802-redis-fallback" title="Redis 依赖必须有 in-memory fallback 降级路径" sourceRef="harvest:ralph-v2-20260802-220000" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="任何依赖 Redis 的运行时组件必须实现透明降级到进程内存储，确保 Redis 不可用时核心功能不中断">
 
 ### Redis 依赖必须有 in-memory fallback 降级路径
 
@@ -307,7 +307,7 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 落地：`quantflow/data/dq_monitor.py` InMemoryStateStore + _state_get/_state_set。测试：`tests/unit/test_dq_monitor_fallback.py` 14 测试。
 </spec-entry>
 
-<spec-entry category="arch" keywords="alert,deduplication,sliding-window,routing-matrix,alert-fatigue,notification" date="2026-08-02" sid="S-20260802-alert-dedup" title="告警路由矩阵 + 滑动窗口去重必须成对使用" description="AlertManager.send_routed() 必须同时应用 ALERT_ROUTING 路由和 AlertDeduplicator 去重，防止告警疲劳" source="harvest:ralph-v2-20260802-220000">
+<spec-entry category="arch" keywords="alert,deduplication,sliding-window,routing-matrix,alert-fatigue,notification" date="2026-08-02" sid="S-20260802-alert-dedup" title="告警路由矩阵 + 滑动窗口去重必须成对使用" sourceRef="harvest:ralph-v2-20260802-220000" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="AlertManager.send_routed() 必须同时应用 ALERT_ROUTING 路由和 AlertDeduplicator 去重，防止告警疲劳">
 
 ### 告警路由矩阵 + 滑动窗口去重必须成对使用
 
@@ -330,7 +330,7 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 落地：`quantflow/monitoring/alerts.py` ALERT_ROUTING + AlertDeduplicator + send_routed()。测试：`tests/unit/test_alert_routing.py` 18 测试。
 </spec-entry>
 
-<spec-entry category="arch" keywords="positioning,mid-low-frequency,no-rust-rewrite,execution-performance,scenario-selection" date="2026-08-03" sid="S-BM2603-RD0" title="QuantFlow 接受中低频定位，不追赶 Rust/C++ 执行核心" description="演进路线图 RD-0 决策：执行性能代差为数量级且追赶收益限于订单簿高频/做市场景，接受中低频定位不重写，资源投向多源数据与 AI 管道" source="harvest:maestro-benchmark-evolve-20260803-20260803-045922">
+<spec-entry category="arch" keywords="positioning,mid-low-frequency,no-rust-rewrite,execution-performance,scenario-selection" date="2026-08-03" sid="S-BM2603-RD0" title="QuantFlow 接受中低频定位，不追赶 Rust/C++ 执行核心" sourceRef="harvest:maestro-benchmark-evolve-20260803-20260803-045922" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="演进路线图 RD-0 决策：执行性能代差为数量级且追赶收益限于订单簿高频/做市场景，接受中低频定位不重写，资源投向多源数据与 AI 管道">
 
 ### QuantFlow 接受中低频定位，不追赶 Rust/C++ 执行核心
 
@@ -353,7 +353,7 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 来源：session maestro-benchmark-evolve-20260803-20260803-045922 run 20260803-002-roadmap（roadmap.json positioning_decision / report RD-0）。
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-665be00842577168" title="审查方式：三维审查代理（正确性 Ryan/回归影响 Daniel）仅返回 diff 转储无结论文本，完整性维度连续 3 次派发失败（Mark 空输出、Kim/Ray 上下文取消、Tina 仅转储报告）→ 改由 supervisor 以清单核" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-665be00842577168">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-665be00842577168" title="审查方式：三维审查代理（正确性 Ryan/回归影响 Daniel）仅返回 diff 转储无结论文本，完整性维度连续 3 次派发失败（Mark 空输出、Kim/Ray 上下文取消、Tina 仅转储报告）→ 改由 supervisor 以清单核" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-665be00842577168" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003">
 
 ### 审查方式：三维审查代理（正确性 Ryan/回归影响 Daniel）仅返回 diff 转储无结论文本，完整性维度连续 3 次派发失败（Mark 空输出、Kim/Ray 上下文取消、Tina 仅转储报告）→ 改由 supervisor 以清单核
 
@@ -361,7 +361,7 @@ ExecutionEngine 保留: gateway 生命周期 (start/stop/connect/disconnect) + s
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-0057e42d4d93880e" title="T-s2-04 meta feed 以截止时间制调度（next_funding_at/next_oi_at），采集异常仅日志不中断；EVENT_FUNDING/EVENT_OI 定义在 strategy/engine.py 本地（不改 co" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-0057e42d4d93880e">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-0057e42d4d93880e" title="T-s2-04 meta feed 以截止时间制调度（next_funding_at/next_oi_at），采集异常仅日志不中断；EVENT_FUNDING/EVENT_OI 定义在 strategy/engine.py 本地（不改 co" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-0057e42d4d93880e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002">
 
 ### T-s2-04 meta feed 以截止时间制调度（next_funding_at/next_oi_at），采集异常仅日志不中断；EVENT_FUNDING/EVENT_OI 定义在 strategy/engine.py 本地（不改 co
 
@@ -369,7 +369,7 @@ T-s2-04 meta feed 以截止时间制调度（next_funding_at/next_oi_at），采
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-0d1c433b69fe755e" title="X3（ExchangeHealthMonitor 生产组装缺失）维持 execute 报告定级 medium 不阻塞本次 PASS：当前行为=默认关闭零变化，回退路径完整；作为 wave1 收尾遗留项登记，由后续集成任务补齐并做 kill " description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-0d1c433b69fe755e">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-0d1c433b69fe755e" title="X3（ExchangeHealthMonitor 生产组装缺失）维持 execute 报告定级 medium 不阻塞本次 PASS：当前行为=默认关闭零变化，回退路径完整；作为 wave1 收尾遗留项登记，由后续集成任务补齐并做 kill " sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-0d1c433b69fe755e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003">
 
 ### X3（ExchangeHealthMonitor 生产组装缺失）维持 execute 报告定级 medium 不阻塞本次 PASS：当前行为=默认关闭零变化，回退路径完整；作为 wave1 收尾遗留项登记，由后续集成任务补齐并做 kill 
 
@@ -377,7 +377,7 @@ X3（ExchangeHealthMonitor 生产组装缺失）维持 execute 报告定级 medi
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-203718bb460c54f3" title="fail-closed 语义抽查通过：熔断开启全拒（含 FLAT）、恢复未验证拒新单放行 FLAT、funding/OI 过期只拦 entry 放行 exit、corrupt checkpoint 拒恢复" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-203718bb460c54f3">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-203718bb460c54f3" title="fail-closed 语义抽查通过：熔断开启全拒（含 FLAT）、恢复未验证拒新单放行 FLAT、funding/OI 过期只拦 entry 放行 exit、corrupt checkpoint 拒恢复" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-203718bb460c54f3" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003">
 
 ### fail-closed 语义抽查通过：熔断开启全拒（含 FLAT）、恢复未验证拒新单放行 FLAT、funding/OI 过期只拦 entry 放行 exit、corrupt checkpoint 拒恢复
 
@@ -385,7 +385,7 @@ fail-closed 语义抽查通过：熔断开启全拒（含 FLAT）、恢复未验
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-4e7d96a73533ce47" title="六层架构单向依赖无违规：exchange_health 在 L5 只依赖 common/（MonitoringSink Protocol/EventBus）；RiskEngine 以 duck-type 注入接收 monitor；dq_mo" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-4e7d96a73533ce47">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-4e7d96a73533ce47" title="六层架构单向依赖无违规：exchange_health 在 L5 只依赖 common/（MonitoringSink Protocol/EventBus）；RiskEngine 以 duck-type 注入接收 monitor；dq_mo" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-4e7d96a73533ce47" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003">
 
 ### 六层架构单向依赖无违规：exchange_health 在 L5 只依赖 common/（MonitoringSink Protocol/EventBus）；RiskEngine 以 duck-type 注入接收 monitor；dq_mo
 
@@ -393,7 +393,7 @@ fail-closed 语义抽查通过：熔断开启全拒（含 FLAT）、恢复未验
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-7f2d4046179eb872" title="T-s1-04 熔断拦截点放 RiskEngine.check 的 _checks 元组最前（信号单一入口），kill switch 联动复用 EVENT_RISK severity=emergency 既有路径（monitor 触发时 p" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-7f2d4046179eb872">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-7f2d4046179eb872" title="T-s1-04 熔断拦截点放 RiskEngine.check 的 _checks 元组最前（信号单一入口），kill switch 联动复用 EVENT_RISK severity=emergency 既有路径（monitor 触发时 p" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-7f2d4046179eb872" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002">
 
 ### T-s1-04 熔断拦截点放 RiskEngine.check 的 _checks 元组最前（信号单一入口），kill switch 联动复用 EVENT_RISK severity=emergency 既有路径（monitor 触发时 p
 
@@ -401,7 +401,7 @@ T-s1-04 熔断拦截点放 RiskEngine.check 的 _checks 元组最前（信号单
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-8198c2cd469921f2" title="byte-for-byte backtest baseline：generate_signals 语义零变化（base.py 仅 docstring）；parity 测试 paper_entries ⊆ backtest_entries 超" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-8198c2cd469921f2">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-8198c2cd469921f2" title="byte-for-byte backtest baseline：generate_signals 语义零变化（base.py 仅 docstring）；parity 测试 paper_entries ⊆ backtest_entries 超" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-8198c2cd469921f2" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003">
 
 ### byte-for-byte backtest baseline：generate_signals 语义零变化（base.py 仅 docstring）；parity 测试 paper_entries ⊆ backtest_entries 超
 
@@ -409,7 +409,7 @@ byte-for-byte backtest baseline：generate_signals 语义零变化（base.py 仅
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-97caee9923769e31" title="T-s2-04 新鲜度 gate 双实现同源：TradingSession._meta_data_fresh 与 dq_monitor validator 共用 market_meta_fetcher 常量（FUNDING_MAX_AGE_" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-97caee9923769e31">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-97caee9923769e31" title="T-s2-04 新鲜度 gate 双实现同源：TradingSession._meta_data_fresh 与 dq_monitor validator 共用 market_meta_fetcher 常量（FUNDING_MAX_AGE_" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-97caee9923769e31" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002">
 
 ### T-s2-04 新鲜度 gate 双实现同源：TradingSession._meta_data_fresh 与 dq_monitor validator 共用 market_meta_fetcher 常量（FUNDING_MAX_AGE_
 
@@ -417,7 +417,7 @@ T-s2-04 新鲜度 gate 双实现同源：TradingSession._meta_data_fresh 与 dq_
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-b0f01838ff52ee67" title="funding 历史回填按 OKX 已核验 3 个月窗口截断（roadmap 180 天字面要求不可达），OI 180 天经 period=1H 分页可达" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-b0f01838ff52ee67">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-b0f01838ff52ee67" title="funding 历史回填按 OKX 已核验 3 个月窗口截断（roadmap 180 天字面要求不可达），OI 180 天经 period=1H 分页可达" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-b0f01838ff52ee67" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003">
 
 ### funding 历史回填按 OKX 已核验 3 个月窗口截断（roadmap 180 天字面要求不可达），OI 180 天经 period=1H 分页可达
 
@@ -425,7 +425,7 @@ funding 历史回填按 OKX 已核验 3 个月窗口截断（roadmap 180 天字�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-d3702539fcfc1f69" title="T-s1-05 regime gate 分歧按核验降级为可测试断言 paper_entries ⊆ backtest_entries（不把 regime 过滤引入 generate_signals，保护 backtest 基线）；paper" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-d3702539fcfc1f69">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-d3702539fcfc1f69" title="T-s1-05 regime gate 分歧按核验降级为可测试断言 paper_entries ⊆ backtest_entries（不把 regime 过滤引入 generate_signals，保护 backtest 基线）；paper" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-d3702539fcfc1f69" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002">
 
 ### T-s1-05 regime gate 分歧按核验降级为可测试断言 paper_entries ⊆ backtest_entries（不把 regime 过滤引入 generate_signals，保护 backtest 基线）；paper
 
@@ -433,7 +433,7 @@ T-s1-05 regime gate 分歧按核验降级为可测试断言 paper_entries ⊆ ba
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-d9b47940cad9e286" title="所有新行为默认关闭（exchange_health.enabled=false / state.enabled=false / reconciliation.enabled=false / funding_feed_enabled=fals" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-d9b47940cad9e286">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-d9b47940cad9e286" title="所有新行为默认关闭（exchange_health.enabled=false / state.enabled=false / reconciliation.enabled=false / funding_feed_enabled=fals" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-d9b47940cad9e286" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003">
 
 ### 所有新行为默认关闭（exchange_health.enabled=false / state.enabled=false / reconciliation.enabled=false / funding_feed_enabled=fals
 
@@ -441,7 +441,7 @@ T-s1-05 regime gate 分歧按核验降级为可测试断言 paper_entries ⊆ ba
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-e7acc7e6a03b34ea" title="s2 采集器自限频：funding 轮询 ≥60s、OI ≥30s、RateLimiter 单端点 ≥200ms、50011/网络错误指数退避 3 次；OI 只走 REST" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-e7acc7e6a03b34ea">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-e7acc7e6a03b34ea" title="s2 采集器自限频：funding 轮询 ≥60s、OI ≥30s、RateLimiter 单端点 ≥200ms、50011/网络错误指数退避 3 次；OI 只走 REST" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-e7acc7e6a03b34ea" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002">
 
 ### s2 采集器自限频：funding 轮询 ≥60s、OI ≥30s、RateLimiter 单端点 ≥200ms、50011/网络错误指数退避 3 次；OI 只走 REST
 
@@ -449,7 +449,7 @@ s2 采集器自限频：funding 轮询 ≥60s、OI ≥30s、RateLimiter 单端�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-134ac997f0b29090" title="核验步骤只读，不改项目源码；本轮不实施 s2" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-134ac997f0b29090">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-134ac997f0b29090" title="核验步骤只读，不改项目源码；本轮不实施 s2" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-134ac997f0b29090" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### 核验步骤只读，不改项目源码；本轮不实施 s2
 
@@ -457,7 +457,7 @@ s2 采集器自限频：funding 轮询 ≥60s、OI ≥30s、RateLimiter 单端�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-23823e0b270277af" title="公共 REST 限频按 IP + Instrument ID 计，超限返回 50011（HTTP 200/429）" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-23823e0b270277af">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-23823e0b270277af" title="公共 REST 限频按 IP + Instrument ID 计，超限返回 50011（HTTP 200/429）" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-23823e0b270277af" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### 公共 REST 限频按 IP + Instrument ID 计，超限返回 50011（HTTP 200/429）
 
@@ -465,7 +465,7 @@ s2 采集器自限频：funding 轮询 ≥60s、OI ≥30s、RateLimiter 单端�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-346ec75d383fcf49" title="任务粒度：9 任务（s1×5 + s2×4），3 wave（4+2+3），每 wave 内写文件零交集；critical path = T-s2-01→T-s2-03→T-s2-04" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-346ec75d383fcf49">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-346ec75d383fcf49" title="任务粒度：9 任务（s1×5 + s2×4），3 wave（4+2+3），每 wave 内写文件零交集；critical path = T-s2-01→T-s2-03→T-s2-04" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-346ec75d383fcf49" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003">
 
 ### 任务粒度：9 任务（s1×5 + s2×4），3 wave（4+2+3），每 wave 内写文件零交集；critical path = T-s2-01→T-s2-03→T-s2-04
 
@@ -473,7 +473,7 @@ s2 采集器自限频：funding 轮询 ≥60s、OI ≥30s、RateLimiter 单端�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-547c27618bfb4e29" title="default.yaml 按 wave 分配写权（w1=T-s1-01, w2=T-s1-03, w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 置于 funding_rate.yaml 规避 w3 冲" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-547c27618bfb4e29">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-547c27618bfb4e29" title="default.yaml 按 wave 分配写权（w1=T-s1-01, w2=T-s1-03, w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 置于 funding_rate.yaml 规避 w3 冲" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-547c27618bfb4e29" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003">
 
 ### default.yaml 按 wave 分配写权（w1=T-s1-01, w2=T-s1-03, w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 置于 funding_rate.yaml 规避 w3 冲
 
@@ -481,7 +481,7 @@ default.yaml 按 wave 分配写权（w1=T-s1-01, w2=T-s1-03, w3=T-s1-04）；T-s
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-5de35c18bea3a7f2" title="T-s1-04 敞口 gate 仅拦 Direction.LONG 新开仓，FLAT/退出放行以便降敞（fail-closed 不能变 fail-stuck）；exposure = Σ|qty|×price + pending 正值和" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-5de35c18bea3a7f2">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-5de35c18bea3a7f2" title="T-s1-04 敞口 gate 仅拦 Direction.LONG 新开仓，FLAT/退出放行以便降敞（fail-closed 不能变 fail-stuck）；exposure = Σ|qty|×price + pending 正值和" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-5de35c18bea3a7f2" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002">
 
 ### T-s1-04 敞口 gate 仅拦 Direction.LONG 新开仓，FLAT/退出放行以便降敞（fail-closed 不能变 fail-stuck）；exposure = Σ|qty|×price + pending 正值和
 
@@ -489,7 +489,7 @@ T-s1-04 敞口 gate 仅拦 Direction.LONG 新开仓，FLAT/退出放行以便降
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-807c564e121dad83" title="T-s1-02 write 清单含 tests/unit/test_order_manager.py 但提交未改该文件（ws 接线测试落在 test_execution_engine.py）— 轻微偏差，验收口径不受影响（8 态路径已由执行" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-807c564e121dad83">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-807c564e121dad83" title="T-s1-02 write 清单含 tests/unit/test_order_manager.py 但提交未改该文件（ws 接线测试落在 test_execution_engine.py）— 轻微偏差，验收口径不受影响（8 态路径已由执行" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-807c564e121dad83" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003">
 
 ### T-s1-02 write 清单含 tests/unit/test_order_manager.py 但提交未改该文件（ws 接线测试落在 test_execution_engine.py）— 轻微偏差，验收口径不受影响（8 态路径已由执行
 
@@ -497,7 +497,7 @@ T-s1-02 write 清单含 tests/unit/test_order_manager.py 但提交未改该文�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-a19f4a62f2a03b9d" title="资金费率结算周期通常 8h，但 OKX 可对个别币种调整为 6/4/2/1h，必须以 fundingTime/nextFundingTime 差值为准" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-a19f4a62f2a03b9d">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-a19f4a62f2a03b9d" title="资金费率结算周期通常 8h，但 OKX 可对个别币种调整为 6/4/2/1h，必须以 fundingTime/nextFundingTime 差值为准" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-a19f4a62f2a03b9d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### 资金费率结算周期通常 8h，但 OKX 可对个别币种调整为 6/4/2/1h，必须以 fundingTime/nextFundingTime 差值为准
 
@@ -505,7 +505,7 @@ T-s1-02 write 清单含 tests/unit/test_order_manager.py 但提交未改该文�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-a7ecff81ad00735f" title="不越界 s3/s4，不改 frontend；API Key 只走环境变量" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-a7ecff81ad00735f">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-a7ecff81ad00735f" title="不越界 s3/s4，不改 frontend；API Key 只走环境变量" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-a7ecff81ad00735f" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003">
 
 ### 不越界 s3/s4，不改 frontend；API Key 只走环境变量
 
@@ -513,7 +513,7 @@ T-s1-02 write 清单含 tests/unit/test_order_manager.py 但提交未改该文�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-c32d2aa259bb210d" title="采集能力落新模块 quantflow/data/market_meta_fetcher.py（共享 ccxt 实例注入接口），fetcher.py 全 wave 只读，避免 OHLCV 主路径互扰" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-c32d2aa259bb210d">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-c32d2aa259bb210d" title="采集能力落新模块 quantflow/data/market_meta_fetcher.py（共享 ccxt 实例注入接口），fetcher.py 全 wave 只读，避免 OHLCV 主路径互扰" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-c32d2aa259bb210d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003">
 
 ### 采集能力落新模块 quantflow/data/market_meta_fetcher.py（共享 ccxt 实例注入接口），fetcher.py 全 wave 只读，避免 OHLCV 主路径互扰
 
@@ -521,7 +521,7 @@ T-s1-02 write 清单含 tests/unit/test_order_manager.py 但提交未改该文�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-278bb5b69ff9e27d" title="六层架构单向依赖：reconciliation/risk_engine 对 L4/L5 一律 duck-type/Protocol 注入，不新增跨层 import" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-278bb5b69ff9e27d">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-278bb5b69ff9e27d" title="六层架构单向依赖：reconciliation/risk_engine 对 L4/L5 一律 duck-type/Protocol 注入，不新增跨层 import" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-278bb5b69ff9e27d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003">
 
 ### 六层架构单向依赖：reconciliation/risk_engine 对 L4/L5 一律 duck-type/Protocol 注入，不新增跨层 import
 
@@ -529,7 +529,7 @@ T-s1-02 write 清单含 tests/unit/test_order_manager.py 但提交未改该文�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-3c582f3d4af02b8d" title="byte-for-byte backtest baseline：generate_signals 语义零变化（T-s1-05 parity 回归 + 既有基线全绿证明）；strategy/engine.py 按 w2→w3 串行写" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-3c582f3d4af02b8d">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-3c582f3d4af02b8d" title="byte-for-byte backtest baseline：generate_signals 语义零变化（T-s1-05 parity 回归 + 既有基线全绿证明）；strategy/engine.py 按 w2→w3 串行写" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-3c582f3d4af02b8d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002">
 
 ### byte-for-byte backtest baseline：generate_signals 语义零变化（T-s1-05 parity 回归 + 既有基线全绿证明）；strategy/engine.py 按 w2→w3 串行写
 
@@ -537,7 +537,7 @@ byte-for-byte backtest baseline：generate_signals 语义零变化（T-s1-05 par
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-4318900fbe468be3" title="byte-for-byte backtest baseline：generate_signals 默认语义不变；strategy/engine.py 双写者 wave 串行（w2→w3）" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-4318900fbe468be3">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-4318900fbe468be3" title="byte-for-byte backtest baseline：generate_signals 默认语义不变；strategy/engine.py 双写者 wave 串行（w2→w3）" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-4318900fbe468be3" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003">
 
 ### byte-for-byte backtest baseline：generate_signals 默认语义不变；strategy/engine.py 双写者 wave 串行（w2→w3）
 
@@ -545,7 +545,7 @@ byte-for-byte backtest baseline：generate_signals 默认语义不变；strategy
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-44d14b841c80fa2f" title="YAML 配置驱动且所有新行为默认关闭（state.enabled/reconciliation.enabled/funding_feed_enabled/exchange_health.enabled 均默认 false），回退=改配置" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-44d14b841c80fa2f">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-44d14b841c80fa2f" title="YAML 配置驱动且所有新行为默认关闭（state.enabled/reconciliation.enabled/funding_feed_enabled/exchange_health.enabled 均默认 false），回退=改配置" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-44d14b841c80fa2f" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003">
 
 ### YAML 配置驱动且所有新行为默认关闭（state.enabled/reconciliation.enabled/funding_feed_enabled/exchange_health.enabled 均默认 false），回退=改配置
 
@@ -553,7 +553,7 @@ YAML 配置驱动且所有新行为默认关闭（state.enabled/reconciliation.e
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-6200a89a62431482" title="s2 采集器自限频（≥200ms 单端点间隔 + IP 级串行），不依赖 ccxt 内置节流；OI 只走 REST 轮询（无 watchOpenInterest）" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-6200a89a62431482">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-6200a89a62431482" title="s2 采集器自限频（≥200ms 单端点间隔 + IP 级串行），不依赖 ccxt 内置节流；OI 只走 REST 轮询（无 watchOpenInterest）" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-6200a89a62431482" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003">
 
 ### s2 采集器自限频（≥200ms 单端点间隔 + IP 级串行），不依赖 ccxt 内置节流；OI 只走 REST 轮询（无 watchOpenInterest）
 
@@ -561,7 +561,7 @@ s2 采集器自限频（≥200ms 单端点间隔 + IP 级串行），不依赖 c
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-73ea6ff39c99071a" title="default.yaml 写权按 wave 分配（w1=T-s1-01、w2=T-s1-03、w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 落 funding_rate.yaml；fetcher.py" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-73ea6ff39c99071a">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-73ea6ff39c99071a" title="default.yaml 写权按 wave 分配（w1=T-s1-01、w2=T-s1-03、w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 落 funding_rate.yaml；fetcher.py" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-73ea6ff39c99071a" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002">
 
 ### default.yaml 写权按 wave 分配（w1=T-s1-01、w2=T-s1-03、w3=T-s1-04）；T-s2-04 的 funding_feed_enabled 落 funding_rate.yaml；fetcher.py
 
@@ -569,7 +569,7 @@ default.yaml 写权按 wave 分配（w1=T-s1-01、w2=T-s1-03、w3=T-s1-04）；T
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-85cb098b6fd32559" title="熔断拦截点选 RiskEngine.check（信号单一入口）而非 ExecutionEngine.submit；kill switch 联动复用 EVENT_RISK emergency 既有路径" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-85cb098b6fd32559">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-85cb098b6fd32559" title="熔断拦截点选 RiskEngine.check（信号单一入口）而非 ExecutionEngine.submit；kill switch 联动复用 EVENT_RISK emergency 既有路径" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-85cb098b6fd32559" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003">
 
 ### 熔断拦截点选 RiskEngine.check（信号单一入口）而非 ExecutionEngine.submit；kill switch 联动复用 EVENT_RISK emergency 既有路径
 
@@ -577,7 +577,7 @@ default.yaml 写权按 wave 分配（w1=T-s1-01、w2=T-s1-03、w3=T-s1-04）；T
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-8b9b705c3c8f0f9a" title="六层架构单向依赖：RiskEngine 对 exchange_health 用 object duck-type（只依赖 circuit_open() 形状），dq_monitor/strategy 对 L6 用 common/monito" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-8b9b705c3c8f0f9a">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-8b9b705c3c8f0f9a" title="六层架构单向依赖：RiskEngine 对 exchange_health 用 object duck-type（只依赖 circuit_open() 形状），dq_monitor/strategy 对 L6 用 common/monito" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-8b9b705c3c8f0f9a" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002">
 
 ### 六层架构单向依赖：RiskEngine 对 exchange_health 用 object duck-type（只依赖 circuit_open() 形状），dq_monitor/strategy 对 L6 用 common/monito
 
@@ -585,7 +585,7 @@ default.yaml 写权按 wave 分配（w1=T-s1-01、w2=T-s1-03、w3=T-s1-04）；T
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-95335dff0c90b74c" title="fail-closed：熔断开启全拒（含 FLAT）、恢复未验证拒新单、funding/OI 过期只拦新开仓不拦退出、feed 无数据视为过期" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-95335dff0c90b74c">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-95335dff0c90b74c" title="fail-closed：熔断开启全拒（含 FLAT）、恢复未验证拒新单、funding/OI 过期只拦新开仓不拦退出、feed 无数据视为过期" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-95335dff0c90b74c" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002">
 
 ### fail-closed：熔断开启全拒（含 FLAT）、恢复未验证拒新单、funding/OI 过期只拦新开仓不拦退出、feed 无数据视为过期
 
@@ -593,7 +593,7 @@ fail-closed：熔断开启全拒（含 FLAT）、恢复未验证拒新单、fund
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-a7ab06d97fac0da2" title="YAML 配置驱动且所有新行为默认关闭（exchange_health.enabled=false、funding_feed_enabled=false、exchange_exposure_limit_pct pydantic 默认 Non" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-a7ab06d97fac0da2">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-a7ab06d97fac0da2" title="YAML 配置驱动且所有新行为默认关闭（exchange_health.enabled=false、funding_feed_enabled=false、exchange_exposure_limit_pct pydantic 默认 Non" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-a7ab06d97fac0da2" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-003-execute, artifact:ART-003-001, artifact:ART-003-002">
 
 ### YAML 配置驱动且所有新行为默认关闭（exchange_health.enabled=false、funding_feed_enabled=false、exchange_exposure_limit_pct pydantic 默认 Non
 
@@ -601,7 +601,7 @@ YAML 配置驱动且所有新行为默认关闭（exchange_health.enabled=false�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-b0360407cccb1371" title="funding-rate-history 仅覆盖近 3 个月；OI history 数据最早到 2024 年初且单端点最多 1440 条" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-b0360407cccb1371">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-b0360407cccb1371" title="funding-rate-history 仅覆盖近 3 个月；OI history 数据最早到 2024 年初且单端点最多 1440 条" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-b0360407cccb1371" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### funding-rate-history 仅覆盖近 3 个月；OI history 数据最早到 2024 年初且单端点最多 1440 条
 
@@ -609,7 +609,7 @@ funding-rate-history 仅覆盖近 3 个月；OI history 数据最早到 2024 年
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-ed55f2ed3be32d6d" title="R1: 审查代理连续失效后改 supervisor 清单核对+代码抽查模式完成三维审查" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-ed55f2ed3be32d6d">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-03" sid="S-20260803-ed55f2ed3be32d6d" title="R1: 审查代理连续失效后改 supervisor 清单核对+代码抽查模式完成三维审查" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-ed55f2ed3be32d6d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-004-review, artifact:ART-004-001, artifact:ART-004-002, artifact:ART-004-003">
 
 ### R1: 审查代理连续失效后改 supervisor 清单核对+代码抽查模式完成三维审查
 
@@ -617,7 +617,7 @@ R1: 审查代理连续失效后改 supervisor 清单核对+代码抽查模式完
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-f7dd4c2353e6ee9b" title="fail-closed：对账失败保留 last-known、恢复未验证拒新单、数据过期暂停新开仓、熔断全拒+滞回恢复" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003" source="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-f7dd4c2353e6ee9b">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-03" sid="S-20260803-f7dd4c2353e6ee9b" title="fail-closed：对账失败保留 last-known、恢复未验证拒新单、数据过期暂停新开仓、熔断全拒+滞回恢复" sourceRef="session:maestro-wave1-precheck-20260803-20260803-075540:KDC-f7dd4c2353e6ee9b" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260803-002-plan, artifact:ART-002-001, artifact:ART-002-003">
 
 ### fail-closed：对账失败保留 last-known、恢复未验证拒新单、数据过期暂停新开仓、熔断全拒+滞回恢复
 
@@ -625,7 +625,7 @@ fail-closed：对账失败保留 last-known、恢复未验证拒新单、数据�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="ai,module,layer,import" date="2026-08-04" sid="S-20260804-w2s3-ai" title="AI 模块层间引用约束：L1-only 导入 + 零 L2/L3 引用" description="AI 模块严格遵循层间引用约束：feature_store.py 仅导入 common/ + data/（L1 内部），零 L2/L3 引用；meta_features.py 零 quantflow 导入（纯 pandas L2 计算器）；ai_training.py 唯一 quantflow 导入 = validation.gate（L3 同级，函数局部）。" source="harvest:maestro-wave2-s3-20260803-20260804-040400">
+<spec-entry category="arch" keywords="ai,module,layer,import" date="2026-08-04" sid="S-20260804-w2s3-ai" title="AI 模块层间引用约束：L1-only 导入 + 零 L2/L3 引用" sourceRef="harvest:maestro-wave2-s3-20260803-20260804-040400" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="AI 模块严格遵循层间引用约束：feature_store.py 仅导入 common/ + data/（L1 内部），零 L2/L3 引用；meta_features.py 零 quantflow 导入（纯 pandas L2 计算器）；ai_training.py 唯一 quantflow 导入 = validation.gate（L3 同级，函数局部）。">
 
 ### AI 模块层间引用约束：L1-only 导入 + 零 L2/L3 引用
 
@@ -637,7 +637,7 @@ AI 模块严格遵循层间引用约束：
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="ai,model,allowlist,security" date="2026-08-04" sid="S-20260804-w3s4-ai-allowlist" title="AIFactorStrategy 模型实例化白名单安全设计：仅允许 RF/LogReg/GBM" description="AIFactorStrategy 模型实例化使用白名单仅允许 RF/LogReg/GBM，禁止 eval 执行，未知类 → None + warning。P(up) gates momentum 阈值（>=entry threshold 做多 / <=exit threshold 退出）。" source="harvest:maestro-wave3-s4-20260804-20260804-054608">
+<spec-entry category="arch" keywords="ai,model,allowlist,security" date="2026-08-04" sid="S-20260804-w3s4-ai-allowlist" title="AIFactorStrategy 模型实例化白名单安全设计：仅允许 RF/LogReg/GBM" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">=entry threshold 做多 / <=exit threshold 退出）。" source="harvest:maestro-wave3-s4-20260804-20260804-054608">
 
 ### AIFactorStrategy 模型实例化白名单安全设计
 
@@ -648,7 +648,7 @@ AI 模块严格遵循层间引用约束：
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-135d47ea99bb1e07" title="新文件（market_meta_fetcher/exchange_health/state_store）仅报告不自动加入 code_locations" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-135d47ea99bb1e07">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-135d47ea99bb1e07" title="新文件（market_meta_fetcher/exchange_health/state_store）仅报告不自动加入 code_locations" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-135d47ea99bb1e07" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002">
 
 ### 新文件（market_meta_fetcher/exchange_health/state_store）仅报告不自动加入 code_locations
 
@@ -656,7 +656,7 @@ AI 模块严格遵循层间引用约束：
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-199fcb4c946d1f68" title="AST 全组件扫描（不只变更文件）以获得准确组件级符号 diff；仅收录公开符号（类/公开函数/全大写常量），_ 私有符号不入 symbols[]" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-199fcb4c946d1f68">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-199fcb4c946d1f68" title="AST 全组件扫描（不只变更文件）以获得准确组件级符号 diff；仅收录公开符号（类/公开函数/全大写常量），_ 私有符号不入 symbols[]" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-199fcb4c946d1f68" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002">
 
 ### AST 全组件扫描（不只变更文件）以获得准确组件级符号 diff；仅收录公开符号（类/公开函数/全大写常量），_ 私有符号不入 symbols[]
 
@@ -664,7 +664,7 @@ AST 全组件扫描（不只变更文件）以获得准确组件级符号 diff�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-2d44af414372d808" title="TC-004 注册 quantflow/signal/optimizer.py（已存在但未记录，TradingSession 依赖）" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-2d44af414372d808">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-2d44af414372d808" title="TC-004 注册 quantflow/signal/optimizer.py（已存在但未记录，TradingSession 依赖）" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-2d44af414372d808" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002">
 
 ### TC-004 注册 quantflow/signal/optimizer.py（已存在但未记录，TradingSession 依赖）
 
@@ -672,7 +672,7 @@ TC-004 注册 quantflow/signal/optimizer.py（已存在但未记录，TradingSes
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-4519939fd1d503f8" title="仅写入 .workflow/knowhow/（wiki update frontmatter），未修改源码、未 commit" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-4519939fd1d503f8">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-4519939fd1d503f8" title="仅写入 .workflow/knowhow/（wiki update frontmatter），未修改源码、未 commit" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-4519939fd1d503f8" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003">
 
 ### 仅写入 .workflow/knowhow/（wiki update frontmatter），未修改源码、未 commit
 
@@ -680,7 +680,7 @@ TC-004 注册 quantflow/signal/optimizer.py（已存在但未记录，TradingSes
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-49225c5b3b0a2724" title="3 个 sourceRef=20260802-team-ui-polish-continuous 的 knowhow 链接到 session-20260802-team-ui-polish-full：continuous 为 running" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-49225c5b3b0a2724">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-49225c5b3b0a2724" title="3 个 sourceRef=20260802-team-ui-polish-continuous 的 knowhow 链接到 session-20260802-team-ui-polish-full：continuous 为 running" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-49225c5b3b0a2724" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003">
 
 ### 3 个 sourceRef=20260802-team-ui-polish-continuous 的 knowhow 链接到 session-20260802-team-ui-polish-full：continuous 为 running
 
@@ -688,7 +688,7 @@ TC-004 注册 quantflow/signal/optimizer.py（已存在但未记录，TradingSes
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-642e67983de99b4c" title="为 FT-011/FT-012 创建缺失的 feature-map（组件已刷新、文档缺失），_index.md 全量重建补齐 TC-013/FT-011/012/013 行" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-642e67983de99b4c">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-642e67983de99b4c" title="为 FT-011/FT-012 创建缺失的 feature-map（组件已刷新、文档缺失），_index.md 全量重建补齐 TC-013/FT-011/012/013 行" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-642e67983de99b4c" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002">
 
 ### 为 FT-011/FT-012 创建缺失的 feature-map（组件已刷新、文档缺失），_index.md 全量重建补齐 TC-013/FT-011/012/013 行
 
@@ -696,7 +696,7 @@ TC-004 注册 quantflow/signal/optimizer.py（已存在但未记录，TradingSes
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-92ec22de14bd264e" title="仅修改 .workflow/codebase/ 与 .workflow/state.json，未触碰源码（git status 源码变更均为先前存在的未提交工作区状态）" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-92ec22de14bd264e">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-92ec22de14bd264e" title="仅修改 .workflow/codebase/ 与 .workflow/state.json，未触碰源码（git status 源码变更均为先前存在的未提交工作区状态）" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-92ec22de14bd264e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002">
 
 ### 仅修改 .workflow/codebase/ 与 .workflow/state.json，未触碰源码（git status 源码变更均为先前存在的未提交工作区状态）
 
@@ -704,7 +704,7 @@ TC-004 注册 quantflow/signal/optimizer.py（已存在但未记录，TradingSes
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-9451480316a389fd" title="Step 3.6 KG 分析因 CLI 命令缺失降级为基于 knowledge-graph.json 的推理（[LOW CONFIDENCE]）" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-9451480316a389fd">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-9451480316a389fd" title="Step 3.6 KG 分析因 CLI 命令缺失降级为基于 knowledge-graph.json 的推理（[LOW CONFIDENCE]）" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-9451480316a389fd" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002">
 
 ### Step 3.6 KG 分析因 CLI 命令缺失降级为基于 knowledge-graph.json 的推理（[LOW CONFIDENCE]）
 
@@ -712,7 +712,7 @@ Step 3.6 KG 分析因 CLI 命令缺失降级为基于 knowledge-graph.json 的�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-9c1f3702f0da5f33" title="4 个 kh/TIP 条目经 BM25 语义验证后链接到 spec 子条目（arch-020/cc-016/cc-017/learnings-012），与 source 语义一一对应" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-9c1f3702f0da5f33">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-9c1f3702f0da5f33" title="4 个 kh/TIP 条目经 BM25 语义验证后链接到 spec 子条目（arch-020/cc-016/cc-017/learnings-012），与 source 语义一一对应" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-9c1f3702f0da5f33" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003">
 
 ### 4 个 kh/TIP 条目经 BM25 语义验证后链接到 spec 子条目（arch-020/cc-016/cc-017/learnings-012），与 source 语义一一对应
 
@@ -720,7 +720,7 @@ Step 3.6 KG 分析因 CLI 命令缺失降级为基于 knowledge-graph.json 的�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-cec2635fa99302a5" title="19 broken links 与 project-project missing title 均超出写边界（sealed sessions/ 与 .workflow/project.md），仅记录不修复" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-cec2635fa99302a5">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-cec2635fa99302a5" title="19 broken links 与 project-project missing title 均超出写边界（sealed sessions/ 与 .workflow/project.md），仅记录不修复" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-cec2635fa99302a5" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003">
 
 ### 19 broken links 与 project-project missing title 均超出写边界（sealed sessions/ 与 .workflow/project.md），仅记录不修复
 
@@ -728,7 +728,7 @@ Step 3.6 KG 分析因 CLI 命令缺失降级为基于 knowledge-graph.json 的�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-d5329264bb31753e" title="kh-multi-symbol-patterns 无语义匹配目标（arch-019 不匹配、roadmap 无 multi-symbol 内容），跳过链接避免弱语义边" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-d5329264bb31753e">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-d5329264bb31753e" title="kh-multi-symbol-patterns 无语义匹配目标（arch-019 不匹配、roadmap 无 multi-symbol 内容），跳过链接避免弱语义边" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-d5329264bb31753e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003">
 
 ### kh-multi-symbol-patterns 无语义匹配目标（arch-019 不匹配、roadmap 无 multi-symbol 内容），跳过链接避免弱语义边
 
@@ -736,7 +736,7 @@ kh-multi-symbol-patterns 无语义匹配目标（arch-019 不匹配、roadmap �
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-dbc4a1cbcae4520e" title="KG 同步必须覆盖新写入的 wiki/spec/knowhow：已执行 kg sync 全源同步，staleness 0.0%" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-dbc4a1cbcae4520e">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-dbc4a1cbcae4520e" title="KG 同步必须覆盖新写入的 wiki/spec/knowhow：已执行 kg sync 全源同步，staleness 0.0%" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-dbc4a1cbcae4520e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-003-wiki-manage, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003">
 
 ### KG 同步必须覆盖新写入的 wiki/spec/knowhow：已执行 kg sync 全源同步，staleness 0.0%
 
@@ -744,7 +744,7 @@ KG 同步必须覆盖新写入的 wiki/spec/knowhow：已执行 kg sync 全源�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-ddff395ff1a3fe6b" title="doc-index 修复：删除 TC-013 reconciliation 重复条目（保留 dashboards TC-013）、FT-013 component_ids TC-012→TC-013、features 数组脏字符串清理、pr" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-ddff395ff1a3fe6b">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-05" sid="S-20260805-ddff395ff1a3fe6b" title="doc-index 修复：删除 TC-013 reconciliation 重复条目（保留 dashboards TC-013）、FT-013 component_ids TC-012→TC-013、features 数组脏字符串清理、pr" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-ddff395ff1a3fe6b" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002">
 
 ### doc-index 修复：删除 TC-013 reconciliation 重复条目（保留 dashboards TC-013）、FT-013 component_ids TC-012→TC-013、features 数组脏字符串清理、pr
 
@@ -752,7 +752,7 @@ doc-index 修复：删除 TC-013 reconciliation 重复条目（保留 dashboards
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-e3af3239aa24e3a9" title="未执行 git commit" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002" source="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-e3af3239aa24e3a9">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-05" sid="S-20260805-e3af3239aa24e3a9" title="未执行 git commit" sourceRef="session:20260805-maestro-knowledge-sync-20260805-052529:KDC-e3af3239aa24e3a9" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260805-001-codebase-refresh, artifact:ART-001-001, artifact:ART-001-002">
 
 ### 未执行 git commit
 
@@ -760,7 +760,7 @@ doc-index 修复：删除 TC-013 reconciliation 重复条目（保留 dashboards
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-0de19815a2b79672" title="0 信号视为有效验证结论（fail-closed）：前提不成立 → NO-GO，原型保持 disabled" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-0de19815a2b79672">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-0de19815a2b79672" title="0 信号视为有效验证结论（fail-closed）：前提不成立 → NO-GO，原型保持 disabled" sourceRef="session:20260806-iss-20260804-003-spot-perp:KDC-0de19815a2b79672" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### 0 信号视为有效验证结论（fail-closed）：前提不成立 → NO-GO，原型保持 disabled
 
@@ -768,7 +768,7 @@ doc-index 修复：删除 TC-013 reconciliation 重复条目（保留 dashboards
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-5185acbdaeb7ad75" title="Pair P&amp;L 模型：perp 腿 d + spot 镜面腿 + funding -d×f（仅结算 bar）+ 双边费用；整 bar 语义对齐 BacktestEngine" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-5185acbdaeb7ad75">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-5185acbdaeb7ad75" title="Pair P&amp;L 模型：perp 腿 d + spot 镜面腿 + funding -d×f（仅结算 bar）+ 双边费用；整 bar 语义对齐 BacktestEngine" sourceRef="session:20260806-iss-20260804-003-spot-perp:KDC-5185acbdaeb7ad75" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### Pair P&L 模型：perp 腿 d + spot 镜面腿 + funding -d×f（仅结算 bar）+ 双边费用；整 bar 语义对齐 BacktestEngine
 
@@ -776,7 +776,7 @@ Pair P&L 模型：perp 腿 d + spot 镜面腿 + funding -d×f（仅结算 bar）
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-58ffc83fb14f7bce" title="P0 回归基线随数据窗口漂移，需 establish_p0_baseline.py 重建（已执行）" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-58ffc83fb14f7bce">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-58ffc83fb14f7bce" title="P0 回归基线随数据窗口漂移，需 establish_p0_baseline.py 重建（已执行）" sourceRef="session:20260806-iss-20260804-003-spot-perp:KDC-58ffc83fb14f7bce" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### P0 回归基线随数据窗口漂移，需 establish_p0_baseline.py 重建（已执行）
 
@@ -784,7 +784,7 @@ P0 回归基线随数据窗口漂移，需 establish_p0_baseline.py 重建（已
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-5941f3edd1586f3d" title="D3: 0 信号视为有效结论，NO-GO，原型保持 disabled" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-5941f3edd1586f3d">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-5941f3edd1586f3d" title="D3: 0 信号视为有效结论，NO-GO，原型保持 disabled" sourceRef="session:20260806-iss-20260804-003-spot-perp:KDC-5941f3edd1586f3d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### D3: 0 信号视为有效结论，NO-GO，原型保持 disabled
 
@@ -792,7 +792,7 @@ D3: 0 信号视为有效结论，NO-GO，原型保持 disabled
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-79d7c42b79056096" title="D1: 验证窗口以 OKX 可获取的 90 天为准" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-79d7c42b79056096">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-79d7c42b79056096" title="D1: 验证窗口以 OKX 可获取的 90 天为准" sourceRef="session:20260806-iss-20260804-003-spot-perp:KDC-79d7c42b79056096" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### D1: 验证窗口以 OKX 可获取的 90 天为准
 
@@ -800,7 +800,7 @@ D1: 验证窗口以 OKX 可获取的 90 天为准
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-89697d25a85ca5df" title="OKX funding-rate-history 仅服务 ~90 天，单页上限 100（实测 51000 拒绝 &gt;100）" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-89697d25a85ca5df">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-89697d25a85ca5df" title="OKX funding-rate-history 仅服务 ~90 天，单页上限 100（实测 51000 拒绝 &gt;100）" sourceRef="session:20260806-iss-20260804-003-spot-perp:KDC-89697d25a85ca5df" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### OKX funding-rate-history 仅服务 ~90 天，单页上限 100（实测 51000 拒绝 >100）
 
@@ -808,7 +808,7 @@ OKX funding-rate-history 仅服务 ~90 天，单页上限 100（实测 51000 拒
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-928a025676af4b36" title="OKX rubik OI-volume 端点必须 begin+end 成对（单传 → 50030）；1H 仅最近 ~30 天，1D ~180 天，after 分页被忽略" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-928a025676af4b36">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-928a025676af4b36" title="OKX rubik OI-volume 端点必须 begin+end 成对（单传 → 50030）；1H 仅最近 ~30 天，1D ~180 天，after 分页被忽略" sourceRef="session:20260806-iss-20260804-003-spot-perp:KDC-928a025676af4b36" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### OKX rubik OI-volume 端点必须 begin+end 成对（单传 → 50030）；1H 仅最近 ~30 天，1D ~180 天，after 分页被忽略
 
@@ -816,7 +816,7 @@ OKX rubik OI-volume 端点必须 begin+end 成对（单传 → 50030）；1H 仅
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-d5dcd8b9b1944fc6" title="验证窗口以 OKX 可获取的 90 天为准；OI 30 天 cap 以 coverage 记录而非拼接虚构数据" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-d5dcd8b9b1944fc6">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-d5dcd8b9b1944fc6" title="验证窗口以 OKX 可获取的 90 天为准；OI 30 天 cap 以 coverage 记录而非拼接虚构数据" sourceRef="session:20260806-iss-20260804-003-spot-perp:KDC-d5dcd8b9b1944fc6" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### 验证窗口以 OKX 可获取的 90 天为准；OI 30 天 cap 以 coverage 记录而非拼接虚构数据
 
@@ -824,7 +824,7 @@ OKX rubik OI-volume 端点必须 begin+end 成对（单传 → 50030）；1H 仅
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-e21d61e685b118f2" title="meta fetcher 真实 bug 修复（funding dict-as-limit / OI begin+end + info-list 映射 / connect 泄漏）" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-e21d61e685b118f2">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-06" sid="S-20260806-e21d61e685b118f2" title="meta fetcher 真实 bug 修复（funding dict-as-limit / OI begin+end + info-list 映射 / connect 泄漏）" sourceRef="session:20260806-iss-20260804-003-spot-perp:KDC-e21d61e685b118f2" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### meta fetcher 真实 bug 修复（funding dict-as-limit / OI begin+end + info-list 映射 / connect 泄漏）
 
@@ -832,7 +832,7 @@ meta fetcher 真实 bug 修复（funding dict-as-limit / OI begin+end + info-lis
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-e373ac2823800028" title="BTC-USDT-SWAP funding 8h 结算 → 90 天仅 270 个结算点" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004" source="session:20260806-iss-20260804-003-spot-perp:KDC-e373ac2823800028">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-06" sid="S-20260806-e373ac2823800028" title="BTC-USDT-SWAP funding 8h 结算 → 90 天仅 270 个结算点" sourceRef="session:20260806-iss-20260804-003-spot-perp:KDC-e373ac2823800028" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260806-001-implement, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004">
 
 ### BTC-USDT-SWAP funding 8h 结算 → 90 天仅 270 个结算点
 
@@ -840,7 +840,7 @@ BTC-USDT-SWAP funding 8h 结算 → 90 天仅 270 个结算点
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-08" sid="S-20260808-d363ba7c2f0aa2d3" title="per-symbol regime detector" description="Promoted from run:20260808-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004" source="session:multi-symbol-replay-20260808-20260808-045132:KDC-d363ba7c2f0aa2d3">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-08" sid="S-20260808-d363ba7c2f0aa2d3" title="per-symbol regime detector" sourceRef="session:multi-symbol-replay-20260808-20260808-045132:KDC-d363ba7c2f0aa2d3" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260808-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004">
 
 ### per-symbol regime detector
 
@@ -848,7 +848,7 @@ per-symbol regime detector
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260808-4272fb0f39de12f3" title="SOL from 2021" description="Promoted from run:20260808-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, run:20260808-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004" source="session:multi-symbol-replay-20260808-20260808-045132:KDC-4272fb0f39de12f3">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260808-4272fb0f39de12f3" title="SOL from 2021" sourceRef="session:multi-symbol-replay-20260808-20260808-045132:KDC-4272fb0f39de12f3" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260808-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, run:20260808-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004">
 
 ### SOL from 2021
 
@@ -856,7 +856,7 @@ SOL from 2021
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260807-ffe5d169f57e64ce" title="OOS/WFO 裁决" description="Promoted from run:20260807-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, run:20260807-003-execute" source="session:mtf-expand-wfo-20260807-20260807-155411:KDC-ffe5d169f57e64ce">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260807-ffe5d169f57e64ce" title="OOS/WFO 裁决" sourceRef="session:mtf-expand-wfo-20260807-20260807-155411:KDC-ffe5d169f57e64ce" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260807-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, run:20260807-003-execute">
 
 ### OOS/WFO 裁决
 
@@ -864,7 +864,7 @@ OOS/WFO 裁决
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260807-bbca142cd8242836" title="排除 1m 与 10m" description="Promoted from run:20260807-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, run:20260807-003-execute" source="session:mtf-expand-wfo-20260807-20260807-155411:KDC-bbca142cd8242836">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260807-bbca142cd8242836" title="排除 1m 与 10m" sourceRef="session:mtf-expand-wfo-20260807-20260807-155411:KDC-bbca142cd8242836" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260807-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, run:20260807-003-execute">
 
 ### 排除 1m 与 10m
 
@@ -872,7 +872,7 @@ OOS/WFO 裁决
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260808-65e48f96fb68cce8" title="禁止 Optuna" description="Promoted from run:20260808-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, run:20260808-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004" source="session:nonma-signal-wfo-20260808-20260808-033745:KDC-65e48f96fb68cce8">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260808-65e48f96fb68cce8" title="禁止 Optuna" sourceRef="session:nonma-signal-wfo-20260808-20260808-033745:KDC-65e48f96fb68cce8" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260808-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, run:20260808-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004">
 
 ### 禁止 Optuna
 
@@ -880,7 +880,7 @@ OOS/WFO 裁决
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260802-0e01c25f603fc736" title="Badge alpha 合成在 gamma sRGB 空间进行" description="Promoted from run:20260802-002-plan, artifact:ART-002-001, run:20260802-003-execute, artifact:ART-003-001" source="session:20260802-maestro-statuswarn-wcag-ci-20260802-075737:KDC-0e01c25f603fc736">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260802-0e01c25f603fc736" title="Badge alpha 合成在 gamma sRGB 空间进行" sourceRef="session:20260802-maestro-statuswarn-wcag-ci-20260802-075737:KDC-0e01c25f603fc736" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260802-002-plan, artifact:ART-002-001, run:20260802-003-execute, artifact:ART-003-001">
 
 ### Badge alpha 合成在 gamma sRGB 空间进行
 
@@ -888,7 +888,7 @@ Badge alpha 合成在 gamma sRGB 空间进行
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260802-61a42ab0c97db631" title="暗色主题 .dark 块不做任何修改" description="Promoted from run:20260802-002-plan, artifact:ART-002-001, run:20260802-003-execute, artifact:ART-003-001" source="session:20260802-maestro-statuswarn-wcag-ci-20260802-075737:KDC-61a42ab0c97db631">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-08" sid="S-20260802-61a42ab0c97db631" title="暗色主题 .dark 块不做任何修改" sourceRef="session:20260802-maestro-statuswarn-wcag-ci-20260802-075737:KDC-61a42ab0c97db631" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260802-002-plan, artifact:ART-002-001, run:20260802-003-execute, artifact:ART-003-001">
 
 ### 暗色主题 .dark 块不做任何修改
 
@@ -896,7 +896,7 @@ Badge alpha 合成在 gamma sRGB 空间进行
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-08" sid="S-20260802-9963e49477a03dc8" title="--warning 与 --status-warn 同步修改（语义耦合）" description="Promoted from run:20260802-002-plan, artifact:ART-002-001, run:20260802-003-execute, artifact:ART-003-001" source="session:20260802-maestro-statuswarn-wcag-ci-20260802-075737:KDC-9963e49477a03dc8">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-08" sid="S-20260802-9963e49477a03dc8" title="--warning 与 --status-warn 同步修改（语义耦合）" sourceRef="session:20260802-maestro-statuswarn-wcag-ci-20260802-075737:KDC-9963e49477a03dc8" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260802-002-plan, artifact:ART-002-001, run:20260802-003-execute, artifact:ART-003-001">
 
 ### --warning 与 --status-warn 同步修改（语义耦合）
 
@@ -904,7 +904,7 @@ Badge alpha 合成在 gamma sRGB 空间进行
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-53b4bf5b0c29d5b9" title="Never merge Path A/B scores; promotion_eligible=false" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#constraint:C-001" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-53b4bf5b0c29d5b9">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-53b4bf5b0c29d5b9" title="Never merge Path A/B scores; promotion_eligible=false" sourceRef="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-53b4bf5b0c29d5b9" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#constraint:C-001">
 
 ### Never merge Path A/B scores; promotion_eligible=false
 
@@ -912,7 +912,7 @@ Never merge Path A/B scores; promotion_eligible=false
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-699cb2167395377f" title="Product HODL gate and anti-overfit CPCV are separate axes; Path B may PASS product and FAIL CPCV" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#decision:D-001" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-699cb2167395377f">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-699cb2167395377f" title="Product HODL gate and anti-overfit CPCV are separate axes; Path B may PASS product and FAIL CPCV" sourceRef="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-699cb2167395377f" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#decision:D-001">
 
 ### Product HODL gate and anti-overfit CPCV are separate axes; Path B may PASS product and FAIL CPCV
 
@@ -920,7 +920,7 @@ Product HODL gate and anti-overfit CPCV are separate axes; Path B may PASS produ
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f3ce4c8040c81aed" title="IAF library-only until CPCV prune; no freeze-contract silent edits" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-002" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-f3ce4c8040c81aed">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f3ce4c8040c81aed" title="IAF library-only until CPCV prune; no freeze-contract silent edits" sourceRef="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-f3ce4c8040c81aed" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-002">
 
 ### IAF library-only until CPCV prune; no freeze-contract silent edits
 
@@ -928,7 +928,7 @@ IAF library-only until CPCV prune; no freeze-contract silent edits
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-25da2a0ce94a942e" title="Discrete barrier grids must use optimize_method=grid or fixed entries (no Optuna low/high)" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#constraint:C-002" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-25da2a0ce94a942e">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-25da2a0ce94a942e" title="Discrete barrier grids must use optimize_method=grid or fixed entries (no Optuna low/high)" sourceRef="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-25da2a0ce94a942e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#constraint:C-002">
 
 ### Discrete barrier grids must use optimize_method=grid or fixed entries (no Optuna low/high)
 
@@ -936,7 +936,7 @@ Discrete barrier grids must use optimize_method=grid or fixed entries (no Optuna
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-5db58fe97c5f1938" title="Closeout execute = full run_dual_path_research_os without --skip-validation + pytest + docs refresh" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-001" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-5db58fe97c5f1938">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-5db58fe97c5f1938" title="Closeout execute = full run_dual_path_research_os without --skip-validation + pytest + docs refresh" sourceRef="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-5db58fe97c5f1938" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-001">
 
 ### Closeout execute = full run_dual_path_research_os without --skip-validation + pytest + docs refresh
 
@@ -944,7 +944,7 @@ Closeout execute = full run_dual_path_research_os without --skip-validation + py
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-a29a494b650a4826" title="Do not re-implement IAF/TPSL cores already on main 3ebf21f" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-002" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-a29a494b650a4826">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-a29a494b650a4826" title="Do not re-implement IAF/TPSL cores already on main 3ebf21f" sourceRef="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-a29a494b650a4826" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-002">
 
 ### Do not re-implement IAF/TPSL cores already on main 3ebf21f
 
@@ -952,7 +952,7 @@ Do not re-implement IAF/TPSL cores already on main 3ebf21f
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6cb8b67ab02c521e" title="Never merge continuous overlay and discrete TPSL into one score" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-001" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-6cb8b67ab02c521e">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6cb8b67ab02c521e" title="Never merge continuous overlay and discrete TPSL into one score" sourceRef="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-6cb8b67ab02c521e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-001">
 
 ### Never merge continuous overlay and discrete TPSL into one score
 
@@ -960,7 +960,7 @@ Never merge continuous overlay and discrete TPSL into one score
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-1568e84070eca225" title="promotion_eligible stays false this session" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-003" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-1568e84070eca225">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-1568e84070eca225" title="promotion_eligible stays false this session" sourceRef="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-1568e84070eca225" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-003">
 
 ### promotion_eligible stays false this session
 
@@ -968,7 +968,7 @@ promotion_eligible stays false this session
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c8891798e82a5f4d" title="Closeout keeps dual-path research-only; no live promote" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#decision:D-002" source="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-c8891798e82a5f4d">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c8891798e82a5f4d" title="Closeout keeps dual-path research-only; no live promote" sourceRef="session:20260811-iaf-adversarial-closeout-20260811-080734:KDC-c8891798e82a5f4d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, report.md#decision:D-002">
 
 ### Closeout keeps dual-path research-only; no live promote
 
@@ -976,7 +976,7 @@ Closeout keeps dual-path research-only; no live promote
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6572e098bf31c619" title="IAF hard_bind_entry=false always" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#constraint:C-002" source="session:20260811-pathb-iaf-followup-20260811-084339:KDC-6572e098bf31c619">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6572e098bf31c619" title="IAF hard_bind_entry=false always" sourceRef="session:20260811-pathb-iaf-followup-20260811-084339:KDC-6572e098bf31c619" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#constraint:C-002">
 
 ### IAF hard_bind_entry=false always
 
@@ -984,7 +984,7 @@ IAF hard_bind_entry=false always
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-7c1f6c8c1541a795" title="Allow GO discussion for Path B after multi-window OOS with honest n_trials; still no live promote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#decision:D-001" source="session:20260811-pathb-iaf-followup-20260811-084339:KDC-7c1f6c8c1541a795">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-7c1f6c8c1541a795" title="Allow GO discussion for Path B after multi-window OOS with honest n_trials; still no live promote" sourceRef="session:20260811-pathb-iaf-followup-20260811-084339:KDC-7c1f6c8c1541a795" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#decision:D-001">
 
 ### Allow GO discussion for Path B after multi-window OOS with honest n_trials; still no live promote
 
@@ -992,7 +992,7 @@ Allow GO discussion for Path B after multi-window OOS with honest n_trials; stil
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c179d7f26a8cbbd4" title="IAF prune kept factors remain research library after CPCV NO-GO" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#decision:D-002" source="session:20260811-pathb-iaf-followup-20260811-084339:KDC-c179d7f26a8cbbd4">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c179d7f26a8cbbd4" title="IAF prune kept factors remain research library after CPCV NO-GO" sourceRef="session:20260811-pathb-iaf-followup-20260811-084339:KDC-c179d7f26a8cbbd4" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#decision:D-002">
 
 ### IAF prune kept factors remain research library after CPCV NO-GO
 
@@ -1000,7 +1000,7 @@ IAF prune kept factors remain research library after CPCV NO-GO
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-e17efe1f5095eba7" title="promotion_eligible=false; GO_DISCUSS is research discussion only" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#constraint:C-001" source="session:20260811-pathb-iaf-followup-20260811-084339:KDC-e17efe1f5095eba7">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-e17efe1f5095eba7" title="promotion_eligible=false; GO_DISCUSS is research discussion only" sourceRef="session:20260811-pathb-iaf-followup-20260811-084339:KDC-e17efe1f5095eba7" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, report.md#constraint:C-001">
 
 ### promotion_eligible=false; GO_DISCUSS is research discussion only
 
@@ -1008,7 +1008,7 @@ promotion_eligible=false; GO_DISCUSS is research discussion only
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-391e6909273c1f99" title="Do not re-open completed W14-W26 as greenfield" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-001" source="session:20260811-oss-improve-plan-20260811-090327:KDC-391e6909273c1f99">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-391e6909273c1f99" title="Do not re-open completed W14-W26 as greenfield" sourceRef="session:20260811-oss-improve-plan-20260811-090327:KDC-391e6909273c1f99" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-001">
 
 ### Do not re-open completed W14-W26 as greenfield
 
@@ -1016,7 +1016,7 @@ Do not re-open completed W14-W26 as greenfield
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-45dc964a714d6459" title="no engine rewrite / combined_score / IAF hard-bind / fee loosen" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#constraint:C-002" source="session:20260811-oss-improve-plan-20260811-090327:KDC-45dc964a714d6459">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-45dc964a714d6459" title="no engine rewrite / combined_score / IAF hard-bind / fee loosen" sourceRef="session:20260811-oss-improve-plan-20260811-090327:KDC-45dc964a714d6459" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#constraint:C-002">
 
 ### no engine rewrite / combined_score / IAF hard-bind / fee loosen
 
@@ -1024,7 +1024,7 @@ no engine rewrite / combined_score / IAF hard-bind / fee loosen
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6a68e3dadcbc1540" title="No engine rewrite; no combined_score; no IAF hard-bind" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-002" source="session:20260811-oss-improve-plan-20260811-090327:KDC-6a68e3dadcbc1540">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6a68e3dadcbc1540" title="No engine rewrite; no combined_score; no IAF hard-bind" sourceRef="session:20260811-oss-improve-plan-20260811-090327:KDC-6a68e3dadcbc1540" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#constraint:C-002">
 
 ### No engine rewrite; no combined_score; no IAF hard-bind
 
@@ -1032,7 +1032,7 @@ No engine rewrite; no combined_score; no IAF hard-bind
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f9df6cbdc9a9db31" title="residual-first; do not re-open W14-W26" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#constraint:C-001" source="session:20260811-oss-improve-plan-20260811-090327:KDC-f9df6cbdc9a9db31">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f9df6cbdc9a9db31" title="residual-first; do not re-open W14-W26" sourceRef="session:20260811-oss-improve-plan-20260811-090327:KDC-f9df6cbdc9a9db31" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#constraint:C-001">
 
 ### residual-first; do not re-open W14-W26
 
@@ -1040,7 +1040,7 @@ residual-first; do not re-open W14-W26
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-cef3ee51014134fb" title="Adopt IMP-01 then IMP-02 as next execute priority" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#decision:D-001" source="session:20260811-oss-improve-plan-20260811-090327:KDC-cef3ee51014134fb">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-cef3ee51014134fb" title="Adopt IMP-01 then IMP-02 as next execute priority" sourceRef="session:20260811-oss-improve-plan-20260811-090327:KDC-cef3ee51014134fb" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#decision:D-001">
 
 ### Adopt IMP-01 then IMP-02 as next execute priority
 
@@ -1048,7 +1048,7 @@ Adopt IMP-01 then IMP-02 as next execute priority
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-e8406607b736b027" title="Prioritize IMP-01 promotion attach + IMP-02 Path B OOS thickness" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-002" source="session:20260811-oss-improve-plan-20260811-090327:KDC-e8406607b736b027">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-e8406607b736b027" title="Prioritize IMP-01 promotion attach + IMP-02 Path B OOS thickness" sourceRef="session:20260811-oss-improve-plan-20260811-090327:KDC-e8406607b736b027" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-002">
 
 ### Prioritize IMP-01 promotion attach + IMP-02 Path B OOS thickness
 
@@ -1056,7 +1056,7 @@ Prioritize IMP-01 promotion attach + IMP-02 Path B OOS thickness
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-a23d6dc5bc873177" title="IMP-03 parallelizable with IMP-01" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#decision:D-002" source="session:20260811-oss-improve-plan-20260811-090327:KDC-a23d6dc5bc873177">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-a23d6dc5bc873177" title="IMP-03 parallelizable with IMP-01" sourceRef="session:20260811-oss-improve-plan-20260811-090327:KDC-a23d6dc5bc873177" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-002-plan, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-005, artifact:ART-002-006, artifact:ART-002-007, artifact:ART-002-008, artifact:ART-002-009, artifact:ART-002-010, artifact:ART-002-011, artifact:ART-002-012, artifact:ART-002-013, artifact:ART-002-014, artifact:ART-002-015, report.md#decision:D-002">
 
 ### IMP-03 parallelizable with IMP-01
 
@@ -1064,7 +1064,7 @@ IMP-03 parallelizable with IMP-01
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-e7af89d3d61a773b" title="Produce IMP-* residual improvement plan (plan stage)" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-001" source="session:20260811-oss-improve-plan-20260811-090327:KDC-e7af89d3d61a773b">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-e7af89d3d61a773b" title="Produce IMP-* residual improvement plan (plan stage)" sourceRef="session:20260811-oss-improve-plan-20260811-090327:KDC-e7af89d3d61a773b" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, report.md#decision:D-001">
 
 ### Produce IMP-* residual improvement plan (plan stage)
 
@@ -1072,7 +1072,7 @@ Produce IMP-* residual improvement plan (plan stage)
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f589ad4d5480b92c" title="no combined_score; no engine rewrite" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-002" source="session:20260811-imp01-02-exec-20260811-091927:KDC-f589ad4d5480b92c">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f589ad4d5480b92c" title="no combined_score; no engine rewrite" sourceRef="session:20260811-imp01-02-exec-20260811-091927:KDC-f589ad4d5480b92c" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-002">
 
 ### no combined_score; no engine rewrite
 
@@ -1080,7 +1080,7 @@ no combined_score; no engine rewrite
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c1227b888e904430" title="IMP-02 default n_windows=6 with fee_slip_grid+funding_tca assumption" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002" source="session:20260811-imp01-02-exec-20260811-091927:KDC-c1227b888e904430">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c1227b888e904430" title="IMP-02 default n_windows=6 with fee_slip_grid+funding_tca assumption" sourceRef="session:20260811-imp01-02-exec-20260811-091927:KDC-c1227b888e904430" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002">
 
 ### IMP-02 default n_windows=6 with fee_slip_grid+funding_tca assumption
 
@@ -1088,7 +1088,7 @@ IMP-02 default n_windows=6 with fee_slip_grid+funding_tca assumption
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-dfdad156f5b9404b" title="Research dual-path claims vectorized path honestly rather than fake paper_replay" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001" source="session:20260811-imp01-02-exec-20260811-091927:KDC-dfdad156f5b9404b">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-dfdad156f5b9404b" title="Research dual-path claims vectorized path honestly rather than fake paper_replay" sourceRef="session:20260811-imp01-02-exec-20260811-091927:KDC-dfdad156f5b9404b" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001">
 
 ### Research dual-path claims vectorized path honestly rather than fake paper_replay
 
@@ -1096,7 +1096,7 @@ Research dual-path claims vectorized path honestly rather than fake paper_replay
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-0c5feae00cc4c7d4" title="promotion_eligible=false; vectorized is not register-ready" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001" source="session:20260811-imp01-02-exec-20260811-091927:KDC-0c5feae00cc4c7d4">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-0c5feae00cc4c7d4" title="promotion_eligible=false; vectorized is not register-ready" sourceRef="session:20260811-imp01-02-exec-20260811-091927:KDC-0c5feae00cc4c7d4" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001">
 
 ### promotion_eligible=false; vectorized is not register-ready
 
@@ -1104,7 +1104,7 @@ promotion_eligible=false; vectorized is not register-ready
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-e1c94993e5585fd9" title="Reuse existing FeatureStore PIT tests; add pit_audit helper" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001" source="session:20260811-imp03-05-exec-20260811-093415:KDC-e1c94993e5585fd9">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-e1c94993e5585fd9" title="Reuse existing FeatureStore PIT tests; add pit_audit helper" sourceRef="session:20260811-imp03-05-exec-20260811-093415:KDC-e1c94993e5585fd9" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001">
 
 ### Reuse existing FeatureStore PIT tests; add pit_audit helper
 
@@ -1112,7 +1112,7 @@ Reuse existing FeatureStore PIT tests; add pit_audit helper
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-09247aabe8ae530d" title="Multi-symbol dual-path equal book weights display-only" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002" source="session:20260811-imp03-05-exec-20260811-093415:KDC-09247aabe8ae530d">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-09247aabe8ae530d" title="Multi-symbol dual-path equal book weights display-only" sourceRef="session:20260811-imp03-05-exec-20260811-093415:KDC-09247aabe8ae530d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002">
 
 ### Multi-symbol dual-path equal book weights display-only
 
@@ -1120,7 +1120,7 @@ Multi-symbol dual-path equal book weights display-only
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-2d2429a1d6c202a2" title="no combined_score; no multi-exchange; no live promote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001" source="session:20260811-imp03-05-exec-20260811-093415:KDC-2d2429a1d6c202a2">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-2d2429a1d6c202a2" title="no combined_score; no multi-exchange; no live promote" sourceRef="session:20260811-imp03-05-exec-20260811-093415:KDC-2d2429a1d6c202a2" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001">
 
 ### no combined_score; no multi-exchange; no live promote
 
@@ -1128,7 +1128,7 @@ no combined_score; no multi-exchange; no live promote
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-2307c60010637468" title="Untrack .workflow/scratch runtime junk from remote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-002" source="session:20260811-cleanup-release-070-20260811-102622:KDC-2307c60010637468">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-2307c60010637468" title="Untrack .workflow/scratch runtime junk from remote" sourceRef="session:20260811-cleanup-release-070-20260811-102622:KDC-2307c60010637468" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-002">
 
 ### Untrack .workflow/scratch runtime junk from remote
 
@@ -1136,7 +1136,7 @@ Untrack .workflow/scratch runtime junk from remote
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-84fb484bf75f0412" title="Bump minor 0.6.0→0.7.0 for IMP residual research OS" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-001" source="session:20260811-cleanup-release-070-20260811-102622:KDC-84fb484bf75f0412">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-84fb484bf75f0412" title="Bump minor 0.6.0→0.7.0 for IMP residual research OS" sourceRef="session:20260811-cleanup-release-070-20260811-102622:KDC-84fb484bf75f0412" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-001">
 
 ### Bump minor 0.6.0→0.7.0 for IMP residual research OS
 
@@ -1144,7 +1144,7 @@ Bump minor 0.6.0→0.7.0 for IMP residual research OS
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-ae40629038b5966b" title="no force-push; no secrets; no live promote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#constraint:C-001" source="session:20260811-cleanup-release-070-20260811-102622:KDC-ae40629038b5966b">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-ae40629038b5966b" title="no force-push; no secrets; no live promote" sourceRef="session:20260811-cleanup-release-070-20260811-102622:KDC-ae40629038b5966b" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#constraint:C-001">
 
 ### no force-push; no secrets; no live promote
 
@@ -1152,7 +1152,7 @@ no force-push; no secrets; no live promote
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-2be914ab41c82659" title="Broken wiki links FP leave sealed sessions untouched" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#constraint:C-002" source="session:20260811-kb-maint-20260811-105226:KDC-2be914ab41c82659">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-2be914ab41c82659" title="Broken wiki links FP leave sealed sessions untouched" sourceRef="session:20260811-kb-maint-20260811-105226:KDC-2be914ab41c82659" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#constraint:C-002">
 
 ### Broken wiki links FP leave sealed sessions untouched
 
@@ -1160,7 +1160,7 @@ Broken wiki links FP leave sealed sessions untouched
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-56ac92356f6e5c2d" title="Add DOC IMP residual research OS + TIP pending_observed policy; link from hub" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-001" source="session:20260811-kb-maint-20260811-105226:KDC-56ac92356f6e5c2d">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-56ac92356f6e5c2d" title="Add DOC IMP residual research OS + TIP pending_observed policy; link from hub" sourceRef="session:20260811-kb-maint-20260811-105226:KDC-56ac92356f6e5c2d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-001">
 
 ### Add DOC IMP residual research OS + TIP pending_observed policy; link from hub
 
@@ -1168,7 +1168,7 @@ Add DOC IMP residual research OS + TIP pending_observed policy; link from hub
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-5e7a3a193d473c8c" title="kg sync sufficient; no rebuild" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-002" source="session:20260811-kb-maint-20260811-105226:KDC-5e7a3a193d473c8c">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-5e7a3a193d473c8c" title="kg sync sufficient; no rebuild" sourceRef="session:20260811-kb-maint-20260811-105226:KDC-5e7a3a193d473c8c" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#decision:D-002">
 
 ### kg sync sufficient; no rebuild
 
@@ -1176,7 +1176,7 @@ kg sync sufficient; no rebuild
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-ca1bec8ea05c8d81" title="Do not mass-promote uncorroborated pending_observed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#constraint:C-001" source="session:20260811-kb-maint-20260811-105226:KDC-ca1bec8ea05c8d81">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-ca1bec8ea05c8d81" title="Do not mass-promote uncorroborated pending_observed" sourceRef="session:20260811-kb-maint-20260811-105226:KDC-ca1bec8ea05c8d81" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, report.md#constraint:C-001">
 
 ### Do not mass-promote uncorroborated pending_observed
 
@@ -1184,7 +1184,7 @@ Do not mass-promote uncorroborated pending_observed
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-d864e7a891f5d425" title="No backfill/forge streak days" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, report.md#constraint:C-001" source="session:20260811-t023-ops-20260811-112304:KDC-d864e7a891f5d425">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-d864e7a891f5d425" title="No backfill/forge streak days" sourceRef="session:20260811-t023-ops-20260811-112304:KDC-d864e7a891f5d425" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, report.md#constraint:C-001">
 
 ### No backfill/forge streak days
 
@@ -1192,7 +1192,7 @@ No backfill/forge streak days
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-6c49109795969619" title="Run T024 dry-run while short to prove fail-closed floors" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, report.md#decision:D-002" source="session:20260811-t023-ops-20260811-112304:KDC-6c49109795969619">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-6c49109795969619" title="Run T024 dry-run while short to prove fail-closed floors" sourceRef="session:20260811-t023-ops-20260811-112304:KDC-6c49109795969619" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, report.md#decision:D-002">
 
 ### Run T024 dry-run while short to prove fail-closed floors
 
@@ -1200,7 +1200,7 @@ Run T024 dry-run while short to prove fail-closed floors
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6c586f79e2f3b6c5" title="No live promote without human authorization" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, report.md#constraint:C-002" source="session:20260811-t023-ops-20260811-112304:KDC-6c586f79e2f3b6c5">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-6c586f79e2f3b6c5" title="No live promote without human authorization" sourceRef="session:20260811-t023-ops-20260811-112304:KDC-6c586f79e2f3b6c5" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, report.md#constraint:C-002">
 
 ### No live promote without human authorization
 
@@ -1208,7 +1208,7 @@ No live promote without human authorization
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-9e130f8a12708897" title="Credit 2026-08-11 after PREFLIGHT OK day-session only" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, report.md#decision:D-001" source="session:20260811-t023-ops-20260811-112304:KDC-9e130f8a12708897">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-9e130f8a12708897" title="Credit 2026-08-11 after PREFLIGHT OK day-session only" sourceRef="session:20260811-t023-ops-20260811-112304:KDC-9e130f8a12708897" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, report.md#decision:D-001">
 
 ### Credit 2026-08-11 after PREFLIGHT OK day-session only
 
@@ -1216,7 +1216,7 @@ Credit 2026-08-11 after PREFLIGHT OK day-session only
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-ce2679d2ed4a8f0d" title="Treat Path B validation NO-GO and OOS GO_DISCUSS as successful system verification" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#decision:D-002" source="session:20260811-mkt-cap-verify-20260811-113906:KDC-ce2679d2ed4a8f0d">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-ce2679d2ed4a8f0d" title="Treat Path B validation NO-GO and OOS GO_DISCUSS as successful system verification" sourceRef="session:20260811-mkt-cap-verify-20260811-113906:KDC-ce2679d2ed4a8f0d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#decision:D-002">
 
 ### Treat Path B validation NO-GO and OOS GO_DISCUSS as successful system verification
 
@@ -1224,7 +1224,7 @@ Treat Path B validation NO-GO and OOS GO_DISCUSS as successful system verificati
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-66e3aa726ba549db" title="No combined_score" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#constraint:C-002" source="session:20260811-mkt-cap-verify-20260811-113906:KDC-66e3aa726ba549db">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-66e3aa726ba549db" title="No combined_score" sourceRef="session:20260811-mkt-cap-verify-20260811-113906:KDC-66e3aa726ba549db" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#constraint:C-002">
 
 ### No combined_score
 
@@ -1232,7 +1232,7 @@ No combined_score
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-79f3ebde51e2aa82" title="Use full contract window 2021-01-01..2026-08-04 offline parquet as capability proof" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#decision:D-001" source="session:20260811-mkt-cap-verify-20260811-113906:KDC-79f3ebde51e2aa82">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-79f3ebde51e2aa82" title="Use full contract window 2021-01-01..2026-08-04 offline parquet as capability proof" sourceRef="session:20260811-mkt-cap-verify-20260811-113906:KDC-79f3ebde51e2aa82" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#decision:D-001">
 
 ### Use full contract window 2021-01-01..2026-08-04 offline parquet as capability proof
 
@@ -1240,7 +1240,7 @@ Use full contract window 2021-01-01..2026-08-04 offline parquet as capability pr
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-8ebd3489a8edc6bc" title="No live promote; promotion_eligible remains false" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#constraint:C-001" source="session:20260811-mkt-cap-verify-20260811-113906:KDC-8ebd3489a8edc6bc">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-8ebd3489a8edc6bc" title="No live promote; promotion_eligible remains false" sourceRef="session:20260811-mkt-cap-verify-20260811-113906:KDC-8ebd3489a8edc6bc" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, report.md#constraint:C-001">
 
 ### No live promote; promotion_eligible remains false
 
@@ -1248,7 +1248,7 @@ No live promote; promotion_eligible remains false
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f78780b964f3774e" title="No combined_score; no live promote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#constraint:C-003" source="session:20260811-perf-metrics-20260811-120059:KDC-f78780b964f3774e">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-f78780b964f3774e" title="No combined_score; no live promote" sourceRef="session:20260811-perf-metrics-20260811-120059:KDC-f78780b964f3774e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#constraint:C-003">
 
 ### No combined_score; no live promote
 
@@ -1256,7 +1256,7 @@ No combined_score; no live promote
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-3e9e2dedab6bb9d3" title="Reuse locked B0 WFO/gate; re-run full-window confirmed numeric match" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#decision:D-002" source="session:20260811-perf-metrics-20260811-120059:KDC-3e9e2dedab6bb9d3">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-3e9e2dedab6bb9d3" title="Reuse locked B0 WFO/gate; re-run full-window confirmed numeric match" sourceRef="session:20260811-perf-metrics-20260811-120059:KDC-3e9e2dedab6bb9d3" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#decision:D-002">
 
 ### Reuse locked B0 WFO/gate; re-run full-window confirmed numeric match
 
@@ -1264,7 +1264,7 @@ Reuse locked B0 WFO/gate; re-run full-window confirmed numeric match
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-88b6c209b7cadfd8" title="Silo risk_parity not comparable 1:1 to shared book" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#constraint:C-002" source="session:20260811-perf-metrics-20260811-120059:KDC-88b6c209b7cadfd8">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-88b6c209b7cadfd8" title="Silo risk_parity not comparable 1:1 to shared book" sourceRef="session:20260811-perf-metrics-20260811-120059:KDC-88b6c209b7cadfd8" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#constraint:C-002">
 
 ### Silo risk_parity not comparable 1:1 to shared book
 
@@ -1272,7 +1272,7 @@ Silo risk_parity not comparable 1:1 to shared book
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-a5fe3e2706e0ef21" title="Parity only paper↔live; vectorized research not promotion-eligible" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#constraint:C-001" source="session:20260811-perf-metrics-20260811-120059:KDC-a5fe3e2706e0ef21">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-a5fe3e2706e0ef21" title="Parity only paper↔live; vectorized research not promotion-eligible" sourceRef="session:20260811-perf-metrics-20260811-120059:KDC-a5fe3e2706e0ef21" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#constraint:C-001">
 
 ### Parity only paper↔live; vectorized research not promotion-eligible
 
@@ -1280,7 +1280,7 @@ Parity only paper↔live; vectorized research not promotion-eligible
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-b48ad559cfc3f47b" title="Use multi_symbol_replay full window as primary portfolio performance panel" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#decision:D-001" source="session:20260811-perf-metrics-20260811-120059:KDC-b48ad559cfc3f47b">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-b48ad559cfc3f47b" title="Use multi_symbol_replay full window as primary portfolio performance panel" sourceRef="session:20260811-perf-metrics-20260811-120059:KDC-b48ad559cfc3f47b" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, report.md#decision:D-001">
 
 ### Use multi_symbol_replay full window as primary portfolio performance panel
 
@@ -1288,7 +1288,7 @@ Use multi_symbol_replay full window as primary portfolio performance panel
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-eea51789e34ff16d" title="Land IMP-06 via test_imp06_hard_bind_lock.py" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-003" source="session:20260811-learn-opt-struct-20260811-124137:KDC-eea51789e34ff16d">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-eea51789e34ff16d" title="Land IMP-06 via test_imp06_hard_bind_lock.py" sourceRef="session:20260811-learn-opt-struct-20260811-124137:KDC-eea51789e34ff16d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-003">
 
 ### Land IMP-06 via test_imp06_hard_bind_lock.py
 
@@ -1296,7 +1296,7 @@ Land IMP-06 via test_imp06_hard_bind_lock.py
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-61fd2baf5a9748b8" title="No combined_score; B0 freeze untouched" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-003" source="session:20260811-learn-opt-struct-20260811-124137:KDC-61fd2baf5a9748b8">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-61fd2baf5a9748b8" title="No combined_score; B0 freeze untouched" sourceRef="session:20260811-learn-opt-struct-20260811-124137:KDC-61fd2baf5a9748b8" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-003">
 
 ### No combined_score; B0 freeze untouched
 
@@ -1304,7 +1304,7 @@ No combined_score; B0 freeze untouched
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-b0a80762d62f2293" title="Do not re-sweep overlay_weight away from 0.30 without new cost matrix evidence" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001" source="session:20260811-learn-opt-struct-20260811-124137:KDC-b0a80762d62f2293">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-b0a80762d62f2293" title="Do not re-sweep overlay_weight away from 0.30 without new cost matrix evidence" sourceRef="session:20260811-learn-opt-struct-20260811-124137:KDC-b0a80762d62f2293" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001">
 
 ### Do not re-sweep overlay_weight away from 0.30 without new cost matrix evidence
 
@@ -1312,7 +1312,7 @@ Do not re-sweep overlay_weight away from 0.30 without new cost matrix evidence
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c1055a8731dca0cf" title="Export dual-path research surface from quantflow.strategy.research" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002" source="session:20260811-learn-opt-struct-20260811-124137:KDC-c1055a8731dca0cf">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c1055a8731dca0cf" title="Export dual-path research surface from quantflow.strategy.research" sourceRef="session:20260811-learn-opt-struct-20260811-124137:KDC-c1055a8731dca0cf" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002">
 
 ### Export dual-path research surface from quantflow.strategy.research
 
@@ -1320,7 +1320,7 @@ Export dual-path research surface from quantflow.strategy.research
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c52d933ce0a1e6cb" title="Optimize structure and regression locks rather than alpha re-search this session" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001" source="session:20260811-learn-opt-struct-20260811-124137:KDC-c52d933ce0a1e6cb">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-c52d933ce0a1e6cb" title="Optimize structure and regression locks rather than alpha re-search this session" sourceRef="session:20260811-learn-opt-struct-20260811-124137:KDC-c52d933ce0a1e6cb" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001">
 
 ### Optimize structure and regression locks rather than alpha re-search this session
 
@@ -1328,7 +1328,7 @@ Optimize structure and regression locks rather than alpha re-search this session
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-d1651d9fe4f9d813" title="hard_bind_entry must remain false on research OS surfaces" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-002" source="session:20260811-learn-opt-struct-20260811-124137:KDC-d1651d9fe4f9d813">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-d1651d9fe4f9d813" title="hard_bind_entry must remain false on research OS surfaces" sourceRef="session:20260811-learn-opt-struct-20260811-124137:KDC-d1651d9fe4f9d813" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-002">
 
 ### hard_bind_entry must remain false on research OS surfaces
 
@@ -1336,7 +1336,7 @@ hard_bind_entry must remain false on research OS surfaces
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-8441f2ce8b9f05da" title="Catalog skips *_overlay.yaml and rejects duplicate strategy.name" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002" source="session:20260811-catalog-imp-20260811-130143:KDC-8441f2ce8b9f05da">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-8441f2ce8b9f05da" title="Catalog skips *_overlay.yaml and rejects duplicate strategy.name" sourceRef="session:20260811-catalog-imp-20260811-130143:KDC-8441f2ce8b9f05da" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-002">
 
 ### Catalog skips *_overlay.yaml and rejects duplicate strategy.name
 
@@ -1344,7 +1344,7 @@ Catalog skips *_overlay.yaml and rejects duplicate strategy.name
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-10f46a601a583b33" title="No live promote; no combined_score; no B0 freeze edit" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-002" source="session:20260811-catalog-imp-20260811-130143:KDC-10f46a601a583b33">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-10f46a601a583b33" title="No live promote; no combined_score; no B0 freeze edit" sourceRef="session:20260811-catalog-imp-20260811-130143:KDC-10f46a601a583b33" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-002">
 
 ### No live promote; no combined_score; no B0 freeze edit
 
@@ -1352,7 +1352,7 @@ No live promote; no combined_score; no B0 freeze edit
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-12c971c743bb8aad" title="Research overlays must not live as strategies/*_overlay.yaml catalog peers" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001" source="session:20260811-catalog-imp-20260811-130143:KDC-12c971c743bb8aad">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-12c971c743bb8aad" title="Research overlays must not live as strategies/*_overlay.yaml catalog peers" sourceRef="session:20260811-catalog-imp-20260811-130143:KDC-12c971c743bb8aad" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#constraint:C-001">
 
 ### Research overlays must not live as strategies/*_overlay.yaml catalog peers
 
@@ -1360,7 +1360,7 @@ Research overlays must not live as strategies/*_overlay.yaml catalog peers
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-47dac3bef01949b5" title="Move funding B4/B5 overlays to quantflow/config/research/overlays/" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001" source="session:20260811-catalog-imp-20260811-130143:KDC-47dac3bef01949b5">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-47dac3bef01949b5" title="Move funding B4/B5 overlays to quantflow/config/research/overlays/" sourceRef="session:20260811-catalog-imp-20260811-130143:KDC-47dac3bef01949b5" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, report.md#decision:D-001">
 
 ### Move funding B4/B5 overlays to quantflow/config/research/overlays/
 
@@ -1368,7 +1368,7 @@ Move funding B4/B5 overlays to quantflow/config/research/overlays/
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-8470e14a35f70edc" title="No B0 freeze edit; no live promote" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#constraint:C-002" source="session:20260811-cleanup-071-20260811-142743:KDC-8470e14a35f70edc">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-8470e14a35f70edc" title="No B0 freeze edit; no live promote" sourceRef="session:20260811-cleanup-071-20260811-142743:KDC-8470e14a35f70edc" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#constraint:C-002">
 
 ### No B0 freeze edit; no live promote
 
@@ -1376,7 +1376,7 @@ No B0 freeze edit; no live promote
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-8dfbe056db8bf255" title="Did not delete data/ parquet or force-push history" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#constraint:C-001" source="session:20260811-cleanup-071-20260811-142743:KDC-8dfbe056db8bf255">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-11" sid="S-20260811-8dfbe056db8bf255" title="Did not delete data/ parquet or force-push history" sourceRef="session:20260811-cleanup-071-20260811-142743:KDC-8dfbe056db8bf255" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#constraint:C-001">
 
 ### Did not delete data/ parquet or force-push history
 
@@ -1384,7 +1384,7 @@ Did not delete data/ parquet or force-push history
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-9d398681cff7247c" title="Defer rewriting sealed-session broken wiki links" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#decision:D-002" source="session:20260811-cleanup-071-20260811-142743:KDC-9d398681cff7247c">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-9d398681cff7247c" title="Defer rewriting sealed-session broken wiki links" sourceRef="session:20260811-cleanup-071-20260811-142743:KDC-9d398681cff7247c" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#decision:D-002">
 
 ### Defer rewriting sealed-session broken wiki links
 
@@ -1392,7 +1392,7 @@ Defer rewriting sealed-session broken wiki links
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-cde7cf710645114a" title="Patch release 0.7.0→0.7.1 for improvement-plan Wave B/C + hygiene" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#decision:D-001" source="session:20260811-cleanup-071-20260811-142743:KDC-cde7cf710645114a">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-11" sid="S-20260811-cde7cf710645114a" title="Patch release 0.7.0→0.7.1 for improvement-plan Wave B/C + hygiene" sourceRef="session:20260811-cleanup-071-20260811-142743:KDC-cde7cf710645114a" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260811-001-execute, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, report.md#decision:D-001">
 
 ### Patch release 0.7.0→0.7.1 for improvement-plan Wave B/C + hygiene
 
@@ -1400,7 +1400,7 @@ Patch release 0.7.0→0.7.1 for improvement-plan Wave B/C + hygiene
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-0c175365b6cd0c1e" title="fingerprint e4d2797070a49bc0 unchanged -&gt; skip full-window multi_symbol_replay re-run (not re-run; sealed values exporte" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-001" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-0c175365b6cd0c1e">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-0c175365b6cd0c1e" title="fingerprint e4d2797070a49bc0 unchanged -&gt; skip full-window multi_symbol_replay re-run (not re-run; sealed values exporte" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-0c175365b6cd0c1e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-001">
 
 ### fingerprint e4d2797070a49bc0 unchanged -> skip full-window multi_symbol_replay re-run (not re-run; sealed values exporte
 
@@ -1408,7 +1408,7 @@ fingerprint e4d2797070a49bc0 unchanged -> skip full-window multi_symbol_replay r
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-4804bef935723514" title="SoT = data/paper_replay/perf_verify/performance_panel.json (+ baseline0_gate fields inside panel)" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-003" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-4804bef935723514">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-4804bef935723514" title="SoT = data/paper_replay/perf_verify/performance_panel.json (+ baseline0_gate fields inside panel)" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-4804bef935723514" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-003">
 
 ### SoT = data/paper_replay/perf_verify/performance_panel.json (+ baseline0_gate fields inside panel)
 
@@ -1416,7 +1416,7 @@ SoT = data/paper_replay/perf_verify/performance_panel.json (+ baseline0_gate fie
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-0e88755c23ee8523" title="fail-soft missing/invalid file (loader returns None, CLI exit 2, no traceback)" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-005" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-0e88755c23ee8523">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-0e88755c23ee8523" title="fail-soft missing/invalid file (loader returns None, CLI exit 2, no traceback)" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-0e88755c23ee8523" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-005">
 
 ### fail-soft missing/invalid file (loader returns None, CLI exit 2, no traceback)
 
@@ -1424,7 +1424,7 @@ fail-soft missing/invalid file (loader returns None, CLI exit 2, no traceback)
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-9ea33c5359642e65" title="primary = shared_risk_parity + baseline0_gate; promotion_eligible always false for export snapshot" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-004" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-9ea33c5359642e65">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-9ea33c5359642e65" title="primary = shared_risk_parity + baseline0_gate; promotion_eligible always false for export snapshot" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-9ea33c5359642e65" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-004">
 
 ### primary = shared_risk_parity + baseline0_gate; promotion_eligible always false for export snapshot
 
@@ -1432,7 +1432,7 @@ primary = shared_risk_parity + baseline0_gate; promotion_eligible always false f
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-509c8492fe26f412" title="no invented metrics; no combined_score; no silo as primary; no Grafana redesign" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-007" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-509c8492fe26f412">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-509c8492fe26f412" title="no invented metrics; no combined_score; no silo as primary; no Grafana redesign" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-509c8492fe26f412" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-007">
 
 ### no invented metrics; no combined_score; no silo as primary; no Grafana redesign
 
@@ -1440,7 +1440,7 @@ no invented metrics; no combined_score; no silo as primary; no Grafana redesign
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-b8473424ce30109f" title="L6-only + common Protocol; L1-L5 no monitoring import (rg guard clean)" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-006" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-b8473424ce30109f">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-b8473424ce30109f" title="L6-only + common Protocol; L1-L5 no monitoring import (rg guard clean)" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-b8473424ce30109f" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-006">
 
 ### L6-only + common Protocol; L1-L5 no monitoring import (rg guard clean)
 
@@ -1448,7 +1448,7 @@ L6-only + common Protocol; L1-L5 no monitoring import (rg guard clean)
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-5b3ccfeeae97aa14" title="Metric label set = (primary_mode, decision, fingerprint, promotion_eligible='false'); path_semantics stays in JSON expor" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#decision:D-001" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-5b3ccfeeae97aa14">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-5b3ccfeeae97aa14" title="Metric label set = (primary_mode, decision, fingerprint, promotion_eligible='false'); path_semantics stays in JSON expor" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-5b3ccfeeae97aa14" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#decision:D-001">
 
 ### Metric label set = (primary_mode, decision, fingerprint, promotion_eligible='false'); path_semantics stays in JSON expor
 
@@ -1456,7 +1456,7 @@ Metric label set = (primary_mode, decision, fingerprint, promotion_eligible='fal
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-b8de264541ac13e7" title="S1 = loader + Prometheus gauges + optional sink.record_research_go_panel + thin CLI" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-002" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-b8de264541ac13e7">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-b8de264541ac13e7" title="S1 = loader + Prometheus gauges + optional sink.record_research_go_panel + thin CLI" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-b8de264541ac13e7" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#constraint:C-002">
 
 ### S1 = loader + Prometheus gauges + optional sink.record_research_go_panel + thin CLI
 
@@ -1464,7 +1464,7 @@ S1 = loader + Prometheus gauges + optional sink.record_research_go_panel + thin 
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-47563b0913e4eecf" title="Add quantflow_research_go_* gauges + Protocol record" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#decision:D-CLI-2" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-47563b0913e4eecf">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-47563b0913e4eecf" title="Add quantflow_research_go_* gauges + Protocol record" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-47563b0913e4eecf" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-003-execute, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, artifact:ART-003-004, artifact:ART-003-005, artifact:ART-003-009, report.md#decision:D-CLI-2">
 
 ### Add quantflow_research_go_* gauges + Protocol record
 
@@ -1472,7 +1472,7 @@ Add quantflow_research_go_* gauges + Protocol record
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-e29b6070349fcb04" title="S1 L6 loader+gauges+optional sink+CLI" description="Promoted from run:20260812-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-009, report.md#decision:D-CLI-2" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-e29b6070349fcb04">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-e29b6070349fcb04" title="S1 L6 loader+gauges+optional sink+CLI" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-e29b6070349fcb04" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-009, report.md#decision:D-CLI-2">
 
 ### S1 L6 loader+gauges+optional sink+CLI
 
@@ -1480,7 +1480,7 @@ S1 L6 loader+gauges+optional sink+CLI
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-7fb8a3c474def133" title="SoT sealed performance_panel only; promotion_eligible=false" description="Promoted from run:20260812-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-009, report.md#decision:D-CLI-3" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-7fb8a3c474def133">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-7fb8a3c474def133" title="SoT sealed performance_panel only; promotion_eligible=false" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-7fb8a3c474def133" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-009, report.md#decision:D-CLI-3">
 
 ### SoT sealed performance_panel only; promotion_eligible=false
 
@@ -1488,7 +1488,7 @@ SoT sealed performance_panel only; promotion_eligible=false
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-b5f4026d14f774bc" title="Skip full-window when fingerprint unchanged" description="Promoted from run:20260812-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-009, report.md#decision:D-CLI-1" source="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-b5f4026d14f774bc">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-b5f4026d14f774bc" title="Skip full-window when fingerprint unchanged" sourceRef="session:maestro-20260812-l6-research-go-export-20260812-112502:KDC-b5f4026d14f774bc" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-001-analyze, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-009, report.md#decision:D-CLI-1">
 
 ### Skip full-window when fingerprint unchanged
 
@@ -1496,7 +1496,7 @@ Skip full-window when fingerprint unchanged
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-09dc7b9efa49d9bd" title="parity paper↔live only; backtest independent BacktestEngine (S-20260722-pd2y)" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-002" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-09dc7b9efa49d9bd">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-09dc7b9efa49d9bd" title="parity paper↔live only; backtest independent BacktestEngine (S-20260722-pd2y)" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-09dc7b9efa49d9bd" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-002">
 
 ### parity paper↔live only; backtest independent BacktestEngine (S-20260722-pd2y)
 
@@ -1504,7 +1504,7 @@ parity paper↔live only; backtest independent BacktestEngine (S-20260722-pd2y)
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-f20901703a3992df" title="parity paper↔live only; backtest independent (S-20260722-pd2y)" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-002" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-f20901703a3992df">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-f20901703a3992df" title="parity paper↔live only; backtest independent (S-20260722-pd2y)" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-f20901703a3992df" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-002">
 
 ### parity paper↔live only; backtest independent (S-20260722-pd2y)
 
@@ -1512,7 +1512,7 @@ parity paper↔live only; backtest independent (S-20260722-pd2y)
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-fffecb57bc72f6c0" title="promotion_eligible remains false (no default true in quantflow)" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-003" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-fffecb57bc72f6c0">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-fffecb57bc72f6c0" title="promotion_eligible remains false (no default true in quantflow)" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-fffecb57bc72f6c0" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-003">
 
 ### promotion_eligible remains false (no default true in quantflow)
 
@@ -1520,7 +1520,7 @@ promotion_eligible remains false (no default true in quantflow)
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-b6809c2c7c33df75" title="gitleaks optional/scheduled only — not required PR gate" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-006" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-b6809c2c7c33df75">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-b6809c2c7c33df75" title="gitleaks optional/scheduled only — not required PR gate" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-b6809c2c7c33df75" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-006">
 
 ### gitleaks optional/scheduled only — not required PR gate
 
@@ -1528,7 +1528,7 @@ gitleaks optional/scheduled only — not required PR gate
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-cc00ec4cc4b7735d" title="gitleaks optional/scheduled, not a required PR gate" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-005" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-cc00ec4cc4b7735d">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-cc00ec4cc4b7735d" title="gitleaks optional/scheduled, not a required PR gate" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-cc00ec4cc4b7735d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-005">
 
 ### gitleaks optional/scheduled, not a required PR gate
 
@@ -1536,7 +1536,7 @@ gitleaks optional/scheduled, not a required PR gate
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-2eb6fb29147721e0" title="never lower coverage fail_under" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-007" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-2eb6fb29147721e0">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-2eb6fb29147721e0" title="never lower coverage fail_under" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-2eb6fb29147721e0" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-007">
 
 ### never lower coverage fail_under
 
@@ -1544,7 +1544,7 @@ never lower coverage fail_under
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-44c4526bd9012d7e" title="L6 MonitoringSink Protocol only" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-003" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-44c4526bd9012d7e">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-44c4526bd9012d7e" title="L6 MonitoringSink Protocol only" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-44c4526bd9012d7e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-003">
 
 ### L6 MonitoringSink Protocol only
 
@@ -1552,7 +1552,7 @@ L6 MonitoringSink Protocol only
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-ac97a05dc44a9f60" title="deterministic mocks for integration" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-005" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-ac97a05dc44a9f60">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-ac97a05dc44a9f60" title="deterministic mocks for integration" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-ac97a05dc44a9f60" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-005">
 
 ### deterministic mocks for integration
 
@@ -1560,7 +1560,7 @@ deterministic mocks for integration
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-e62fbab5dc98e143" title="deterministic mocks only — no real exchange in integration tests" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-004" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-e62fbab5dc98e143">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-e62fbab5dc98e143" title="deterministic mocks only — no real exchange in integration tests" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-e62fbab5dc98e143" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-004">
 
 ### deterministic mocks only — no real exchange in integration tests
 
@@ -1568,7 +1568,7 @@ deterministic mocks only — no real exchange in integration tests
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-571c91a1b0160cb4" title="FakeGateway injected pre-start must also rebind OrderRouter (set_gateway) — mirrors start() binding for internally built" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#decision:D-002" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-571c91a1b0160cb4">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-571c91a1b0160cb4" title="FakeGateway injected pre-start must also rebind OrderRouter (set_gateway) — mirrors start() binding for internally built" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-571c91a1b0160cb4" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#decision:D-002">
 
 ### FakeGateway injected pre-start must also rebind OrderRouter (set_gateway) — mirrors start() binding for internally built
 
@@ -1576,7 +1576,7 @@ FakeGateway injected pre-start must also rebind OrderRouter (set_gateway) — mi
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-f108f7338c214ea9" title="requirements-lock regenerated on Windows/Python 3.14 clean venv (documented in header); aiodns/pycares are Linux/macOS a" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#decision:D-001" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-f108f7338c214ea9">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-f108f7338c214ea9" title="requirements-lock regenerated on Windows/Python 3.14 clean venv (documented in header); aiodns/pycares are Linux/macOS a" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-f108f7338c214ea9" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#decision:D-001">
 
 ### requirements-lock regenerated on Windows/Python 3.14 clean venv (documented in header); aiodns/pycares are Linux/macOS a
 
@@ -1584,7 +1584,7 @@ requirements-lock regenerated on Windows/Python 3.14 clean venv (documented in h
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-b1ad1f485c3337dc" title="W2 uses two NEW integration modules for parallel collision-free writes" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#decision:D-002" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-b1ad1f485c3337dc">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-12" sid="S-20260812-b1ad1f485c3337dc" title="W2 uses two NEW integration modules for parallel collision-free writes" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-b1ad1f485c3337dc" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#decision:D-002">
 
 ### W2 uses two NEW integration modules for parallel collision-free writes
 
@@ -1592,7 +1592,7 @@ W2 uses two NEW integration modules for parallel collision-free writes
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-66de9c7f5b15c02e" title="no engine rewrite" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-004" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-66de9c7f5b15c02e">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-66de9c7f5b15c02e" title="no engine rewrite" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-66de9c7f5b15c02e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-001-plan, artifact:ART-001-001, artifact:ART-001-002, artifact:ART-001-003, artifact:ART-001-004, artifact:ART-001-005, artifact:ART-001-006, artifact:ART-001-007, artifact:ART-001-008, artifact:ART-001-009, artifact:ART-001-010, artifact:ART-001-011, artifact:ART-001-012, artifact:ART-001-013, artifact:ART-001-016, report.md#constraint:C-004">
 
 ### no engine rewrite
 
@@ -1600,7 +1600,7 @@ no engine rewrite
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-8fd6d25b9cb00fe3" title="no live trading / no live promote" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-001" source="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-8fd6d25b9cb00fe3">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-12" sid="S-20260812-8fd6d25b9cb00fe3" title="no live trading / no live promote" sourceRef="session:maestro-20260812-eng-uplift-wave1-20260812-124541:KDC-8fd6d25b9cb00fe3" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260812-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, artifact:ART-002-008, report.md#constraint:C-001">
 
 ### no live trading / no live promote
 
@@ -1608,7 +1608,7 @@ no live trading / no live promote
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-075744de9d7bba5e" title="pyproject.toml [tool.coverage.report] fail_under = 100（已生效）" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#constraint:C-002" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-075744de9d7bba5e">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-075744de9d7bba5e" title="pyproject.toml [tool.coverage.report] fail_under = 100（已生效）" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-075744de9d7bba5e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#constraint:C-002">
 
 ### pyproject.toml [tool.coverage.report] fail_under = 100（已生效）
 
@@ -1616,7 +1616,7 @@ pyproject.toml [tool.coverage.report] fail_under = 100（已生效）
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-859df3eb509d9ae5" title="新增测试禁用 vectorbt 导入（.venv 未安装），需要时 monkeypatch sys.modules" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#constraint:C-003" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-859df3eb509d9ae5">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-859df3eb509d9ae5" title="新增测试禁用 vectorbt 导入（.venv 未安装），需要时 monkeypatch sys.modules" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-859df3eb509d9ae5" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#constraint:C-003">
 
 ### 新增测试禁用 vectorbt 导入（.venv 未安装），需要时 monkeypatch sys.modules
 
@@ -1624,7 +1624,7 @@ pyproject.toml [tool.coverage.report] fail_under = 100（已生效）
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-3536926f3f8e2b91" title="pragma 仅用于真正不可达/外部 IO 路径（__main__ 守卫、合成数据恒正、循环不变式），禁止掩盖可测分支" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#constraint:C-002" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-3536926f3f8e2b91" supersedes="S-20260817-11a5f3e22ac8480a,S-20260816-95df5f3284575cbd">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-3536926f3f8e2b91" title="pragma 仅用于真正不可达/外部 IO 路径（__main__ 守卫、合成数据恒正、循环不变式），禁止掩盖可测分支" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-3536926f3f8e2b91" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#constraint:C-002" supersedes="S-20260817-11a5f3e22ac8480a,S-20260816-95df5f3284575cbd">
 
 ### pragma 仅用于真正不可达/外部 IO 路径（__main__ 守卫、合成数据恒正、循环不变式），禁止掩盖可测分支
 
@@ -1632,7 +1632,7 @@ pragma 仅用于真正不可达/外部 IO 路径（__main__ 守卫、合成数�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-b768605b876454e7" title="覆盖率验收命令：pytest tests/ --cov=quantflow --cov-branch -m 'not live'，TOTAL 行+分支双 100%，exit 0" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#constraint:C-001, run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-b768605b876454e7">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-b768605b876454e7" title="覆盖率验收命令：pytest tests/ --cov=quantflow --cov-branch -m 'not live'，TOTAL 行+分支双 100%，exit 0" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-b768605b876454e7" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#constraint:C-001, run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003">
 
 ### 覆盖率验收命令：pytest tests/ --cov=quantflow --cov-branch -m 'not live'，TOTAL 行+分支双 100%，exit 0
 
@@ -1640,7 +1640,7 @@ pragma 仅用于真正不可达/外部 IO 路径（__main__ 守卫、合成数�
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-5a22f30e2fb1f2f8" title="root 亲自处理剩余小分支缺口（智能体反复报告完成但未落盘/写错断言），不依赖队友收尾" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#decision:D-002" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-5a22f30e2fb1f2f8">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-5a22f30e2fb1f2f8" title="root 亲自处理剩余小分支缺口（智能体反复报告完成但未落盘/写错断言），不依赖队友收尾" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-5a22f30e2fb1f2f8" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#decision:D-002">
 
 ### root 亲自处理剩余小分支缺口（智能体反复报告完成但未落盘/写错断言），不依赖队友收尾
 
@@ -1648,7 +1648,7 @@ root 亲自处理剩余小分支缺口（智能体反复报告完成但未落盘
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-8e75489fe8633172" title="35 处 pragma 全部保留（逐一核对理由成立：__main__ 守卫、合成数据恒正、循环不变式、elif 链短路、AST 负数表示）" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#decision:D-001" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-8e75489fe8633172">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-8e75489fe8633172" title="35 处 pragma 全部保留（逐一核对理由成立：__main__ 守卫、合成数据恒正、循环不变式、elif 链短路、AST 负数表示）" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-8e75489fe8633172" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#decision:D-001">
 
 ### 35 处 pragma 全部保留（逐一核对理由成立：__main__ 守卫、合成数据恒正、循环不变式、elif 链短路、AST 负数表示）
 
@@ -1656,7 +1656,7 @@ root 亲自处理剩余小分支缺口（智能体反复报告完成但未落盘
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-c56157934ca8a515" title="采用顺序单执行器派发，禁止并行子图（并行队友会并发清理共享工作区导致测试文件丢失）" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#decision:D-001" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-c56157934ca8a515" supersedes="S-20260816-fccee94ae23f3db3">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-c56157934ca8a515" title="采用顺序单执行器派发，禁止并行子图（并行队友会并发清理共享工作区导致测试文件丢失）" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-c56157934ca8a515" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#decision:D-001" supersedes="S-20260816-fccee94ae23f3db3">
 
 ### 采用顺序单执行器派发，禁止并行子图（并行队友会并发清理共享工作区导致测试文件丢失）
 
@@ -1664,7 +1664,7 @@ root 亲自处理剩余小分支缺口（智能体反复报告完成但未落盘
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-c9c0f9e6243ccbdf" title="错误断言测试直接删除而非 @skip 掩盖（删除 10 个 templates 错误断言 + 4 个 engine 错误测试）" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#decision:D-003" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-c9c0f9e6243ccbdf">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-c9c0f9e6243ccbdf" title="错误断言测试直接删除而非 @skip 掩盖（删除 10 个 templates 错误断言 + 4 个 engine 错误测试）" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-c9c0f9e6243ccbdf" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260816-002-execute, artifact:ART-002-001, artifact:ART-002-002, artifact:ART-002-003, artifact:ART-002-004, report.md#decision:D-003">
 
 ### 错误断言测试直接删除而非 @skip 掩盖（删除 10 个 templates 错误断言 + 4 个 engine 错误测试）
 
@@ -1672,7 +1672,7 @@ root 亲自处理剩余小分支缺口（智能体反复报告完成但未落盘
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-f54dc9d393714772" title="覆盖率测试文件组织按层命名（test_coverage_&lt;layer&gt;_&lt;feature&gt;.py），后续新层沿用" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#decision:D-002" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-f54dc9d393714772">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260817-f54dc9d393714772" title="覆盖率测试文件组织按层命名（test_coverage_&lt;layer&gt;_&lt;feature&gt;.py），后续新层沿用" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-f54dc9d393714772" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#decision:D-002">
 
 ### 覆盖率测试文件组织按层命名（test_coverage_<layer>_<feature>.py），后续新层沿用
 
@@ -1680,7 +1680,7 @@ root 亲自处理剩余小分支缺口（智能体反复报告完成但未落盘
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260816-95df5f3284575cbd" title="line 与 branch coverage 均须达 100%；pragma 仅用于真正不可达/外部 IO 路径" description="Promoted from run:20260816-001-analyze, artifact:ART-001-001, artifact:ART-001-002, report.md#constraint:C-001" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-95df5f3284575cbd" status="deprecated" superseded-by="S-20260817-3536926f3f8e2b91">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260816-95df5f3284575cbd" title="line 与 branch coverage 均须达 100%；pragma 仅用于真正不可达/外部 IO 路径" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-95df5f3284575cbd" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260816-001-analyze, artifact:ART-001-001, artifact:ART-001-002, report.md#constraint:C-001" superseded-by="S-20260817-3536926f3f8e2b91" lifecycleStatus="deprecated">
 
 ### line 与 branch coverage 均须达 100%；pragma 仅用于真正不可达/外部 IO 路径
 
@@ -1688,7 +1688,7 @@ line 与 branch coverage 均须达 100%；pragma 仅用于真正不可达/外部
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260816-fccee94ae23f3db3" title="采用 6 波分层执行（common/indicators→data/signal→strategy→execution/mon/recon→web/cli），每波可并行 teammate 派发" description="Promoted from run:20260816-001-analyze, artifact:ART-001-001, artifact:ART-001-002, report.md#decision:D-001" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-fccee94ae23f3db3" status="deprecated" superseded-by="S-20260817-c56157934ca8a515">
+<spec-entry category="arch" keywords="session-knowledge,decision" date="2026-08-17" sid="S-20260816-fccee94ae23f3db3" title="采用 6 波分层执行（common/indicators→data/signal→strategy→execution/mon/recon→web/cli），每波可并行 teammate 派发" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-fccee94ae23f3db3" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260816-001-analyze, artifact:ART-001-001, artifact:ART-001-002, report.md#decision:D-001" superseded-by="S-20260817-c56157934ca8a515" lifecycleStatus="deprecated">
 
 ### 采用 6 波分层执行（common/indicators→data/signal→strategy→execution/mon/recon→web/cli），每波可并行 teammate 派发
 
@@ -1696,7 +1696,7 @@ line 与 branch coverage 均须达 100%；pragma 仅用于真正不可达/外部
 
 </spec-entry>
 
-<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-11a5f3e22ac8480a" title="pragma 仅用于真正不可达/外部 IO 路径，新增 pragma 必须附理由注释" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#constraint:C-003" source="session:20260816-maestro-coverage-100-20260816-082359:KDC-11a5f3e22ac8480a" status="deprecated" superseded-by="S-20260817-3536926f3f8e2b91">
+<spec-entry category="arch" keywords="session-knowledge,constraint" date="2026-08-17" sid="S-20260817-11a5f3e22ac8480a" title="pragma 仅用于真正不可达/外部 IO 路径，新增 pragma 必须附理由注释" sourceRef="session:20260816-maestro-coverage-100-20260816-082359:KDC-11a5f3e22ac8480a" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Promoted from run:20260818-003-review, artifact:ART-003-001, artifact:ART-003-002, artifact:ART-003-003, report.md#constraint:C-003" superseded-by="S-20260817-3536926f3f8e2b91" lifecycleStatus="deprecated">
 
 ### pragma 仅用于真正不可达/外部 IO 路径，新增 pragma 必须附理由注释
 

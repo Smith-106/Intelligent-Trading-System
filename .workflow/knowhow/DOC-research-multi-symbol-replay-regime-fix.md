@@ -1,10 +1,17 @@
 ---
 title: "Multi-symbol paper replay: per-symbol regime detector + equal/shared_cap/risk_parity modes"
-type: knowhow
-category: research
-tags: [multi-symbol, regime, paper-replay, portfolio, risk-parity]
-status: active
-  - knowhow-kh-multi-symbol-patterns
+type: document
+keywords:
+  - multi-symbol
+  - regime
+  - paper-replay
+  - portfolio
+  - risk-parity
+category: coding
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: "| mode | note | |------|------| | BTC-only | baseline on same window | | equal | shared book, default caps | | shared_cap | tighter single-name cap | | risk_parity | **silo** inv-vol capital split — **not** comparable 1:1 to shared-book PnL"
+lifecycleStatus: active
 related:
   - knowhow-doc-20260810-residual-ops-t023-wave-close
   - knowhow-doc-research-execution-fidelity-fee-slip

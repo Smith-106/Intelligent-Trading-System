@@ -1,0 +1,486 @@
+{
+  "schema_version": "knowledge-normalization-report/1.0",
+  "mode": "dry-run",
+  "project_root": "C:\\Users\\niko\\Desktop\\智能交易系统",
+  "repo_id": "4df0e1f8-a4e6-4872-8eb3-857aef7909ed",
+  "scope": "all",
+  "source_fingerprint": "49cd508a6f415ba90d810e18018dbc3f13e40609ca643a67ed7096567090d596",
+  "generated_at": "2026-09-18T13:46:07.638Z",
+  "actions": [
+    {
+      "file": ".workflow/specs/learnings.md",
+      "store": "spec",
+      "before_sha256": "e6040be02823084741a8002879807e2e5eb6073aeac6bdde40abadd46bd3acfe",
+      "after_sha256": "d135edcdadc898787f0e83423f1d88f90d3c9fd879ed907d33a017e56bfb0c5f",
+      "changes": [
+        "id->removed",
+        "legacy-unscoped->current-repo-id",
+        "source->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-20260811-imp-residual-research-os-v070.md",
+      "store": "knowhow",
+      "before_sha256": "b9a53063eb759d3d64fd5bf48f7598c3466a5cd8cb152160fa9a7bf4ea7b437a",
+      "after_sha256": "a301bf89e1f4210ee7868e9e808d0ce20978e258f4587ddd0e4689e417af2088",
+      "changes": [
+        "legacy-unscoped->current-repo-id",
+        "status->canonical",
+        "tags->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-20260811-learnings-params-structure.md",
+      "store": "knowhow",
+      "before_sha256": "5e29347f383978bf68296df2a5ee40a95fd93c736b32461319cb8bb8715a4bd0",
+      "after_sha256": "22bb411df402c5fe6a92bcb31cbac8fef5c21c8a258d9a7bc3211b89d413982d",
+      "changes": [
+        "legacy-unscoped->current-repo-id",
+        "status->canonical",
+        "tags->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-anti-ai-slop-design-signals.md",
+      "store": "knowhow",
+      "before_sha256": "a580c49861ae931b9e3ab1bf2ab580fb254372ff4852232653fd17dab108ee72",
+      "after_sha256": "10f572ddcdae9fc5b15be4a8a848dbfed06e04c83cbc44bd7ddcd112663e5c25",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-dynamic-budget-ewma.md",
+      "store": "knowhow",
+      "before_sha256": "836cfb346ba2159405b4f246d8a844913bc932cffc53ce738091565728441bce",
+      "after_sha256": "7499377c2171bda32c8b44aebe2addf147959f526747f935e14276941f166dec",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-engine-recovery-chain.md",
+      "store": "knowhow",
+      "before_sha256": "9ab3128ec2672888f02869c20d3da5ae4291e389c4e60154ec8ecfd46af7683d",
+      "after_sha256": "55c5253ad440be960e190f5ee21b24d353da24e488c2bcd6a33c24213c533bbd",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-exchange-health-breaker.md",
+      "store": "knowhow",
+      "before_sha256": "d99d99544000ea491289c162a52776c3ae1754264e9c6ded69832c858b6b0f1d",
+      "after_sha256": "cabfcb8b38de782ecda84813a4b19490f81d9dfc16a54e0fcca04a9123dd54cc",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-harvest-analysis-benchmark-methodology.md",
+      "store": "knowhow",
+      "before_sha256": "63512dc3f17fcfde983081e647fb5127a3d993d3499880e1738a33e9c9ca1250",
+      "after_sha256": "6f6572598f8203f9c09fd471d8f3d7fb3d60b3a45d200c6f8968d84bd437c8ad",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-harvest-analysis-data-single-source.md",
+      "store": "knowhow",
+      "before_sha256": "1a687c65e7e374e7e7a87319a83a637129dc62d131b5f19ba32a4f6f4a1ff5b0",
+      "after_sha256": "515300c5c0faeed8c415b22d4edf833b37ee87989536e63177c6769ffddaacfa",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-harvest-analysis-gap-grading.md",
+      "store": "knowhow",
+      "before_sha256": "5c46402cd18229d8a5e07717bdb68e7a5017d6776f6fc0ad802fa1014c5934b8",
+      "after_sha256": "f1fd878a09c8c225912af249e98608ee87636d6153388ed4e212ecf82cd2ecd0",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-harvest-analysis-highflyer-principles.md",
+      "store": "knowhow",
+      "before_sha256": "2dfdd5a03abf212cc237b36bac506602c73dcd6a2f23596e1fe5752b66d9bc75",
+      "after_sha256": "b611864169fc3faa91be2bc03281c4461a42109d9be0bc6c227341d98fbea7a5",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-harvest-roadmap-evolution-dag.md",
+      "store": "knowhow",
+      "before_sha256": "b5a78dd39e9988c6588ed25981273efd1c0862e9938ec4a6fff45e131dcc9178",
+      "after_sha256": "6d979c2e6b649526660017e461a53ad256657a59aba4b02bd60b96940664e9e2",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-knowhow-concurrent-agent-session-collision.md",
+      "store": "knowhow",
+      "before_sha256": "15c01950a099519bcd1227e97f9fba57110c992449e95f1a28d64a44b34ba113",
+      "after_sha256": "59653ad582d13834c5a60665949266132f4d5aae8312339fb6659107b7601b67",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-knowhow-data-layer-upgrade-polars-clickhouse.md",
+      "store": "knowhow",
+      "before_sha256": "79c24f7a8d536f837b5430d3b1ce7afbe8085db2132c81fe59d32925061126a3",
+      "after_sha256": "408d8c0a49e189bed3a9279e9b8bbbacc1ee834c0944b5a0aecb00f9760ff42a",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "note->removed",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-knowhow-fingpt-v33-finbert-upgrade.md",
+      "store": "knowhow",
+      "before_sha256": "9ad73dc53647a6b9463662622b405face6f37d3d41634150749c08f4397b245c",
+      "after_sha256": "9b2042972a8310e7403b3b09ca551c7af333e27ab44d233ce65e701f9224f0ad",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-knowhow-live-cost-modeling-funding-fee-alerts.md",
+      "store": "knowhow",
+      "before_sha256": "a2a81425e269d3ec7d9a9cc0c4efc5c934ec747769ca9654969cc16a45b21322",
+      "after_sha256": "78e38876b6b7171d84db933894b669fcd34cf548b6148e12eb1911ad910fef68",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-knowhow-qlib-model-zoo-benchmark.md",
+      "store": "knowhow",
+      "before_sha256": "64449060c6e163ed7a3a81fc942583723ef0716103524f9e82c5b8e38ee18aef",
+      "after_sha256": "8b8cd69241bd9f410d6966880d8687ca0cbbd9cbc0e31c065f1bb8a795f3e7cf",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-knowhow-rdagent-q-factor-mining-architecture.md",
+      "store": "knowhow",
+      "before_sha256": "2beeb49794128a09dd4893ea343269f6d02188fbc5ab4d43f2c61318d1f6e549",
+      "after_sha256": "a96956fd4716dd02922e92f6b3f45541f08a8aa961b6dad19039eb6271b31647",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-knowhow-sentiment-dissemination-breadth.md",
+      "store": "knowhow",
+      "before_sha256": "ab3d5663197b7eddff4f25d3ecb8550fdf07c61770d04343142e8a33775d79ca",
+      "after_sha256": "6d8a23af01f3e820a33eedbcf7f278afc88e091ae549447e7e311e6e95a168f8",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-knowledge-hub.md",
+      "store": "knowhow",
+      "before_sha256": "5684a5a0f9e5954f91b2c69c988aceabf08c590c0dee8b807544d8462c0809ce",
+      "after_sha256": "1d5b52c4aba61995c903c42c2e967ac9bbc03cb9c5e7a759ff749a156f256e94",
+      "changes": [
+        "legacy-unscoped->current-repo-id",
+        "status->canonical",
+        "tags->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-llm-endpoint-triple-verify.md",
+      "store": "knowhow",
+      "before_sha256": "13406836ce14fdf2bde0c3db5b5d84050d50c5be98bcdd1d6c9841ead7ccb69f",
+      "after_sha256": "18436df28c9ba386ab6b94f66b1c1212b05aff9a33899d2a07defa03f54dd6d4",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-meta-features-zero-shift.md",
+      "store": "knowhow",
+      "before_sha256": "c0f64f694199ba003847f443145e83aef619bac947fbfaaa93806c483021ff4e",
+      "after_sha256": "38c90cf63f399837d104cb8bd7a07a6f0481729dbaf482cf5daadee7dbe6a3ee",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-metricsrow-de-template-pattern.md",
+      "store": "knowhow",
+      "before_sha256": "0286d8d8e2f33f6c4df5724c2096ab9eb52700376083e6305902c831bf4fd7d4",
+      "after_sha256": "17cf8b702b1026c5616634ca48c27ef833de0909911182bf4ed8a5ee115feda3",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-model-registry-design.md",
+      "store": "knowhow",
+      "before_sha256": "e1ff9acf27fa1882385917fedd4779af8d93ee4d2ea5d64516ef09061de88488",
+      "after_sha256": "0b49fe26a4eb3fb9712608fc5a4192c005477a6d4293417aadc97538c2ecc5c9",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-monitoring-sink-protocol.md",
+      "store": "knowhow",
+      "before_sha256": "de8a4cdcbb79343eddeb6ac4f8d1d1650755d7c7e879ee4a957642ef61396eed",
+      "after_sha256": "be9a78da239785ed90069e7f34aaca0e0f6730a14e04ea6ab115c28288e7cf16",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-okx-pagination-pattern.md",
+      "store": "knowhow",
+      "before_sha256": "d1e8cb75795e7fd8486af5b45667a52e3ce3b3e5c0eee6be0bbe146136a9a6e3",
+      "after_sha256": "75ee5269f5a48a30db99e2ba22402c2ae3edcfc68307c9b3d82f3b1ddf89f7ae",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-p0-baseline-float-guard.md",
+      "store": "knowhow",
+      "before_sha256": "6ca57a592798704b1cd7a525a23e3b04893d96071baa9be48646b09b280a1303",
+      "after_sha256": "5ef42faeb5d08880b6add6936762ff484b2d951753e7c4dd48a45fa28463e5b2",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-research-direction-gate-wfo-overfit.md",
+      "store": "knowhow",
+      "before_sha256": "c5b19cffa8bd6753c3eefea04c8d855228dcc3a9723b013740f4541ea5fb4b94",
+      "after_sha256": "0a8aad1c253ad6d00a272aed71d454a31dbdbea0ada380b9ce6ed39fc70baf03",
+      "changes": [
+        "legacy-unscoped->current-repo-id",
+        "status->canonical",
+        "tags->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-research-execution-fidelity-fee-slip.md",
+      "store": "knowhow",
+      "before_sha256": "77256725c29726d97154a6e79f264420a3ca01f083fe8fcd6dcd176c3b427418",
+      "after_sha256": "1b7db5c57ed667f925678723faf4ee61ca0526d39f6a6eadf6a9c96aa71e11a2",
+      "changes": [
+        "legacy-unscoped->current-repo-id",
+        "status->canonical",
+        "tags->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-research-go-panel-export.md",
+      "store": "knowhow",
+      "before_sha256": "72be0e7c14308515bcae47d5f472f22c07fc839345fa12b00fef2df3eda92383",
+      "after_sha256": "d91bc77c1ba9031699ca0b06df56b2ce7a7ff8a37dc01614302dd22a4c2e24c8",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-research-multi-symbol-replay-regime-fix.md",
+      "store": "knowhow",
+      "before_sha256": "191550098a1acb34ac1ee1b3dd7c5979a8ab3648bb4db45186085c24ed737294",
+      "after_sha256": "f6d4292060ec8b8d48ec822b7dea7a3068897ecf56fd7d0fe4ec2353536b05c7",
+      "changes": [
+        "legacy-unscoped->current-repo-id",
+        "status->canonical",
+        "tags->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-state-store-atomic-write.md",
+      "store": "knowhow",
+      "before_sha256": "4c819dd3bdc4f88210ab3b8d6b81e51194ba6f7bd5a518d769df88be019bcc52",
+      "after_sha256": "65b02e5dde4a6fc6483f7da3671c85cd658cb4a92782e2ba57b43cf95bb2aef5",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-strategy-matrix-complementarity-and-rationale.md",
+      "store": "knowhow",
+      "before_sha256": "6dfce9c191d407d3de4530ed89e3323c4f3225495ab0ba9bde63f9d189ebfc12",
+      "after_sha256": "72dd93fbc654ff5d9dc52998e3259b171782205572124858aa395af19f711dff",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/DOC-ui-polish-loop-methodology.md",
+      "store": "knowhow",
+      "before_sha256": "e92382b935f07ac037502135be93e98e72242a46ba2b2f85c02d8c3bf2fa044b",
+      "after_sha256": "a0f89d0f666e1311c918428b5e02b7ce0edda050a9683a3d5e67f26b10b3a187",
+      "changes": [
+        "createdBy->removed",
+        "legacy-unscoped->current-repo-id",
+        "status->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/TIP-20260811-knowledge-pending-observed-not-auto-promote.md",
+      "store": "knowhow",
+      "before_sha256": "f11d4073cf2ac6a48941dca7dfc17efc30701138bf4f4e13e2e5eadd0ff37e15",
+      "after_sha256": "bbec651bc7b8ece398ee017d614c41c7b22d232aeb90e1c1f091fc1e9ecd3c96",
+      "changes": [
+        "legacy-unscoped->current-repo-id",
+        "status->canonical",
+        "tags->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/kh-failclosed-gateway-contract.md",
+      "store": "knowhow",
+      "before_sha256": "f1f7cd7c5425e6427d3e8b4752d6357e7d6896a3dfd8df6d2aa921b1d8abf8cd",
+      "after_sha256": "b244784080d83b3d8e6f1e52aaa95b44bfea80013916f80a6e185ec398b1a0bd",
+      "changes": [
+        "legacy-unscoped->current-repo-id",
+        "status->canonical",
+        "tags->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/kh-hotpath-zero-alloc.md",
+      "store": "knowhow",
+      "before_sha256": "b739bb03554f0c02fa05c1b821d6358c8ec47002838f0652eb984ef9e8d7ffbb",
+      "after_sha256": "c0c029fa8eee20fad47b94afd0ee8e5ca8de746a03d7e528979beb444c20a7a7",
+      "changes": [
+        "legacy-unscoped->current-repo-id",
+        "status->canonical",
+        "tags->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/kh-multi-symbol-patterns.md",
+      "store": "knowhow",
+      "before_sha256": "b7b56233539bdd1b366004c3d0b1b64bd41c0356e018aed8ffa458b0973f47d5",
+      "after_sha256": "21076291f43e8a930912963fe95b905e946a5693f3fe5e5cfeb6d426d2686ffb",
+      "changes": [
+        "legacy-unscoped->current-repo-id",
+        "status->canonical",
+        "tags->canonical"
+      ],
+      "blocked": []
+    },
+    {
+      "file": ".workflow/knowhow/kh-order-statemachine-completeness.md",
+      "store": "knowhow",
+      "before_sha256": "1e2f25e3a8910b5c05fbcad12702311db12b26b4faa50b06f223162b75e0f136",
+      "after_sha256": "8664e1ae6d72a8e041a34bced12cf011f2ee8295fe7edefac215eff571e719b5",
+      "changes": [
+        "legacy-unscoped->current-repo-id",
+        "status->canonical",
+        "tags->canonical"
+      ],
+      "blocked": []
+    }
+  ],
+  "unresolved": [],
+  "safety": {
+    "report_required_before_apply": true,
+    "automatic_bulk_rewrite": false,
+    "backup_before_write": true
+  }
+}

@@ -1,16 +1,21 @@
 ---
-title: "Session compact fe4c1f6a-2c98-4af1-a40d-5e9211e96229"
-description: "Session compact checkpoint for 019fd662-ea0f-7f7b-801f-4ad3fae9205f"
+title: Session compact fe4c1f6a-2c98-4af1-a40d-5e9211e96229
 type: session
-created: "2026-08-07T15:16:27.887Z"
-tags: [session, compaction, checkpoint, todo, skill]
-status: active
-sessionId: "019fd662-ea0f-7f7b-801f-4ad3fae9205f"
-checkpointId: "fe4c1f6a-2c98-4af1-a40d-5e9211e96229"
-previousCheckpointId: "4ce3d42c-1912-43be-82fb-428731ea0e4d"
+created: 2026-08-07T15:16:27.887Z
+keywords:
+  - session
+  - compaction
+  - checkpoint
+  - todo
+  - skill
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: Session compact checkpoint for 019fd662-ea0f-7f7b-801f-4ad3fae9205f
+lifecycleStatus: active
 related:
   - knowhow-doc-knowledge-hub
 ---
+
 # Session Compact Checkpoint
 
 ## Checkpoint Metadata

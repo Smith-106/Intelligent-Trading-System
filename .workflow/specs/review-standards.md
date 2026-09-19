@@ -17,7 +17,7 @@ type: spec
 
 ## Entries
 
-<spec-entry category="review" keywords="csrf,layered-controls,early-return,origin,x-requested-with" date="2026-07-05" title="Layered security controls must all execute — no early-return past a passing control" description="Auth+CSRF middleware must run both controls per request; same-origin signal is Origin only, never X-Requested-With" sid="S-legacy-abe97254">
+<spec-entry category="review" keywords="csrf,layered-controls,early-return,origin,x-requested-with" date="2026-07-05" sid="S-legacy-abe97254" title="Layered security controls must all execute — no early-return past a passing control" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Auth+CSRF middleware must run both controls per request; same-origin signal is Origin only, never X-Requested-With">
 ### Layered security controls must all execute — no early-return past a passing control
 
 Security middleware that claims "layered defense-in-depth" (e.g. auth + CSRF) must run ALL controls to completion per request — a `return` after one passing control makes the others dead code. Two concrete rules:
@@ -33,7 +33,7 @@ Source: odyssey-review security-fixes session (REV-001, REV-002).
 </spec-entry>
 
 
-<spec-entry category="review" keywords="仓位绑定,vol-target,es_97.5,fat-tail,半kelly" date="2026-07-18" sid="S-20260718-c3vv" title="仓位绑定规则取三者下界 + ES_97.5 主风险指标 + fat-tail 警示" description="仓位取 min(half-Kelly,vol-target,单名上限);ES_97.5 主指标,parametric VaR 降级" source="harvest:deep-research-20260718">
+<spec-entry category="review" keywords="仓位绑定,vol-target,es_97.5,fat-tail,半kelly" date="2026-07-18" sid="S-20260718-c3vv" title="仓位绑定规则取三者下界 + ES_97.5 主风险指标 + fat-tail 警示" sourceRef="harvest:deep-research-20260718" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="仓位取 min(half-Kelly,vol-target,单名上限);ES_97.5 主指标,parametric VaR 降级">
 
 ### 仓位绑定规则取三者下界 + ES_97.5 主风险指标 + fat-tail 警示
 
@@ -41,7 +41,7 @@ Source: odyssey-review security-fixes session (REV-001, REV-002).
 
 </spec-entry>
 
-<spec-entry category="review" keywords="ccxt,reduceOnly,camelCase,参数命名,跨交易所" date="2026-07-22" sid="S-20260722-z4dr" title="CCXT 交易所统一参数用 camelCase — verify against canonical docs not Python convention" description="reduceOnly 是 CCXT 跨交易所统一约定(camelCase)；snake_case reduce_only 可能被实盘网关静默忽略，校验时按 CCXT 官方文档而非 Python 命名惯例" source="harvest:p1-parity-paths-20260720">
+<spec-entry category="review" keywords="ccxt,reduceOnly,camelCase,参数命名,跨交易所" date="2026-07-22" sid="S-20260722-z4dr" title="CCXT 交易所统一参数用 camelCase — verify against canonical docs not Python convention" sourceRef="harvest:p1-parity-paths-20260720" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="reduceOnly 是 CCXT 跨交易所统一约定(camelCase)；snake_case reduce_only 可能被实盘网关静默忽略，校验时按 CCXT 官方文档而非 Python 命名惯例">
 
 ### CCXT 交易所统一参数用 camelCase — verify against canonical docs not Python convention
 
@@ -53,7 +53,7 @@ CCXT 作为统一交易所抽象层，其  等方法的参数名遵循 CCXT 自�
 </spec-entry>
 
 
-<spec-entry category="review" keywords="redaction,choke-point,cwe-532,credential,security" date="2026-07-24" sid="S-20260724-9smk" title="credential 异常 choke point 静态守护" description="凭证路径异常必须过 redact_secrets；静态 guard 守护 choke point 防 raw-log 回归" source="main@bb3c6cd">
+<spec-entry category="review" keywords="redaction,choke-point,cwe-532,credential,security" date="2026-07-24" sid="S-20260724-9smk" title="credential 异常 choke point 静态守护" sourceRef="main@bb3c6cd" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="凭证路径异常必须过 redact_secrets；静态 guard 守护 choke point 防 raw-log 回归">
 
 ### credential 异常 choke point 静态守护
 

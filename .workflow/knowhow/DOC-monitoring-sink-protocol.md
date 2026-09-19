@@ -1,15 +1,18 @@
 ---
 title: MonitoringSink Protocol 扩展：Protocol/Null/Default 三层解耦
-category: architecture
-createdBy: "harvest:wave3-s4"
+type: document
+category: arch
 sourceRef: maestro-wave3-s4-20260804-20260804-054608
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 1. **Protocol 定义接缝**：通过 `typing.Protocol` 定义 MonitoringSink 接口 2. **Null 默认实现**：默认使用 Null sink（无操作），向前兼容 3. **Default 实现**：提供默认监控实现（记录到本地或标准输出） 4. **L3/L4 保持零 L6 导入**：协议层不导入任何 L6 监控模块 5. **纯附加可观测性**：engine.py 调用 `self._sink.record_strategy_
+lifecycleStatus: active
 related:
   - knowhow-doc-exchange-health-breaker
   - knowhow-doc-engine-recovery-chain
   - knowhow-doc-research-go-panel-export
 ---
+
 # MonitoringSink Protocol 扩展模式
 
 ## 适用场景

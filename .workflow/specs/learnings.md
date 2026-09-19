@@ -18,7 +18,7 @@ Add entries with: `/spec-add learning <description>`
 
 ## Entries
 
-<spec-entry category="pattern" keywords="security,common-layer,single-source-of-truth,g2-standard" date="2026-07-22" id="INS-ed9b4bab" source="retrospective" sid="S-legacy-ccee029c">
+<spec-entry category="learning" keywords="security,common-layer,single-source-of-truth,g2-standard" date="2026-07-22" sid="S-legacy-ccee029c" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 跨层安全控制提升为 common/ 公共 API + 薄 backcompat wrapper（单一审计面）
 
@@ -33,7 +33,7 @@ Add entries with: `/spec-add learning <description>`
 </spec-entry>
 
 
-<spec-entry category="pattern" keywords="security,regression-guard,static-test,ci" date="2026-07-22" id="INS-6063364e" source="retrospective" sid="S-legacy-1c08e576">
+<spec-entry category="learning" keywords="security,regression-guard,static-test,ci" date="2026-07-22" sid="S-legacy-1c08e576" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 每个 hardening 修复冻结为静态 grep guard 测试（footgun 按名无法静默回归）
 
@@ -48,7 +48,7 @@ Add entries with: `/spec-add learning <description>`
 </spec-entry>
 
 
-<spec-entry category="pattern" keywords="security,defense-in-depth,layer-choke-point,validation" date="2026-07-22" id="INS-686f55ec" source="retrospective" sid="S-legacy-0938a8d1">
+<spec-entry category="learning" keywords="security,defense-in-depth,layer-choke-point,validation" date="2026-07-22" sid="S-legacy-0938a8d1" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 每个层边界都校验不可信输入（web edge pydantic + gateway symbol + 持久化 category 白名单）
 
@@ -63,7 +63,7 @@ Add entries with: `/spec-add learning <description>`
 </spec-entry>
 
 
-<spec-entry category="pattern" keywords="security,supply-chain,docker,ci,sha-pin" date="2026-07-22" id="INS-8eaddcfd" source="retrospective" sid="S-legacy-181eaf79">
+<spec-entry category="learning" keywords="security,supply-chain,docker,ci,sha-pin" date="2026-07-22" sid="S-legacy-181eaf79" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 第三方镜像钉主版本 tag + GitHub Actions 钉 SHA@comment，禁用 :latest / 浮动 @vN
 
@@ -78,7 +78,7 @@ Add entries with: `/spec-add learning <description>`
 </spec-entry>
 
 
-<spec-entry category="arch" keywords="security,threat-model,right-sizing,arch" date="2026-07-22" id="INS-2a662598" source="retrospective" sid="S-legacy-a474af77">
+<spec-entry category="arch" keywords="security,threat-model,right-sizing,arch" date="2026-07-22" sid="S-legacy-a474af77" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 控制前先声明威胁模型，让模型决定控制强度
 
@@ -93,7 +93,7 @@ single-operator local-first 模型（loopback bind + 可选 shared-secret token�
 </spec-entry>
 
 
-<spec-entry category="antipattern" keywords="security,observability,diagnostics,tradeoff" date="2026-07-22" id="INS-8019d094" source="retrospective" sid="S-legacy-f5f90346">
+<spec-entry category="debug" keywords="security,observability,diagnostics,tradeoff" date="2026-07-22" sid="S-legacy-f5f90346" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 勿只记录 redacted exception 给服务端日志——保留 raw diagnostics 通道否则丢事故后可复现性
 
@@ -108,7 +108,7 @@ single-operator local-first 模型（loopback bind + 可选 shared-secret token�
 </spec-entry>
 
 
-<spec-entry category="gotcha" keywords="security,redaction,regex-drift,test-coverage" date="2026-07-22" id="INS-741da4eb" source="retrospective" sid="S-legacy-fa153f46">
+<spec-entry category="debug" keywords="security,redaction,regex-drift,test-coverage" date="2026-07-22" sid="S-legacy-fa153f46" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### shape-based redaction regex 是维护型 allowlist 不是一次性修复——配 coverage 测试喂已知格式 secret
 
@@ -123,7 +123,7 @@ bot-token/Bearer regex 锚定特定 provider 当前 token 格式（Telegram {dig
 </spec-entry>
 
 
-<spec-entry category="quality" keywords="test-coverage,security,residual-risk,static-guard" date="2026-07-22" id="INS-bec2fd56" source="retrospective" sid="S-legacy-e090b85f">
+<spec-entry category="test" keywords="test-coverage,security,residual-risk,static-guard" date="2026-07-22" sid="S-legacy-e090b85f" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 残余风险路径需 pinned 测试，不能只 docstring 让步
 
@@ -138,7 +138,7 @@ bot-token/Bearer regex 锚定特定 provider 当前 token 格式（Telegram {dig
 </spec-entry>
 
 
-<spec-entry category="pattern" keywords="quality-gate,mypy,pre-commit,test-vs-type" date="2026-07-22" id="INS-7b99803f" source="retrospective" sid="S-legacy-3a993620">
+<spec-entry category="learning" keywords="quality-gate,mypy,pre-commit,test-vs-type" date="2026-07-22" sid="S-legacy-3a993620" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### fix-time test-pass ≠ type-pass；mypy --strict 纳入 per-batch pre-commit gate
 
@@ -153,7 +153,7 @@ Batch E 提交 9e49629 声称零回归，27 分钟后需单独 f966b30 满足 my
 </spec-entry>
 
 
-<spec-entry category="pattern" keywords="wave-planning,scope-decomposition,cross-layer" date="2026-07-22" id="INS-3d282fd2" source="retrospective" sid="S-legacy-3f4894c3">
+<spec-entry category="learning" keywords="wave-planning,scope-decomposition,cross-layer" date="2026-07-22" sid="S-legacy-3f4894c3" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 跨层 issue 按 layer 拆分而非按 issue 整体
 
@@ -168,7 +168,7 @@ ISS-009 跨 data-layer(JSONL) + infra-layer(Docker/CI)，被迫 mid-pass 拆 bat
 </spec-entry>
 
 
-<spec-entry category="debug" keywords="process,audit-drift,work-item-validation,backlog-hygiene" date="2026-07-22" id="INS-88f77d33" source="retrospective" sid="S-legacy-a9c5657f">
+<spec-entry category="debug" keywords="process,audit-drift,work-item-validation,backlog-hygiene" date="2026-07-22" sid="S-legacy-a9c5657f" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### 排程 work item 前先验证 finding 仍可复现——audit→issue 管道会漂离 code 现实
 
@@ -183,7 +183,7 @@ ISS-20260721-009 从 2026-07-05 安全审计创建，声称 feature_store SQL �
 </spec-entry>
 
 
-<spec-entry category="technique" keywords="rework-prevention,pre-batch-probe,scope-verification" date="2026-07-22" id="INS-7b17e05e" source="retrospective" sid="S-legacy-5e75b195">
+<spec-entry category="learning" keywords="rework-prevention,pre-batch-probe,scope-verification" date="2026-07-22" sid="S-legacy-5e75b195" sourceRef="retrospective" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### scoping fix batch 前先 probe 目标状态
 
@@ -197,7 +197,7 @@ Batch F 发现 feature_store SQL 已参数化并 pivot 到 JSONL——happy outc
 
 </spec-entry>
 
-<spec-entry category="technique" keywords="grep-cache,tool-lag,edit-verification,python-open" date="2026-07-24" id="INS-ca90827c" source="odyssey-debug" sid="S-legacy-9b9d0bb4">
+<spec-entry category="learning" keywords="grep-cache,tool-lag,edit-verification,python-open" date="2026-07-24" sid="S-legacy-9b9d0bb4" sourceRef="odyssey-debug" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### Grep 工具在 Edit 后返回陈旧缓存——用 python open()/Read 交叉验证
 
@@ -216,7 +216,7 @@ ISS-20260724-044 修复期间（execution/engine.py 移除 ORDER_LATENCY import 
 </spec-entry>
 
 
-<spec-entry category="learning" keywords="metrics-server,幂等,测试顺序依赖,端口状态隔离" date="2026-07-24" sid="S-20260724-3jyz" title="幂等状态下沉到模块全局致测试顺序依赖 — 测试须显式重置全局" description="把去重状态从调用方 set 下沉到模块级全局字典后，断言该状态从'未尝试'开始的测试变成顺序依赖 flaky，须显式 pop 重置">
+<spec-entry category="learning" keywords="metrics-server,幂等,测试顺序依赖,端口状态隔离" date="2026-07-24" sid="S-20260724-3jyz" title="幂等状态下沉到模块全局致测试顺序依赖 — 测试须显式重置全局" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="把去重状态从调用方 set 下沉到模块级全局字典后，断言该状态从'未尝试'开始的测试变成顺序依赖 flaky，须显式 pop 重置">
 
 ### 幂等状态下沉到模块全局致测试顺序依赖 — 测试须显式重置全局
 

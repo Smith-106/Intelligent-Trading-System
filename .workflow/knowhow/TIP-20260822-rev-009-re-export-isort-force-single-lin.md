@@ -1,9 +1,13 @@
 ---
 title: "REV-009: re-export 在 isort force-single-line 下用赋值形式"
 type: tip
+created: 2026-08-22T08:24:34.453Z
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 背景：odyssey REV-009 S4 将 cli/main.py 渲染辅助抽到 cli/render.py。 教训：import 形式 re-export（from x import y as y）会被 pyproject 的 isort force-single-line 拆行并遭 F401 自动修剪，ruff --fix 静默删除符号导致测试 AttributeError。稳定做法：模块中段用赋值形式 _display_cpcv = _cli_render._dis
+lifecycleStatus: active
 related:
   - knowhow-doc-knowledge-hub
-created: 2026-08-22T08:24:34.453Z
 ---
 
 背景：odyssey REV-009 S4 将 cli/main.py 渲染辅助抽到 cli/render.py。

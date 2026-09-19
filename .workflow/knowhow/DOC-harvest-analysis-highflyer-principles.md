@@ -1,13 +1,16 @@
 ---
 title: 幻方式 AI 量化范式：借鉴生产方式原则而非硬件规模
-category: knowhow
-createdBy: harvest
+type: document
+category: review
 sourceRef: 20260803-001-analyze
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: "**Source**: 20260803-001-analyze（finding F7，置信度 0.9） **Tags**: benchmark, knowhow, strategy-factory"
+lifecycleStatus: active
 related:
   - knowhow-doc-harvest-roadmap-evolution-dag
 ---
+
 # 幻方式 AI 量化范式：借鉴生产方式原则而非硬件规模
 
 **Source**: 20260803-001-analyze（finding F7，置信度 0.9）

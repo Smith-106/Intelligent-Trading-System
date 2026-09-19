@@ -1,12 +1,18 @@
 ---
-title: "QuantFlow multi-symbol extension patterns"
-type: knowhow
-tags: [multi-symbol, architecture]
-status: active
+title: QuantFlow multi-symbol extension patterns
+type: document
+keywords:
+  - multi-symbol
+  - architecture
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: "> source: harvest | date: 2026-07-30 | confidence: high > tags: multi-symbol, TOCTOU, pending-ledger, architecture, concurrency"
+lifecycleStatus: active
 related:
   - knowhow-doc-research-multi-symbol-replay-regime-fix
   - knowhow-kh-failclosed-gateway-contract
 ---
+
 # Knowhow: QuantFlow 多 Symbol 扩展核心模式
 
 > source: harvest | date: 2026-07-30 | confidence: high

@@ -1,8 +1,13 @@
 ---
-title: "Knowledge Hub index"
-type: knowhow
-tags: [hub, index]
-status: active
+title: Knowledge Hub index
+type: document
+keywords:
+  - hub
+  - index
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: "--- title: Knowledge Hub related: - knowhow-doc-dynamic-budget-ewma - knowhow-doc-engine-recovery-chain - knowhow-doc-exchange-health-breaker - knowhow-doc-knowhow-concurrent-agent-session-collision - knowhow-doc-knowhow-data-layer-upgrade-"
+lifecycleStatus: active
 related:
   - knowhow-doc-research-direction-gate-wfo-overfit
   - knowhow-doc-research-execution-fidelity-fee-slip
@@ -14,6 +19,7 @@ related:
   - knowhow-doc-20260811-learnings-params-structure
   - knowhow-tip-20260811-knowledge-pending-observed-not-auto-promote
 ---
+
 ---
 title: Knowledge Hub
 related:

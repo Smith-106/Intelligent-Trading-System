@@ -41,7 +41,7 @@ Auto-generated from project analysis. Update manually as patterns evolve.
 
 ## Entries
 
-<spec-entry category="coding" keywords="策略双模式,generate_signals,on_bar,向量化,事件驱动" date="2026-06-13" title="策略双模式: generate_signals 向量化 + on_bar 事件驱动" description="策略模板标准双 API 模式" sid="S-legacy-ba5131ad">
+<spec-entry category="coding" keywords="策略双模式,generate_signals,on_bar,向量化,事件驱动" date="2026-06-13" sid="S-legacy-ba5131ad" title="策略双模式: generate_signals 向量化 + on_bar 事件驱动" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="策略模板标准双 API 模式">
 ### 策略双模式: generate_signals 向量化 + on_bar 事件驱动
 
 所有策略模板遵循双模式：
@@ -54,7 +54,7 @@ Auto-generated from project analysis. Update manually as patterns evolve.
 **模式参考**: trend_following.py 双模式实现
 </spec-entry>
 
-<spec-entry category="coding" keywords="search,codegraph,代码搜索" date="2026-06-01" sid="S-legacy-b23e2d8a">
+<spec-entry category="coding" keywords="search,codegraph,代码搜索" date="2026-06-01" sid="S-legacy-b23e2d8a" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed">
 
 ### mcp-semantic-search
 
@@ -62,7 +62,7 @@ Auto-generated from project analysis. Update manually as patterns evolve.
 
 </spec-entry>
 
-<spec-entry category="coding" keywords="validate-symbol,write-path,path-traversal,choke-point,symmetric-validation" date="2026-07-05" title="Validate symbol at EVERY symbol→path/glob site — read, write, AND in-place transform" description="Write/transform paths must call validate_symbol symmetric with reads; a direct Path construction bypasses the DataStore choke point" sid="S-legacy-37e8dce4">
+<spec-entry category="coding" keywords="validate-symbol,write-path,path-traversal,choke-point,symmetric-validation" date="2026-07-05" sid="S-legacy-37e8dce4" title="Validate symbol at EVERY symbol→path/glob site — read, write, AND in-place transform" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Write/transform paths must call validate_symbol symmetric with reads; a direct Path construction bypasses the DataStore choke point">
 ### Validate symbol at EVERY symbol→path/glob site — read, write, AND in-place transform
 
 Every code path that turns a user/operator-supplied symbol into a filesystem path OR a DuckDB glob literal must pass through `quantflow.common.validators.validate_symbol()`. This includes:
@@ -80,7 +80,7 @@ Durable guard: `tests/unit/test_trend_and_store.py::test_validate_symbol_rejects
 Source: odyssey-review security-fixes session (REV-008 + sibling G4 in service.py).
 </spec-entry>
 
-<spec-entry category="coding" keywords="auto-commit,ruff,lint-gate,pre-commit,workflow-discipline" date="2026-07-05" title="Run ruff check --fix && ruff format before every auto-commit (lint-before-commit gate)" description="Workflow phase auto-commits must lint/format first or CI's ruff gate goes red; defense-in-depth via .pre-commit-config.yaml" sid="S-legacy-df8312a6">
+<spec-entry category="coding" keywords="auto-commit,ruff,lint-gate,pre-commit,workflow-discipline" date="2026-07-05" sid="S-legacy-df8312a6" title="Run ruff check --fix &amp;&amp; ruff format before every auto-commit (lint-before-commit gate)" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="Workflow phase auto-commits must lint/format first or CI's ruff gate goes red; defense-in-depth via .pre-commit-config.yaml">
 ### Run ruff check --fix && ruff format before every auto-commit (lint-before-commit gate)
 
 Any workflow action that does `git add` + `git commit` on generated/edited Python MUST run the project-mandated lint/format pipeline immediately before `git add`, and abort the commit on lint failure:
@@ -100,7 +100,7 @@ Detection: CI `ruff format --check` + `ruff check` go red on `main` shortly afte
 Source: odyssey-debug ci-ruff-breakage session (P1). Implemented as a maestro overlay on the odyssey-*.md wrappers + `.pre-commit-config.yaml`.
 </spec-entry>
 
-<spec-entry category="coding" keywords="look-ahead,vectorized,signal-generator,entries-mask,forward-fill" date="2026-07-05" title="No look-ahead in vectorized signal generators — never aggregate over entries[bool_mask]" description="series[entries].mean() uses future bar data at the entry bar; capture value at entry + forward-fill for position lifetime" sid="S-legacy-d41a7358">
+<spec-entry category="coding" keywords="look-ahead,vectorized,signal-generator,entries-mask,forward-fill" date="2026-07-05" sid="S-legacy-d41a7358" title="No look-ahead in vectorized signal generators — never aggregate over entries[bool_mask]" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="series[entries].mean() uses future bar data at the entry bar; capture value at entry + forward-fill for position lifetime">
 ### No look-ahead in vectorized signal generators — never aggregate over entries[bool_mask]
 
 In a vectorized `generate_signals(df)`, any `series[entries].mean()` / aggregation over a boolean entry mask uses **future** bar data at the entry bar — a look-ahead bug. The masked values are computed from the full series, so the entry-bar value already reflects information only known later.
@@ -113,7 +113,7 @@ Source: odyssey-review deepfix session (Pattern 1, CRITICAL fixes 1-3).
 </spec-entry>
 
 
-<spec-entry category="coding" keywords="vectorbt,参数扫描,向量化,multi-asset,broadcasting" date="2026-07-18" sid="S-20260718-sffn" status="deprecated" superseded_by="ISS-20260722-001" title="研究层大规模参数扫描用 vectorbt run_combs/Portfolio.from_signals 多资产 broadcasting" description="DEPRECATED — vectorbt 因 Python 3.14/numba 不兼容已移除，改用 numpy 向量化+并行化" source="harvest:deep-research-20260718">
+<spec-entry category="coding" keywords="vectorbt,参数扫描,向量化,multi-asset,broadcasting" date="2026-07-18" sid="S-20260718-sffn" title="研究层大规模参数扫描用 vectorbt run_combs/Portfolio.from_signals 多资产 broadcasting" sourceRef="harvest:deep-research-20260718" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="DEPRECATED — vectorbt 因 Python 3.14/numba 不兼容已移除，改用 numpy 向量化+并行化" lifecycleStatus="deprecated">
 
 ### 研究层大规模参数扫描用 vectorbt run_combs/Portfolio.from_signals 多资产 broadcasting
 
@@ -126,7 +126,7 @@ Source: odyssey-review deepfix session (Pattern 1, CRITICAL fixes 1-3).
 原始条目保留如下以供历史追溯：研究层应充分利用 vectorbt 的向量化参数扫描...（已废弃）。
 </spec-entry>
 
-<spec-entry category="coding" keywords="compound,strategy_id,allocation,consolidated-signal,exact-lookup,silent-drop" date="2026-07-20" sid="S-20260720-98vs" title="Compound strategy_id 精确查找静默失效" description="compound strategy_id 精确查找静默失效范式——consolidated signal 的 joined key 永远 miss，返回 0.0 致信号丢弃/预算 bypass" source="main@428002d">
+<spec-entry category="coding" keywords="compound,strategy_id,allocation,consolidated-signal,exact-lookup,silent-drop" date="2026-07-20" sid="S-20260720-98vs" title="Compound strategy_id 精确查找静默失效" sourceRef="main@428002d" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="compound strategy_id 精确查找静默失效范式——consolidated signal 的 joined key 永远 miss，返回 0.0 致信号丢弃/预算 bypass">
 
 ### Compound strategy_id 精确查找静默失效
 
@@ -134,7 +134,7 @@ consolidated signal 携带逗号拼接的 compound strategy_id（如 "momentum_r
 
 </spec-entry>
 
-<spec-entry category="coding" keywords="fail-silent,fail-open,error-path,sentinel,no-go,fail-closed" date="2026-07-24" sid="S-20260724-elsu" title="fail-silent fallback 不可复用合法结果值" description="except 路径不可返回与合法结果不可区分的值；用 NaN+排除 或 fail-closed sentinel" source="main@bb3c6cd">
+<spec-entry category="coding" keywords="fail-silent,fail-open,error-path,sentinel,no-go,fail-closed" date="2026-07-24" sid="S-20260724-elsu" title="fail-silent fallback 不可复用合法结果值" sourceRef="main@bb3c6cd" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="except 路径不可返回与合法结果不可区分的值；用 NaN+排除 或 fail-closed sentinel">
 
 ### fail-silent fallback 不可复用合法结果值
 
@@ -142,7 +142,7 @@ except Exception 路径不可返回与合法结果不可区分的值（0.0/True/
 
 </spec-entry>
 
-<spec-entry category="coding" keywords="monitoring,layering,protocol,sink,l6,injection" date="2026-07-24" sid="S-20260724-3i37" title="L6 可观测性跨层契约走 common/ Protocol 注入，lower layer 不 import monitoring/" description="L6 可观测性跨层契约：common/ Protocol + Null 默认 + 高层注入，lower layer 不 import monitoring/" source="main@98b217e">
+<spec-entry category="coding" keywords="monitoring,layering,protocol,sink,l6,injection" date="2026-07-24" sid="S-20260724-3i37" title="L6 可观测性跨层契约走 common/ Protocol 注入，lower layer 不 import monitoring/" sourceRef="main@98b217e" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="L6 可观测性跨层契约：common/ Protocol + Null 默认 + 高层注入，lower layer 不 import monitoring/">
 
 ### L6 可观测性跨层契约走 common/ Protocol 注入，lower layer 不 import monitoring/
 
@@ -152,7 +152,7 @@ L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需
 
 </spec-entry>
 
-<spec-entry category="coding" keywords="翻仓,realized,closing-qty,snapshot,portfolio" date="2026-07-25" sid="S-20260725-3zl0" title="翻仓 realized 归因实现模式(PortfolioManager.update_position): 在 cash mutation 后追加: if existing.quantity * quantity_delta &lt; 0: closing_qty = min(abs(quantity_delta), abs(existing.quantity)); sign = 1.0 if existing.quantity &gt; 0 else -1.0; self._realized_pnl += (price - existing.entry_price) * closing_qty * sign。仅当方向反转(乘积&lt;0)触发, 部分平仓取 min(delta, existing) 防超平。snapshot 经 Portfolio dataclass realized_pnl 字段暴露(默认 0.0 保后向兼容)。测试: 翻仓双向(long→short / short→long)+ 部分平仓 realized 累计 + snapshot 暴露。" description="翻仓 realized 归因代码模式: closing_qty*sign 累计 + snapshot 暴露" source="main@06a8d93">
+<spec-entry category="coding" keywords="翻仓,realized,closing-qty,snapshot,portfolio" date="2026-07-25" sid="S-20260725-3zl0" title="翻仓 realized 归因实现模式(PortfolioManager.update_position): 在 cash mutation 后追加: if existing.quantity * quantity_delta &lt; 0: closing_qty = min(abs(quantity_delta), abs(existing.quantity)); sign = 1.0 if existing.quantity &gt; 0 else -1.0; self._realized_pnl += (price - existing.entry_price) * closing_qty * sign。仅当方向反转(乘积&lt;0)触发, 部分平仓取 min(delta, existing) 防超平。snapshot 经 Portfolio dataclass realized_pnl 字段暴露(默认 0.0 保后向兼容)。测试: 翻仓双向(long→short / short→long)+ 部分平仓 realized 累计 + snapshot 暴露。" sourceRef="main@06a8d93" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="翻仓 realized 归因代码模式: closing_qty*sign 累计 + snapshot 暴露">
 
 ### 翻仓 realized 归因实现模式(PortfolioManager.update_position): 在 cash mutation 后追加: if existing.quantity * quantity_delta < 0: closing_qty = min(abs(quantity_delta), abs(existing.quantity)); sign = 1.0 if existing.quantity > 0 else -1.0; self._realized_pnl += (price - existing.entry_price) * closing_qty * sign。仅当方向反转(乘积<0)触发, 部分平仓取 min(delta, existing) 防超平。snapshot 经 Portfolio dataclass realized_pnl 字段暴露(默认 0.0 保后向兼容)。测试: 翻仓双向(long→short / short→long)+ 部分平仓 realized 累计 + snapshot 暴露。
 
@@ -160,7 +160,7 @@ L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需
 
 </spec-entry>
 
-<spec-entry category="coding" keywords="cumulative-fill,delta,position-epsilon,partial,applied-filled-qty" date="2026-07-25" sid="S-20260725-j4x6" title="cumulative-fill delta 守卫实现模式(ExecutionEngine.submit FILLED/PARTIAL 分支): delta_filled = order.filled_quantity - order.applied_filled_qty; if delta_filled &gt; POSITION_EPSILON: qty_signed = delta_filled if order.side==BUY else -delta_filled; position_mgr.update_position(symbol, qty_signed, filled_price, fee=order.fee, strategy_id=...); order.applied_filled_qty = order.filled_quantity。FILLED 才 emit EVENT_FILL + record_order_filled; PARTIAL 保持 non-terminal(OrderManager get_open_orders 含 PARTIAL, _pending 不 pop)。POSITION_EPSILON 来自 common.validators, 防 delta=0 重复回调误调 L4。Order.applied_filled_qty 默认 0.0 保后向兼容。" description="cumulative-fill delta 守卫代码模式 + PARTIAL 状态保留" source="main@06a8d93">
+<spec-entry category="coding" keywords="cumulative-fill,delta,position-epsilon,partial,applied-filled-qty" date="2026-07-25" sid="S-20260725-j4x6" title="cumulative-fill delta 守卫实现模式(ExecutionEngine.submit FILLED/PARTIAL 分支): delta_filled = order.filled_quantity - order.applied_filled_qty; if delta_filled &gt; POSITION_EPSILON: qty_signed = delta_filled if order.side==BUY else -delta_filled; position_mgr.update_position(symbol, qty_signed, filled_price, fee=order.fee, strategy_id=...); order.applied_filled_qty = order.filled_quantity。FILLED 才 emit EVENT_FILL + record_order_filled; PARTIAL 保持 non-terminal(OrderManager get_open_orders 含 PARTIAL, _pending 不 pop)。POSITION_EPSILON 来自 common.validators, 防 delta=0 重复回调误调 L4。Order.applied_filled_qty 默认 0.0 保后向兼容。" sourceRef="main@06a8d93" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="cumulative-fill delta 守卫代码模式 + PARTIAL 状态保留">
 
 ### cumulative-fill delta 守卫实现模式(ExecutionEngine.submit FILLED/PARTIAL 分支): delta_filled = order.filled_quantity - order.applied_filled_qty; if delta_filled > POSITION_EPSILON: qty_signed = delta_filled if order.side==BUY else -delta_filled; position_mgr.update_position(symbol, qty_signed, filled_price, fee=order.fee, strategy_id=...); order.applied_filled_qty = order.filled_quantity。FILLED 才 emit EVENT_FILL + record_order_filled; PARTIAL 保持 non-terminal(OrderManager get_open_orders 含 PARTIAL, _pending 不 pop)。POSITION_EPSILON 来自 common.validators, 防 delta=0 重复回调误调 L4。Order.applied_filled_qty 默认 0.0 保后向兼容。
 
@@ -168,7 +168,7 @@ L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需
 
 </spec-entry>
 
-<spec-entry category="coding" keywords="薄路由,委托,positionmanager,bind-portfolio,本地视图" date="2026-07-25" sid="S-20260725-jabg" title="L5 PositionManager 薄路由委托模式: __init__(portfolio=None) 默认自建 PortfolioManager(standalone/test), bind_portfolio(portfolio) 重绑共享 L4。全 9 方法委托: update_market_price→update_market_prices({sym:price}); update_position→委托 L4(含 fee); set_position→委托; get_position/get_all_positions/has_position/position_count/total_unrealized_pnl/total_market_value→委托; close_position→update_position(-pos.quantity, current_price)(真平仓经 L4)。ExecutionEngine.sync_positions 改 self._position_mgr.set_position(pos.symbol, pos)(替代私有属性写, exchange 是 live sync 真值源覆盖本地 book)。PaperGateway 移除 _cash 第三套账本, fee 仅盖印 order.fee(L4 单扣), 保留 _positions 本地视图(query_positions/reduceOnly caps)。" description="L5 薄路由委托模式 + PaperGateway 本地视图" source="main@06a8d93">
+<spec-entry category="coding" keywords="薄路由,委托,positionmanager,bind-portfolio,本地视图" date="2026-07-25" sid="S-20260725-jabg" title="L5 PositionManager 薄路由委托模式: __init__(portfolio=None) 默认自建 PortfolioManager(standalone/test), bind_portfolio(portfolio) 重绑共享 L4。全 9 方法委托: update_market_price→update_market_prices({sym:price}); update_position→委托 L4(含 fee); set_position→委托; get_position/get_all_positions/has_position/position_count/total_unrealized_pnl/total_market_value→委托; close_position→update_position(-pos.quantity, current_price)(真平仓经 L4)。ExecutionEngine.sync_positions 改 self._position_mgr.set_position(pos.symbol, pos)(替代私有属性写, exchange 是 live sync 真值源覆盖本地 book)。PaperGateway 移除 _cash 第三套账本, fee 仅盖印 order.fee(L4 单扣), 保留 _positions 本地视图(query_positions/reduceOnly caps)。" sourceRef="main@06a8d93" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="L5 薄路由委托模式 + PaperGateway 本地视图">
 
 ### L5 PositionManager 薄路由委托模式: __init__(portfolio=None) 默认自建 PortfolioManager(standalone/test), bind_portfolio(portfolio) 重绑共享 L4。全 9 方法委托: update_market_price→update_market_prices({sym:price}); update_position→委托 L4(含 fee); set_position→委托; get_position/get_all_positions/has_position/position_count/total_unrealized_pnl/total_market_value→委托; close_position→update_position(-pos.quantity, current_price)(真平仓经 L4)。ExecutionEngine.sync_positions 改 self._position_mgr.set_position(pos.symbol, pos)(替代私有属性写, exchange 是 live sync 真值源覆盖本地 book)。PaperGateway 移除 _cash 第三套账本, fee 仅盖印 order.fee(L4 单扣), 保留 _positions 本地视图(query_positions/reduceOnly caps)。
 
@@ -176,7 +176,7 @@ L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需
 
 </spec-entry>
 
-<spec-entry category="coding" keywords="config-sourced,hardcoded-fallback,baseline,yaml-schema-drift,position-sizer,iss-012" date="2026-07-28" sid="S-20260728-iu1x" title="config-sourced hardcoded fallback MUST 保 byte-for-byte backtest baseline" description="hardcoded fallback 迁移 config 时默认值必须 byte-for-byte 对齐保 baseline" source="main@f6021c0">
+<spec-entry category="coding" keywords="config-sourced,hardcoded-fallback,baseline,yaml-schema-drift,position-sizer,iss-012" date="2026-07-28" sid="S-20260728-iu1x" title="config-sourced hardcoded fallback MUST 保 byte-for-byte backtest baseline" sourceRef="main@f6021c0" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="hardcoded fallback 迁移 config 时默认值必须 byte-for-byte 对齐保 baseline">
 
 ### config-sourced hardcoded fallback MUST 保 byte-for-byte backtest baseline
 
@@ -184,7 +184,7 @@ L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需
 
 </spec-entry>
 
-<spec-entry category="coding" keywords="credential-redaction,cwe-532,redact-secrets,fail-closed,typer-badparameter,reg-1,cli,choke-point" date="2026-07-28" sid="S-20260728-q1ha" title="Credential redaction choke-point + fail-closed re-raise ordering (REG-1)" description="redact_secrets 公开 choke-point + typer.BadParameter 在 except Exception 前 raise" source="main@f6021c0">
+<spec-entry category="coding" keywords="credential-redaction,cwe-532,redact-secrets,fail-closed,typer-badparameter,reg-1,cli,choke-point" date="2026-07-28" sid="S-20260728-q1ha" title="Credential redaction choke-point + fail-closed re-raise ordering (REG-1)" sourceRef="main@f6021c0" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="redact_secrets 公开 choke-point + typer.BadParameter 在 except Exception 前 raise">
 
 ### Credential redaction choke-point + fail-closed re-raise ordering (REG-1)
 
@@ -192,7 +192,7 @@ L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需
 
 </spec-entry>
 
-<spec-entry category="coding" keywords="flush-signals,GIL,原子操作,to-thread,emit-signal,线程安全" date="2026-07-31" sid="S-20260731-c4n5" title="flush_signals 引用交换是 CPython GIL 级别的原子操作，无需显式锁" description="to_thread 工作线程的 emit_signal 与主协程的 flush_signals 之间依赖 GIL 原子性" source="phase-6-codereview">
+<spec-entry category="coding" keywords="flush-signals,GIL,原子操作,to-thread,emit-signal,线程安全" date="2026-07-31" sid="S-20260731-c4n5" title="flush_signals 引用交换是 CPython GIL 级别的原子操作，无需显式锁" sourceRef="phase-6-codereview" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="to_thread 工作线程的 emit_signal 与主协程的 flush_signals 之间依赖 GIL 原子性">
 
 ### flush_signals 引用交换的 GIL 原子性契约
 
@@ -210,7 +210,7 @@ L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需
 落地：`quantflow/strategy/base.py` `StrategyContext.flush_signals`。测试：`tests/unit/test_m4_killswitch_threadflush.py` `TestFlushSignalsAtomic` + `TestConcurrentEmitSignal`（50 线程并发 emit + 双 context 隔离）。
 </spec-entry>
 
-<spec-entry category="coding" keywords="hot-path,zero-alloc,deque,tuple,cache,per-bar,per-signal,performance" date="2026-08-01" sid="S-20260801-a3f1" title="热路径零分配：per-bar/per-signal 管线用 tuple+deque(maxlen)+缓存" description="风控/信号管线每 bar 执行函数：bound-method tuple 在 __init__ 构建 + deque(maxlen) + 纯函数按失效键缓存" source="harvest:20260723-trade-main-path">
+<spec-entry category="coding" keywords="hot-path,zero-alloc,deque,tuple,cache,per-bar,per-signal,performance" date="2026-08-01" sid="S-20260801-a3f1" title="热路径零分配：per-bar/per-signal 管线用 tuple+deque(maxlen)+缓存" sourceRef="harvest:20260723-trade-main-path" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="风控/信号管线每 bar 执行函数：bound-method tuple 在 __init__ 构建 + deque(maxlen) + 纯函数按失效键缓存">
 
 ### 热路径零分配模式
 
@@ -226,7 +226,7 @@ L3 strategy/engine、L4 signal/risk_engine、L5 execution/engine+kill_switch 需
 落地：`quantflow/signal/risk_engine.py` — `_checks` tuple + `deque(maxlen=500)` + VaR 缓存 keyed on history len。
 </spec-entry>
 
-<spec-entry category="coding" keywords="state-machine,order,timeout,terminal,partial-fill,cancelled,guard" date="2026-08-01" sid="S-20260801-b7e2" title="订单状态机完整性：timeout 标 terminal+撤单+返回值不弃+terminal guard+partial 建模" description="订单 timeout 必须标 CANCELLED terminal + 触发撤单；update() 加 terminal guard；PARTIAL 状态建模" source="harvest:20260723-trade-main-path">
+<spec-entry category="coding" keywords="state-machine,order,timeout,terminal,partial-fill,cancelled,guard" date="2026-08-01" sid="S-20260801-b7e2" title="订单状态机完整性：timeout 标 terminal+撤单+返回值不弃+terminal guard+partial 建模" sourceRef="harvest:20260723-trade-main-path" appliesToRepoIds="4df0e1f8-a4e6-4872-8eb3-857aef7909ed" description="订单 timeout 必须标 CANCELLED terminal + 触发撤单；update() 加 terminal guard；PARTIAL 状态建模">
 
 ### 订单生命周期状态机完整性
 

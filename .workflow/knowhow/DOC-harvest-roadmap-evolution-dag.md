@@ -1,14 +1,17 @@
 ---
 title: QuantFlow 演进路线图：三阶段四 session DAG（benchmark-evolve）
-category: finding
-createdBy: harvest
+type: document
+category: arch
 sourceRef: 20260803-002-roadmap
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: "**Source**: 20260803-002-roadmap（roadmap.json，alias current-roadmap） **Tags**: roadmap, planning, benchmark"
+lifecycleStatus: active
 related:
   - knowhow-doc-harvest-analysis-highflyer-principles
   - knowhow-doc-knowledge-hub
 ---
+
 # QuantFlow 演进路线图：三阶段四 session DAG（benchmark-evolve）
 
 **Source**: 20260803-002-roadmap（roadmap.json，alias current-roadmap）

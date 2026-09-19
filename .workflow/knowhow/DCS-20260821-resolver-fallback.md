@@ -1,9 +1,12 @@
 ---
 title: 交易所后缀分区隔离 + 显式读侧 resolver（否决透明 fallback）
 type: decision
+created: 2026-08-21T13:05:57.010Z
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+lifecycleStatus: active
 related:
   - knowhow-doc-knowledge-hub
-created: 2026-08-21T13:05:57.010Z
 ---
 
 ## 决策

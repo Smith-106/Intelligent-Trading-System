@@ -1,9 +1,12 @@
 ---
 title: Binance archive openTime 单位漂移：毫秒→微秒导致未来泄漏误报
 type: tip
+created: 2026-08-21T13:05:22.382Z
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+lifecycleStatus: active
 related:
   - knowhow-doc-knowledge-hub
-created: 2026-08-21T13:05:22.382Z
 ---
 
 ## 现象

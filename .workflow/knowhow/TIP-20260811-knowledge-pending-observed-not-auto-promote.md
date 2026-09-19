@@ -1,8 +1,15 @@
 ---
-title: "Pipeline pending_observed is not auto-promote queue"
-type: knowhow
-tags: [knowledge, promote, wiki, tip]
-status: active
+title: Pipeline pending_observed is not auto-promote queue
+type: document
+keywords:
+  - knowledge
+  - promote
+  - wiki
+  - tip
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: "`maestro knowledge audit` may report large `pipeline.pending_observed` (hundreds) while recent sealed sessions show **all candidates promoted** via `maestro knowledge review <session>`."
+lifecycleStatus: active
 related:
   - knowhow-doc-knowledge-hub
   - knowhow-tip-20260810-wiki-kg-false-positive-broken-links

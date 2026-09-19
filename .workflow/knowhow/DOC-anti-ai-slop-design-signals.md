@@ -1,13 +1,16 @@
 ---
 title: Anti-AI-slop 设计信号清单（QuantFlow Station）
+type: document
 category: ui
-createdBy: "harvest:team-ui-polish-r2"
 sourceRef: 20260802-team-ui-polish-continuous
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 判断前端 UI 是否摆脱「通用 AI 生成模板感」，建立有意图的差异化设计。QuantFlow Station 达成 Zero AI tells (Anti-AI Slop 4/4)。
+lifecycleStatus: active
 related:
   - knowhow-doc-ui-polish-loop-methodology
 ---
+
 # Anti-AI-slop 设计信号清单（QuantFlow Station）
 
 ## 适用场景

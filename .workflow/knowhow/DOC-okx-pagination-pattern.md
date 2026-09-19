@@ -1,12 +1,15 @@
 ---
 title: OKX KLine 分页拉取模式：effective_limit + end 守卫 + MAX_PAGES 保护
-category: data
-createdBy: "harvest:n1-pagination"
+type: document
+category: coding
 sourceRef: maestro-n1-pagination-20260804-20260804-102422
-related:
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 1. **effective_limit = min(limit, 300)**：遵守 OKX 单次最多 300 条限制（即使客户端请求 1000） 2. **end 参数作为唯一终止条件**：当指定 `end_ts` 时，`last_ts >= end_ts` 硬截断退出 3. **无 end 时自然退出**：`len(bars) < effective_limit` 表示数据已拉完 4. **MAX_PAGINATION_PAGES = 500**：硬限制防止 API 异
+lifecycleStatus: active
+related: null
 ---
+
 # OKX KLine 分页拉取模式
 
 ## 适用场景

@@ -1,13 +1,16 @@
 ---
 title: Impeccable 10 维 UI 审计 + 持续打磨循环方法论
+type: document
 category: ui
-createdBy: "harvest:team-ui-polish-r2"
 sourceRef: 20260802-team-ui-polish-continuous
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 对前端 UI 做可量化、可对比、防回归的质量审计与持续改进。QuantFlow Station 前端经两轮循环从 27/40 → 37/40 → 40/40 (Perfect)。
+lifecycleStatus: active
 related:
   - knowhow-doc-anti-ai-slop-design-signals
 ---
+
 # Impeccable 10 维 UI 审计 + 持续打磨循环方法论
 
 ## 适用场景

@@ -1,14 +1,17 @@
 ---
 title: P0 Baseline Guard 浮动基线机制：数据窗口变化时自动重建
-category: testing
-createdBy: "harvest:n1-pagination"
+type: document
+category: coding
 sourceRef: maestro-n1-pagination-20260804-20260804-102422
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 1. **establish_p0_baseline.py**：在新数据窗口下，运行 4 个策略（trend_following/volatility_breakout/mean_reversion/momentum_rotation）生成参考线 2. **P0 guard 检测**：`test_p0_regression_guard` 对比当前回测结果与基准线，超出阈值标记为漂移 3. **自动重建**：漂移时运行 establish_p0_baseline.py 重新生成
+lifecycleStatus: active
 related:
   - knowhow-doc-research-direction-gate-wfo-overfit
   - knowhow-doc-model-registry-design
 ---
+
 # P0 Baseline Guard 浮动基线机制
 
 ## 适用场景

@@ -1,14 +1,17 @@
 ---
 title: MetaFeatures 静态因子计算：零偏移守卫 + merge_asof 方向控制
-category: data
-createdBy: "harvest:wave2-s3"
+type: document
+category: coding
 sourceRef: maestro-wave2-s3-20260803-20260804-040400
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 1. **零偏移守卫**：静态 guard 测试确认没有负偏移（no negative shift） 2. **merge_asof direction=backward**：使用向后合并，确保每个 bar 只看到过去的信息 3. **FeatureStore meta query end=timestamp**：查询时指定 end 时间戳，防止未来数据泄漏 4. **纯 pandas L2 计算器**：零 quantflow 导入，保持模块独立性
+lifecycleStatus: active
 related:
   - knowhow-doc-knowhow-rdagent-q-factor-mining-architecture
   - knowhow-doc-okx-pagination-pattern
 ---
+
 # MetaFeatures 静态因子计算
 
 ## 适用场景

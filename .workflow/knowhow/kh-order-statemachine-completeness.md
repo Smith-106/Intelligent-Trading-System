@@ -1,11 +1,17 @@
 ---
-title: "Order state machine completeness"
-type: knowhow
-tags: [execution, orders]
-status: active
+title: Order state machine completeness
+type: document
+keywords:
+  - execution
+  - orders
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: '--- id: kh-order-statemachine-completeness title: 订单生命周期状态机完整性 — terminal guard + partial modeling tags: - state-machine - order - timeout - partial-fill - terminal - order-manager - lifecycle source: "harvest:20260723-improve-odyssey-trade'
+lifecycleStatus: active
 related:
   - knowhow-kh-failclosed-gateway-contract
 ---
+
 ---
 id: kh-order-statemachine-completeness
 title: 订单生命周期状态机完整性 — terminal guard + partial modeling

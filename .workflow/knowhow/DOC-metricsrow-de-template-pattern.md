@@ -1,13 +1,16 @@
 ---
 title: MetricsRow 去模板模式 — featured + inline 指标行
+type: document
 category: ui
-createdBy: "harvest:team-ui-polish-r2"
 sourceRef: 20260802-team-ui-polish-continuous
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 仪表盘指标展示去「等大卡片网格」模板化，建立有主次的视觉层级。QuantFlow Station 用此模式替代 4-5 个等大 MetricCard，移除 20+ 处图标+标题冗余。
+lifecycleStatus: active
 related:
   - knowhow-doc-ui-polish-loop-methodology
 ---
+
 # MetricsRow 去模板模式 — featured + inline 指标行
 
 ## 适用场景

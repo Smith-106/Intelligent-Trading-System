@@ -1,15 +1,25 @@
 ---
-title: "IMP residual research OS (v0.7.0)"
-type: knowhow
-tags: [research-os, dual-path, promotion, pit, multi-symbol, monitoring, v0.7]
-status: active
+title: IMP residual research OS (v0.7.0)
+type: document
+keywords:
+  - research-os
+  - dual-path
+  - promotion
+  - pit
+  - multi-symbol
+  - monitoring
+  - v0.7
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: "**Date**: 2026-08-11 **Release**: QuantFlow v0.7.0 **Scope**: residual-first wiring after OSS adversarial analysis — **not** engine rewrite."
+lifecycleStatus: active
 related:
   - knowhow-doc-knowledge-hub
   - knowhow-doc-research-execution-fidelity-fee-slip
   - knowhow-doc-research-direction-gate-wfo-overfit
   - knowhow-doc-research-multi-symbol-replay-regime-fix
   - knowhow-tip-20260810-wiki-kg-false-positive-broken-links
-  - "spec:project:architecture-constraints"
+  - spec:project:architecture-constraints
 ---
 
 # IMP residual research OS (v0.7.0)

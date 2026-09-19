@@ -1,9 +1,16 @@
 ---
 title: "Research-path execution fidelity: fee/slippage dominate reported alpha"
-type: knowhow
-category: research
-tags: [execution, fee, slippage, paper-replay, fidelity]
-status: active
+type: document
+keywords:
+  - execution
+  - fee
+  - slippage
+  - paper-replay
+  - fidelity
+category: coding
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+lifecycleStatus: active
 related:
   - knowhow-doc-20260810-residual-ops-t023-wave-close
   - knowhow-doc-20260810-b4-b5-funding-contracts-keep-b0

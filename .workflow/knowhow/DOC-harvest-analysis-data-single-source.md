@@ -1,14 +1,17 @@
 ---
 title: 数据单源是 QuantFlow 最大结构性短板（阻塞两条演进线）
-category: finding
-createdBy: harvest
+type: document
+category: arch
 sourceRef: 20260803-001-analyze
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: "**Source**: 20260803-001-analyze（finding F4，置信度 0.95；risk R3 概率5×影响5） **Tags**: benchmark, data, strategy"
+lifecycleStatus: active
 related:
   - knowhow-doc-okx-pagination-pattern
   - knowhow-doc-harvest-analysis-benchmark-methodology
 ---
+
 # 数据单源是 QuantFlow 最大结构性短板（阻塞两条演进线）
 
 **Source**: 20260803-001-analyze（finding F4，置信度 0.95；risk R3 概率5×影响5）

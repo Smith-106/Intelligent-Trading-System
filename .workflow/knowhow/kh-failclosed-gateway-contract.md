@@ -1,12 +1,18 @@
 ---
-title: "Fail-closed gateway contract"
-type: knowhow
-tags: [gateway, safety]
-status: active
+title: Fail-closed gateway contract
+type: document
+keywords:
+  - gateway
+  - safety
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: '--- id: kh-failclosed-gateway-contract title: Fail-Closed 网关安全契约 — 防紧急制动假报成功 tags: - fail-closed - gateway - idempotency - reduceOnly - wait_for - security - kill-switch source: "harvest:20260723-improve-odyssey-trade-main-path" created: 20'
+lifecycleStatus: active
 related:
   - knowhow-kh-order-statemachine-completeness
   - knowhow-kh-multi-symbol-patterns
 ---
+
 ---
 id: kh-failclosed-gateway-contract
 title: Fail-Closed 网关安全契约 — 防紧急制动假报成功

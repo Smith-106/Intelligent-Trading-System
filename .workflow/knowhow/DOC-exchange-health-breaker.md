@@ -1,14 +1,17 @@
 ---
 title: ExchangeHealthMonitor 滞后断路器设计模式
-category: architecture
-createdBy: "harvest:wave1-precheck"
+type: document
+category: arch
 sourceRef: maestro-wave1-precheck-20260803-20260803-075540
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 1. **触发条件**：window error-rate > 0.5 OR 50011 streak >= 3 触发跳闸 2. **open-state 行为**：open-state failures 重新锚定冷却时间，防止冷却期间高频失败导致无限循环 3. **half-open 恢复**：需要 3 次连续成功才关闭断路器 4. **窗口清理**：`_close_circuit()` 清除窗口数据，防止立即重跳闸
+lifecycleStatus: active
 related:
   - knowhow-doc-engine-recovery-chain
   - knowhow-doc-monitoring-sink-protocol
 ---
+
 # ExchangeHealthMonitor 滞后断路器设计模式
 
 ## 适用场景

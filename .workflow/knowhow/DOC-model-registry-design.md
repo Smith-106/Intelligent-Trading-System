@@ -1,14 +1,17 @@
 ---
 title: ModelRegistry 模型注册设计：GO 状态持久化 + path 遍历防护
-category: ai
-createdBy: "harvest:wave2-s3"
+type: document
+category: arch
 sourceRef: maestro-wave2-s3-20260803-20260804-040400
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 1. **GO 状态持久化**：非 GO 状态 → status=rejected 持久化（记录失败原因，便于审计） 2. **path 遍历防护**：`ModelRegistry._path` 拒绝 `/`, `\`, `..` 字符（路径遍历测试 `../evil` 确认拒绝） 3. **gate 决策**：读取 `data/ai_reports/{id}.json`，gate 决定 paper vs rejected 4. **CLI 集成**：通过 `quantflo
+lifecycleStatus: active
 related:
   - knowhow-doc-knowhow-qlib-model-zoo-benchmark
   - knowhow-doc-p0-baseline-float-guard
 ---
+
 # ModelRegistry 模型注册设计
 
 ## 适用场景

@@ -3,6 +3,9 @@ title: Wiki broken links often false positives in sealed JSON
 type: tip
 explicitId: tip-20260810-wiki-kg-false-positive-broken-links
 created: 2026-08-10T12:42:53.789Z
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+lifecycleStatus: active
 ---
 
 # Wiki/KG maintenance notes (false-positive broken links)

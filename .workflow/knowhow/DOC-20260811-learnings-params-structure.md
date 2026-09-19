@@ -1,14 +1,22 @@
 ---
 title: "Learnings 2026-08-11: params, performance paths, structure"
-type: knowhow
-tags: [learning, dual-path, overlay, structure, paper-first]
-status: active
+type: document
+keywords:
+  - learning
+  - dual-path
+  - overlay
+  - structure
+  - paper-first
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: "| Lever | Locked learning | Why | |-------|-----------------|-----| | Path A `overlay_weight` | **0.30** primary (not 0.25) | Taker pin: excess **+47.1pp** vs prior **~+40pp**; maxDD slightly better | | Path A mode | **reduce_off** | Beats "
+lifecycleStatus: active
 related:
   - knowhow-doc-knowledge-hub
   - knowhow-doc-20260811-imp-residual-research-os-v070
   - knowhow-doc-research-execution-fidelity-fee-slip
-  - "spec:project:architecture-constraints"
-  - "spec:project:learnings"
+  - spec:project:architecture-constraints
+  - spec:project:learnings
 ---
 
 # Learnings 2026-08-11: params, performance paths, structure

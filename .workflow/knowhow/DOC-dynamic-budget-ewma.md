@@ -1,14 +1,17 @@
 ---
 title: DynamicBudget EWMA 动态预算缩放：手动 O(n) 递归 + clamp [min_scale,max_scale]
-category: strategy
-createdBy: "harvest:wave3-s4"
+type: document
+category: arch
 sourceRef: maestro-wave3-s4-20260804-20260804-054608
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 1. **EWMA 波动率缩放**：使用指数加权移动平均计算波动率，缩放预算 2. **手动 O(n) 递归**：不使用 pandas ewm，保持 L4 层 pandas-free 3. **clamp [min_scale, max_scale]**：缩放因子限制在 [min_scale, max_scale] 范围内 4. **空/零标准差历史 → static 回退**：数据不足时使用静态预算 5. **disabled = byte-identical static
+lifecycleStatus: active
 related:
   - knowhow-doc-knowledge-hub
   - knowhow-doc-monitoring-sink-protocol
 ---
+
 # DynamicBudget EWMA 动态预算缩放
 
 ## 适用场景

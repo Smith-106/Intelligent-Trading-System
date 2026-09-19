@@ -1,13 +1,16 @@
 ---
 title: 研究 GO 面板导出（L6）：指纹跳过门 + path_semantics + 非 promote 语义
-category: research-ops
-createdBy: "execute:maestro-20260812-l6-research-go-export"
+type: document
+category: coding
 sourceRef: maestro-20260812-l6-research-go-export-20260812-112502
-type: knowhow
-status: active
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: 把已封存（sealed）的研究 GO 面板导出为可观测指标 / JSON，供 Ops 查看 PAPER-GO 研究结论，同时**不触发** full-window `multi_symbol_replay` 重跑、 不引入实时 promote 语义、不碰 Grafana 重设计。
+lifecycleStatus: active
 related:
   - knowhow-doc-monitoring-sink-protocol
 ---
+
 # 研究 GO 面板导出（L6 research_go_panel）
 
 ## 适用场景

@@ -1,11 +1,17 @@
 ---
-title: "Pre-batch probe target state"
+title: Pre-batch probe target state
 type: tip
-tags: [workflow, verification]
-status: active
+keywords:
+  - workflow
+  - verification
+appliesToRepoIds:
+  - 4df0e1f8-a4e6-4872-8eb3-857aef7909ed
+summary: '--- related: - "spec:project:learnings-012" --- # TIP — scoping fix batch 前先 probe 目标状态'
+lifecycleStatus: active
 related:
   - knowhow-doc-knowledge-hub
 ---
+
 ---
 related:
   - "spec:project:learnings-012"
