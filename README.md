@@ -300,6 +300,7 @@ quantflow/
 ```
 
 > 前端应用位于 `frontend/` 目录，使用 React + Vite + TypeScript 构建。
+> **构建产物**：`cd frontend && npm run build` 生成 `quantflow/web/static/dist/`（被 `.gitignore` 忽略——Station 运行与 `test_station_root_and_strategy_api` 依赖其 `index.html` SPA fallback，勿删除）。
 
 ## 核心接口
 
