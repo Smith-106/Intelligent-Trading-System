@@ -6,6 +6,19 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [Unreleased]
 
+## [0.11.2] — 2026-09-18
+
+### Engineering
+- **知识归一化收尾（knowledge audit 643→1 findings）**：`.workflow/repository.json` 仓库身份清单创建（repo_id UUID）——解除 `legacy-unscoped→current-repo-id` 归一化对全部 302 条目的阻塞；`knowledge normalize` 两轮 apply（28 + 39 files）
+- **非法字段规范化**：40 个 knowhow 文件 `type: knowhow` → `document`（canonical enum `session|tip|template|recipe|reference|decision|asset|blueprint|document`）；11 个 spec entry 自由 category（pattern/antipattern/gotcha/quality/technique）→ canonical `learning|debug|test`
+- **语义 category 分配**：26 个 knowhow + `specs/learnings.md` 按内容归入 `arch|coding|debug|test|review|learning|ui`（此前 `legacy-free-category` 阻塞）
+- **state.json 重建**：v2.0 结构对齐历史模板（M5 完成、`current_task=ISS-006-rdagent-paper-pipeline`）——本地运行时状态在 `.gitignore` 内属设计，不入库
+- **ISS-006 语义校正**：project.md 区分「skeleton/CLI 接线已 resolved（ISS-20260803-006/ISS-20260804-001）」与「全 LLM 管道 research→train→register(paper) 在途」
+
+### Docs
+- **README**：`web/static/dist/` 构建产物说明（`npm run build` 生成，Station 运行与 `test_station_root_and_strategy_api` 依赖 `index.html`，勿删）
+- **版本**：0.11.1 → 0.11.2
+
 ## [0.11.1] — 2026-09-18
 
 ### Fixed
